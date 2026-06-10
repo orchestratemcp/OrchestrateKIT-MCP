@@ -22,6 +22,13 @@ import {
   criticalUntestedChecklist,
   type InlineEdgeSummary,
 } from "../tools/graphToolFormatters.js";
+import {
+  computeRouteValidation,
+  formatScoreBreakdownMarkdown,
+  type RouteStatus,
+  type ConfidenceLabel,
+} from "./routeValidationStatus.js";
+import type { ScoreBreakdown } from "./routeScoring.js";
 
 const MAX_COMPONENTS = 12;
 const MIN_SCORE_THRESHOLD = 0;
@@ -63,9 +70,17 @@ export type PlaybookRecommendation = {
 
 export type ComposedRoute = {
   status: "ok" | "candidate_route" | "low_confidence" | "blocked_candidate" | "not_found";
+  /** Trust-first status label (MAR-93): validated | candidate | blocked_candidate */
+  route_status: RouteStatus;
+  /** Specific blockers preventing validation — listed before score. */
+  blocking_gaps: string[];
+  /** Human-readable explanation of why this route is not validated. Always present for candidate/blocked. */
+  why_not_validated: string;
+  /** Qualitative confidence: high | medium | low (replaces numeric headline). */
+  confidence_label: ConfidenceLabel;
   confidence: number;
   route_score: number;
-  score_breakdown: object;
+  score_breakdown: ScoreBreakdown;
   summary_markdown: string;
   matched_capabilities: string[];
   recommended_route: RouteStep[];
@@ -120,11 +135,20 @@ function buildSummaryMarkdown(
   warnings: string[],
   overlappingPlaybooks: string[],
   score: number,
-  confidence: number,
+  validation: {
+    route_status: RouteStatus;
+    blocking_gaps: string[];
+    why_not_validated: string;
+    confidence_label: ConfidenceLabel;
+  },
+  breakdown: ScoreBreakdown,
   pbRec: PlaybookRecommendation | null = null,
   inlineEdges: InlineEdgeSummary[] = [],
 ): string {
   const lines: string[] = [];
+
+  const statusLine =
+    `**Route status:** \`${validation.route_status}\` | **Confidence:** ${validation.confidence_label} _(score breakdown below)_`;
 
   // Playbook-first banner (MAR-91): leads the summary when recommendation_type is "playbook"
   if (pbRec?.recommendation_type === "playbook") {
@@ -132,6 +156,8 @@ function buildSummaryMarkdown(
       `## ✅ Use Playbook: \`${pbRec.playbook_id}\``,
       ``,
       `**Goal:** ${goal}`,
+      ``,
+      statusLine,
       ``,
       `> This goal is covered by the validated playbook **\`${pbRec.playbook_id}\`** ` +
         `(recall ${Math.round(pbRec.overlap.recall * 100)}%, precision ${Math.round(pbRec.overlap.precision * 100)}%, ` +
@@ -152,20 +178,26 @@ function buildSummaryMarkdown(
         ``,
       );
     }
-    lines.push(`---`, ``, `### Compose output (for adaptation reference only)`);
-    lines.push(
-      `**Route score:** ${score}/100 | **Confidence:** ${Math.round(confidence * 100)}%`,
-      ``,
-    );
+    lines.push(`---`, ``, `### Compose output (for adaptation reference only)`, ``);
   } else {
-    lines.push(
-      `## Candidate Route`,
-      ``,
-      `**Goal:** ${goal}`,
-      ``,
-      `**Route score:** ${score}/100 | **Confidence:** ${Math.round(confidence * 100)}%`,
-      ``,
-    );
+    const headline =
+      validation.route_status === "blocked_candidate"
+        ? `## ⛔ Blocked Candidate Route`
+        : `## Candidate Route`;
+    lines.push(headline, ``, `**Goal:** ${goal}`, ``, statusLine, ``);
+  }
+
+  // MAR-93: blocking gaps and why_not_validated lead before steps/score
+  if (validation.blocking_gaps.length > 0) {
+    lines.push(`### Blocking gaps`);
+    validation.blocking_gaps.forEach((gap, i) => {
+      lines.push(`${i + 1}. ${gap}`);
+    });
+    lines.push(``);
+  }
+
+  if (validation.why_not_validated) {
+    lines.push(`**Why not validated:** ${validation.why_not_validated}`, ``);
   }
 
   lines.push(
@@ -193,6 +225,9 @@ function buildSummaryMarkdown(
   if (checklist) {
     lines.push(checklist);
   }
+
+  // MAR-93: score demoted below blockers
+  lines.push(``, formatScoreBreakdownMarkdown(breakdown, score));
 
   lines.push(
     ``,
@@ -234,11 +269,26 @@ export function composeRoute(
   );
 
   if (matches.length === 0) {
+    const emptyBreakdown: ScoreBreakdown = {
+      capability_coverage: 0,
+      tested_edge_score: 0,
+      safety_score: 0,
+      simplicity_score: 0,
+      source_confidence: 0,
+      risk_penalty: 0,
+      untested_edge_penalty: 0,
+      complexity_penalty: 0,
+    };
     return {
       status: "not_found",
+      route_status: "candidate",
+      blocking_gaps: ["No registry components matched this goal"],
+      why_not_validated:
+        "No components matched — rephrase with domain-specific terms (email, research, code, data, publish).",
+      confidence_label: "low",
       confidence: 0,
       route_score: 0,
-      score_breakdown: {},
+      score_breakdown: emptyBreakdown,
       summary_markdown: `## No matching components\n\nNo registry components matched the goal: _"${goal}"_. Try rephrasing with more specific terms (e.g. "email", "research", "code", "data", "publish").`,
       matched_capabilities: [],
       recommended_route: [],
@@ -493,6 +543,25 @@ export function composeRoute(
     );
   }
 
+  const inlineEdgeSummaries = internalEdges.map(toInlineEdgeSummary);
+  const untestedCriticalEdges = inlineEdgeSummaries.filter(
+    (e) => !e.tested && e.severity === "critical",
+  );
+
+  const routeValidation = computeRouteValidation({
+    isPlaybookFirst: playbookRecommendation?.recommendation_type === "playbook",
+    playbookId: playbookRecommendation?.playbook_id,
+    hasCriticalAvoidViolation: hasCriticalViolation,
+    missing_capabilities,
+    untestedCriticalEdges,
+    compose_noise: composeNoise,
+    avoid_when_violations: avoidViolations,
+    missingSafetyGates: gatesNeeded && !requiredGatesPresent,
+    confidence,
+    route_score,
+    breakdown,
+  });
+
   // Default stack for recommendation
   const defaultStack = registry.stacks.find(
     (s) => s.id === "default_orchestratekit_stack",
@@ -503,7 +572,7 @@ export function composeRoute(
 
   const summaryMarkdown =
     output_depth === "brief"
-      ? `**${finalComponents.length}-step candidate route** (score: ${route_score}/100, confidence: ${Math.round(confidence * 100)}%)\n\n` +
+      ? `**Route status:** \`${routeValidation.route_status}\` | **Confidence:** ${routeValidation.confidence_label} | score: ${route_score}/100\n\n` +
         steps.map((s) => `${s.step}. \`${s.component_id}\``).join(" → ")
       : buildSummaryMarkdown(
           goal,
@@ -511,13 +580,18 @@ export function composeRoute(
           warnings,
           knownPlaybooksReused,
           route_score,
-          confidence,
+          routeValidation,
+          breakdown,
           playbookRecommendation,
-          internalEdges.map(toInlineEdgeSummary),
+          inlineEdgeSummaries,
         );
 
   return {
     status,
+    route_status: routeValidation.route_status,
+    blocking_gaps: routeValidation.blocking_gaps,
+    why_not_validated: routeValidation.why_not_validated,
+    confidence_label: routeValidation.confidence_label,
     confidence,
     route_score,
     score_breakdown: breakdown,
@@ -526,7 +600,7 @@ export function composeRoute(
     recommended_route: steps,
     planning_order: planningComponents.map((c) => c.id),
     execution_order: executionComponents.map((c) => c.id),
-    edges_used: internalEdges.map(toInlineEdgeSummary),
+    edges_used: inlineEdgeSummaries,
     known_playbooks_reused: knownPlaybooksReused,
     untested_edges: untestedEdges,
     avoid_when_violations: avoidViolations,

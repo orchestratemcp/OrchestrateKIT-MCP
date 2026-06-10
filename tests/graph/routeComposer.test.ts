@@ -299,6 +299,58 @@ describe("composeRoute — MAR-88 domain gating (end-to-end)", () => {
   });
 });
 
+/**
+ * MAR-93 (MCP-19) — route_status / blocking_gaps / why_not_validated lead output.
+ */
+describe("composeRoute — MAR-93: route validation status", () => {
+  it("exposes route_status, blocking_gaps, why_not_validated, confidence_label", () => {
+    const result = compose("read emails and draft a reply");
+    expect(["validated", "candidate", "blocked_candidate"]).toContain(result.route_status);
+    expect(Array.isArray(result.blocking_gaps)).toBe(true);
+    expect(typeof result.why_not_validated).toBe("string");
+    expect(["high", "medium", "low"]).toContain(result.confidence_label);
+  });
+
+  it("candidate routes always have non-empty why_not_validated", () => {
+    const result = compose("research a topic and summarize with citations");
+    if (result.route_status === "candidate") {
+      expect(result.why_not_validated.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("blocked_candidate maps to route_status blocked_candidate with gaps", () => {
+    const result = compose("scrape data from a website and publish it to social media");
+    const ids = result.recommended_route.map((s) => s.component_id);
+    if (ids.includes("data_scraper") && ids.includes("external_publish")) {
+      expect(result.route_status).toBe("blocked_candidate");
+      expect(result.blocking_gaps.length).toBeGreaterThan(0);
+      expect(result.why_not_validated.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("summary_markdown leads with route_status, not raw confidence percentage", () => {
+    const result = compose("read emails and schedule meetings");
+    expect(result.summary_markdown).toMatch(/route status/i);
+    expect(result.summary_markdown).not.toMatch(/\*\*Confidence:\*\* \d+%/);
+  });
+
+  it("summary_markdown includes blocking gaps section when gaps exist", () => {
+    const result = compose(
+      "scrape data from a website and publish it to social media",
+      { must_have_capabilities: ["nonexistent_capability_xyz"] },
+    );
+    if (result.blocking_gaps.length > 0) {
+      expect(result.summary_markdown).toMatch(/blocking gaps/i);
+      expect(result.summary_markdown).toMatch(/why not validated/i);
+    }
+  });
+
+  it("summary_markdown includes score breakdown after blockers", () => {
+    const result = compose("scan codebase and run tests");
+    expect(result.summary_markdown).toMatch(/score breakdown/i);
+  });
+});
+
 describe("composeRoute — output structure", () => {
   it("returns all required output fields", () => {
     const result = compose("email and calendar workflow");
