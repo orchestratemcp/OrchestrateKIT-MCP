@@ -1,4 +1,4 @@
-﻿id: research_synthesis__avoid__external_publish
+id: research_synthesis__avoid__external_publish
 from: research_synthesis
 to: external_publish
 relation: avoid_when

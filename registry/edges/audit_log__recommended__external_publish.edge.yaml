@@ -1,4 +1,4 @@
-﻿id: audit_log__recommended__external_publish
+id: audit_log__recommended__external_publish
 from: audit_log
 to: external_publish
 relation: recommended_for

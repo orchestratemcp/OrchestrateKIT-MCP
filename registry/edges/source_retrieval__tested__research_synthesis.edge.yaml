@@ -1,4 +1,4 @@
-﻿id: source_retrieval__tested__research_synthesis
+id: source_retrieval__tested__research_synthesis
 from: source_retrieval
 to: research_synthesis
 relation: tested_with

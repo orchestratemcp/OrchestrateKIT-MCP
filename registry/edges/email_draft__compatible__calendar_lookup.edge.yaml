@@ -1,4 +1,4 @@
-﻿id: email_draft__compatible__calendar_lookup
+id: email_draft__compatible__calendar_lookup
 from: email_draft
 to: calendar_lookup
 relation: compatible_with

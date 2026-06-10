@@ -7,4 +7,4 @@ reason: The step-by-step plan is the direct instruction set for code editing. Ed
 severity: high
 notes: Pass one plan step at a time to code_editing rather than the full plan — improves edit accuracy and makes rollback easier.
 conditions: []
-tested: true
+tested: false

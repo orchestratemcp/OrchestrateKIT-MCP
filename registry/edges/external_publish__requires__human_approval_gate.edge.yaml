@@ -7,4 +7,4 @@ reason: Publishing content externally is irreversible. No automated workflow sho
 severity: critical
 notes: This is a non-negotiable safety constraint. If your flow bypasses this gate for speed, you have accepted the risk of publishing incorrect or harmful content.
 conditions: []
-tested: true
+tested: false

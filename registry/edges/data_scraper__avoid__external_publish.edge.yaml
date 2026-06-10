@@ -1,4 +1,4 @@
-﻿id: data_scraper__avoid__external_publish
+id: data_scraper__avoid__external_publish
 from: data_scraper
 to: external_publish
 relation: avoid_when

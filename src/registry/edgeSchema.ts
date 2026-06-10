@@ -27,6 +27,10 @@ export const EdgeSchema = z.object({
   status: z.enum(ENTITY_STATUSES),
   reason: z.string().min(1),
   condition: z.string().default(""),
+  /** Optional human notes (distinct from `condition`). */
+  notes: z.string().default(""),
+  /** Legacy/alternate condition list — prefer `condition` for new edges. */
+  conditions: z.array(z.string()).default([]),
   severity: z.enum(RISK_LEVELS),
   tested: z.boolean().default(false),
   test_refs: z.array(z.string()).default([]),

@@ -1,4 +1,4 @@
-﻿id: audit_log__compatible__state_store
+id: audit_log__compatible__state_store
 from: audit_log
 to: state_store
 relation: compatible_with

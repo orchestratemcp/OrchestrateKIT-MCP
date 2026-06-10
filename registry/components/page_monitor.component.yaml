@@ -2,26 +2,45 @@ id: page_monitor
 name: Page Monitor
 category: input
 status: published
-risk_level: low
+summary: >-
+  Polls one or more URLs on a configurable schedule, computes a content hash,
+  and emits a change event only when the content differs from the last stored hash.
+  Requires a state_store for hash persistence. Returns a structured diff alongside
+  the full current page when a change is detected.
 capabilities:
   - poll_url_on_schedule
   - hash_based_change_detection
   - emit_change_event
   - configurable_staleness_threshold
   - structured_diff_output
-summary: >-
-  Polls one or more URLs on a configurable schedule, computes a content hash,
-  and emits a change event only when the content differs from the last stored hash.
-  Requires a state_store for hash persistence. Returns a structured diff alongside
-  the full current page when a change is detected.
+inputs:
+  - URL list, polling interval configuration, optional CSS selector for content region
+outputs:
+  - change event with structured diff and current page snapshot when hash differs
+risk_level: low
+side_effects:
+  - outbound HTTP requests to monitored URLs on schedule
+permissions:
+  read:
+    - monitored URLs
+  write:
+    - state_store hash keys
+  approval_required_for: []
+requires:
+  - state_store
+recommended_with:
+  - retry_policy
+  - data_normalizer
+avoid_with: []
 failure_modes:
   - polling_interval_missed_due_to_infra_failure
   - hash_collision_false_negative
   - state_store_unavailable_blocks_comparison
   - page_returns_200_but_content_is_error_page
-approval_required_for: []
 evals:
   - "Change detection recall on a fixture set of known-changed pages (target >= 95%)"
   - "False-positive rate on unchanged pages (target < 1%)"
   - "Latency from change occurrence to event emission (target < 1 polling interval)"
+tested_in_playbooks: []
+tested_in_routes: []
 sources: []

@@ -1,4 +1,4 @@
-﻿id: citation_checker__compatible__source_freshness_check
+id: citation_checker__compatible__source_freshness_check
 from: citation_checker
 to: source_freshness_check
 relation: compatible_with

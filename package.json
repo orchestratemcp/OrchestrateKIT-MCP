@@ -8,8 +8,9 @@
     "build": "tsup src/server.ts --format esm --out-dir dist --clean && node -e \"const{cpSync}=require('fs');cpSync('registry','dist/registry',{recursive:true});console.log('registry/ copied to dist/registry/')\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "registry:lint": "tsx scripts/registry-lint.ts",
     "smoke": "vitest run tests/smoke",
-    "verify": "pnpm typecheck && pnpm test"
+    "verify": "pnpm typecheck && pnpm registry:lint && pnpm test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

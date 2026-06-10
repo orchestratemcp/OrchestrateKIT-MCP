@@ -1,4 +1,4 @@
-﻿id: intent_classifier__produces__source_retrieval
+id: intent_classifier__produces__source_retrieval
 from: intent_classifier
 to: source_retrieval
 relation: produces_input_for

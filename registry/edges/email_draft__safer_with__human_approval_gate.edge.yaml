@@ -1,4 +1,4 @@
-﻿id: email_draft__safer_with__human_approval_gate
+id: email_draft__safer_with__human_approval_gate
 from: email_draft
 to: human_approval_gate
 relation: safer_with

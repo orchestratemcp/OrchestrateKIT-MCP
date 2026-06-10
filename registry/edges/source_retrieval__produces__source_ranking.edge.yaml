@@ -7,4 +7,4 @@ reason: Raw retrieved documents must be ranked by relevance before synthesis. Pa
 severity: high
 notes: Always rank before synthesising. Even a simple score-based sort outperforms passing raw results.
 conditions: []
-tested: true
+tested: false

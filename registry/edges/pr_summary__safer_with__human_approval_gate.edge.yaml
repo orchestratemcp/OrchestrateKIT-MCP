@@ -1,4 +1,4 @@
-﻿id: pr_summary__safer_with__human_approval_gate
+id: pr_summary__safer_with__human_approval_gate
 from: pr_summary
 to: human_approval_gate
 relation: safer_with

@@ -1,4 +1,4 @@
-﻿id: schema_validation__compatible__deduplication
+id: schema_validation__compatible__deduplication
 from: schema_validation
 to: deduplication
 relation: compatible_with

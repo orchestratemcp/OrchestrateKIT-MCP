@@ -6,6 +6,7 @@ summary: Checks whether retrieved sources are within an acceptable recency windo
 capabilities:
   - check_source_recency
   - flag_stale_sources
+  - enforce_freshness_threshold
 inputs:
   - list of source documents with retrieved_at and published_at metadata
   - freshness threshold (configurable, e.g. 90 days)

@@ -1,4 +1,4 @@
-﻿id: design_brief_generation__safer_with__human_approval_gate
+id: design_brief_generation__safer_with__human_approval_gate
 from: design_brief_generation
 to: human_approval_gate
 relation: safer_with

@@ -1,4 +1,4 @@
-﻿id: audit_log__recommended__optional_email_send
+id: audit_log__recommended__optional_email_send
 from: audit_log
 to: optional_email_send
 relation: recommended_for

@@ -7,4 +7,4 @@ reason: PR summary must include test pass/fail evidence. A summary without test 
 severity: medium
 notes: Include the test pass count, failure details and coverage delta in the PR summary to give reviewers full context.
 conditions: []
-tested: true
+tested: false

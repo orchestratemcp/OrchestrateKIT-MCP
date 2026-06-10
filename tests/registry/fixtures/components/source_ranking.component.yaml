@@ -5,6 +5,8 @@ category: processing
 summary: Scores and reorders retrieved source documents by relevance and recency.
 capabilities:
   - rank_documents
+  - score_relevance
+  - sort_by_recency
 inputs:
   - list of raw source documents
 outputs:
@@ -18,8 +20,10 @@ permissions:
 requires:
   - source_retrieval
 recommended_with: []
+avoid_with: []
 failure_modes:
   - poor ranking due to low-quality inputs
+  - stale ranking when source metadata is incomplete
 evals:
   - ndcg on ranked results
 tested_in_playbooks:

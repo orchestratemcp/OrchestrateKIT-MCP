@@ -1,4 +1,4 @@
-﻿id: calendar_write__requires__human_approval_gate
+id: calendar_write__requires__human_approval_gate
 from: calendar_write
 to: human_approval_gate
 relation: requires

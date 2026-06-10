@@ -141,6 +141,10 @@ export function registerGetRelevantDocs(server: McpServer): void {
               `Route "${input.route_id}" not found in the loaded registry.`,
             );
           } else {
+            for (const s of route.sources) {
+              collected.push(sourceToDoc(s, `From route "${route.id}"`));
+            }
+
             const compIds = new Set(route.components);
             const edgeIds = new Set(route.edges);
 

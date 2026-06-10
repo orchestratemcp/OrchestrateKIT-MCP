@@ -1,9 +1,9 @@
-﻿id: state_store__compatible__retry_policy
+id: state_store__compatible__retry_policy
 from: state_store
 to: retry_policy
 relation: compatible_with
 status: published
-reason: State store and retry policy are complementary — state enables retry to resume from the last checkpoint rather than restarting from scratch.
+reason: State store and retry policy are complementary � state enables retry to resume from the last checkpoint rather than restarting from scratch.
 severity: low
 notes: Combine by storing the last successful step in state and checking it at the start of each retry attempt.
 conditions: []

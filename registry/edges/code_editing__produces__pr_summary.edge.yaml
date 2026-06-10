@@ -1,4 +1,4 @@
-﻿id: code_editing__produces__pr_summary
+id: code_editing__produces__pr_summary
 from: code_editing
 to: pr_summary
 relation: produces_input_for

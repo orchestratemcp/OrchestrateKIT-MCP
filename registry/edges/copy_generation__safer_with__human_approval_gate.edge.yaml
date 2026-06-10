@@ -1,4 +1,4 @@
-﻿id: copy_generation__safer_with__human_approval_gate
+id: copy_generation__safer_with__human_approval_gate
 from: copy_generation
 to: human_approval_gate
 relation: safer_with

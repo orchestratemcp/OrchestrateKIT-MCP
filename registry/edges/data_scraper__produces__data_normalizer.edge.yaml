@@ -7,4 +7,4 @@ reason: Raw scraped records must be normalised before any downstream processing 
 severity: high
 notes: Never pass raw scraped data directly to downstream consumers — field formats, encodings and value ranges vary too widely.
 conditions: []
-tested: true
+tested: false

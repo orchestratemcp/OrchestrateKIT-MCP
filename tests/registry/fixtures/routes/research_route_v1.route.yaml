@@ -19,3 +19,7 @@ confidence: 0.9
 required_evals:
   - recall@k on known document sets
 warnings: []
+failure_modes: []
+evals: []
+notes: ""
+sources: []

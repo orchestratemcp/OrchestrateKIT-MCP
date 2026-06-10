@@ -1,4 +1,4 @@
-﻿id: retry_policy__recommended__external_publish
+id: retry_policy__recommended__external_publish
 from: retry_policy
 to: external_publish
 relation: recommended_for

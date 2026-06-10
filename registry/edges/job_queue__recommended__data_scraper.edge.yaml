@@ -1,4 +1,4 @@
-﻿id: job_queue__recommended__data_scraper
+id: job_queue__recommended__data_scraper
 from: job_queue
 to: data_scraper
 relation: recommended_for

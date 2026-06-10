@@ -1,4 +1,4 @@
-﻿id: audit_log__recommended__calendar_write
+id: audit_log__recommended__calendar_write
 from: audit_log
 to: calendar_write
 relation: recommended_for

@@ -6,6 +6,7 @@ summary: Fetches documents or data from external or local sources based on a que
 capabilities:
   - retrieve_documents
   - query_external_source
+  - fetch_source_metadata
 inputs:
   - search query or URL
 outputs:

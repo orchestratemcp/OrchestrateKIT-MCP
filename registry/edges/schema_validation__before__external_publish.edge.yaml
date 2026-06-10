@@ -1,4 +1,4 @@
-﻿id: schema_validation__before__external_publish
+id: schema_validation__before__external_publish
 from: schema_validation
 to: external_publish
 relation: must_run_before

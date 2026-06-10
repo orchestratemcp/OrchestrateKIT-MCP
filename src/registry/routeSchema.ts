@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RISK_LEVELS } from "./sharedSchemas.js";
+import { SourceSchema, RISK_LEVELS } from "./sharedSchemas.js";
 
 export const ROUTE_STATUSES = [
   "candidate",
@@ -23,6 +23,10 @@ export const RouteSchema = z.object({
   confidence: z.number().min(0).max(1),
   required_evals: z.array(z.string()).default([]),
   warnings: z.array(z.string()).default([]),
+  failure_modes: z.array(z.string()).default([]),
+  evals: z.array(z.string()).default([]),
+  notes: z.string().default(""),
+  sources: z.array(SourceSchema).default([]),
 });
 
 export type Route = z.infer<typeof RouteSchema>;

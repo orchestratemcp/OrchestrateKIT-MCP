@@ -1,4 +1,4 @@
-﻿id: state_store__recommended__job_queue
+id: state_store__recommended__job_queue
 from: state_store
 to: job_queue
 relation: recommended_for

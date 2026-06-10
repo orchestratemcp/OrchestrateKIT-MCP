@@ -1,4 +1,4 @@
-﻿id: state_store__recommended__research_synthesis
+id: state_store__recommended__research_synthesis
 from: state_store
 to: research_synthesis
 relation: recommended_for

@@ -1,4 +1,4 @@
-﻿id: deduplication__recommended__data_scraper
+id: deduplication__recommended__data_scraper
 from: deduplication
 to: data_scraper
 relation: recommended_for

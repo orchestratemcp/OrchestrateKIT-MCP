@@ -7,4 +7,4 @@ reason: Editing without a current codebase scan produces stale-context patches t
 severity: high
 notes: Re-scan after any external change to the codebase (e.g. git pull) before editing.
 conditions: []
-tested: true
+tested: false

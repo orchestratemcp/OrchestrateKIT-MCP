@@ -1,4 +1,4 @@
-﻿id: retry_policy__recommended__data_scraper
+id: retry_policy__recommended__data_scraper
 from: retry_policy
 to: data_scraper
 relation: recommended_for

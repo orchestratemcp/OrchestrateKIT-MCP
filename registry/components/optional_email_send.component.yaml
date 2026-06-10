@@ -6,6 +6,7 @@ summary: Sends a composed email draft after receiving explicit human approval. N
 capabilities:
   - send_email
   - deliver_to_recipient
+  - require_human_approval_before_send
 inputs:
   - approved draft email object, SMTP/API credentials
 outputs:
