@@ -1,0 +1,9 @@
+﻿id: design_brief_generation__safer_with__human_approval_gate
+from: design_brief_generation
+to: human_approval_gate
+relation: safer_with
+status: published
+reason: Design briefs that misrepresent brand guidelines or content intent create expensive downstream rework.
+severity: medium
+notes: At minimum, review the visual direction and key imagery suggestions before handing off to a designer.
+conditions: []

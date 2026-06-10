@@ -1,0 +1,24 @@
+id: anthropic-mcp-spec
+title: Model Context Protocol (MCP) specification — Anthropic
+url: https://modelcontextprotocol.io/introduction
+source_type: official_docs
+last_checked: "2026-06-09"
+summary: >
+  Official MCP specification and introduction by Anthropic. Covers the protocol
+  design, tool registration, resource exposure, transport layers (stdio, SSE),
+  and best practices for building MCP servers and clients. Required reading for
+  any OrchestrateKit MCP server implementation.
+tags:
+  - mcp
+  - model-context-protocol
+  - anthropic
+  - tools
+  - stdio
+  - server
+  - protocol
+relevant_to:
+  - orchestratekit-mcp
+  - mcp-server
+  - cursor-mcp
+  - anthropic
+  - tool-registration

@@ -1,0 +1,23 @@
+# Template — copy and rename to {id}.route.yaml. Files starting with _ are ignored by the loader.
+id: route_id
+name: Human-readable Route Name
+status: candidate  # candidate | beta | validated | published | deprecated
+summary: One-sentence description of what workflow goal this route supports.
+goal_patterns:
+  - keyword or phrase the user's goal might contain
+components:
+  - component_id_1
+  - component_id_2
+edges:
+  - edge_id_1
+  - edge_id_2
+known_playbooks_reused:
+  - playbook_id_that_overlaps
+untested_edges:
+  - edge_id_not_yet_tested
+risk_level: medium  # low | medium | high | critical
+confidence: 0.7  # 0.0–1.0
+required_evals:
+  - What must be evaluated before this route is validated
+warnings:
+  - Any caveats the user should know

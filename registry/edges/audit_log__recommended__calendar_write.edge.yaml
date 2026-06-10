@@ -1,0 +1,9 @@
+﻿id: audit_log__recommended__calendar_write
+from: audit_log
+to: calendar_write
+relation: recommended_for
+status: published
+reason: Calendar writes affect attendees beyond the workflow operator. An audit record clarifies what event was created and why.
+severity: medium
+notes: Log event_id, attendees list, time, approval actor and workflow run_id.
+conditions: []

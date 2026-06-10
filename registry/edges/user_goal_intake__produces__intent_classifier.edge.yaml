@@ -1,0 +1,9 @@
+﻿id: user_goal_intake__produces__intent_classifier
+from: user_goal_intake
+to: intent_classifier
+relation: produces_input_for
+status: published
+reason: Structured goal object from intake is the input for intent classification. Classification cannot run on raw free text.
+severity: medium
+notes: Ensure intake normalises whitespace and strips markdown before passing to classifier.
+conditions: []

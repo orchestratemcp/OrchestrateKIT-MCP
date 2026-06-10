@@ -1,0 +1,10 @@
+id: research_synthesis__requires__citation_checker
+from: research_synthesis
+to: citation_checker
+relation: requires
+status: published
+reason: Synthesis output must always be checked for citation accuracy before delivery. Hallucinated citations are a high-trust failure.
+severity: high
+notes: Do not skip citation checking even for internal-only summaries. Set a clear boundary on what constitutes a passing citation check.
+conditions: []
+tested: true

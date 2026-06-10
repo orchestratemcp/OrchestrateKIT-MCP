@@ -1,0 +1,11 @@
+﻿id: research_synthesis__avoid__external_publish
+from: research_synthesis
+to: external_publish
+relation: avoid_when
+status: published
+reason: Raw synthesis output must not be published externally before citation checking and human review. LLM hallucinations in published content are a serious trust and legal risk.
+severity: critical
+notes: The pipeline must always route through citation_checker and human_approval_gate before external_publish.
+conditions:
+  - citations have not been verified
+  - human approval has not been obtained

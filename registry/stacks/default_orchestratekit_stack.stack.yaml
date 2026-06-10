@@ -1,0 +1,98 @@
+id: default_orchestratekit_stack
+name: Default OrchestrateKit Stack
+status: published
+summary: >
+  Opinionated, conservative stack for local AI workflow MVPs. Prioritises simplicity,
+  zero-config local operation and easy migration to hosted when you actually need it.
+best_for:
+  - local MVP and personal tools
+  - solo builder proof-of-concept
+  - workflows with < 10k daily events
+  - early product iteration where schema changes frequently
+avoid_when:
+  - multi-tenant hosted product with concurrent users
+  - high-throughput event processing (> 10k/day)
+  - team of more than 2 engineers sharing a database
+  - compliance requirements that demand audit trail immutability
+choices:
+  app_framework:
+    recommended: nextjs
+    alternatives:
+      - express
+      - fastify
+    reason: >
+      Next.js gives you server actions, API routes and a UI in one repo.
+      Use Express or Fastify if you want a pure API server without the React overhead.
+  state_store:
+    recommended: sqlite
+    alternatives:
+      - supabase
+      - postgres
+    reason: >
+      SQLite is zero-config, file-based and sufficient for local MVP.
+      Switch to Supabase or Postgres when you need concurrent writes, row-level security
+      or a hosted product. Do not add Postgres just because it feels more serious.
+  job_runner:
+    recommended: inline
+    alternatives:
+      - bullmq
+      - inngest
+    reason: >
+      Inline execution (async function in the same process) is the right default for
+      local tools. Add BullMQ when you need durable retries, scheduling or fan-out.
+      Add Inngest when you need durable workflows with pause/resume across deployments.
+  agent_framework:
+    recommended:
+      - vercel-ai-sdk
+    alternatives:
+      - langchain
+      - llamaindex
+      - mastra
+    reason: >
+      Vercel AI SDK is lightweight, provider-agnostic, well-typed and does not lock you
+      into abstractions that fight you later. Use LangChain or LlamaIndex only if you
+      need their specific retrieval or chain primitives — not as a default framework.
+  eval_runner:
+    recommended: promptfoo
+    alternatives:
+      - local-json
+      - vitest-with-fixtures
+    reason: >
+      Promptfoo supports structured eval runs with test cases, assertions and
+      model comparison without a paid API or cloud dependency. Local JSON fixtures
+      work fine for deterministic unit tests of workflow logic.
+  logging_audit:
+    recommended: structured-stderr
+    alternatives:
+      - pino
+      - winston
+    reason: >
+      Write structured JSON lines to stderr for local dev. Add Pino or Winston when
+      you need log levels, rotation or centralised shipping. Never write logs to stdout
+      if stdout is reserved for MCP transport.
+  orm:
+    recommended: drizzle
+    alternatives:
+      - prisma
+      - kysely
+    reason: >
+      Drizzle is lightweight, type-safe and does not require a separate code generation
+      step. Use Prisma if your team prefers its migration tooling.
+tradeoffs:
+  - SQLite is not safe for concurrent multi-user writes — switch to Postgres before launch
+  - Inline job execution has no retry or scheduling — add BullMQ when workflows span multiple steps over time
+  - Vercel AI SDK abstracts provider calls but you still pay per token — set spending limits early
+  - Promptfoo evals are only as good as your test cases — invest in diverse fixtures
+sources:
+  - title: Vercel AI SDK documentation
+    url: https://sdk.vercel.ai/docs
+    source_type: official_docs
+    last_checked: "2026-06-01"
+  - title: Promptfoo documentation
+    url: https://www.promptfoo.dev/docs/intro
+    source_type: official_docs
+    last_checked: "2026-06-01"
+  - title: Drizzle ORM documentation
+    url: https://orm.drizzle.team/docs/overview
+    source_type: official_docs
+    last_checked: "2026-06-01"

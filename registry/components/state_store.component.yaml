@@ -1,0 +1,40 @@
+﻿id: state_store
+name: State Store
+status: published
+category: state
+summary: Persists workflow state, intermediate results and session context across steps or resumptions.
+capabilities:
+  - persist_state
+  - resume_workflow
+  - share_context_across_steps
+inputs:
+  - key-value or structured state payload
+outputs:
+  - retrieved state or confirmation of write
+risk_level: low
+side_effects:
+  - writes to local SQLite or remote database
+permissions:
+  read:
+    - workflow state keys
+  write:
+    - workflow state keys
+  approval_required_for: []
+requires: []
+recommended_with:
+  - job_queue
+  - audit_log
+avoid_with: []
+failure_modes:
+  - state corruption on concurrent writes without transactions
+  - stale state causes workflow to act on outdated context
+evals:
+  - read-after-write consistency under concurrent access
+  - state recovery test after simulated crash
+tested_in_playbooks:
+  - research_agent_citations
+  - codebase_agent_workflow
+tested_in_routes:
+  - research_route_v1
+  - codebase_agent_route_v1
+sources: []

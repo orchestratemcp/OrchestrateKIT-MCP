@@ -1,0 +1,82 @@
+id: content_approval_pipeline
+version: "1.0.0"
+title: Content Approval Pipeline
+status: published
+summary: >
+  Opinionated blueprint for AI-assisted content creation with schema validation,
+  explicit human approval and audited external publish. Designed for brand-safe,
+  repeatable content production without autonomous publishing.
+workflow_type: content-approval
+risk_level: high
+golden_path_route_id: content_approval_route_v1
+components:
+  - content_idea_intake
+  - copy_generation
+  - design_brief_generation
+  - human_approval_gate
+  - schema_validation
+  - external_publish
+  - audit_log
+edges:
+  - content_idea_intake__produces__copy_generation
+  - copy_generation__produces__design_brief_generation
+  - copy_generation__safer_with__human_approval_gate
+  - design_brief_generation__safer_with__human_approval_gate
+  - external_publish__requires__human_approval_gate
+  - schema_validation__before__external_publish
+  - audit_log__recommended__external_publish
+stack_id: default_orchestratekit_stack
+best_for:
+  - social media post generation with brand voice enforcement
+  - blog article draft for editor review and publish
+  - product description generation for e-commerce CMS
+  - newsletter copy with designed layout brief
+avoid_when:
+  - fully autonomous content publish without human review
+  - real-time content generation for live feeds requiring sub-second latency
+  - legal, financial or medical content without domain expert review
+recommended_architecture:
+  pattern: Linear single-agent pipeline with explicit human approval checkpoint before publish
+  why: >
+    A single orchestrator with a clear approval gate is more predictable and auditable
+    than a multi-agent committee. One human decision point eliminates deadlock,
+    reduces latency and makes responsibility clear.
+llm_driven_steps:
+  - copy_generation
+  - design_brief_generation
+deterministic_steps:
+  - schema_validation
+  - external_publish
+  - audit_log
+guardrails:
+  - Never publish without human approval — not even for internal drafts sent externally
+  - Always validate schema before publish — silent truncation by the target platform is worse than a validation error
+  - Audit log must be written synchronously with the publish, not as a follow-up task
+  - Do not use a multi-agent swarm — a single orchestrator with approval gate is sufficient
+failure_modes:
+  - Brand voice guidelines not loaded into copy generation prompt, producing generic copy
+  - Approval UI shows a summary instead of full copy, user approves without reviewing
+  - Schema validation passes but platform CMS silently truncates long fields
+  - Retry on transient publish failure creates duplicate post without idempotency key
+  - Audit log write fails after publish, leaving no record of what was published
+  - Approval gate bypassed in test mode and accidentally deployed to production
+evals:
+  - brand voice adherence score (human annotation) on 10 diverse briefs
+  - legal risk flag rate on 5 known-sensitive topic test cases
+  - schema validation rejection rate on 10 known-invalid publish payloads
+  - idempotency test — duplicate trigger does not create duplicate post
+  - audit log completeness check — every publish has a corresponding record
+implementation_steps:
+  - "Step 1: Implement content_idea_intake to parse brief and extract audience, tone, format, key messages and any constraints"
+  - "Step 2: Implement copy_generation prompt with explicit brand voice instructions injected from a static brand guideline file"
+  - "Step 3: Surface copy variant to human_approval_gate — show full copy, not a summary"
+  - "Step 4: Implement design_brief_generation prompt that reads approved copy and brand guidelines to produce layout, colour, typography and imagery direction"
+  - "Step 5: Surface design brief to human_approval_gate"
+  - "Step 6: Implement schema_validation to check that the publish payload matches the target platform schema (e.g. CMS field schema)"
+  - "Step 7: Implement external_publish with idempotency key to prevent duplicate publishes on retry"
+  - "Step 8: Write audit_log entry after every publish with full payload, actor and timestamp"
+sources:
+  - title: Human-in-the-loop design patterns for LLM applications
+    url: https://www.anthropic.com/research
+    source_type: official_docs
+    last_checked: "2026-01-15"

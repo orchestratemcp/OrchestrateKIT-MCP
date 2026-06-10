@@ -1,0 +1,10 @@
+id: page_monitor__produces__data_normalizer
+from: page_monitor
+to: data_normalizer
+relation: produces_input_for
+status: published
+reason: Raw page content emitted by page_monitor must be normalised into a canonical schema before downstream processing.
+severity: medium
+notes: The diff payload from page_monitor should be treated as raw scraped content and passed through data_normalizer before ranking or synthesis.
+conditions: []
+tested: false

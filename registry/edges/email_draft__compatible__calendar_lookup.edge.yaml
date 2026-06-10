@@ -1,0 +1,10 @@
+﻿id: email_draft__compatible__calendar_lookup
+from: email_draft
+to: calendar_lookup
+relation: compatible_with
+status: published
+reason: Email drafting and calendar lookup are often co-located in scheduling workflows. The draft can include suggested meeting slots from the calendar lookup.
+severity: low
+notes: Run calendar_lookup before drafting if the email is scheduling-related. Pass suggested slots as context to the draft LLM prompt.
+conditions:
+  - email workflow includes scheduling intent

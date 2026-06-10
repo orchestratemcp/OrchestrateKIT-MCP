@@ -1,0 +1,91 @@
+id: codebase_agent_workflow
+version: "1.0.0"
+title: Codebase Agent Workflow
+status: published
+summary: >
+  Opinionated blueprint for an AI coding agent that scans the codebase, generates a
+  step-by-step plan, applies targeted edits, runs tests and produces a PR summary.
+  Optimised for verifiable, incremental progress over broad autonomous edits.
+workflow_type: coding-agent
+risk_level: medium
+golden_path_route_id: codebase_agent_route_v1
+components:
+  - user_goal_intake
+  - codebase_scan
+  - plan_generation
+  - code_editing
+  - test_runner
+  - pr_summary
+  - human_approval_gate
+  - state_store
+edges:
+  - codebase_scan__produces__plan_generation
+  - plan_generation__produces__code_editing
+  - code_editing__produces__pr_summary
+  - code_editing__before__test_runner
+  - test_runner__before__pr_summary
+  - codebase_scan__before__code_editing
+  - pr_summary__safer_with__human_approval_gate
+  - plan_generation__tested__test_runner
+stack_id: default_orchestratekit_stack
+best_for:
+  - feature implementation from a well-scoped issue description
+  - bug fix with regression test
+  - refactoring a specific module with existing test coverage
+  - dependency upgrade with test validation
+avoid_when:
+  - autonomous direct-to-main commits without PR review
+  - large-scale cross-repo refactoring in a single agent run
+  - editing production database migrations without human review
+  - any edit to infrastructure-as-code without explicit sign-off
+recommended_architecture:
+  pattern: Scan → plan → edit one step at a time → test after each step → summarise → PR review
+  why: >
+    Passing one plan step at a time to code_editing improves accuracy and makes rollback
+    granular. Running tests after each step catches regressions immediately rather than
+    after all edits are applied. State persistence enables multi-session workflows.
+llm_driven_steps:
+  - plan_generation
+  - code_editing
+  - pr_summary
+deterministic_steps:
+  - codebase_scan
+  - test_runner
+guardrails:
+  - Do not give the agent write access to production systems or main branch directly
+  - Always create a feature branch before editing
+  - Require PR review before merge — never auto-merge agent-generated code
+  - Run tests after every plan step, not just the final one
+  - Do not edit infrastructure-as-code files without explicit scope constraint
+failure_modes:
+  - Plan references non-existent files due to stale codebase scan context
+  - Code edit produces syntactically valid but semantically incorrect change
+  - Test suite is flaky, producing false failure signal that halts progress
+  - Agent applies all plan steps without running tests between steps, missing early regressions
+  - PR summary omits the rationale for why each change was made
+  - State store not updated after a step, causing the agent to repeat work on resumption
+  - Edit applied to wrong file version when another process modifies the codebase during the run
+evals:
+  - edit compilation pass rate on 10 known test tasks
+  - test pass rate delta before and after full route run
+  - plan step executability fraction — how many steps code_editing successfully applies
+  - PR summary completeness score on 5 test changesets
+  - regression test — known-good test suite stays green after full route run
+implementation_steps:
+  - "Step 1: Implement user_goal_intake to parse and constrain the change request (scope, affected areas, success criteria)"
+  - "Step 2: Implement codebase_scan with file tree, exported symbols, dependency graph and current lint errors"
+  - "Step 3: Implement plan_generation prompt that produces an ordered list of steps with affected files and rationale per step"
+  - "Step 4: Implement code_editing to apply one plan step at a time using targeted diffs, not full file rewrites"
+  - "Step 5: Run test_runner after every edit step and halt on failure before proceeding to the next step"
+  - "Step 6: Store plan progress in state_store after each successful step for resumption support"
+  - "Step 7: Generate pr_summary from the full diff, plan steps and test results after all steps pass"
+  - "Step 8: Surface PR summary to human_approval_gate before opening a PR"
+sources:
+  - title: SWE-bench — evaluating AI coding agents
+    url: https://www.swebench.com
+    source_type: unknown
+    last_checked: "2026-01-20"
+  - title: Cursor agent documentation
+    url: https://docs.cursor.com/agent
+    source_type: official_docs
+    last_checked: "2026-06-01"

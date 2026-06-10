@@ -1,0 +1,52 @@
+id: research_agent_citations
+version: "0.1.0"
+status: published
+title: Research Agent with Citations
+summary: An AI research workflow that retrieves, ranks and synthesises sources with citation verification.
+workflow_type: research
+golden_path_route_id: research_route_v1
+components:
+  - source_retrieval
+  - source_ranking
+edges:
+  - source_retrieval__produces_input_for__source_ranking
+stack_id: default_local
+risk_level: low
+best_for:
+  - research synthesis with source tracking
+avoid_when:
+  - legal or medical decisions requiring licensed professional review
+recommended_architecture:
+  pattern: sequential
+  why: Each step depends on the previous output; parallelism adds complexity without benefit at this scale.
+llm_driven_steps:
+  - synthesis and summarisation
+deterministic_steps:
+  - source retrieval
+  - citation format normalisation
+permissions:
+  read:
+    - external URLs
+  write: []
+  approval_required_for: []
+guardrails:
+  - Never use research output for medical or legal decisions without expert review
+failure_modes:
+  - Source unavailable returns empty results
+  - Stale sources produce outdated synthesis
+  - Citation hallucination if LLM is not grounded to retrieved text
+  - Ranking failure causes irrelevant synthesis
+  - Rate limiting on external sources breaks the pipeline
+evals:
+  - Recall@k on known document sets
+  - Precision of cited URLs (are they real and reachable)
+  - Hallucination rate on synthesis vs retrieved text
+  - Source freshness — are sources within acceptable date range
+  - Ranking correlation with manual relevance judgements
+implementation_steps:
+  - "Step 1: accept user query"
+  - "Step 2: retrieve candidate sources"
+  - "Step 3: rank by relevance and recency"
+  - "Step 4: synthesise with LLM grounded to top-k sources"
+  - "Step 5: verify citation format and reachability"
+sources: []

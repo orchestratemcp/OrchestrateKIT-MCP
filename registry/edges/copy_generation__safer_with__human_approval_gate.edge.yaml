@@ -1,0 +1,10 @@
+﻿id: copy_generation__safer_with__human_approval_gate
+from: copy_generation
+to: human_approval_gate
+relation: safer_with
+status: published
+reason: LLM-generated copy may violate brand voice, include legally risky claims or be factually incorrect. Human review before downstream use is always safer.
+severity: high
+notes: Do not skip this gate for copy that will be published or shared externally, regardless of model quality.
+conditions:
+  - copy is for external use

@@ -1,0 +1,10 @@
+﻿id: state_store__recommended__job_queue
+from: state_store
+to: job_queue
+relation: recommended_for
+status: published
+reason: Job queues that survive process restarts require persistent state. An in-memory queue without a backing state store loses all pending jobs on crash.
+severity: high
+notes: For local MVP, SQLite-backed queue (e.g. BullMQ with SQLite adapter) is sufficient. Add Redis when you need high throughput.
+conditions:
+  - workflow requires durable job persistence across restarts

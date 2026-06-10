@@ -1,0 +1,29 @@
+id: source_ranking
+name: Source Ranking
+status: published
+category: processing
+summary: Scores and reorders retrieved source documents by relevance and recency.
+capabilities:
+  - rank_documents
+inputs:
+  - list of raw source documents
+outputs:
+  - ranked list of source documents
+risk_level: low
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires:
+  - source_retrieval
+recommended_with: []
+failure_modes:
+  - poor ranking due to low-quality inputs
+evals:
+  - ndcg on ranked results
+tested_in_playbooks:
+  - research_agent_citations
+tested_in_routes:
+  - research_route_v1
+sources: []

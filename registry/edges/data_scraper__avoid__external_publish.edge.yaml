@@ -1,0 +1,10 @@
+﻿id: data_scraper__avoid__external_publish
+from: data_scraper
+to: external_publish
+relation: avoid_when
+status: published
+reason: Never publish raw scraped data directly. Scraped data requires normalisation, deduplication and schema validation before it is suitable for external publication.
+severity: critical
+notes: The pipeline must always include data_normalizer, deduplication and schema_validation between data_scraper and external_publish.
+conditions:
+  - data has not passed through normalisation, deduplication and schema validation

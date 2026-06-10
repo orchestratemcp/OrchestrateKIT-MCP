@@ -1,0 +1,37 @@
+﻿id: user_goal_intake
+name: User Goal Intake
+status: published
+category: input
+summary: Accepts and structures a free-text or structured goal from the user as the entry point for a workflow.
+capabilities:
+  - accept_user_input
+  - structure_goal
+  - extract_intent_hints
+inputs:
+  - free-text goal or structured request from the user
+outputs:
+  - structured goal object with extracted intent hints and constraints
+risk_level: low
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - intent_classifier
+  - state_store
+avoid_with: []
+failure_modes:
+  - ambiguous goal causes downstream components to act on wrong intent
+  - missing constraints lead to over-broad retrieval or generation
+evals:
+  - goal parsing accuracy on diverse test inputs
+  - constraint extraction recall
+tested_in_playbooks:
+  - research_agent_citations
+  - codebase_agent_workflow
+tested_in_routes:
+  - research_route_v1
+  - codebase_agent_route_v1
+sources: []

@@ -1,0 +1,35 @@
+﻿id: source_ranking
+name: Source Ranking
+status: published
+category: processing
+summary: Scores and reorders retrieved source documents by relevance, authority and recency.
+capabilities:
+  - rank_documents
+  - score_relevance
+  - filter_low_quality
+inputs:
+  - list of raw source documents with metadata
+outputs:
+  - ranked list of source documents with relevance scores
+risk_level: low
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires:
+  - source_retrieval
+recommended_with:
+  - research_synthesis
+avoid_with: []
+failure_modes:
+  - poor ranking due to noisy or low-quality retrieval inputs
+  - recency bias causes outdated authoritative sources to be deprioritised
+evals:
+  - nDCG on ranked results vs human relevance judgements
+  - correlation between rank and citation rate in synthesis
+tested_in_playbooks:
+  - research_agent_citations
+tested_in_routes:
+  - research_route_v1
+sources: []

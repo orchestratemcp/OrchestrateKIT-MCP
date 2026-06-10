@@ -1,0 +1,10 @@
+id: source_ranking__produces__research_synthesis
+from: source_ranking
+to: research_synthesis
+relation: produces_input_for
+status: published
+reason: Ranked documents are the direct input to synthesis. The ranking score informs how much weight the LLM should give each source.
+severity: high
+notes: Pass rank position and score as metadata so the synthesis prompt can reference them explicitly.
+conditions: []
+tested: true

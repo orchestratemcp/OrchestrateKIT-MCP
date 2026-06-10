@@ -1,0 +1,33 @@
+﻿id: source_freshness_check
+name: Source Freshness Check
+status: published
+category: eval
+summary: Checks whether retrieved sources are within an acceptable recency window for the use case.
+capabilities:
+  - check_source_recency
+  - flag_stale_sources
+inputs:
+  - list of source documents with retrieved_at and published_at metadata
+  - freshness threshold (configurable, e.g. 90 days)
+outputs:
+  - freshness report with stale sources flagged
+risk_level: low
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - citation_checker
+avoid_with: []
+failure_modes:
+  - missing published_at metadata causes all sources to appear fresh
+  - threshold too loose for rapidly-changing domains (e.g. security advisories)
+evals:
+  - staleness detection rate on dated test fixtures
+tested_in_playbooks:
+  - research_agent_citations
+tested_in_routes:
+  - research_route_v1
+sources: []

@@ -1,0 +1,40 @@
+﻿id: code_editing
+name: Code Editing
+status: published
+category: tool
+summary: Applies targeted code changes to files based on a plan step, using LLM-generated diffs or edits.
+capabilities:
+  - apply_code_changes
+  - generate_diff
+  - refactor_code
+inputs:
+  - plan step, file content, editing instructions
+outputs:
+  - modified file contents or patch diff
+risk_level: medium
+side_effects:
+  - modifies local files
+permissions:
+  read:
+    - local file system paths
+  write:
+    - local file system paths
+  approval_required_for: []
+requires:
+  - plan_generation
+recommended_with:
+  - test_runner
+avoid_with: []
+failure_modes:
+  - LLM generates incorrect patch that breaks compilation
+  - edit applied to wrong file version (stale context)
+  - edit introduces regression not covered by existing tests
+evals:
+  - compilation pass rate after edit on test suite
+  - test pass rate after edit
+  - LLM edit accuracy vs human reference on known tasks
+tested_in_playbooks:
+  - codebase_agent_workflow
+tested_in_routes:
+  - codebase_agent_route_v1
+sources: []

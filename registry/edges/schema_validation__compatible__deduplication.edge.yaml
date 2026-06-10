@@ -1,0 +1,9 @@
+﻿id: schema_validation__compatible__deduplication
+from: schema_validation
+to: deduplication
+relation: compatible_with
+status: published
+reason: Both can run on the same data pipeline. Prefer deduplication before validation to reduce the validation workload.
+severity: low
+notes: If validation is cheap, running it both before and after deduplication is a useful quality gate.
+conditions: []

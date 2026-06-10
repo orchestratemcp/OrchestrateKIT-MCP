@@ -1,0 +1,41 @@
+﻿id: calendar_write
+name: Calendar Write
+status: published
+category: integration
+summary: Creates or updates a calendar event after receiving explicit human approval.
+capabilities:
+  - create_event
+  - update_event
+  - invite_attendees
+inputs:
+  - approved event details (title, time, attendees, description), calendar credentials
+outputs:
+  - created/updated event confirmation with event_id
+risk_level: high
+side_effects:
+  - creates or modifies external calendar event, sends invites to attendees
+permissions:
+  read: []
+  write:
+    - calendar write scope
+    - sends invites to external attendees
+  approval_required_for:
+    - every create or update action
+requires:
+  - human_approval_gate
+recommended_with:
+  - audit_log
+avoid_with: []
+failure_modes:
+  - double-booking when free/busy check is stale
+  - attendee invite sent to wrong email address
+  - event created in wrong timezone
+evals:
+  - timezone correctness on diverse input locales
+  - idempotency test — duplicate trigger does not create duplicate event
+  - rejection test — write blocked when approval is missing
+tested_in_playbooks:
+  - email_calendar_assistant
+tested_in_routes:
+  - email_calendar_route_v1
+sources: []

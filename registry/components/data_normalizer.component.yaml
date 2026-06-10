@@ -1,0 +1,38 @@
+﻿id: data_normalizer
+name: Data Normalizer
+status: published
+category: processing
+summary: Transforms raw scraped or ingested records into a consistent canonical format.
+capabilities:
+  - normalise_fields
+  - standardise_formats
+  - map_source_schema
+inputs:
+  - list of raw records, normalisation rules or target schema
+outputs:
+  - list of normalised records in canonical format
+risk_level: low
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires:
+  - data_scraper
+recommended_with:
+  - deduplication
+  - schema_validation
+avoid_with: []
+failure_modes:
+  - normalisation rule does not handle unexpected source format variant
+  - field mapping silently drops values that do not match expected keys
+  - date/timezone normalisation introduces systematic offset
+evals:
+  - normalisation fidelity on diverse source format test cases
+  - field mapping coverage — fraction of source fields successfully mapped
+  - date normalisation correctness across timezone test cases
+tested_in_playbooks:
+  - data_extraction_enrichment
+tested_in_routes:
+  - data_extraction_route_v1
+sources: []

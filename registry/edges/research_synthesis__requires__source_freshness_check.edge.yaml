@@ -1,0 +1,9 @@
+﻿id: research_synthesis__requires__source_freshness_check
+from: research_synthesis
+to: source_freshness_check
+relation: requires
+status: published
+reason: Synthesis based on stale sources must be flagged — especially in fast-moving domains. Do not present outdated findings as current.
+severity: medium
+notes: Configure freshness threshold per domain (e.g. 7 days for news, 180 days for academic papers).
+conditions: []

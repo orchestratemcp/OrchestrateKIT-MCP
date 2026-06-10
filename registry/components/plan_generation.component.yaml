@@ -1,0 +1,37 @@
+﻿id: plan_generation
+name: Plan Generation
+status: published
+category: processing
+summary: Produces a step-by-step implementation plan from a goal and codebase context.
+capabilities:
+  - generate_plan
+  - decompose_task
+  - identify_affected_files
+inputs:
+  - user goal, codebase context from codebase_scan
+outputs:
+  - ordered list of implementation steps with affected files and rationale
+risk_level: low
+side_effects:
+  - LLM API call (token cost)
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires:
+  - codebase_scan
+recommended_with:
+  - state_store
+avoid_with: []
+failure_modes:
+  - plan references files that do not exist in the codebase
+  - steps are too coarse and ambiguous for code_editing to execute
+  - plan omits necessary steps (e.g. test updates after code change)
+evals:
+  - plan completeness vs human-authored plan on known tasks
+  - step executability — what fraction of steps code_editing can act on
+tested_in_playbooks:
+  - codebase_agent_workflow
+tested_in_routes:
+  - codebase_agent_route_v1
+sources: []

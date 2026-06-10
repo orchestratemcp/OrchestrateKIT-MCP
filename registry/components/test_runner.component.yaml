@@ -1,0 +1,40 @@
+﻿id: test_runner
+name: Test Runner
+status: published
+category: eval
+summary: Runs the project test suite after code changes and reports pass/fail with diff context.
+capabilities:
+  - run_tests
+  - report_failures
+  - diff_test_results
+inputs:
+  - repository path, test command, optional test filter
+outputs:
+  - test results (pass count, fail count, failure details, test duration)
+risk_level: low
+side_effects:
+  - executes test processes on local machine
+permissions:
+  read:
+    - local file system paths
+  write:
+    - test artifacts (coverage reports, snapshots)
+  approval_required_for: []
+requires:
+  - code_editing
+recommended_with:
+  - pr_summary
+avoid_with: []
+failure_modes:
+  - flaky tests cause false negative signal after a valid edit
+  - test suite is too slow to run on every edit loop iteration
+  - missing test coverage hides regression
+evals:
+  - flakiness rate on repeated runs of same test suite
+  - test suite run time on CI vs local
+  - coverage delta after edit
+tested_in_playbooks:
+  - codebase_agent_workflow
+tested_in_routes:
+  - codebase_agent_route_v1
+sources: []

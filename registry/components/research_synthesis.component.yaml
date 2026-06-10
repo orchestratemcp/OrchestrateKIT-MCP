@@ -1,0 +1,42 @@
+﻿id: research_synthesis
+name: Research Synthesis
+status: published
+category: processing
+summary: Synthesises a grounded answer or summary from a ranked set of source documents using an LLM.
+capabilities:
+  - synthesise_from_sources
+  - summarise
+  - ground_llm_output
+inputs:
+  - ranked list of source documents
+  - user goal or research question
+outputs:
+  - synthesised answer with inline source references
+risk_level: medium
+side_effects:
+  - LLM API call (token cost)
+permissions:
+  read:
+    - source document content
+  write: []
+  approval_required_for: []
+requires:
+  - source_ranking
+  - citation_checker
+recommended_with:
+  - source_freshness_check
+  - state_store
+avoid_with: []
+failure_modes:
+  - hallucination when LLM is not grounded to retrieved text
+  - synthesis omits important conflicting evidence
+  - citation references wrong source
+evals:
+  - hallucination rate vs retrieved text
+  - citation accuracy (do inline refs match source content)
+  - factual correctness on known-answer test cases
+tested_in_playbooks:
+  - research_agent_citations
+tested_in_routes:
+  - research_route_v1
+sources: []

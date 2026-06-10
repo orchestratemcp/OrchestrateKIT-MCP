@@ -1,0 +1,9 @@
+﻿id: retry_policy__recommended__data_scraper
+from: retry_policy
+to: data_scraper
+relation: recommended_for
+status: published
+reason: Scraping is inherently unreliable due to rate limiting, transient network errors and anti-bot measures. A retry policy with backoff is essential for robust pipelines.
+severity: medium
+notes: Use exponential backoff with jitter. Set a circuit breaker so repeated failures do not consume all worker capacity.
+conditions: []

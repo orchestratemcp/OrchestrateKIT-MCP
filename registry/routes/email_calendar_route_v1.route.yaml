@@ -1,0 +1,40 @@
+﻿id: email_calendar_route_v1
+name: Email and Calendar Assistant
+status: published
+summary: A golden-path route for reading email, drafting replies and optionally sending or scheduling with human approval on every external action.
+components:
+  - email_read
+  - intent_classifier
+  - email_draft
+  - optional_email_send
+  - calendar_lookup
+  - calendar_write
+  - human_approval_gate
+  - audit_log
+edges:
+  - email_read__produces__intent_classifier
+  - email_draft__safer_with__human_approval_gate
+  - optional_email_send__requires__human_approval_gate
+  - calendar_write__requires__human_approval_gate
+  - audit_log__recommended__optional_email_send
+  - audit_log__recommended__calendar_write
+  - email_draft__compatible__calendar_lookup
+risk_level: high
+confidence: 0.88
+failure_modes:
+  - Email sent to wrong recipient due to autocomplete in approval UI
+  - Calendar event created in wrong timezone
+  - OAuth token expiry causes silent read or write failure
+  - Approval notification not delivered, workflow stalls indefinitely
+  - Intent misclassification routes a scheduling email to the reply flow
+evals:
+  - intent classification accuracy on email type test set
+  - draft quality score on diverse email scenarios
+  - approval gate latency on test approval flows
+  - calendar timezone correctness on locale-diverse test cases
+  - duplicate send prevention test
+notes: >
+  Treat every external send (email or calendar invite) as irreversible. The approval gate
+  must show the full draft and recipient list — not a summary. A user who approves without
+  reading the full draft has not meaningfully approved it.
+sources: []

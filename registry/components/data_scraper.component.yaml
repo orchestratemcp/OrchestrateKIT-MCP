@@ -1,0 +1,41 @@
+﻿id: data_scraper
+name: Data Scraper
+status: published
+category: input
+summary: Fetches structured or semi-structured data from web pages or APIs at scale.
+capabilities:
+  - scrape_web_pages
+  - call_external_api
+  - paginate_results
+inputs:
+  - URL list or API endpoint, pagination configuration, field extraction rules
+outputs:
+  - list of raw extracted records with source URL and scrape timestamp
+risk_level: medium
+side_effects:
+  - outbound HTTP requests to external hosts at potentially high volume
+permissions:
+  read:
+    - external URLs
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - retry_policy
+  - job_queue
+  - deduplication
+avoid_with:
+  - external_publish
+failure_modes:
+  - scraper is blocked by rate limiting or anti-bot measures
+  - page structure changes break field extraction silently
+  - scrape returns stale cache rather than fresh data
+evals:
+  - extraction accuracy on known test pages
+  - error rate under rate limit conditions
+  - freshness check — age of scraped data vs source update frequency
+tested_in_playbooks:
+  - data_extraction_enrichment
+tested_in_routes:
+  - data_extraction_route_v1
+sources: []

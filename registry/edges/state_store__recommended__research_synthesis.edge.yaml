@@ -1,0 +1,10 @@
+﻿id: state_store__recommended__research_synthesis
+from: state_store
+to: research_synthesis
+relation: recommended_for
+status: published
+reason: Multi-step research workflows benefit from persisting intermediate results. Without state, a retrieval failure forces the entire synthesis to restart.
+severity: medium
+notes: Store ranked source list and synthesis checkpoint. Allows resumption from the last completed step rather than full restart.
+conditions:
+  - workflow has more than one retrieval or synthesis step

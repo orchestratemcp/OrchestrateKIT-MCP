@@ -1,0 +1,10 @@
+id: page_monitor__produces__source_freshness_check
+from: page_monitor
+to: source_freshness_check
+relation: produces_input_for
+status: published
+reason: page_monitor timestamps each change event; source_freshness_check can use that timestamp to confirm the change is within the acceptable recency window before triggering downstream synthesis.
+severity: low
+notes: Optional but recommended — prevents re-processing very old change events that arrive late due to polling delay.
+conditions: []
+tested: false

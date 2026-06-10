@@ -1,0 +1,35 @@
+﻿id: deduplication
+name: Deduplication
+status: published
+category: processing
+summary: Removes duplicate records from a dataset by comparing on configurable identity keys.
+capabilities:
+  - detect_duplicates
+  - remove_exact_duplicates
+  - flag_near_duplicates
+inputs:
+  - list of records, identity key configuration
+outputs:
+  - deduplicated list with duplicate count and removed record IDs
+risk_level: low
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - data_scraper
+  - schema_validation
+avoid_with: []
+failure_modes:
+  - incorrect identity key causes legitimate records to be dropped
+  - near-duplicate detection threshold too aggressive removes valid variants
+evals:
+  - precision and recall on known duplicate test dataset
+  - false positive rate on intentionally diverse but similar-looking records
+tested_in_playbooks:
+  - data_extraction_enrichment
+tested_in_routes:
+  - data_extraction_route_v1
+sources: []

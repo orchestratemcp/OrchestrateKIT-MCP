@@ -1,0 +1,43 @@
+# Template — copy and rename to {id}.playbook.yaml. Files starting with _ are ignored by the loader.
+id: playbook_id
+version: "0.1.0"
+status: draft  # draft | candidate | beta | validated | published | deprecated
+title: Human-readable Playbook Title
+summary: One-sentence description of the workflow this playbook documents.
+workflow_type: research  # research | content | email | code | data | approval | generic
+golden_path_route_id: route_id
+components:
+  - component_id_1
+  - component_id_2
+edges:
+  - edge_id_1
+stack_id: stack_id
+risk_level: medium  # low | medium | high | critical
+best_for:
+  - describe the ideal use case
+avoid_when:
+  - describe when NOT to use this playbook
+recommended_architecture:
+  pattern: describe the architecture pattern (e.g. sequential, branching, parallel)
+  why: why this pattern is the right choice here
+llm_driven_steps:
+  - step name or description
+deterministic_steps:
+  - step name or description
+permissions:
+  read:
+    - what data the workflow reads
+  write:
+    - what data or external systems are written
+  approval_required_for:
+    - action requiring explicit human approval
+guardrails:
+  - safety constraint or do-not-do rule
+failure_modes:
+  - at least 5 failure modes
+evals:
+  - at least 5 eval ideas
+implementation_steps:
+  - "Step 1: description"
+  - "Step 2: description"
+sources: []

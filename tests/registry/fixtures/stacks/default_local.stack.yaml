@@ -1,0 +1,28 @@
+id: default_local
+name: Default Local Stack
+status: published
+summary: Opinionated stack for local MVP and personal AI workflow tools.
+best_for:
+  - local development
+  - personal tools
+  - solo builder proof-of-concept
+avoid_when:
+  - multi-tenant hosted product
+  - high-throughput production
+choices:
+  state_store:
+    recommended: sqlite
+    alternatives:
+      - postgres
+  agent_framework:
+    recommended:
+      - vercel-ai-sdk
+    alternatives:
+      - langchain
+  eval_runner:
+    recommended: promptfoo
+    alternatives:
+      - local-json
+tradeoffs:
+  - SQLite is not safe for concurrent multi-user writes
+sources: []

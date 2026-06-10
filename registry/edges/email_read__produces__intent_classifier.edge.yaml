@@ -1,0 +1,10 @@
+id: email_read__produces__intent_classifier
+from: email_read
+to: intent_classifier
+relation: produces_input_for
+status: published
+reason: Email subject and body are the primary signal for intent classification in email-driven workflows.
+severity: medium
+notes: Strip quoted reply chains before passing to classifier to avoid intent pollution from historical context.
+conditions: []
+tested: true

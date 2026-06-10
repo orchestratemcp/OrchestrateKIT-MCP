@@ -1,0 +1,24 @@
+id: cursor-mcp-docs
+title: Cursor MCP (Model Context Protocol) integration guide
+url: https://docs.cursor.com/context/model-context-protocol
+source_type: official_docs
+last_checked: "2026-06-09"
+summary: >
+  Cursor's documentation for configuring and using MCP servers locally. Covers
+  how to add MCP servers to Cursor settings, stdio transport, tool discovery,
+  and using MCP tools from agent and composer modes. Essential for the local
+  Cursor + OrchestrateKit MCP setup described in M2.
+tags:
+  - cursor
+  - mcp
+  - local
+  - stdio
+  - agent
+  - configuration
+  - cursor-settings
+relevant_to:
+  - cursor-mcp
+  - orchestratekit-mcp
+  - local-setup
+  - mcp-server
+  - cursor

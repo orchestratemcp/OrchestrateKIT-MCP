@@ -1,0 +1,40 @@
+# Template — copy and rename to {id}.stack.yaml. Files starting with _ are ignored by the loader.
+id: stack_id
+name: Human-readable Stack Name
+status: draft  # draft | beta | validated | published | deprecated
+summary: One-sentence description of the stack's intended use case.
+best_for:
+  - local MVP
+  - personal tool
+avoid_when:
+  - multi-tenant SaaS
+  - high-volume production
+choices:
+  state_store:
+    recommended: sqlite
+    alternatives:
+      - postgres
+      - supabase
+    reason: SQLite is zero-config for local MVP; switch to Postgres when going multi-user or hosted.
+  job_runner:
+    recommended: inline
+    alternatives:
+      - bullmq
+      - inngest
+    reason: Inline execution is simplest for local tools; add a job queue when retries and scheduling matter.
+  agent_framework:
+    recommended:
+      - vercel-ai-sdk
+    alternatives:
+      - langchain
+      - llamaindex
+    reason: Vercel AI SDK is lightweight, well-typed and works with any provider.
+  eval_runner:
+    recommended: promptfoo
+    alternatives:
+      - local-json
+    reason: Promptfoo supports structured eval runs without a paid API.
+tradeoffs:
+  - SQLite is not suited for concurrent multi-user writes
+  - Inline execution lacks retry and scheduling
+sources: []

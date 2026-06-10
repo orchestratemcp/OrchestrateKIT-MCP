@@ -1,0 +1,9 @@
+﻿id: plan_generation__tested__test_runner
+from: plan_generation
+to: test_runner
+relation: tested_with
+status: published
+reason: Plans that include test-update steps have been validated against the test runner in the codebase_agent_workflow playbook.
+severity: medium
+notes: Plans that do not include explicit test-update steps produce code edits that break the test suite more often.
+conditions: []

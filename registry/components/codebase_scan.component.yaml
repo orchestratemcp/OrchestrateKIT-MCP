@@ -1,0 +1,38 @@
+﻿id: codebase_scan
+name: Codebase Scan
+status: published
+category: tool
+summary: Reads and indexes the codebase to produce a structured context for downstream planning and editing.
+capabilities:
+  - read_file_tree
+  - extract_symbols
+  - identify_dependencies
+  - detect_lint_errors
+inputs:
+  - repository path, file glob filter, scan depth
+outputs:
+  - structured codebase context (file tree, exported symbols, dependency graph, lint errors)
+risk_level: low
+side_effects:
+  - reads local file system
+permissions:
+  read:
+    - local file system paths
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - plan_generation
+avoid_with: []
+failure_modes:
+  - large repository causes context window overflow in downstream LLM
+  - binary or generated files pollute the context
+  - missing file permissions cause silent incomplete scan
+evals:
+  - symbol extraction accuracy on known test repositories
+  - context size within LLM limit on large repository test
+tested_in_playbooks:
+  - codebase_agent_workflow
+tested_in_routes:
+  - codebase_agent_route_v1
+sources: []

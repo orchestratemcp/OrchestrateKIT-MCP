@@ -1,0 +1,9 @@
+﻿id: audit_log__recommended__external_publish
+from: audit_log
+to: external_publish
+relation: recommended_for
+status: published
+reason: Every external publish should produce an immutable audit record. Without it, there is no reliable evidence of what was published, when and by whom.
+severity: high
+notes: Log the full payload, not just a summary. You will need the full payload for rollback investigation.
+conditions: []

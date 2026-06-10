@@ -1,0 +1,39 @@
+# Template — copy and rename to {id}.component.yaml. Files starting with _ are ignored by the loader.
+id: component_id
+name: Human-readable Component Name
+status: draft  # draft | beta | validated | published | deprecated
+category: processing  # input | processing | state | safety | tool | output | eval | orchestration | integration
+summary: One-sentence description of what this component does in an AI workflow.
+capabilities:
+  - capability_keyword
+inputs:
+  - description of expected input
+outputs:
+  - description of produced output
+risk_level: low  # low | medium | high | critical
+side_effects:
+  - describe any external writes, sends or mutations
+permissions:
+  read:
+    - describe what read access is needed
+  write:
+    - describe what write access is needed
+  approval_required_for:
+    - describe actions that require human approval
+requires:
+  - other_component_id
+recommended_with:
+  - another_component_id
+avoid_with:
+  - conflicting_component_id
+failure_modes:
+  - What can go wrong
+evals:
+  - How to evaluate this component
+tested_in_playbooks: []
+tested_in_routes: []
+sources:
+  - title: Source title
+    url: https://example.com
+    source_type: official_docs  # official_docs | docs_index | internal_note | example_repo | blog | unknown
+    last_checked: "2026-06-01"

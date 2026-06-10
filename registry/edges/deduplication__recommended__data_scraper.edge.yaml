@@ -1,0 +1,9 @@
+﻿id: deduplication__recommended__data_scraper
+from: deduplication
+to: data_scraper
+relation: recommended_for
+status: published
+reason: Scraping the same source on repeated runs often produces overlapping records. Deduplication prevents downstream systems from processing the same record twice.
+severity: medium
+notes: Use a stable identity key (URL + canonical content hash). Do not use scrape timestamp as part of the key.
+conditions: []

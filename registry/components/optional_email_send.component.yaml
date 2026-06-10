@@ -1,0 +1,38 @@
+﻿id: optional_email_send
+name: Optional Email Send
+status: published
+category: integration
+summary: Sends a composed email draft after receiving explicit human approval. Never sends autonomously.
+capabilities:
+  - send_email
+  - deliver_to_recipient
+inputs:
+  - approved draft email object, SMTP/API credentials
+outputs:
+  - send confirmation with message_id and timestamp
+risk_level: high
+side_effects:
+  - sends irreversible email to external recipient
+permissions:
+  read: []
+  write:
+    - external email send
+  approval_required_for:
+    - every send action
+requires:
+  - human_approval_gate
+recommended_with:
+  - audit_log
+avoid_with: []
+failure_modes:
+  - sent to wrong recipient due to autocomplete or copy error
+  - duplicate send on retry after transient failure
+  - send succeeds but confirmation is lost, triggering another send
+evals:
+  - idempotency test — duplicate trigger does not cause duplicate send
+  - rejection test — send blocked when approval is missing
+tested_in_playbooks:
+  - email_calendar_assistant
+tested_in_routes:
+  - email_calendar_route_v1
+sources: []

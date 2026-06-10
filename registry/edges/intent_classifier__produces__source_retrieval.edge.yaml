@@ -1,0 +1,9 @@
+﻿id: intent_classifier__produces__source_retrieval
+from: intent_classifier
+to: source_retrieval
+relation: produces_input_for
+status: published
+reason: The classified intent refines the retrieval query beyond the raw goal, improving precision.
+severity: medium
+notes: Use intent label to select the appropriate source index or source type (web, docs, internal) before retrieval.
+conditions: []

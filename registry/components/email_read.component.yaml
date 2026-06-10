@@ -1,0 +1,38 @@
+﻿id: email_read
+name: Email Read
+status: published
+category: integration
+summary: Reads emails from a mailbox (IMAP or API) and extracts structured message data.
+capabilities:
+  - read_inbox
+  - parse_email_metadata
+  - extract_message_body
+inputs:
+  - mailbox credentials or OAuth token, filter criteria
+outputs:
+  - list of structured email objects (sender, subject, body, date, thread_id)
+risk_level: low
+side_effects:
+  - reads from external email provider (IMAP or API call)
+permissions:
+  read:
+    - mailbox read scope
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - intent_classifier
+  - retry_policy
+avoid_with: []
+failure_modes:
+  - OAuth token expiry causes silent read failure
+  - email body encoding issues corrupt structured output
+  - rate limits on provider API cause partial reads
+evals:
+  - parse accuracy on diverse email formats (HTML, plain text, multipart)
+  - error handling on expired credentials
+tested_in_playbooks:
+  - email_calendar_assistant
+tested_in_routes:
+  - email_calendar_route_v1
+sources: []

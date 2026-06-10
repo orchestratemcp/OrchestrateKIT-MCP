@@ -1,0 +1,92 @@
+id: data_extraction_enrichment
+version: "1.0.0"
+title: Data Extraction and Enrichment
+status: published
+summary: >
+  Opinionated blueprint for scraping, normalising, deduplicating and validating
+  structured data at scale. Designed for reliable, auditable ETL pipelines without
+  autonomous downstream publishing.
+workflow_type: data-pipeline
+risk_level: medium
+golden_path_route_id: data_extraction_route_v1
+components:
+  - data_scraper
+  - data_normalizer
+  - deduplication
+  - schema_validation
+  - state_store
+  - audit_log
+  - retry_policy
+  - job_queue
+edges:
+  - data_scraper__produces__data_normalizer
+  - data_normalizer__produces__deduplication
+  - deduplication__produces__schema_validation
+  - retry_policy__recommended__data_scraper
+  - job_queue__recommended__data_scraper
+  - deduplication__recommended__data_scraper
+  - audit_log__compatible__state_store
+  - data_scraper__avoid__external_publish
+stack_id: default_orchestratekit_stack
+best_for:
+  - job listing aggregation from multiple sources
+  - product price monitoring and change detection
+  - news article ingestion with deduplication
+  - public records and open data pipeline
+avoid_when:
+  - scraping behind authentication without explicit legal and terms-of-service review
+  - real-time event streaming where batch normalisation adds unacceptable latency
+  - PII-heavy datasets without a separate data governance and anonymisation step
+  - publishing scraped data directly without validation and human sign-off
+recommended_architecture:
+  pattern: Job-queued scrape → normalise → deduplicate → validate pipeline with state checkpoints per stage
+  why: >
+    A job queue per URL gives per-URL retry, failure isolation and progress tracking.
+    Running normalise → deduplicate → validate in order reduces the validation workload
+    and produces clean rejection reports. State checkpoints allow stage-level resumption.
+llm_driven_steps: []
+deterministic_steps:
+  - data_scraper
+  - data_normalizer
+  - deduplication
+  - schema_validation
+  - job_queue
+  - retry_policy
+guardrails:
+  - Never pipeline scraped data directly to external_publish — always validate first
+  - Do not use vector DB for this pipeline unless semantic retrieval is required
+  - Do not use scraper that ignores HTTP 429 responses and retries immediately
+  - Quarantine invalid records rather than silently dropping them
+  - Respect robots.txt and terms of service for every source domain
+failure_modes:
+  - Scraper blocked by rate limiting returns silent empty result, not an error
+  - Normalisation rule does not handle a new source format variant, silently dropping fields
+  - Deduplication identity key collision drops valid records that share a URL but have different content
+  - Schema validation rejects valid edge-case records due to overly strict type constraints
+  - Job queue fills without monitoring, consuming unbounded memory on long-running pipelines
+  - Retry on a non-idempotent scraper causes duplicate records before deduplication stage
+  - Pipeline restarts from scratch instead of resuming when state store is not updated
+evals:
+  - scraper recall on 50 known test URLs under simulated rate limit conditions
+  - normalisation fidelity on 20 format-diverse test records per source type
+  - deduplication precision and recall on labelled test dataset with known duplicates
+  - schema validation false rejection rate on 10 edge-case valid records
+  - end-to-end throughput on 100-URL test batch under simulated load
+implementation_steps:
+  - "Step 1: Implement data_scraper with one job per URL, pagination support and a stable scrape timestamp per record"
+  - "Step 2: Wrap each scrape job in retry_policy with exponential backoff (base 1s, max 30s, max 3 attempts)"
+  - "Step 3: Queue all scrape jobs through job_queue to enable parallelism, progress tracking and failure isolation"
+  - "Step 4: Implement data_normalizer with explicit mapping rules per source. Log unmapped fields rather than silently dropping them"
+  - "Step 5: Implement deduplication using a stable identity key (URL + content hash). Never use scrape timestamp as part of the key"
+  - "Step 6: Implement schema_validation against the canonical target schema. Quarantine invalid records in a separate table with error details"
+  - "Step 7: Save pipeline checkpoint to state_store after each stage so the pipeline can resume from the last successful stage"
+  - "Step 8: Write audit_log entry for each batch run with record counts, rejection counts and timestamp"
+sources:
+  - title: Scrapy documentation
+    url: https://docs.scrapy.org/en/latest/
+    source_type: official_docs
+    last_checked: "2026-06-01"
+  - title: BullMQ documentation
+    url: https://docs.bullmq.io/
+    source_type: official_docs
+    last_checked: "2026-06-01"

@@ -1,0 +1,9 @@
+﻿id: job_queue__compatible__retry_policy
+from: job_queue
+to: retry_policy
+relation: compatible_with
+status: published
+reason: Most job queue implementations (BullMQ, Inngest) have built-in retry. Confirm their policies align before adding a separate retry_policy layer to avoid double-retry.
+severity: medium
+notes: Do not use both job queue retry and an outer retry_policy wrapper on the same step — it multiplies the maximum attempt count unexpectedly.
+conditions: []

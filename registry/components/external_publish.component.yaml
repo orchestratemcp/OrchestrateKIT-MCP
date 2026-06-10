@@ -1,0 +1,43 @@
+﻿id: external_publish
+name: External Publish
+status: published
+category: integration
+summary: Publishes approved content to an external platform (CMS, social, API endpoint) after human approval.
+capabilities:
+  - publish_to_cms
+  - post_to_social
+  - call_external_publish_api
+inputs:
+  - approved content payload, target platform credentials, publish configuration
+outputs:
+  - publish confirmation with platform URL and timestamp
+risk_level: high
+side_effects:
+  - sends content to external platform — irreversible without platform-specific rollback
+permissions:
+  read: []
+  write:
+    - external platform API
+  approval_required_for:
+    - every publish action
+requires:
+  - human_approval_gate
+  - schema_validation
+recommended_with:
+  - audit_log
+  - retry_policy
+avoid_with:
+  - data_scraper
+failure_modes:
+  - content published to wrong audience or channel
+  - platform API returns 200 but content is silently rejected or queued
+  - retry on transient failure causes duplicate publish
+evals:
+  - idempotency test — duplicate trigger blocked by deduplication or platform
+  - rejection test — publish blocked when approval is missing or schema invalid
+  - rollback feasibility test per platform
+tested_in_playbooks:
+  - content_approval_pipeline
+tested_in_routes:
+  - content_approval_route_v1
+sources: []

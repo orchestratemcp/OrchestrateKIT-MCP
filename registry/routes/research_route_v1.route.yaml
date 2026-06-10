@@ -1,0 +1,39 @@
+﻿id: research_route_v1
+name: Research Agent with Citations
+status: published
+summary: A golden-path route for a research agent that retrieves, ranks and synthesises information with verified citations and freshness checks.
+components:
+  - user_goal_intake
+  - source_retrieval
+  - source_ranking
+  - research_synthesis
+  - citation_checker
+  - source_freshness_check
+  - state_store
+edges:
+  - user_goal_intake__produces__source_retrieval
+  - source_retrieval__produces__source_ranking
+  - source_ranking__produces__research_synthesis
+  - research_synthesis__requires__citation_checker
+  - research_synthesis__requires__source_freshness_check
+  - state_store__recommended__research_synthesis
+  - source_retrieval__tested__research_synthesis
+risk_level: medium
+confidence: 0.85
+failure_modes:
+  - LLM hallucination when retrieval returns low-quality or irrelevant sources
+  - Citation checker false-negatives on hallucinated but plausible-looking references
+  - Stale source freshness threshold too permissive for fast-moving topics
+  - State store corruption causes synthesis to reuse stale intermediate results
+  - Retrieval rate limits cause incomplete source set for synthesis
+evals:
+  - factual accuracy on known-answer test questions
+  - citation precision and recall on labelled test cases
+  - source freshness compliance rate
+  - end-to-end latency under retrieval rate limits
+  - synthesis completeness score vs human reference
+notes: >
+  Do not use this route for legal, medical or financial advice without adding an explicit
+  domain-expert review step after synthesis. Verified citations reduce hallucination risk
+  but do not eliminate it for high-stakes decisions.
+sources: []

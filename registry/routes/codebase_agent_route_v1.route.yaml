@@ -1,0 +1,41 @@
+﻿id: codebase_agent_route_v1
+name: Codebase Agent Workflow
+status: published
+summary: A golden-path route for an AI agent that scans a codebase, generates a plan, makes targeted edits, runs tests and produces a PR summary.
+components:
+  - user_goal_intake
+  - codebase_scan
+  - plan_generation
+  - code_editing
+  - test_runner
+  - pr_summary
+  - human_approval_gate
+  - state_store
+edges:
+  - codebase_scan__produces__plan_generation
+  - plan_generation__produces__code_editing
+  - code_editing__produces__pr_summary
+  - code_editing__before__test_runner
+  - test_runner__before__pr_summary
+  - codebase_scan__before__code_editing
+  - pr_summary__safer_with__human_approval_gate
+  - plan_generation__tested__test_runner
+risk_level: medium
+confidence: 0.82
+failure_modes:
+  - Plan references non-existent files due to stale codebase scan context
+  - Code edit introduces regression not covered by existing tests
+  - Test suite is flaky and produces unreliable pass/fail signal
+  - LLM edit produces syntactically valid but semantically wrong change
+  - PR summary omits the rationale for why changes were made
+evals:
+  - edit compilation pass rate after each step
+  - test pass rate delta before and after edits
+  - plan step executability — fraction successfully applied by code_editing
+  - PR summary completeness score
+  - regression test — known-good test suite stays green after full route run
+notes: >
+  Do not give the agent write access to production systems or main branch directly.
+  Always route PR creation through a feature branch and require PR review.
+  State persistence is recommended for multi-step workflows that may span multiple sessions.
+sources: []

@@ -1,0 +1,10 @@
+id: content_idea_intake__produces__copy_generation
+from: content_idea_intake
+to: copy_generation
+relation: produces_input_for
+status: published
+reason: The structured brief from intake provides audience, tone and key messages required for copy generation.
+severity: high
+notes: A structured brief with explicit audience and tone constraints produces substantially better copy than a raw topic prompt.
+conditions: []
+tested: true

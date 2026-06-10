@@ -1,0 +1,9 @@
+﻿id: user_goal_intake__produces__source_retrieval
+from: user_goal_intake
+to: source_retrieval
+relation: produces_input_for
+status: published
+reason: The structured goal provides the query for retrieval. Raw user input should not be passed directly to the retrieval layer.
+severity: medium
+notes: Extract explicit constraints (time range, source domain, language) from the goal before constructing the retrieval query.
+conditions: []

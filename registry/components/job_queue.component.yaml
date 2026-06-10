@@ -1,0 +1,40 @@
+﻿id: job_queue
+name: Job Queue
+status: published
+category: orchestration
+summary: Queues workflow tasks for asynchronous, ordered or fan-out execution with retry support.
+capabilities:
+  - enqueue_task
+  - schedule_task
+  - fan_out_tasks
+  - retry_on_failure
+inputs:
+  - task definition, priority, delay, retry policy
+outputs:
+  - queue confirmation with job_id and estimated execution time
+risk_level: low
+side_effects:
+  - writes to queue backend (in-memory, BullMQ or managed service)
+permissions:
+  read: []
+  write:
+    - queue backend
+  approval_required_for: []
+requires: []
+recommended_with:
+  - state_store
+  - retry_policy
+avoid_with: []
+failure_modes:
+  - queue backend failure causes tasks to be lost if not persisted
+  - fan-out creates too many concurrent workers and exhausts rate limits
+  - dead-letter queue fills without monitoring
+evals:
+  - job delivery guarantee test (at-least-once or exactly-once)
+  - retry behaviour on simulated transient failure
+  - fan-out rate limit test
+tested_in_playbooks:
+  - data_extraction_enrichment
+tested_in_routes:
+  - data_extraction_route_v1
+sources: []

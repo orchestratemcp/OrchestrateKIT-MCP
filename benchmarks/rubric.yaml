@@ -1,0 +1,161 @@
+# OrchestrateKit MCP — Scoring Rubric v0.1
+#
+# Score each criterion 0, 1 or 2 for every (prompt × condition) pair.
+# Max score per response: 14 criteria × 2 = 28 points.
+# Record in benchmarks/results.example.md or your own results file.
+#
+# Scoring guide:
+#   0 = not addressed / wrong
+#   1 = mentioned but incomplete, vague or partially wrong
+#   2 = clear, correct and actionable
+
+criteria:
+  - id: suitable_architecture
+    name: "Recommends a suitable architecture"
+    description: >
+      The response proposes a plausible component pipeline or workflow pattern
+      that fits the goal (e.g. linear pipeline, parallel branches, human-in-the-loop).
+      It does not recommend a pattern that contradicts the constraints
+      (e.g. fully autonomous send-without-approval for email).
+
+  - id: avoids_complexity
+    name: "Avoids unnecessary multi-agent complexity"
+    description: >
+      The response does not propose a complex multi-agent swarm when a simple
+      linear pipeline suffices. It warns when adding orchestration overhead would
+      outweigh the benefit. A single agent with tool calls is preferred over
+      multiple autonomous agents for workflows with fewer than ~6 steps.
+
+  - id: separates_llm_deterministic
+    name: "Separates LLM-driven and deterministic steps"
+    description: >
+      The response clearly distinguishes which steps require an LLM (synthesis,
+      classification, generation) from which steps should be deterministic code
+      (schema validation, deduplication, retry logic, routing). It does not put
+      a language model in the critical path for pure data operations.
+
+  - id: persistent_state
+    name: "Includes persistent state guidance"
+    description: >
+      The response addresses how intermediate results, workflow progress and
+      artefacts are stored (e.g. state_store, database, file system). It does
+      not assume all state lives in memory across a long workflow.
+
+  - id: approval_gates
+    name: "Includes human approval gates where needed"
+    description: >
+      The response includes explicit human review / approval checkpoints before
+      any irreversible external action (email send, calendar write, publish).
+      It marks these as mandatory, not optional. Draft-first policies are
+      recommended for any external write.
+
+  - id: permission_risks
+    name: "Identifies tool permission risks"
+    description: >
+      The response calls out which tool integrations require elevated permissions
+      (inbox read, calendar write, external publish, CRM write) and recommends
+      scoping them minimally. It does not silently assume all permissions are safe.
+
+  - id: eval_plan
+    name: "Includes eval / test plan"
+    description: >
+      The response includes a concrete testing or evaluation strategy: unit tests
+      for individual components, integration tests for the pipeline, and at least
+      one eval criterion for the LLM-driven steps (citation accuracy, reply tone,
+      code correctness). "Write tests" is not enough — it must say what to test.
+
+  - id: retries_idempotency
+    name: "Includes retries, timeouts and idempotency for external actions"
+    description: >
+      The response handles failure modes: what happens when a source is
+      unreachable, when an API times out, when a duplicate record arrives.
+      It recommends retry_policy or equivalent, timeouts, and idempotent
+      operations for any write to an external system.
+
+  - id: observability
+    name: "Includes observability and audit logging"
+    description: >
+      The response recommends structured logging, audit trails or metrics for
+      the workflow. At minimum it mentions logging external actions (sends,
+      writes, publishes) to an immutable audit log. It does not leave the
+      workflow invisible in production.
+
+  - id: concrete_steps
+    name: "Gives concrete implementation steps"
+    description: >
+      The response gives specific, actionable implementation guidance, not just
+      generic advice. It names specific tools, components, libraries or patterns.
+      "Use a database for state" is not concrete. "Store workflow state in
+      state_store using a job_id key" is concrete.
+
+  - id: reuses_graph_components
+    name: "Reuses relevant components from the workflow graph"
+    description: >
+      (Conditions B and C only — score N/A for condition A)
+      The response references specific components from the OrchestrateKit graph
+      (e.g. source_retrieval, human_approval_gate) rather than inventing new
+      ones or ignoring the graph. It explains why those components fit.
+
+  - id: untested_edges
+    name: "Identifies untested edges or missing capabilities"
+    description: >
+      (Condition C only — score N/A for conditions A and B)
+      The response explicitly lists which edges in the proposed route are marked
+      as untested, and which capabilities were not covered by existing components.
+      It does not present a candidate route as fully validated.
+
+  - id: candidate_not_validated
+    name: "Clearly marks candidate routes as candidate, not validated playbooks"
+    description: >
+      (Condition C only — score N/A for conditions A and B)
+      The response includes a clear disclaimer that a composed route is a
+      candidate generated from keyword matching, not a tested playbook.
+      It recommends which playbook to use if one exists.
+
+  - id: stack_explanation
+    name: "Explains stack choices and alternatives"
+    description: >
+      The response explains why specific technology choices are recommended
+      (e.g. why TypeScript over Python, why a queue over direct calls).
+      It offers at least one alternative and states the trade-off.
+
+scoring:
+  max_per_criterion: 2
+  total_criteria: 14
+  max_score: 28
+  grade_thresholds:
+    excellent: 24    # ≥24 — production-ready advice
+    good: 18         # ≥18 — solid with minor gaps
+    acceptable: 12   # ≥12 — usable but missing important pieces
+    poor: 0          # <12 — generic or incorrect advice
+
+na_handling: >
+  Criteria that are not applicable for a given condition (e.g. reuses_graph_components
+  for condition A) should be scored N/A. Exclude N/A criteria from the total.
+  Report the score as X / Y where Y is the applicable maximum.
+
+conditions:
+  A:
+    name: "Vanilla Cursor/Claude"
+    description: "No MCP context. Fresh conversation."
+    applicable_criteria: [suitable_architecture, avoids_complexity, separates_llm_deterministic,
+      persistent_state, approval_gates, permission_risks, eval_plan, retries_idempotency,
+      observability, concrete_steps, stack_explanation]
+    max_score: 22
+
+  B:
+    name: "OrchestrateKit MCP — playbooks only"
+    description: "MCP active. Tester calls list_known_routes and get_route before asking."
+    applicable_criteria: [suitable_architecture, avoids_complexity, separates_llm_deterministic,
+      persistent_state, approval_gates, permission_risks, eval_plan, retries_idempotency,
+      observability, concrete_steps, reuses_graph_components, stack_explanation]
+    max_score: 24
+
+  C:
+    name: "OrchestrateKit MCP — full graph"
+    description: "MCP active. Tester calls compose_workflow_route then discusses the result."
+    applicable_criteria: [suitable_architecture, avoids_complexity, separates_llm_deterministic,
+      persistent_state, approval_gates, permission_risks, eval_plan, retries_idempotency,
+      observability, concrete_steps, reuses_graph_components, untested_edges,
+      candidate_not_validated, stack_explanation]
+    max_score: 28

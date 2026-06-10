@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "orchestratekit": {
+      "command": "node",
+      "args": ["dist/server.js"],
+      "cwd": "/absolute/path/to/orchestratekit-mcp"
+    }
+  }
+}

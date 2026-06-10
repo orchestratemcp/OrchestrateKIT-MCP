@@ -1,0 +1,10 @@
+id: page_monitor__requires__state_store
+from: page_monitor
+to: state_store
+relation: requires
+status: published
+reason: page_monitor must persist the content hash of the last successful check in state_store to detect changes across polling intervals. Without persistence, every poll would appear as a change.
+severity: high
+notes: The state key should be scoped to the URL being monitored. Use TTL-based expiry to handle URLs that are removed from the monitor list.
+conditions: []
+tested: false

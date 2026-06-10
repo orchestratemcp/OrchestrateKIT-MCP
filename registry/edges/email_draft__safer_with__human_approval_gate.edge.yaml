@@ -1,0 +1,9 @@
+﻿id: email_draft__safer_with__human_approval_gate
+from: email_draft
+to: human_approval_gate
+relation: safer_with
+status: published
+reason: Even a draft email may contain PII, incorrect information or inappropriate tone. A review step before send prevents avoidable errors.
+severity: medium
+notes: If your workflow always routes to optional_email_send (which requires approval), this becomes redundant but is still a useful review checkpoint.
+conditions: []

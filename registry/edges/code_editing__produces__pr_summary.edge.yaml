@@ -1,0 +1,9 @@
+﻿id: code_editing__produces__pr_summary
+from: code_editing
+to: pr_summary
+relation: produces_input_for
+status: published
+reason: The edited diff is the primary input for the PR description. PR summary cannot be generated meaningfully without it.
+severity: medium
+notes: Include the plan context alongside the diff so the PR summary explains why changes were made, not just what changed.
+conditions: []

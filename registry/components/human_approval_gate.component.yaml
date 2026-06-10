@@ -1,0 +1,43 @@
+﻿id: human_approval_gate
+name: Human Approval Gate
+status: published
+category: safety
+summary: Pauses the workflow and requires explicit human approval before any irreversible or external action proceeds.
+capabilities:
+  - pause_for_approval
+  - surface_approval_request
+  - enforce_human_in_the_loop
+inputs:
+  - action summary, proposed payload, risk context
+outputs:
+  - approved | rejected | timeout decision
+risk_level: low
+side_effects:
+  - sends approval notification (email, Slack or UI prompt)
+permissions:
+  read: []
+  write:
+    - notification channel
+  approval_required_for:
+    - all callers of this component
+requires: []
+recommended_with:
+  - audit_log
+avoid_with: []
+failure_modes:
+  - approval timeout causes workflow to stall indefinitely
+  - approval UI is ambiguous and user approves without reviewing payload
+  - approval gate is bypassed in test mode and deployed to production
+evals:
+  - time-to-approval latency on test approval flows
+  - rejection rate on intentionally bad test payloads
+  - gate bypass regression test
+tested_in_playbooks:
+  - content_approval_pipeline
+  - email_calendar_assistant
+  - codebase_agent_workflow
+tested_in_routes:
+  - content_approval_route_v1
+  - email_calendar_route_v1
+  - codebase_agent_route_v1
+sources: []

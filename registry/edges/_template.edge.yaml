@@ -1,0 +1,14 @@
+# Template — copy and rename to {id}.edge.yaml. Files starting with _ are ignored by the loader.
+id: from_component__relation__to_component
+from: from_component_id
+to: to_component_id
+relation: requires  # requires | compatible_with | conflicts_with | alternative_to | safer_with | tested_with | produces_input_for | consumes_output_from | must_run_before | can_run_parallel | requires_human_approval_when | recommended_for | avoid_when
+status: draft  # draft | beta | validated | published | deprecated
+reason: Why this relation exists — what it means in practice.
+condition: "Optional: when does this relation apply?"
+severity: medium  # low | medium | high | critical
+tested: false
+test_refs: []
+failure_modes:
+  - What breaks if this relation is violated
+sources: []

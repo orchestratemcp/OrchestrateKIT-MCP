@@ -1,0 +1,41 @@
+﻿id: audit_log
+name: Audit Log
+status: published
+category: state
+summary: Records every sensitive or external action taken by the workflow with timestamp, actor and result.
+capabilities:
+  - log_action
+  - record_external_write
+  - provide_audit_trail
+inputs:
+  - action name, actor, payload, result, timestamp
+outputs:
+  - append-only audit record
+risk_level: low
+side_effects:
+  - writes to local log file or append-only table
+permissions:
+  read:
+    - action metadata (no PII unless explicitly scoped)
+  write:
+    - audit log store
+  approval_required_for: []
+requires: []
+recommended_with:
+  - external_publish
+  - optional_email_send
+  - calendar_write
+avoid_with: []
+failure_modes:
+  - log write failure silently discards audit record
+  - log store grows unbounded without rotation policy
+evals:
+  - completeness check — every external write has a corresponding log entry
+  - log integrity — no records can be deleted or mutated
+tested_in_playbooks:
+  - content_approval_pipeline
+  - email_calendar_assistant
+tested_in_routes:
+  - content_approval_route_v1
+  - email_calendar_route_v1
+sources: []

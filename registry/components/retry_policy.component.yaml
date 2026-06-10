@@ -1,0 +1,39 @@
+﻿id: retry_policy
+name: Retry Policy
+status: published
+category: orchestration
+summary: Applies configurable retry logic (exponential backoff, max attempts, jitter) to any fallible step.
+capabilities:
+  - retry_on_failure
+  - exponential_backoff
+  - circuit_break_on_repeated_failure
+inputs:
+  - step function or job reference, retry configuration (max_attempts, base_delay_ms, jitter)
+outputs:
+  - step result or final failure after all retries exhausted
+risk_level: low
+side_effects:
+  - may repeat side-effectful actions — must only wrap idempotent steps or use deduplication
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - job_queue
+  - external_publish
+  - data_scraper
+avoid_with: []
+failure_modes:
+  - wrapping non-idempotent actions causes duplicate sends, writes or charges
+  - retry loop on permanent error wastes tokens and time
+  - missing circuit breaker causes thundering herd on recovering service
+evals:
+  - retry count on simulated transient failure
+  - circuit breaker trip on simulated permanent failure
+  - duplicate action prevention test on non-idempotent wrapped action
+tested_in_playbooks:
+  - data_extraction_enrichment
+tested_in_routes:
+  - data_extraction_route_v1
+sources: []

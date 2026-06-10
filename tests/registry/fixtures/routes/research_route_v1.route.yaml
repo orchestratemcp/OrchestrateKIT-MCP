@@ -1,0 +1,21 @@
+id: research_route_v1
+name: Research Route v1
+status: published
+summary: Basic research workflow from source retrieval to ranked output.
+goal_patterns:
+  - research
+  - find sources
+  - retrieve and rank
+components:
+  - source_retrieval
+  - source_ranking
+edges:
+  - source_retrieval__produces_input_for__source_ranking
+known_playbooks_reused:
+  - research_agent_citations
+untested_edges: []
+risk_level: low
+confidence: 0.9
+required_evals:
+  - recall@k on known document sets
+warnings: []

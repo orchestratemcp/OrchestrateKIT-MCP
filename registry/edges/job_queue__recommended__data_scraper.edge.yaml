@@ -1,0 +1,10 @@
+﻿id: job_queue__recommended__data_scraper
+from: job_queue
+to: data_scraper
+relation: recommended_for
+status: published
+reason: Batch scraping benefits from a job queue for parallelism, rate limiting and failure isolation per scrape job.
+severity: medium
+notes: Assign each URL or page range its own job. This gives per-URL retry, avoids one slow page blocking the whole batch, and enables progress tracking.
+conditions:
+  - scraping more than 10 pages or URLs

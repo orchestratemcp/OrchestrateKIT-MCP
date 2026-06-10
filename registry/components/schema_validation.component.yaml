@@ -1,0 +1,38 @@
+﻿id: schema_validation
+name: Schema Validation
+status: published
+category: processing
+summary: Validates records against a defined schema before they proceed to downstream steps.
+capabilities:
+  - validate_schema
+  - reject_invalid_records
+  - coerce_types
+inputs:
+  - list of records, schema definition (Zod, JSON Schema or equivalent)
+outputs:
+  - validated records list plus validation error report for rejected records
+risk_level: low
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - deduplication
+  - external_publish
+avoid_with: []
+failure_modes:
+  - schema too strict rejects valid records with minor format differences
+  - schema too permissive allows bad data into downstream systems
+  - coercion silently changes meaning of data (e.g. string "0" to number 0)
+evals:
+  - rejection rate on known-invalid test records
+  - false rejection rate on known-valid edge cases
+  - coercion correctness on type boundary cases
+tested_in_playbooks:
+  - data_extraction_enrichment
+tested_in_routes:
+  - data_extraction_route_v1
+  - content_approval_route_v1
+sources: []

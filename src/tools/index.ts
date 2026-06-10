@@ -1,0 +1,82 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SERVER_NAME, SERVER_VERSION } from "../config.js";
+import { getRegistryStatus } from "../registry/registryLoader.js";
+import { toErrorResult } from "../lib/errors.js";
+import { logger } from "../lib/logger.js";
+import { registerListGraphComponents } from "./listGraphComponents.js";
+import { registerGetGraphComponent } from "./getGraphComponent.js";
+import { registerListGraphEdges } from "./listGraphEdges.js";
+import { registerGetGraphEdge } from "./getGraphEdge.js";
+import { registerGetStackRecommendation } from "./getStackRecommendation.js";
+import { registerListKnownRoutes } from "./listKnownRoutes.js";
+import { registerGetRoute } from "./getRoute.js";
+import { registerComposeWorkflowRoute } from "./composeWorkflowRoute.js";
+import { registerGetPlaybook } from "./getPlaybook.js";
+import { registerGetRelevantDocs } from "./getRelevantDocs.js";
+import { registerRecommendArchitecture } from "./recommendArchitecture.js";
+import { registerReviewWorkflowDesign } from "./reviewWorkflowDesign.js";
+
+export type RegistrySummary = {
+  component_count: number;
+  edge_count: number;
+  stack_count: number;
+  route_count: number;
+  playbook_count: number;
+};
+
+export type HealthCheckResult = {
+  name: string;
+  version: string;
+  registry: RegistrySummary;
+};
+
+export function buildHealthCheckResult(): HealthCheckResult {
+  const status = getRegistryStatus();
+  return {
+    name: SERVER_NAME,
+    version: SERVER_VERSION,
+    registry: {
+      component_count: status.component_count,
+      edge_count: status.edge_count,
+      stack_count: status.stack_count,
+      route_count: status.route_count,
+      playbook_count: status.playbook_count,
+    },
+  };
+}
+
+export function registerTools(server: McpServer): void {
+  registerListGraphComponents(server);
+  registerGetGraphComponent(server);
+  registerListGraphEdges(server);
+  registerGetGraphEdge(server);
+  registerGetStackRecommendation(server);
+  registerListKnownRoutes(server);
+  registerGetRoute(server);
+  registerComposeWorkflowRoute(server);
+  registerGetPlaybook(server);
+  registerGetRelevantDocs(server);
+  registerRecommendArchitecture(server);
+  registerReviewWorkflowDesign(server);
+
+  server.registerTool(
+    "health_check",
+    {
+      title: "Health Check",
+      description:
+        "Returns the server name, version, and a summary of loaded workflow graph registry entities (components, edges, stacks, routes, playbooks). Use this to confirm the MCP server is running and the registry is loaded.",
+    },
+    async () => {
+      try {
+        const result = buildHealthCheckResult();
+        logger.debug(`health_check → ${JSON.stringify(result)}`);
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(result) }],
+        };
+      } catch (err) {
+        logger.error("health_check failed", err);
+        return toErrorResult(err);
+      }
+    },
+  );
+}

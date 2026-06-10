@@ -1,0 +1,42 @@
+﻿id: data_extraction_route_v1
+name: Data Extraction and Enrichment
+status: published
+summary: A golden-path route for scraping, normalising, deduplicating and validating structured data at scale.
+components:
+  - data_scraper
+  - data_normalizer
+  - deduplication
+  - schema_validation
+  - state_store
+  - audit_log
+  - retry_policy
+  - job_queue
+edges:
+  - data_scraper__produces__data_normalizer
+  - data_normalizer__produces__deduplication
+  - deduplication__produces__schema_validation
+  - retry_policy__recommended__data_scraper
+  - job_queue__recommended__data_scraper
+  - deduplication__recommended__data_scraper
+  - audit_log__compatible__state_store
+  - data_scraper__avoid__external_publish
+risk_level: medium
+confidence: 0.87
+failure_modes:
+  - Scraper blocked by rate limiting or anti-bot measures returns incomplete dataset
+  - Normalisation rule silently drops fields that changed format in the source
+  - Deduplication identity key collision drops legitimate records
+  - Schema validation is too strict and rejects valid edge-case records
+  - Job queue fills without monitoring, causing unbounded memory growth
+evals:
+  - scraper recall on known test page set under rate limits
+  - normalisation fidelity on format-diverse test records
+  - deduplication precision and recall on labelled test dataset
+  - schema validation false rejection rate on edge-case valid records
+  - end-to-end pipeline throughput under simulated load
+notes: >
+  Do not pipeline scraped data directly to external_publish.
+  Always run through normaliser, deduplication and schema_validation first.
+  Do not use a vector DB for this pipeline unless the corpus requires semantic retrieval —
+  a SQL table with indexed fields handles the vast majority of data extraction use cases.
+sources: []

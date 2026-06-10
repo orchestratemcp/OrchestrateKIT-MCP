@@ -1,0 +1,9 @@
+﻿id: audit_log__compatible__state_store
+from: audit_log
+to: state_store
+relation: compatible_with
+status: published
+reason: Audit log and state store often share the same database backend for local deployments. They serve different purposes and do not conflict.
+severity: low
+notes: Keep audit log as append-only even if the backing store supports mutations. Never allow workflow logic to delete audit entries.
+conditions: []

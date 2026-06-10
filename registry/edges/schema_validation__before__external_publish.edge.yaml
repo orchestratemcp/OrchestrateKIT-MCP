@@ -1,0 +1,9 @@
+﻿id: schema_validation__before__external_publish
+from: schema_validation
+to: external_publish
+relation: must_run_before
+status: published
+reason: Publishing content that fails schema validation risks corrupting the target platform data model or triggering API errors.
+severity: high
+notes: Schema validation failures must block publish, not just warn. Silent publish of invalid data is harder to debug than a clean rejection.
+conditions: []

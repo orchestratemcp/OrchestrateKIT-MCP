@@ -1,0 +1,37 @@
+﻿id: citation_checker
+name: Citation Checker
+status: published
+category: eval
+summary: Verifies that LLM-generated citations exist, are reachable and match the claimed content.
+capabilities:
+  - verify_citations
+  - check_url_reachability
+  - match_claim_to_source
+inputs:
+  - synthesised text with inline citations
+  - original source documents
+outputs:
+  - citation verification report (valid, broken, hallucinated per citation)
+risk_level: low
+side_effects:
+  - outbound HTTP HEAD requests to verify URLs
+permissions:
+  read:
+    - URLs from synthesised output
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - source_freshness_check
+avoid_with: []
+failure_modes:
+  - URL reachability check passes but content has changed since retrieval
+  - hallucinated citations look plausible and pass URL check
+evals:
+  - precision of hallucination detection on known hallucinated test cases
+  - false negative rate (missed hallucinations)
+tested_in_playbooks:
+  - research_agent_citations
+tested_in_routes:
+  - research_route_v1
+sources: []

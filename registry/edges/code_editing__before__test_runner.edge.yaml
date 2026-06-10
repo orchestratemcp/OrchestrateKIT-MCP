@@ -1,0 +1,10 @@
+id: code_editing__before__test_runner
+from: code_editing
+to: test_runner
+relation: must_run_before
+status: published
+reason: Tests must run after code changes are applied. Running tests before editing provides a baseline but does not validate the edit.
+severity: high
+notes: Always run the full test suite (or at minimum the affected test scope) after every edit, not just the final edit in a sequence.
+conditions: []
+tested: true

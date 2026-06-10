@@ -1,0 +1,14 @@
+id: source_retrieval__produces_input_for__source_ranking
+from: source_retrieval
+to: source_ranking
+relation: produces_input_for
+status: published
+reason: Source retrieval outputs raw documents that source ranking consumes as its primary input.
+condition: ""
+severity: low
+tested: true
+test_refs:
+  - research_agent_citations
+failure_modes:
+  - empty retrieval output causes ranking to fail silently
+sources: []

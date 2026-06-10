@@ -1,0 +1,12 @@
+id: test-research-doc
+title: Test research framework docs
+url: https://example.com/research
+source_type: official_docs
+last_checked: "2026-06-01"
+summary: Test documentation entry for research workflows.
+tags:
+  - research
+  - retrieval
+relevant_to:
+  - research_agent_citations
+  - source_retrieval

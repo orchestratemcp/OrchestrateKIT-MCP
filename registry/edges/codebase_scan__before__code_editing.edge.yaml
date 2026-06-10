@@ -1,0 +1,10 @@
+id: codebase_scan__before__code_editing
+from: codebase_scan
+to: code_editing
+relation: must_run_before
+status: published
+reason: Editing without a current codebase scan produces stale-context patches that reference wrong line numbers or missing symbols.
+severity: high
+notes: Re-scan after any external change to the codebase (e.g. git pull) before editing.
+conditions: []
+tested: true

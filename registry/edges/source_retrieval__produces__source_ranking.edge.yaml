@@ -1,0 +1,10 @@
+id: source_retrieval__produces__source_ranking
+from: source_retrieval
+to: source_ranking
+relation: produces_input_for
+status: published
+reason: Raw retrieved documents must be ranked by relevance before synthesis. Passing unranked docs directly to synthesis degrades quality significantly.
+severity: high
+notes: Always rank before synthesising. Even a simple score-based sort outperforms passing raw results.
+conditions: []
+tested: true

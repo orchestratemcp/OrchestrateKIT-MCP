@@ -1,0 +1,84 @@
+id: research_agent_citations
+version: "1.0.0"
+title: Research Agent with Citations
+status: published
+summary: >
+  Opinionated blueprint for building a research agent that retrieves, ranks and synthesises
+  information with verified citations and freshness checks. Optimised for accuracy over speed.
+workflow_type: research
+risk_level: medium
+golden_path_route_id: research_route_v1
+components:
+  - user_goal_intake
+  - source_retrieval
+  - source_ranking
+  - research_synthesis
+  - citation_checker
+  - source_freshness_check
+  - state_store
+edges:
+  - user_goal_intake__produces__source_retrieval
+  - source_retrieval__produces__source_ranking
+  - source_ranking__produces__research_synthesis
+  - research_synthesis__requires__citation_checker
+  - research_synthesis__requires__source_freshness_check
+  - state_store__recommended__research_synthesis
+  - source_retrieval__tested__research_synthesis
+stack_id: default_orchestratekit_stack
+best_for:
+  - competitive analysis and market research
+  - technical documentation summarisation
+  - literature review for non-expert audiences
+  - news aggregation with source attribution
+avoid_when:
+  - legal, medical or financial advice without domain expert review
+  - real-time data feeds where freshness threshold is seconds
+  - classified or proprietary document research without access controls
+recommended_architecture:
+  pattern: Single orchestrator agent with linear retrieval → rank → synthesise → verify pipeline
+  why: >
+    A single orchestrator with explicit steps produces more reliable, debuggable results
+    than a multi-agent swarm. State checkpoints after retrieval and ranking enable
+    resumption without full restart on failure.
+llm_driven_steps:
+  - research_synthesis
+  - intent extraction in user_goal_intake
+deterministic_steps:
+  - source_retrieval
+  - source_ranking
+  - citation_checker
+  - source_freshness_check
+guardrails:
+  - Do not present synthesis output as authoritative for legal, medical or financial decisions
+  - Always include source freshness metadata in the response so the reader can judge relevance
+  - Do not publish or share synthesis output without citation verification passing
+failure_modes:
+  - LLM hallucination when retrieval returns irrelevant or low-quality documents
+  - Citation checker false negatives — hallucinated citation that coincidentally matches a real URL
+  - Stale source threshold too permissive for the specific domain (e.g. 90 days is stale for security advisories)
+  - State store checkpoint not saved before LLM call, forcing full restart on failure
+  - Retrieval returns paywalled pages that appear valid but contain no usable content
+evals:
+  - factual accuracy score on 20 known-answer research questions
+  - citation precision and recall on 10 labelled synthesis test cases
+  - source freshness compliance rate on dated fixture set
+  - hallucination detection rate on 5 intentionally hallucinated synthesis fixtures
+  - end-to-end latency on 10 queries against live sources
+implementation_steps:
+  - "Step 1: Implement user_goal_intake to parse and structure the user query, extracting constraints (domain, date range, language)"
+  - "Step 2: Implement source_retrieval with configurable source adapters (web search, local file, API). Return URL, title, body, retrieved_at per result"
+  - "Step 3: Implement source_ranking using a relevance score (keyword match + authority heuristic). Sort descending by score"
+  - "Step 4: Implement research_synthesis prompt with explicit grounding instruction: cite only from the provided source list, use [n] inline notation"
+  - "Step 5: Implement citation_checker to verify each [n] reference exists in the source list and URL is reachable"
+  - "Step 6: Implement source_freshness_check to flag sources older than the configured threshold"
+  - "Step 7: Add state_store checkpoints after retrieval and after ranking for resumption support"
+  - "Step 8: Wire output as structured response: synthesis text + citation list + freshness report"
+sources:
+  - title: Grounding LLMs with retrieved context (RAG survey)
+    url: https://arxiv.org/abs/2301.12652
+    source_type: unknown
+    last_checked: "2026-01-10"
+  - title: Vercel AI SDK — tool calling
+    url: https://sdk.vercel.ai/docs/ai-sdk-core/tools-and-tool-calling
+    source_type: official_docs
+    last_checked: "2026-06-01"

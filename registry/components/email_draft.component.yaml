@@ -1,0 +1,38 @@
+﻿id: email_draft
+name: Email Draft
+status: published
+category: output
+summary: Composes a draft email response based on context, instructions and a prior message.
+capabilities:
+  - compose_email
+  - apply_tone_style
+  - include_context
+inputs:
+  - original email, user goal, tone instructions
+outputs:
+  - draft email (subject, body, suggested recipients)
+risk_level: medium
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for:
+    - optional_email_send
+requires: []
+recommended_with:
+  - human_approval_gate
+  - calendar_lookup
+avoid_with: []
+failure_modes:
+  - draft contains PII from context it should not have access to
+  - tone misalignment causes draft to seem offensive or unprofessional
+  - subject line hallucination diverges from message content
+evals:
+  - tone adherence on diverse instruction sets
+  - PII containment test
+  - human preference score on draft vs baseline
+tested_in_playbooks:
+  - email_calendar_assistant
+tested_in_routes:
+  - email_calendar_route_v1
+sources: []

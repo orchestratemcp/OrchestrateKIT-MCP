@@ -1,0 +1,10 @@
+id: data_normalizer__produces__deduplication
+from: data_normalizer
+to: deduplication
+relation: produces_input_for
+status: published
+reason: Deduplication requires normalised records to compare on canonical identity keys. Comparing raw records produces false positives.
+severity: medium
+notes: Normalise first, then deduplicate. The reverse order causes near-duplicate detection to miss format-only variants.
+conditions: []
+tested: true

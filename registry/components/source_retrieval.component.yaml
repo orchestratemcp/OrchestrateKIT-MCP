@@ -1,0 +1,39 @@
+﻿id: source_retrieval
+name: Source Retrieval
+status: published
+category: input
+summary: Fetches candidate documents or data from external or local sources based on a query.
+capabilities:
+  - retrieve_documents
+  - query_external_source
+  - fetch_local_files
+inputs:
+  - structured query or URL list
+outputs:
+  - list of raw source documents with metadata (url, title, retrieved_at)
+risk_level: low
+side_effects:
+  - outbound HTTP requests to external sources
+permissions:
+  read:
+    - external URLs or local file paths
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - source_ranking
+  - retry_policy
+avoid_with: []
+failure_modes:
+  - source unavailable or rate-limited returns empty or partial results
+  - returns stale documents without freshness metadata
+  - paywall or auth blocks access silently
+evals:
+  - recall@k on known document sets
+  - latency per source type
+  - error rate under rate-limit conditions
+tested_in_playbooks:
+  - research_agent_citations
+tested_in_routes:
+  - research_route_v1
+sources: []

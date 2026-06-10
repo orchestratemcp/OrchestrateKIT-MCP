@@ -1,0 +1,10 @@
+id: data_scraper__produces__data_normalizer
+from: data_scraper
+to: data_normalizer
+relation: produces_input_for
+status: published
+reason: Raw scraped records must be normalised before any downstream processing or storage.
+severity: high
+notes: Never pass raw scraped data directly to downstream consumers — field formats, encodings and value ranges vary too widely.
+conditions: []
+tested: true

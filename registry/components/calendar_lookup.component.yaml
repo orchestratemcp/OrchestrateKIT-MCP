@@ -1,0 +1,36 @@
+﻿id: calendar_lookup
+name: Calendar Lookup
+status: published
+category: integration
+summary: Reads calendar events and free/busy slots to inform scheduling decisions.
+capabilities:
+  - read_calendar_events
+  - check_free_busy
+  - find_available_slots
+inputs:
+  - calendar credentials or OAuth token, time range, attendees
+outputs:
+  - list of existing events, free/busy slots, suggested meeting times
+risk_level: low
+side_effects:
+  - reads from external calendar provider (Google, Outlook API)
+permissions:
+  read:
+    - calendar read scope
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - email_draft
+avoid_with: []
+failure_modes:
+  - OAuth token expiry causes silent lookup failure
+  - timezone handling error causes incorrect slot suggestions
+evals:
+  - slot suggestion accuracy on timezone-diverse test cases
+  - error handling on expired credentials
+tested_in_playbooks:
+  - email_calendar_assistant
+tested_in_routes:
+  - email_calendar_route_v1
+sources: []

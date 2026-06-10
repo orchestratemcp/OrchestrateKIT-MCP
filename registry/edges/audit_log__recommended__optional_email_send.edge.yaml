@@ -1,0 +1,9 @@
+﻿id: audit_log__recommended__optional_email_send
+from: audit_log
+to: optional_email_send
+relation: recommended_for
+status: published
+reason: Email sends are irreversible. An audit log entry is the only reliable post-hoc evidence of what was sent, to whom and when.
+severity: high
+notes: Include recipient, subject, body hash, approval actor and timestamp. Do not log full body if it contains PII unless your data policy requires it.
+conditions: []

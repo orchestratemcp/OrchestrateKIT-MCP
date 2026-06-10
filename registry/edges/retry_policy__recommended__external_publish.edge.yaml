@@ -1,0 +1,10 @@
+﻿id: retry_policy__recommended__external_publish
+from: retry_policy
+to: external_publish
+relation: recommended_for
+status: published
+reason: External publish calls are prone to transient network and API failures. A retry policy prevents silent loss of publish attempts.
+severity: medium
+notes: Wrap only idempotent publish calls with retry. If the platform does not guarantee idempotency, use a deduplication key to prevent duplicate publishes.
+conditions:
+  - publish API is idempotent or workflow uses deduplication key

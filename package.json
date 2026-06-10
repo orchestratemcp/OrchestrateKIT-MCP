@@ -1,0 +1,30 @@
+{
+  "name": "orchestratekit-mcp",
+  "version": "0.1.0",
+  "description": "Local stdio MCP server for OrchestrateKit — evidence-backed playbooks for AI workflow design.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsup src/server.ts --format esm --out-dir dist --clean && node -e \"const{cpSync}=require('fs');cpSync('registry','dist/registry',{recursive:true});console.log('registry/ copied to dist/registry/')\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "smoke": "vitest run tests/smoke",
+    "verify": "pnpm typecheck && pnpm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "js-yaml": "^4.2.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

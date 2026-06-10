@@ -1,0 +1,35 @@
+﻿id: intent_classifier
+name: Intent Classifier
+status: published
+category: processing
+summary: Classifies a user goal or message into a structured intent category to route the workflow correctly.
+capabilities:
+  - classify_intent
+  - route_workflow
+  - detect_workflow_type
+inputs:
+  - user goal or message
+outputs:
+  - intent label, confidence score, suggested next component
+risk_level: low
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires:
+  - user_goal_intake
+recommended_with:
+  - source_retrieval
+avoid_with: []
+failure_modes:
+  - misclassification routes to wrong workflow branch
+  - low-confidence classification causes ambiguous downstream behaviour
+evals:
+  - classification accuracy on labelled intent dataset
+  - routing precision per intent class
+tested_in_playbooks:
+  - email_calendar_assistant
+tested_in_routes:
+  - email_calendar_route_v1
+sources: []

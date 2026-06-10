@@ -1,0 +1,9 @@
+﻿id: citation_checker__compatible__source_freshness_check
+from: citation_checker
+to: source_freshness_check
+relation: compatible_with
+status: published
+reason: Citation checking and freshness checking are complementary eval steps. Both operate on the same source set and can run in parallel.
+severity: low
+notes: Run both checks before delivering synthesis output. A valid citation from a stale source is still a problem.
+conditions: []

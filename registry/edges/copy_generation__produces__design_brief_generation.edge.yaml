@@ -1,0 +1,10 @@
+﻿id: copy_generation__produces__design_brief_generation
+from: copy_generation
+to: design_brief_generation
+relation: produces_input_for
+status: published
+reason: Approved copy is the primary input for the design brief. Visual direction must align with the final copy, not an earlier draft.
+severity: medium
+notes: Only generate the design brief after copy is approved or at minimum reviewed — visual mismatch is costly to redo.
+conditions:
+  - copy variant is approved or at minimum reviewed

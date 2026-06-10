@@ -1,0 +1,10 @@
+id: deduplication__produces__schema_validation
+from: deduplication
+to: schema_validation
+relation: produces_input_for
+status: published
+reason: Schema validation should operate on the final deduplicated set to avoid validating records that will be dropped.
+severity: low
+notes: Running validation before deduplication is wasteful but not incorrect. Running it after reduces validation error noise.
+conditions: []
+tested: true

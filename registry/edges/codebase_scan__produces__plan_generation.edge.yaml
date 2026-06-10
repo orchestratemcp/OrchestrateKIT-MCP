@@ -1,0 +1,10 @@
+id: codebase_scan__produces__plan_generation
+from: codebase_scan
+to: plan_generation
+relation: produces_input_for
+status: published
+reason: Plan generation requires an accurate picture of the current codebase state to produce actionable steps.
+severity: high
+notes: Without a fresh codebase scan, plan generation operates on stale context and produces steps that reference non-existent files.
+conditions: []
+tested: true

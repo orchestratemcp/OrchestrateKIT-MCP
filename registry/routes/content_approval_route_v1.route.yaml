@@ -1,0 +1,39 @@
+﻿id: content_approval_route_v1
+name: Content Approval Pipeline
+status: published
+summary: A golden-path route for AI-assisted content creation with schema validation, human approval and audited external publish.
+components:
+  - content_idea_intake
+  - copy_generation
+  - design_brief_generation
+  - human_approval_gate
+  - schema_validation
+  - external_publish
+  - audit_log
+edges:
+  - content_idea_intake__produces__copy_generation
+  - copy_generation__produces__design_brief_generation
+  - copy_generation__safer_with__human_approval_gate
+  - design_brief_generation__safer_with__human_approval_gate
+  - external_publish__requires__human_approval_gate
+  - schema_validation__before__external_publish
+  - audit_log__recommended__external_publish
+risk_level: high
+confidence: 0.90
+failure_modes:
+  - Copy does not meet brand voice requirements and passes approval without review
+  - Schema validation is too permissive and allows malformed content to publish
+  - External publish API returns 200 but content is silently queued or rejected
+  - Audit log write fails after publish, leaving no record
+  - Approval gate is bypassed in test mode and leaks to production
+evals:
+  - brand voice adherence on test brief set
+  - schema validation rejection rate on known-invalid content payloads
+  - approval gate bypass regression test
+  - audit log completeness — every publish has a corresponding log entry
+  - rollback feasibility test per target platform
+notes: >
+  Do not use a multi-agent swarm for this flow. A single orchestrator with a clear
+  approval checkpoint produces more predictable outcomes than a committee of agents
+  that can deadlock or escalate indefinitely.
+sources: []

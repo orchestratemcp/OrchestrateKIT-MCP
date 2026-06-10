@@ -1,0 +1,34 @@
+﻿id: content_idea_intake
+name: Content Idea Intake
+status: published
+category: input
+summary: Accepts a content brief, topic or idea as the entry point for a content creation workflow.
+capabilities:
+  - accept_content_brief
+  - extract_audience_and_goals
+  - structure_content_request
+inputs:
+  - free-text brief or structured content request
+outputs:
+  - structured content request with audience, tone, format and key messages
+risk_level: low
+side_effects: []
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - copy_generation
+avoid_with: []
+failure_modes:
+  - vague brief produces generic copy that does not meet brand voice
+  - missing audience definition causes tone misalignment
+evals:
+  - brief parsing accuracy on diverse content types
+  - audience extraction recall
+tested_in_playbooks:
+  - content_approval_pipeline
+tested_in_routes:
+  - content_approval_route_v1
+sources: []
