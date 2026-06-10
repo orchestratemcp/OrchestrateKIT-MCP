@@ -196,6 +196,47 @@ describe("registry data — list_graph_edges logic", () => {
   });
 });
 
+/**
+ * MAR-92 — InlineEdgeSummary from graphToolFormatters
+ */
+describe("graphToolFormatters — toInlineEdgeSummary (MAR-92)", () => {
+  it("maps all required fields from a full edge", async () => {
+    const { toInlineEdgeSummary } = await import("../../src/tools/graphToolFormatters.js");
+    const registry = loadRegistry();
+    const edge = registry.edges.find((e) => e.id === "external_publish__requires__human_approval_gate");
+    expect(edge).toBeDefined();
+    const summary = toInlineEdgeSummary(edge!);
+    expect(summary.edge_id).toBe(edge!.id);
+    expect(summary.from).toBe(edge!.from);
+    expect(summary.to).toBe(edge!.to);
+    expect(summary.relation).toBe(edge!.relation);
+    expect(typeof summary.severity).toBe("string");
+    expect(typeof summary.tested).toBe("boolean");
+    expect(Array.isArray(summary.test_refs)).toBe(true);
+    expect(typeof summary.condition).toBe("string");
+    expect(typeof summary.test_action).toBe("string");
+  });
+
+  it("test_action is empty string when edge is tested", async () => {
+    const { toInlineEdgeSummary } = await import("../../src/tools/graphToolFormatters.js");
+    const registry = loadRegistry();
+    const testedEdge = registry.edges.find((e) => e.tested === true);
+    if (testedEdge) {
+      const summary = toInlineEdgeSummary(testedEdge);
+      expect(summary.test_action).toBe("");
+    }
+  });
+
+  it("test_action is non-empty when edge is untested", async () => {
+    const { toInlineEdgeSummary } = await import("../../src/tools/graphToolFormatters.js");
+    const registry = loadRegistry();
+    const untestedEdge = registry.edges.find((e) => !e.tested);
+    expect(untestedEdge).toBeDefined();
+    const summary = toInlineEdgeSummary(untestedEdge!);
+    expect(summary.test_action.length).toBeGreaterThan(0);
+  });
+});
+
 describe("registry data — routes logic", () => {
   const registry = loadRegistry();
 

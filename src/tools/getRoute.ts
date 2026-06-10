@@ -6,6 +6,9 @@ import {
   notFoundResponse,
   statusWarnings,
   toMcpContent,
+  toInlineEdgeSummary,
+  criticalUntestedChecklist,
+  type InlineEdgeSummary,
 } from "./graphToolFormatters.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
@@ -45,6 +48,13 @@ export function registerGetRoute(server: McpServer): void {
           ...route.warnings,
         ];
 
+        // Resolve inline edge objects for the route (MAR-92)
+        const edgeMap = new Map(registry.edges.map((e) => [e.id, e]));
+        const inlineEdges: InlineEdgeSummary[] = route.edges
+          .map((eid) => edgeMap.get(eid))
+          .filter((e): e is NonNullable<typeof e> => e !== undefined)
+          .map(toInlineEdgeSummary);
+
         type RouteData = {
           id: string;
           name: string;
@@ -53,7 +63,7 @@ export function registerGetRoute(server: McpServer): void {
           risk_level: string;
           confidence: number;
           components: string[];
-          edges: string[];
+          edges: InlineEdgeSummary[];
           required_evals: string[];
           untested_edges: string[];
           warnings: string[];
@@ -68,7 +78,7 @@ export function registerGetRoute(server: McpServer): void {
           risk_level: route.risk_level,
           confidence: route.confidence,
           components: route.components,
-          edges: route.edges,
+          edges: inlineEdges,
           required_evals: route.required_evals,
           untested_edges: route.untested_edges,
           warnings: route.warnings,
@@ -96,8 +106,13 @@ export function registerGetRoute(server: McpServer): void {
           ``,
           `**Components (${route.components.length}):** ${route.components.map((c) => `\`${c}\``).join(", ")}`,
           ``,
-          `**Edges (${route.edges.length}):** ${route.edges.map((e) => `\`${e}\``).join(", ")}`,
+          `**Edges (${inlineEdges.length}):**`,
         ];
+
+        for (const e of inlineEdges) {
+          const testedTag = e.tested ? "" : ` ⚠️ untested`;
+          lines.push(`- \`${e.edge_id}\` \`${e.relation}\` [${e.severity}]${testedTag} — ${e.condition || "no condition"}`);
+        }
 
         if (route.required_evals.length > 0) {
           lines.push(``, `**Required evals:**`);
@@ -105,9 +120,12 @@ export function registerGetRoute(server: McpServer): void {
             lines.push(`- ${ev}`);
           }
         }
-        if (route.untested_edges.length > 0) {
-          lines.push(``, `**⚠️ Untested edges:** ${route.untested_edges.map((e) => `\`${e}\``).join(", ")}`);
-          warnings.push(`This route has ${route.untested_edges.length} untested edge(s). Validate before using in production.`);
+
+        // MAR-92: critical untested edges checklist
+        const checklist = criticalUntestedChecklist(inlineEdges);
+        if (checklist) {
+          lines.push(checklist);
+          warnings.push(`This route has ${inlineEdges.filter((e) => !e.tested).length} untested edge(s). Validate before using in production.`);
         }
 
         logger.debug(`get_route → ${route.id}`);

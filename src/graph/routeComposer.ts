@@ -17,6 +17,11 @@ import {
   findOverlappingRoutes,
 } from "./playbookOverlap.js";
 import { scoreRoute } from "./routeScoring.js";
+import {
+  toInlineEdgeSummary,
+  criticalUntestedChecklist,
+  type InlineEdgeSummary,
+} from "../tools/graphToolFormatters.js";
 
 const MAX_COMPONENTS = 12;
 const MIN_SCORE_THRESHOLD = 0;
@@ -68,7 +73,7 @@ export type ComposedRoute = {
   planning_order: string[];
   /** Runtime-correct order; recommended_route steps follow this. */
   execution_order: string[];
-  edges_used: string[];
+  edges_used: InlineEdgeSummary[];
   known_playbooks_reused: string[];
   untested_edges: string[];
   /** avoid_when edges violated by this route (critical → blocked_candidate). */
@@ -117,6 +122,7 @@ function buildSummaryMarkdown(
   score: number,
   confidence: number,
   pbRec: PlaybookRecommendation | null = null,
+  inlineEdges: InlineEdgeSummary[] = [],
 ): string {
   const lines: string[] = [];
 
@@ -182,6 +188,12 @@ function buildSummaryMarkdown(
     lines.push(``, `### ⚠️ Warnings`, ...warnings.map((w) => `- ${w}`));
   }
 
+  // MAR-92: critical untested edges checklist — critical first, then rest
+  const checklist = criticalUntestedChecklist(inlineEdges);
+  if (checklist) {
+    lines.push(checklist);
+  }
+
   lines.push(
     ``,
     `> This is a **candidate route**, not a validated playbook. Test before relying on it.`,
@@ -232,7 +244,7 @@ export function composeRoute(
       recommended_route: [],
       planning_order: [],
       execution_order: [],
-      edges_used: [],
+      edges_used: [] as InlineEdgeSummary[],
       known_playbooks_reused: [],
       untested_edges: [],
       avoid_when_violations: [],
@@ -501,6 +513,7 @@ export function composeRoute(
           route_score,
           confidence,
           playbookRecommendation,
+          internalEdges.map(toInlineEdgeSummary),
         );
 
   return {
@@ -513,7 +526,7 @@ export function composeRoute(
     recommended_route: steps,
     planning_order: planningComponents.map((c) => c.id),
     execution_order: executionComponents.map((c) => c.id),
-    edges_used: internalEdges.map((e) => e.id),
+    edges_used: internalEdges.map(toInlineEdgeSummary),
     known_playbooks_reused: knownPlaybooksReused,
     untested_edges: untestedEdges,
     avoid_when_violations: avoidViolations,

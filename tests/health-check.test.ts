@@ -38,6 +38,13 @@ describe("health_check tool", () => {
     }
   });
 
+  it("registry summary includes untested_edge_pct (MAR-92)", () => {
+    const r: RegistrySummary = buildHealthCheckResult().registry;
+    expect(typeof r.untested_edge_pct).toBe("number");
+    expect(r.untested_edge_pct).toBeGreaterThanOrEqual(0);
+    expect(r.untested_edge_pct).toBeLessThanOrEqual(100);
+  });
+
   it("registry counts meet MAR-38 minimum seed targets", () => {
     const r = buildHealthCheckResult().registry;
     expect(r.component_count, "components").toBeGreaterThanOrEqual(20);

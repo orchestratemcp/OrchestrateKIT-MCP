@@ -27,4 +27,6 @@ export type RegistryStatus = {
   stack_count: number;
   route_count: number;
   playbook_count: number;
+  /** Percentage of edges with tested=false, rounded to one decimal place. */
+  untested_edge_pct: number;
 };

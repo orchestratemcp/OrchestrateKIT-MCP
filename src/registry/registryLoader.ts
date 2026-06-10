@@ -143,11 +143,16 @@ export function loadRegistry(opts: LoaderOptions = {}): LoadedRegistry {
 
 export function getRegistryStatus(opts: LoaderOptions = {}): RegistryStatus {
   const registry = loadRegistry(opts);
+  const totalEdges = registry.edges.length;
+  const untestedEdges = registry.edges.filter((e) => !e.tested).length;
+  const untested_edge_pct =
+    totalEdges > 0 ? Math.round((untestedEdges / totalEdges) * 1000) / 10 : 0;
   return {
     component_count: registry.components.length,
     edge_count: registry.edges.length,
     stack_count: registry.stacks.length,
     route_count: registry.routes.length,
     playbook_count: registry.playbooks.length,
+    untested_edge_pct,
   };
 }

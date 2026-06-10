@@ -22,6 +22,8 @@ export type RegistrySummary = {
   stack_count: number;
   route_count: number;
   playbook_count: number;
+  /** Percentage of edges with tested=false (MAR-92). */
+  untested_edge_pct: number;
 };
 
 export type HealthCheckResult = {
@@ -41,6 +43,7 @@ export function buildHealthCheckResult(): HealthCheckResult {
       stack_count: status.stack_count,
       route_count: status.route_count,
       playbook_count: status.playbook_count,
+      untested_edge_pct: status.untested_edge_pct,
     },
   };
 }

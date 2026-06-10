@@ -89,6 +89,24 @@ describe("composeWorkflowRoute integration", () => {
     expect(emailIds).not.toEqual(codeIds);
   });
 
+  it("MAR-92: edges_used items are inline edge objects with required fields", () => {
+    const result = composeRoute(
+      { goal: "scan codebase, plan changes, implement and run tests", must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    expect(Array.isArray(result.edges_used)).toBe(true);
+    if (result.edges_used.length > 0) {
+      const first = result.edges_used[0] as Record<string, unknown>;
+      expect(typeof first["edge_id"]).toBe("string");
+      expect(typeof first["relation"]).toBe("string");
+      expect(typeof first["severity"]).toBe("string");
+      expect(typeof first["tested"]).toBe("boolean");
+      expect(Array.isArray(first["test_refs"])).toBe(true);
+      expect(typeof first["condition"]).toBe("string");
+      expect(typeof first["test_action"]).toBe("string");
+    }
+  });
+
   it("result is fully JSON-serialisable", () => {
     const result = composeRoute(
       { goal: "research and summarize", must_have_capabilities: [], must_avoid: [] },

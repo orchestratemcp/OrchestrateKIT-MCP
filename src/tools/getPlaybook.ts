@@ -6,7 +6,12 @@ import type { Route } from "../registry/routeSchema.js";
 import type { Component } from "../registry/componentSchema.js";
 import type { Edge } from "../registry/edgeSchema.js";
 import type { Stack } from "../registry/stackSchema.js";
-import { statusWarnings } from "./graphToolFormatters.js";
+import {
+  statusWarnings,
+  toInlineEdgeSummary,
+  criticalUntestedChecklist,
+  type InlineEdgeSummary,
+} from "./graphToolFormatters.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 
@@ -47,20 +52,11 @@ type ComponentSummary = {
   risk_level: string;
 };
 
-type EdgeSummary = {
-  id: string;
-  from: string;
-  to: string;
-  relation: string;
-  reason: string;
-  tested: boolean;
-  severity: string;
-};
-
 type GraphContext = {
   route?: Pick<Route, "id" | "name" | "status" | "confidence" | "risk_level"> & { untested_edges: string[] };
   components: ComponentSummary[];
-  edges: EdgeSummary[];
+  /** Full inline edge evidence objects (MAR-92). */
+  edges: InlineEdgeSummary[];
   stack?: Pick<Stack, "id" | "name" | "summary">;
   untested_edges: string[];
   approval_gates: string[];
@@ -135,21 +131,13 @@ function buildGraphContext(
       risk_level: c.risk_level,
     }));
 
-  const edges: EdgeSummary[] = registry.edges
+  const edges: InlineEdgeSummary[] = registry.edges
     .filter((e) => edgeIds.has(e.id))
-    .map((e) => ({
-      id: e.id,
-      from: e.from,
-      to: e.to,
-      relation: e.relation,
-      reason: e.reason,
-      tested: e.tested,
-      severity: e.severity,
-    }));
+    .map(toInlineEdgeSummary);
 
   // Untested edges: from the route's untested_edges list + any playbook edges with tested=false.
   const routeUntestedEdges = route?.untested_edges ?? [];
-  const untestedFromEdges = edges.filter((e) => !e.tested).map((e) => e.id);
+  const untestedFromEdges = edges.filter((e) => !e.tested).map((e) => e.edge_id);
   const untestedEdges = [...new Set([...routeUntestedEdges, ...untestedFromEdges])];
 
   // Approval gates: edges that require human_approval_gate (relation=requires, to=human_approval_gate),
@@ -160,7 +148,10 @@ function buildGraphContext(
         e.relation === "requires_human_approval_when" ||
         (e.relation === "requires" && e.to === "human_approval_gate"),
     )
-    .map((e) => `${e.from} → ${e.to} (${e.reason})`);
+    .map((e) => {
+      const rawEdge = registry.edges.find((re) => re.id === e.edge_id);
+      return `${e.from} → ${e.to} (${rawEdge?.reason ?? e.condition})`;
+    });
 
   const approvalGateComponents = registry.components
     .filter(
@@ -274,15 +265,15 @@ function playbookToMarkdown(
       lines.push(``, `**Edges (${graphCtx.edges.length}):**`);
       for (const e of graphCtx.edges) {
         const testedTag = e.tested ? "" : " ⚠️ untested";
-        lines.push(`- \`${e.id}\` \`${e.relation}\`${testedTag} — ${e.reason}`);
+        const condPart = e.condition ? ` — condition: ${e.condition}` : "";
+        lines.push(`- \`${e.edge_id}\` \`${e.relation}\` [${e.severity}]${testedTag}${condPart}`);
       }
     }
 
-    if (graphCtx.untested_edges.length > 0) {
-      lines.push(
-        ``,
-        `**⚠️ Untested edges (${graphCtx.untested_edges.length}):** ${graphCtx.untested_edges.map((e) => `\`${e}\``).join(", ")}`,
-      );
+    // MAR-92: critical untested edges checklist
+    const checklist = criticalUntestedChecklist(graphCtx.edges);
+    if (checklist) {
+      lines.push(checklist);
     }
 
     if (graphCtx.approval_gates.length > 0) {
