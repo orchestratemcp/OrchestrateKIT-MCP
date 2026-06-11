@@ -69,6 +69,8 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   plan_generation: ["code_agent"],
   test_runner: ["code_agent"],
   pr_summary: ["code_agent"],
+  // crm_sales
+  crm_note_write: ["crm_sales"],
   // monitoring
   page_monitor: ["monitoring"],
   // generic_orchestration — always eligible
@@ -253,6 +255,8 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   brief: ["design_brief_generation"],
   publish: ["external_publish"],
   post: ["external_publish"],
+  crm: ["crm_note_write"],
+  lead: ["crm_note_write"],
   scrape: ["data_scraper"],
   crawl: ["data_scraper"],
   monitor: ["page_monitor"],

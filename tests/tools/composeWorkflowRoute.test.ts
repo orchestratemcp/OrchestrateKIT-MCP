@@ -107,6 +107,24 @@ describe("composeWorkflowRoute integration", () => {
     }
   });
 
+  it("MAR-95 p6 CRM: route includes crm_note_write and human_approval_gate, excludes external_publish", () => {
+    const result = composeRoute(
+      {
+        goal:
+          "read email inbox, identify sales leads, research the company, write a CRM note, " +
+          "draft a follow-up email for human review, only send after explicit approval",
+        must_have_capabilities: [],
+        must_avoid: [],
+      },
+      registry,
+    );
+
+    const ids = result.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("crm_note_write");
+    expect(ids).toContain("human_approval_gate");
+    expect(ids).not.toContain("external_publish");
+  });
+
   it("result is fully JSON-serialisable", () => {
     const result = composeRoute(
       { goal: "research and summarize", must_have_capabilities: [], must_avoid: [] },

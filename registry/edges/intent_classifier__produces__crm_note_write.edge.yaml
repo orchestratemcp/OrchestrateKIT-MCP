@@ -1,0 +1,15 @@
+id: intent_classifier__produces__crm_note_write
+from: intent_classifier
+to: crm_note_write
+relation: produces_input_for
+status: published
+reason: When intent classification identifies a sales lead or partnership opportunity, the structured classification output (contact identity, lead category, context) is the input needed to write a CRM note.
+severity: medium
+condition: classification result is a lead, prospect, or partnership opportunity
+notes: Only route to crm_note_write when the intent classifier resolves to a CRM-relevant category. Other intent categories (support, spam, transactional) should not trigger CRM writes.
+conditions: []
+tested: false
+test_refs: []
+failure_modes:
+  - misclassification causes irrelevant contacts to receive CRM activity records
+sources: []

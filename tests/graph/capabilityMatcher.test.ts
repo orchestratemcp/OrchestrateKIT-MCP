@@ -216,10 +216,10 @@ describe("matchCapabilities — MAR-88 p1–p7 regression (domain gating)", () =
     expect(ids).toContain("deduplication");
   });
 
-  it("p6 lead+CRM: never substitutes external_publish; keeps email + research", () => {
+  it("p6 lead+CRM: includes crm_note_write; never substitutes external_publish; keeps email + research", () => {
     const ids = matchedIds(P6_LEAD_CRM);
-    // CRM write has no component yet (MCP-21) — must NOT be papered over with publish
-    expect(ids).not.toContain("external_publish");
+    expect(ids).toContain("crm_note_write");     // MAR-95: must be present
+    expect(ids).not.toContain("external_publish"); // must NOT be substituted
     expect(ids).toContain("email_read");
     expect(ids).toContain("email_draft");
     expect(ids).toContain("research_synthesis");
@@ -230,6 +230,24 @@ describe("matchCapabilities — MAR-88 p1–p7 regression (domain gating)", () =
     expect(ids).not.toContain("pr_summary");
     expect(ids).toContain("page_monitor");
     expect(ids).not.toContain("data_scraper"); // monitoring domain, not data_etl
+  });
+});
+
+describe("matchCapabilities — MAR-95 crm_note_write domain gating", () => {
+  it("crm_note_write appears for a CRM-keyed goal", () => {
+    const ids = matchedIds("classify sales leads from email and write a CRM note");
+    expect(ids).toContain("crm_note_write");
+    expect(ids).not.toContain("external_publish");
+  });
+
+  it("crm_note_write does NOT appear for a pure content goal", () => {
+    const ids = matchedIds("generate copy variants and publish to the blog");
+    expect(ids).not.toContain("crm_note_write");
+  });
+
+  it("crm_note_write does NOT appear for a pure code goal", () => {
+    const ids = matchedIds("scan codebase, implement feature and run tests");
+    expect(ids).not.toContain("crm_note_write");
   });
 });
 

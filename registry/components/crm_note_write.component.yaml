@@ -1,0 +1,41 @@
+id: crm_note_write
+name: CRM Note Write
+status: published
+category: integration
+summary: Writes a structured note or activity record to a CRM system after human approval. Stack adapters (HubSpot, Salesforce, Pipedrive, etc.) are configured separately via the stack registry.
+capabilities:
+  - write_crm_note
+  - log_lead_activity
+  - update_contact_record
+  - require_human_approval_before_write
+inputs:
+  - approved note content with contact identifier and note type
+  - CRM API credentials or stack adapter reference
+outputs:
+  - write confirmation with CRM record ID and timestamp
+risk_level: high
+side_effects:
+  - writes irreversible note or activity record to external CRM — contact record is updated
+permissions:
+  read: []
+  write:
+    - CRM contact or lead record
+  approval_required_for:
+    - every CRM write action
+requires:
+  - human_approval_gate
+recommended_with:
+  - audit_log
+  - intent_classifier
+avoid_with: []
+failure_modes:
+  - note written to wrong contact due to ambiguous identifier match in CRM
+  - duplicate note created on retry after transient CRM API failure
+  - CRM API returns 200 but note is silently deduplicated or dropped
+evals:
+  - idempotency test — duplicate trigger does not create duplicate CRM note
+  - rejection test — write blocked when human approval is absent
+  - contact resolution accuracy on ambiguous or partial identifiers
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []

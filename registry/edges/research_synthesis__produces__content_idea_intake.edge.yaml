@@ -1,0 +1,18 @@
+id: research_synthesis__produces__content_idea_intake
+from: research_synthesis
+to: content_idea_intake
+relation: produces_input_for
+status: published
+reason: A research synthesis (structured findings with inline citations) is a valid content brief — it provides audience-relevant key messages, tone context, and factual grounding that content_idea_intake can structure into a content request. No adapter component is needed because content_idea_intake already accepts free-text or structured briefs.
+severity: low
+condition: synthesis output is intended to seed content creation (e.g. docs-change summaries, research digests)
+notes: |
+  Bridge-edge decision (MAR-95): adapter component vs bridge edge.
+  Decision: bridge edge.
+  Rationale: research_synthesis output ("synthesised answer with inline source references") satisfies content_idea_intake's input contract ("free-text brief or structured content request") without any transform step. Adding an adapter component would be premature abstraction for a semantic data handoff. The edge makes the cross-domain connection explicit, blockable, and auditable.
+conditions: []
+tested: false
+test_refs: []
+failure_modes:
+  - research synthesis used as content brief without citation review — hallucinations propagate into published content
+sources: []
