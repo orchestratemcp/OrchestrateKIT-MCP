@@ -140,8 +140,8 @@ See `docs/CLAUDE_DESKTOP_USAGE.md` for usage guidance.
 pnpm smoke
 ```
 
-This runs the vitest smoke suite that verifies all 12 registered M2 tools return
-valid structured JSON. Expected output: 12/12 tests passing.
+This runs the vitest smoke suite that verifies all 13 registered tools return
+valid structured JSON (health_check + 12 graph tools).
 
 For a human-readable print-out of each tool's output, run the standalone script:
 
@@ -177,5 +177,5 @@ The Claude Desktop MCP process runs in a separate sandbox. Check:
 
 ### Tools return unexpected errors
 
-Run `pnpm verify` from the project root. All 47+ tests should pass. If any fail,
+Run `pnpm verify` from the project root. All 400+ tests should pass. If any fail,
 the error message identifies which registry file or logic is broken.

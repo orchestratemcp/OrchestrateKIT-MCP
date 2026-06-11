@@ -2,7 +2,7 @@
 
 Local stdio MCP server that gives Cursor and Claude Desktop access to an opinionated, evidence-backed **workflow graph** for designing production-ready AI workflows.
 
-**Status:** Scaffold with stub registry loader (MAR-35 graph-ready). Schemas, full registry data and graph tools are added in subsequent issues.
+**Status:** M2.5 complete — full registry (33 components, 54 edges, 2 stacks, 6 routes, 6 playbooks), 13 tools, benchmark protocol v2.
 
 ---
 
@@ -31,10 +31,10 @@ When a user describes a workflow goal, the MCP can:
 
 ## What works right now
 
-- MCP server starts on stdio and responds to the `health_check` tool.
-- `health_check` returns `{ name, version, registry: { component_count, edge_count, stack_count, route_count, playbook_count } }`.
-- Registry loader stub returns zero counts — real data is added in MAR-38.
-- `pnpm verify` (typecheck + tests) passes from a clean install.
+- MCP server starts on stdio with 13 registered tools.
+- `health_check` returns `{ name, version, registry: { component_count, edge_count, stack_count, route_count, playbook_count, untested_edge_pct } }`.
+- Registry loaded from YAML: 33 components, 54 edges, 2 stacks, 6 routes, 6 playbooks.
+- `pnpm verify` (typecheck + lint + tests) passes from a clean clone and install.
 
 ---
 
@@ -115,7 +115,7 @@ orchestratekit-mcp/
     server.ts               Entry point — wires MCP server to stdio transport
     config.ts               Server name and version constants
     tools/
-      index.ts              Tool registration (health_check + 8 graph tools)
+      index.ts              Tool registration (13 tools: health_check + 12 graph tools)
       composeWorkflowRoute.ts
       listGraphComponents.ts / getGraphComponent.ts
       listGraphEdges.ts / getGraphEdge.ts
@@ -138,11 +138,11 @@ orchestratekit-mcp/
       logger.ts             Stderr-only logger (stdout reserved for transport)
 
   registry/
-    components/             Component YAML files (added in MAR-38)
-    edges/                  Edge/relation YAML files (added in MAR-38)
-    stacks/                 Stack YAML files (added in MAR-38)
-    routes/                 Route YAML files (added in MAR-38)
-    playbooks/              Golden-path playbook YAML files (added in MAR-38)
+    components/             33 component YAML files
+    edges/                  54 edge/relation YAML files
+    stacks/                 2 stack YAML files
+    routes/                 6 route YAML files
+    playbooks/              6 golden-path playbook YAML files
 
   docs-index/               Supplementary context documents
   examples/
@@ -176,6 +176,11 @@ MAR-38  ✅  Seed workflow graph: 30 components, 47 edges, 1 stack, 5 playbooks
 MAR-77  ✅  Graph lookup tools: list/get components, edges, stacks, routes
 MAR-78  ✅  compose_workflow_route — deterministic route composer
 MAR-49  ✅  Benchmark setup — see docs/BENCHMARKING.md
+MAR-88  ✅  Domain-gated capability matcher — eliminates cross-domain false positives
+MAR-92  ✅  Registry lint + untested_edge_pct in health_check
+MAR-95  ✅  crm_note_write component + research→content bridge edge
+MAR-96  ✅  Benchmark protocol v2 — rubric, prompts-v2.yaml, PROTOCOL.md
+MAR-97  ✅  Docs truth pass — registry counts, tool count, verify path
 ```
 
 ---
@@ -188,11 +193,14 @@ run the manual benchmark described in **[docs/BENCHMARKING.md](docs/BENCHMARKING
 Quick start:
 
 ```bash
-# Print session guide with route previews for all 7 prompts
-pnpm tsx scripts/benchmark-template.ts
+# v2 protocol — print session guide for all 7 prompts
+pnpm tsx scripts/benchmark-template.ts --prompts benchmarks/prompts-v2.yaml --all
 
-# Single prompt
-pnpm tsx scripts/benchmark-template.ts p6_email_lead_crm
+# v2 — single prompt
+pnpm tsx scripts/benchmark-template.ts --prompts benchmarks/prompts-v2.yaml --prompt p6_email_lead_crm
+
+# v1 (legacy)
+pnpm tsx scripts/benchmark-template.ts
 ```
 
 Results go in `benchmarks/results-YYYY-MM-DD.md`.

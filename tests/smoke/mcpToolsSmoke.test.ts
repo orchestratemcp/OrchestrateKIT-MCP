@@ -1,5 +1,5 @@
 /**
- * Smoke tests for all 12 registered M2 OrchestrateKit MCP tools.
+ * Smoke tests for OrchestrateKit MCP tools (health_check + 12 graph tools = 13 total).
  *
  * These tests call the underlying tool logic directly (same code path used by
  * the MCP server) and assert that every tool returns a JSON-serializable

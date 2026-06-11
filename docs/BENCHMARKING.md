@@ -1,5 +1,9 @@
 # OrchestrateKit MCP — Benchmarking Guide
 
+> **v2 protocol available** — for new benchmark runs use `benchmarks/PROTOCOL.md`
+> (prompts-v2.yaml, rubric-v2.yaml, 5 scoring dimensions, per-client MCP disable steps).
+> This document describes the original v1 setup for reference.
+
 This document explains how to run the manual benchmark that compares
 workflow-graph-assisted planning against vanilla Cursor/Claude planning.
 
@@ -42,7 +46,7 @@ In a Claude/Cursor chat with the MCP active, call:
 health_check({})
 ```
 
-Expected response includes `registry.component_count >= 20`, `edge_count >= 40`.
+Expected response includes `registry.component_count >= 30`, `edge_count >= 50`.
 
 ---
 
@@ -100,7 +104,7 @@ Run **three separate conversations** — do not reuse context between conditions
 4. Paste the benchmark prompt. Share the compose_workflow_route result as context.
 5. Let the model discuss and refine the route.
 6. Copy the full response.
-7. Score using `benchmarks/rubric.yaml` (all 14 criteria apply).
+7. Score using `benchmarks/rubric.yaml` (all 14 criteria apply for v1; 15 for v2).
 
 ---
 
