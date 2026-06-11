@@ -10,6 +10,10 @@
  *   pnpm tsx scripts/benchmark-template.ts
  *   pnpm tsx scripts/benchmark-template.ts --prompt p6_email_lead_crm
  *   pnpm tsx scripts/benchmark-template.ts --all
+ *
+ * v2 (MAR-96) — use prompts-v2.yaml with must_have / forbidden fixture fields:
+ *   pnpm tsx scripts/benchmark-template.ts --prompts benchmarks/prompts-v2.yaml --all
+ *   pnpm tsx scripts/benchmark-template.ts --prompts benchmarks/prompts-v2.yaml --prompt p6_email_lead_crm
  */
 
 import { readFileSync } from "fs";
@@ -32,21 +36,35 @@ type Prompt = {
   playbook_id?: string;
   compose_workflow_route_goal?: string;
   prompt: string;
-  expected_components: string[];
-  acceptance_notes: string;
+  // v1 fields
+  expected_components?: string[];
+  acceptance_notes?: string;
+  // v2 fields (prompts-v2.yaml)
+  must_have?: string[];
+  nice_to_have?: string[];
+  forbidden?: string[];
+  missing_but_expected?: string[];
 };
 
 type PromptsFile = { prompts: Prompt[] };
 
-const promptsPath = join(root, "benchmarks", "prompts.yaml");
+// ── Resolve prompts file (--prompts <path> overrides default) ─────────────────
+const promptsFlagIdx = process.argv.indexOf("--prompts");
+const promptsPath =
+  promptsFlagIdx !== -1 && process.argv[promptsFlagIdx + 1]
+    ? join(root, process.argv[promptsFlagIdx + 1]!)
+    : join(root, "benchmarks", "prompts.yaml");
+
 const { prompts } = yaml.load(readFileSync(promptsPath, "utf8")) as PromptsFile;
+const isV2 = promptsPath.includes("v2");
 
 // ── Parse CLI args ────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
+// Skip --prompts and its value when looking for the prompt filter id
 const filterId = args.includes("--all")
   ? null
-  : args.find((a) => !a.startsWith("--")) ?? null;
+  : args.filter((a, i) => !a.startsWith("--") && args[i - 1] !== "--prompts").find(Boolean) ?? null;
 
 const selected = filterId
   ? prompts.filter((p) => p.id === filterId)
@@ -68,7 +86,7 @@ const hr = "─".repeat(72);
 const sep = "═".repeat(72);
 
 function rubricTable(): string {
-  const criteria = [
+  const v1Criteria = [
     "suitable_architecture",
     "avoids_complexity",
     "separates_llm_deterministic",
@@ -84,6 +102,7 @@ function rubricTable(): string {
     "candidate_not_validated",
     "stack_explanation",
   ];
+  const criteria = isV2 ? [...v1Criteria, "brevity"] : v1Criteria;
 
   const header =
     `| ${"Criterion".padEnd(32)} | A (0-2) | B (0-2) | C (0-2) | Notes |\n` +
@@ -107,11 +126,27 @@ function printPrompt(p: Prompt, index: number): void {
   console.log("\n── PROMPT TEXT (paste verbatim) " + hr.slice(32));
   console.log(p.prompt.trim());
 
-  console.log("\n── EXPECTED COMPONENTS " + hr.slice(22));
-  console.log(p.expected_components.join(", "));
+  if (isV2 && p.must_have) {
+    console.log("\n── MUST-HAVE COMPONENTS " + hr.slice(23));
+    console.log(p.must_have.join(", "));
+    if (p.nice_to_have && p.nice_to_have.length > 0) {
+      console.log("Nice to have:  " + p.nice_to_have.join(", "));
+    }
+    if (p.forbidden && p.forbidden.length > 0) {
+      console.log("FORBIDDEN:     " + p.forbidden.join(", ") + "  ← false-positive check");
+    }
+    if (p.missing_but_expected && p.missing_but_expected.length > 0) {
+      console.log("Missing (registry gap): " + p.missing_but_expected.join(", "));
+    }
+  } else {
+    console.log("\n── EXPECTED COMPONENTS " + hr.slice(22));
+    console.log((p.expected_components ?? []).join(", "));
+  }
 
-  console.log("\n── ACCEPTANCE NOTES " + hr.slice(20));
-  console.log(p.acceptance_notes.trim());
+  if (p.acceptance_notes) {
+    console.log("\n── ACCEPTANCE NOTES " + hr.slice(20));
+    console.log(p.acceptance_notes.trim());
+  }
 
   // Condition B MCP setup
   console.log("\n── CONDITION B — MCP SETUP CALLS " + hr.slice(32));
@@ -159,19 +194,28 @@ function printPrompt(p: Prompt, index: number): void {
   // Blank scoring table
   console.log("\n── SCORING TABLE " + hr.slice(16));
   console.log(rubricTable());
-  console.log(`\n| ${"TOTAL".padEnd(32)} |  — / 22 |  — / 24 |  — / 28 |       |`);
+  const totalRow = isV2
+    ? `\n| ${"TOTAL".padEnd(32)} |  — / 24 |  — / 28 |  — / 30 |       |`
+    : `\n| ${"TOTAL".padEnd(32)} |  — / 22 |  — / 24 |  — / 28 |       |`;
+  console.log(totalRow);
 
   console.log("\n");
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+const protocolVersion = isV2 ? "v2" : "v1";
+const maxScores = isV2 ? "A=24 / B=28 / C=30" : "A=22 / B=24 / C=28";
+
 console.log(`\n${sep}`);
 console.log("ORCHESTRATEKIT MCP — BENCHMARK SESSION TEMPLATE");
-console.log(`Registry: ${registry.components.length} components, ${registry.edges.length} edges`);
-console.log(`Prompts:  ${selected.length} of ${prompts.length} selected`);
+console.log(`Protocol:  ${protocolVersion}   Max scores: ${maxScores}`);
+console.log(`Registry:  ${registry.components.length} components, ${registry.edges.length} edges`);
+console.log(`Prompts:   ${selected.length} of ${prompts.length} selected  (${promptsPath})`);
 console.log(`${sep}`);
-console.log("\nInstructions: see docs/BENCHMARKING.md");
+console.log(isV2
+  ? "\nProtocol: benchmarks/PROTOCOL.md  |  Rubric: benchmarks/rubric-v2.yaml"
+  : "\nInstructions: see docs/BENCHMARKING.md");
 console.log("Record results in: benchmarks/results-YYYY-MM-DD.md\n");
 
 selected.forEach((p, i) => printPrompt(p, i));

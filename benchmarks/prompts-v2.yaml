@@ -1,0 +1,285 @@
+# OrchestrateKit MCP — Benchmark Prompts v2
+# Protocol: benchmarks/PROTOCOL.md
+#
+# Adds per-prompt fixture fields vs v1:
+#   must_have           — components that MUST appear (blocking failures if absent)
+#   nice_to_have        — components that improve score but are not blocking
+#   forbidden           — components that MUST NOT appear (known false positives)
+#   missing_but_expected — known registry gaps a good response should call out
+#
+# Conditions:
+#   A. Vanilla — MCP fully disabled (see PROTOCOL.md for per-client steps)
+#   B. OrchestrateKit MCP — playbook tools only (list_known_routes / get_route)
+#   C. OrchestrateKit MCP — full graph (compose_workflow_route + get_graph_component)
+
+prompts:
+  - id: p1_research_workflow
+    title: "Research workflow with citations and human review"
+    category: single_workflow
+    has_exact_playbook: true
+    playbook_id: research_agent_citations
+    compose_workflow_route_goal: >
+      Build a research workflow that retrieves sources from multiple origins,
+      checks freshness and ranks by recency, synthesizes a grounded summary
+      with inline citations, adds retries when source retrieval fails, and
+      requires human review before the summary is published.
+    prompt: |
+      Build an AI research workflow that:
+      - retrieves sources from multiple origins
+      - checks source freshness and ranks by recency/relevance
+      - synthesizes a structured summary with inline citations
+      - adds retries when source retrieval fails
+      - requires human review before the summary is published
+      What components, edges, approval gates and eval strategy would you recommend?
+    must_have:
+      - source_retrieval
+      - research_synthesis
+      - citation_checker
+      - human_approval_gate
+    nice_to_have:
+      - source_ranking
+      - source_freshness_check
+      - retry_policy
+      - audit_log
+    forbidden:
+      - pr_summary          # "summary" token must not pull code component
+      - codebase_scan       # research goal, not code goal
+      - external_publish    # not asked for; avoid_when edge from research_synthesis
+    missing_but_expected: []
+    acceptance_notes: >
+      Must recommend citation_checker and source_freshness_check as separate steps,
+      not just "check sources". Must include human_approval_gate before publish.
+      Must flag retry_policy for external source calls.
+
+  - id: p2_content_publish_workflow
+    title: "Content workflow from idea to public publishing"
+    category: single_workflow
+    has_exact_playbook: true
+    playbook_id: content_approval_pipeline
+    compose_workflow_route_goal: >
+      Build a content workflow starting from a content brief, generating copy,
+      handing off to a design tool for visuals, requiring marketing approval,
+      and publishing to a public channel.
+    prompt: |
+      Build a content workflow for a brand that:
+      - starts from a content brief or campaign idea
+      - generates copy variants
+      - hands off to a design tool (like Canva or Figma) for visual creation
+      - requires marketing approval before publishing
+      - publishes to a public channel
+      What components, safety gates, stack choices and observability would you recommend?
+    must_have:
+      - content_idea_intake
+      - copy_generation
+      - human_approval_gate
+      - external_publish
+    nice_to_have:
+      - design_brief_generation
+      - audit_log
+      - schema_validation
+    forbidden:
+      - research_synthesis  # content goal without research keywords
+      - citation_checker    # content goal without research keywords
+      - codebase_scan
+      - pr_summary
+    missing_but_expected: []
+    acceptance_notes: >
+      Must separate copy_generation from design_brief_generation.
+      Must flag external_publish as requiring human approval.
+      Must mention audit_log for external publish actions.
+
+  - id: p3_email_calendar_assistant
+    title: "Email and calendar assistant with safe scheduling"
+    category: single_workflow
+    has_exact_playbook: true
+    playbook_id: email_calendar_assistant
+    compose_workflow_route_goal: >
+      Build an AI assistant that reads the user's email inbox, classifies intent,
+      drafts replies and calendar invites, presents drafts for approval, and only
+      sends or books after explicit human confirmation.
+    prompt: |
+      Build an AI assistant that:
+      - reads the user's email inbox
+      - identifies emails that need replies or require meeting scheduling
+      - drafts replies and calendar invites
+      - presents drafts to the user for approval before sending
+      - only sends or books after explicit human confirmation
+      What architecture, safety constraints and risk mitigations would you recommend?
+    must_have:
+      - email_read
+      - email_draft
+      - human_approval_gate
+    nice_to_have:
+      - calendar_lookup
+      - calendar_write
+      - intent_classifier
+      - optional_email_send
+      - audit_log
+    forbidden:
+      - design_brief_generation  # not a content/design goal
+      - codebase_scan
+      - pr_summary
+      - data_scraper
+    missing_but_expected: []
+    acceptance_notes: >
+      Must not send emails or write calendar events without human_approval_gate.
+      Must classify intent before deciding to draft reply vs. schedule meeting.
+      Must mention draft-first / never auto-send policy.
+
+  - id: p4_codebase_agent
+    title: "Codebase agent: plan, edit, test, PR summary"
+    category: single_workflow
+    has_exact_playbook: true
+    playbook_id: codebase_agent_workflow
+    compose_workflow_route_goal: >
+      Build a codebase AI agent that scans an existing codebase, receives a
+      feature or bug-fix task, produces an implementation plan, makes code
+      edits, runs the test suite, and writes a PR summary.
+    prompt: |
+      Build a codebase AI agent that:
+      - scans an existing codebase to understand structure and patterns
+      - receives a feature or bug-fix task description
+      - produces an implementation plan
+      - makes code edits
+      - runs the test suite
+      - writes a PR summary
+      What workflow, components, guardrails and evaluation strategy would you recommend?
+    must_have:
+      - codebase_scan
+      - code_editing
+      - test_runner
+      - pr_summary
+    nice_to_have:
+      - plan_generation
+      - human_approval_gate
+      - audit_log
+    forbidden:
+      - research_synthesis   # not a research goal
+      - citation_checker
+      - copy_generation      # not a content goal
+      - design_brief_generation
+      - external_publish     # code goal, not publishing
+    missing_but_expected: []
+    acceptance_notes: >
+      Must include test_runner after code_editing.
+      Must not claim LLM edits will be perfect — must include test verification step.
+      Must recommend pr_summary as final output, not raw diffs.
+      Eval must mention checking that tests pass before merging.
+
+  - id: p5_data_pipeline
+    title: "Data extraction pipeline with deduplication and audit"
+    category: single_workflow
+    has_exact_playbook: true
+    playbook_id: data_extraction_enrichment
+    compose_workflow_route_goal: >
+      Build a data extraction and enrichment pipeline that scrapes data from an
+      external source, normalizes the schema, deduplicates records, validates
+      against a target schema, handles partial failures with retries, and writes
+      an audit log for every record processed.
+    prompt: |
+      Build a data extraction and enrichment pipeline that:
+      - scrapes or pulls data from an external source
+      - normalizes the schema
+      - deduplicates records
+      - validates against a target schema
+      - handles partial failures gracefully with retries
+      - writes an audit log for every record processed
+      What components, error handling and observability strategy would you recommend?
+    must_have:
+      - data_scraper
+      - data_normalizer
+      - deduplication
+      - schema_validation
+      - audit_log
+    nice_to_have:
+      - retry_policy
+      - job_queue
+    forbidden:
+      - external_publish       # ETL goal — data_scraper__avoid__external_publish critical edge
+      - source_retrieval       # research component, not ETL
+      - source_freshness_check # research component, not ETL
+      - research_synthesis     # research component, not ETL
+    missing_but_expected: []
+    acceptance_notes: >
+      Must include deduplication and schema_validation as separate explicit steps.
+      Must mention retry_policy for the external scrape step.
+      Must include audit_log. Must address idempotency.
+
+  - id: p6_email_lead_crm
+    title: "Email lead detection + CRM notes"
+    category: graph_composed
+    has_exact_playbook: false
+    compose_workflow_route_goal: >
+      Read emails, detect possible sales leads or partnership opportunities,
+      research the sender's company, write a CRM note summarising findings,
+      draft a personalised follow-up email for human review, and only send
+      after explicit approval.
+    prompt: |
+      Build a workflow that:
+      - reads my email inbox
+      - identifies emails that might be sales leads or partnership opportunities
+      - researches the sender's company automatically
+      - writes a CRM note summarising what was found
+      - drafts a personalised follow-up email for human review
+      - only sends the email after explicit approval
+      This workflow does not exist as a validated playbook. Propose a candidate
+      route using the workflow graph.
+    must_have:
+      - email_read
+      - crm_note_write
+      - email_draft
+      - human_approval_gate
+    nice_to_have:
+      - intent_classifier
+      - source_retrieval
+      - research_synthesis
+      - optional_email_send
+      - state_store
+      - audit_log
+    forbidden:
+      - external_publish   # must NOT be substituted for crm_note_write
+    missing_but_expected: []  # crm_note_write now exists (MAR-95)
+    acceptance_notes: >
+      Must use compose_workflow_route (condition C only).
+      Must include crm_note_write — must NOT substitute external_publish.
+      Must flag optional_email_send as requiring human_approval_gate.
+      Must label result as a candidate route, not a validated playbook.
+      Must explain which edges are untested.
+
+  - id: p7_product_monitor_content
+    title: "Product docs monitor + content ideas + publish approval"
+    category: graph_composed
+    has_exact_playbook: false
+    compose_workflow_route_goal: >
+      Monitor product documentation pages for changes, summarize the changes,
+      extract content ideas from the summary, route ideas for approval, and
+      publish approved content.
+    prompt: |
+      Build a workflow that:
+      - monitors product documentation pages for updates
+      - summarises significant changes
+      - extracts content ideas from the changes (blog posts, tweets, changelogs)
+      - routes ideas for approval
+      - publishes approved content
+      This workflow does not exist as a validated playbook. Propose a candidate
+      route using the workflow graph, and explain the edges that are untested.
+    must_have:
+      - page_monitor
+      - human_approval_gate
+      - external_publish
+    nice_to_have:
+      - source_freshness_check
+      - research_synthesis
+      - content_idea_intake
+      - copy_generation
+      - state_store
+      - audit_log
+    forbidden:
+      - pr_summary    # "summary" in goal must not pull code component
+      - data_scraper  # monitoring domain, not data_etl
+    missing_but_expected: []  # research_synthesis→content_idea_intake bridge edge added (MAR-95)
+    acceptance_notes: >
+      Must detect that external_publish requires human_approval_gate.
+      Must note source_freshness_check or page_monitor as the trigger for re-runs.
+      Must warn that no validated playbook exists for this exact flow.
+      MAR-95 note: research_synthesis→content_idea_intake bridge edge now exists.

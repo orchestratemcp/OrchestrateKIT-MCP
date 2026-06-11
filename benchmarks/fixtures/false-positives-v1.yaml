@@ -1,0 +1,219 @@
+# OrchestrateKit MCP — Matcher / Compose False Positives
+# Captured from benchmark run: 2026-06-09 (protocol v0.1)
+#
+# These are regression fixtures. If any pattern below recurs in a future
+# benchmark run WITHOUT an explicit rejection in the response, it is a
+# regression. Cross-reference against COMPONENT_DOMAINS and avoid_when edges
+# in capabilityMatcher.ts to verify the fix is still in place.
+#
+# Fields:
+#   id          — unique fixture identifier
+#   prompt_id   — prompt where this was observed (prompts-v2.yaml id)
+#   condition   — A, B, or C
+#   observed    — what the model/compose produced
+#   expected    — what it should have produced instead
+#   root_cause  — why it happened
+#   fixed_by    — Linear issue that fixed it
+#   status      — fixed | open | wont_fix
+#   regression_test — test file + describe block that pins this case
+
+fixtures:
+  - id: fp_research_pr_summary
+    prompt_id: p1_research_workflow
+    condition: C
+    observed: >
+      compose_workflow_route returned pr_summary in the research route because the
+      goal contained the word "summary" — tokeniser matched "summary" segment of
+      pr_summary id without domain gating.
+    expected: pr_summary must NOT appear for any research goal
+    root_cause: >
+      Pre-MAR-88: unconstrained id-substring pass scored pr_summary +2 on any goal
+      containing "summary", regardless of domain.
+    fixed_by: MAR-88
+    status: fixed
+    regression_test: >
+      tests/graph/capabilityMatcher.test.ts →
+      "p1 research: excludes pr_summary; keeps the research cluster"
+
+  - id: fp_content_research_cluster
+    prompt_id: p2_content_publish_workflow
+    condition: C
+    observed: >
+      compose_workflow_route injected research_synthesis, citation_checker, and
+      plan_generation into a pure content goal (no sources/citations requested).
+    expected: research cluster must NOT appear when goal has no research keywords
+    root_cause: >
+      Pre-MAR-88: research components scored via token overlap with broad content
+      vocabulary; domain guard did not exist.
+    fixed_by: MAR-88
+    status: fixed
+    regression_test: >
+      tests/graph/capabilityMatcher.test.ts →
+      "p2 content: excludes research cluster; keeps content components"
+
+  - id: fp_email_design_brief
+    prompt_id: p3_email_calendar_assistant
+    condition: C
+    observed: >
+      compose_workflow_route injected design_brief_generation into an email/calendar
+      goal because "draft" appeared in both email and content/design contexts.
+    expected: design_brief_generation must NOT appear for email/calendar goals
+    root_cause: >
+      Pre-MAR-88: design_brief_generation was not domain-gated; "draft" token
+      scored it on any goal that used that word.
+    fixed_by: MAR-88
+    status: fixed
+    regression_test: >
+      tests/graph/capabilityMatcher.test.ts →
+      "p3 email/calendar: excludes design_brief_generation; keeps email+calendar"
+
+  - id: fp_code_research_content
+    prompt_id: p4_codebase_agent
+    condition: C
+    observed: >
+      compose_workflow_route included research_synthesis, citation_checker,
+      copy_generation, and external_publish in a pure code-agent goal.
+    expected: research and content components must NOT appear for code goals
+    root_cause: >
+      Pre-MAR-88: no domain separation between research, content, and code domains.
+    fixed_by: MAR-88
+    status: fixed
+    regression_test: >
+      tests/graph/capabilityMatcher.test.ts →
+      "p4 codebase: excludes research/content; keeps code components incl. pr_summary"
+
+  - id: fp_etl_external_publish
+    prompt_id: p5_data_pipeline
+    condition: C
+    observed: >
+      compose_workflow_route included external_publish in the ETL compose output
+      (score 53/100, 9 steps). Model correctly identified this as a "category error"
+      in Condition C response, but compose still injected it.
+    expected: external_publish must NOT appear for data_etl goals
+    root_cause: >
+      Pre-MAR-88: no avoid_when edge between data_scraper and external_publish at
+      compose time; content_publishing domain was triggered by generic vocabulary.
+      data_scraper__avoid__external_publish edge existed but penalty was not enough
+      without domain gating.
+    fixed_by: MAR-88 (domain gating removes external_publish when content_publishing absent)
+    status: fixed
+    regression_test: >
+      tests/graph/capabilityMatcher.test.ts →
+      "p5 ETL: never includes external_publish or research retrieval"
+
+  - id: fp_crm_external_publish_substitute
+    prompt_id: p6_email_lead_crm
+    condition: C
+    observed: >
+      compose_workflow_route had no crm_note_write component; compose substituted
+      external_publish or generic state/audit components for the CRM write step.
+      Model identified this as a registry gap in the response.
+    expected: crm_note_write must appear; external_publish must NOT appear as substitute
+    root_cause: >
+      Pre-MAR-95: crm_note_write did not exist in the registry. No component in
+      crm_sales domain could serve the CRM write capability.
+    fixed_by: MAR-95
+    status: fixed
+    regression_test: >
+      tests/graph/capabilityMatcher.test.ts →
+      "p6 lead+CRM: includes crm_note_write; never substitutes external_publish"
+      tests/tools/composeWorkflowRoute.test.ts →
+      "MAR-95 p6 CRM: route includes crm_note_write and human_approval_gate"
+
+  - id: fp_monitor_pr_summary
+    prompt_id: p7_product_monitor_content
+    condition: B
+    observed: >
+      Condition B compose injected pr_summary into the docs-monitor route because
+      the monitoring goal mentioned "summarize changes" — "summary" substring
+      matched pr_summary id pre-MAR-88.
+    expected: pr_summary must NOT appear for monitoring goals
+    root_cause: >
+      Pre-MAR-88: same as fp_research_pr_summary — unconstrained id-substring pass.
+    fixed_by: MAR-88
+    status: fixed
+    regression_test: >
+      tests/graph/capabilityMatcher.test.ts →
+      "p7 docs monitor: excludes pr_summary; prefers page_monitor over data_scraper"
+
+  - id: fp_monitor_data_scraper
+    prompt_id: p7_product_monitor_content
+    condition: C
+    observed: >
+      compose_workflow_route returned data_scraper for the docs-monitor goal even
+      though page_monitor is the correct component for polling/watching URLs.
+    expected: page_monitor preferred; data_scraper should not appear for monitoring goals
+    root_cause: >
+      Pre-MAR-88: both page_monitor and data_scraper scored on "scrape/pull" vocabulary;
+      no domain separation between monitoring and data_etl.
+    fixed_by: MAR-88
+    status: fixed
+    regression_test: >
+      tests/graph/capabilityMatcher.test.ts →
+      "p7 docs monitor: excludes pr_summary; prefers page_monitor over data_scraper"
+
+  - id: fp_p7_synthesis_content_bridge_gap
+    prompt_id: p7_product_monitor_content
+    condition: C
+    observed: >
+      Condition C flagged three zero-edge bridges: job_queue→page_monitor,
+      diff→source_ranking, and synthesis→content_idea_intake. The synthesis→content
+      bridge was a registry gap causing route composition to be incomplete.
+    expected: research_synthesis→content_idea_intake edge should exist in registry
+    root_cause: >
+      Pre-MAR-95: no edge connecting research_synthesis (research domain) to
+      content_idea_intake (content_publishing domain).
+    fixed_by: MAR-95
+    status: fixed
+    regression_test: >
+      Registry now contains research_synthesis__produces__content_idea_intake.edge.yaml.
+      p7 compose output now routes through content_idea_intake.
+
+# ── Open items ────────────────────────────────────────────────────────────────
+# The following patterns were observed but not yet fixed (as of 2026-06-11).
+# They are not regressions from a previous fix — they are known compose noise
+# that future issues should address.
+
+open_patterns:
+  - id: open_p1_design_brief_noise
+    prompt_id: p1_research_workflow
+    condition: C
+    observed: >
+      v2 compose output (2026-06-11) includes design_brief_generation at step 2 in
+      the research route. The bridge edge research_synthesis__produces__content_idea_intake
+      (MAR-95) caused content_idea_intake to appear, which in turn scored
+      design_brief_generation via copy_generation__produces__design_brief_generation chain.
+    expected: design_brief_generation should not appear for pure research goals
+    status: open
+    suggested_fix: >
+      Add avoid_when edge research_synthesis → design_brief_generation, or tighten
+      domain gating so content_publishing components are not pulled through bridge edges
+      onto research-only goals.
+
+  - id: open_p6_compose_step_order
+    prompt_id: p6_email_lead_crm
+    condition: C
+    observed: >
+      compose_workflow_route puts crm_note_write at step 2 (before email_read at step 3)
+      due to topological sort artifact. Execution order should be email_read →
+      intent_classifier → research → crm_note_write → email_draft → approval → send.
+    expected: execution_order in compose output should reflect runtime dependency, not BFS order
+    status: open
+    suggested_fix: >
+      Improve execution_order field in routeComposer to use dependency-aware ordering
+      rather than pure topological BFS.
+
+  - id: open_p7_missing_external_publish
+    prompt_id: p7_product_monitor_content
+    condition: C
+    observed: >
+      v2 compose output for p7 does not include external_publish even though the goal
+      says "publishes approved content". The research_synthesis__avoid__external_publish
+      edge (critical, avoid_when) is penalising external_publish because research_synthesis
+      is in the route — but in p7 the publish step is genuinely needed after human approval.
+    expected: external_publish should appear when goal explicitly requests publishing
+    status: open
+    suggested_fix: >
+      Weaken or make conditional the research_synthesis→external_publish avoid_when penalty
+      when human_approval_gate is present in the route (i.e., the safety invariant is met).
+      Or: route should only apply the avoid_when penalty when citation_checker is NOT present.

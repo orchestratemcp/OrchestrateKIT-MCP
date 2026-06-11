@@ -1,0 +1,219 @@
+# OrchestrateKit MCP — Scoring Rubric v2
+# Protocol: benchmarks/PROTOCOL.md
+#
+# v2 changes vs v0.1:
+#   - Each criterion now has a `dimension` field (one of 5 scoring dimensions)
+#   - New criterion: brevity (dimension: brevity)
+#   - Max scores updated: A=24, B=28, C=30 (vs v0.1: A=22, B=24, C=28)
+#   - Do NOT compare totals across protocol versions
+#
+# Scoring guide:
+#   0 = not addressed / actively wrong
+#   1 = mentioned but incomplete, vague or partially wrong
+#   2 = clear, correct and actionable
+
+dimensions:
+  route_quality:
+    description: >
+      Is the proposed architecture correct, complete, and appropriately scoped?
+      Does it cover the required components without inventing unnecessary ones?
+    criteria: [suitable_architecture, avoids_complexity, separates_llm_deterministic, concrete_steps, eval_plan]
+    max_per_condition: { A: 10, B: 10, C: 10 }
+
+  safety:
+    description: >
+      Does it prevent dangerous autonomous actions? Are approval gates,
+      permission scoping, and failure recovery addressed?
+    criteria: [approval_gates, permission_risks, retries_idempotency]
+    max_per_condition: { A: 6, B: 6, C: 6 }
+
+  specificity:
+    description: >
+      Does it give specific, named guidance rather than generic advice?
+      Are components, edges, stack choices, and state patterns named?
+    criteria: [persistent_state, observability, reuses_graph_components, stack_explanation]
+    max_per_condition: { A: 6, B: 8, C: 8 }
+
+  non_hallucination:
+    description: >
+      Does it avoid false claims about validation or testing? Are registry gaps
+      and untested edges honestly acknowledged rather than glossed over?
+    criteria: [untested_edges, candidate_not_validated]
+    max_per_condition: { A: 0, B: 0, C: 4 }
+    notes: "N/A for conditions A and B — untested_edges and candidate_not_validated are C-only"
+
+  brevity:
+    description: >
+      Is the response tight and actionable? Does every paragraph advance the answer,
+      or is space filled with generic boilerplate, repetition, or preamble?
+    criteria: [brevity]
+    max_per_condition: { A: 2, B: 2, C: 2 }
+
+criteria:
+  # ── route_quality ─────────────────────────────────────────────────────────
+
+  - id: suitable_architecture
+    dimension: route_quality
+    name: "Recommends a suitable architecture"
+    description: >
+      The response proposes a plausible component pipeline or workflow pattern
+      that fits the goal. It does not recommend a pattern that contradicts the
+      constraints (e.g. fully autonomous send-without-approval for email).
+      False positives from the `forbidden` component list count against this.
+
+  - id: avoids_complexity
+    dimension: route_quality
+    name: "Avoids unnecessary multi-agent complexity"
+    description: >
+      The response does not propose a complex multi-agent swarm when a simple
+      linear pipeline suffices. It warns when adding orchestration overhead
+      would outweigh the benefit. A single agent with tool calls is preferred
+      over multiple autonomous agents for workflows with fewer than ~6 steps.
+
+  - id: separates_llm_deterministic
+    dimension: route_quality
+    name: "Separates LLM-driven and deterministic steps"
+    description: >
+      The response clearly distinguishes which steps require an LLM (synthesis,
+      classification, generation) from which should be deterministic code
+      (schema validation, deduplication, retry logic, routing). It does not
+      put a language model in the critical path for pure data operations.
+
+  - id: concrete_steps
+    dimension: route_quality
+    name: "Gives concrete implementation steps"
+    description: >
+      The response gives specific, actionable guidance — names specific tools,
+      components, libraries or patterns. "Use a database for state" is not
+      concrete. "Store workflow state in state_store using a job_id key" is.
+
+  - id: eval_plan
+    dimension: route_quality
+    name: "Includes eval / test plan"
+    description: >
+      The response includes a concrete evaluation strategy: unit tests for
+      individual components, integration tests for the pipeline, and at least
+      one eval criterion for LLM-driven steps (citation accuracy, reply tone,
+      code correctness). "Write tests" is not enough — must say what to test.
+
+  # ── safety ────────────────────────────────────────────────────────────────
+
+  - id: approval_gates
+    dimension: safety
+    name: "Includes human approval gates where needed"
+    description: >
+      The response includes explicit human review / approval checkpoints before
+      any irreversible external action (email send, calendar write, publish,
+      CRM write). Marks these as mandatory, not optional.
+
+  - id: permission_risks
+    dimension: safety
+    name: "Identifies tool permission risks"
+    description: >
+      The response calls out which tool integrations require elevated permissions
+      (inbox read, calendar write, external publish, CRM write) and recommends
+      scoping them minimally. Does not silently assume all permissions are safe.
+
+  - id: retries_idempotency
+    dimension: safety
+    name: "Includes retries, timeouts and idempotency for external actions"
+    description: >
+      The response handles failure modes: what happens when a source is
+      unreachable, when an API times out, when a duplicate record arrives.
+      Recommends retry_policy or equivalent, timeouts, and idempotent
+      operations for any write to an external system.
+
+  # ── specificity ───────────────────────────────────────────────────────────
+
+  - id: persistent_state
+    dimension: specificity
+    name: "Includes persistent state guidance"
+    description: >
+      The response addresses how intermediate results, workflow progress and
+      artefacts are stored (e.g. state_store, database, file system). Does not
+      assume all state lives in memory across a long workflow.
+
+  - id: observability
+    dimension: specificity
+    name: "Includes observability and audit logging"
+    description: >
+      The response recommends structured logging, audit trails or metrics.
+      At minimum it mentions logging external actions (sends, writes, publishes)
+      to an immutable audit log. Does not leave the workflow invisible.
+
+  - id: reuses_graph_components
+    dimension: specificity
+    name: "Reuses relevant components from the workflow graph"
+    condition_applicability: [B, C]
+    description: >
+      (Conditions B and C only — N/A for condition A)
+      The response references specific components from the OrchestrateKit graph
+      by ID (e.g. source_retrieval, human_approval_gate) rather than inventing
+      new ones or ignoring the graph. Explains why those components fit.
+
+  - id: stack_explanation
+    dimension: specificity
+    name: "Explains stack choices and alternatives"
+    description: >
+      The response explains why specific technology choices are recommended.
+      Offers at least one alternative and states the trade-off.
+
+  # ── non_hallucination ─────────────────────────────────────────────────────
+
+  - id: untested_edges
+    dimension: non_hallucination
+    name: "Identifies untested edges or missing capabilities"
+    condition_applicability: [C]
+    description: >
+      (Condition C only — N/A for conditions A and B)
+      The response explicitly lists which edges in the proposed route are marked
+      as untested, and which capabilities were not covered by existing components.
+      Does not present a candidate route as fully validated.
+
+  - id: candidate_not_validated
+    dimension: non_hallucination
+    name: "Clearly marks candidate routes as candidate, not validated playbooks"
+    condition_applicability: [C]
+    description: >
+      (Condition C only — N/A for conditions A and B)
+      The response includes a clear disclaimer that a composed route is a
+      candidate generated from keyword matching, not a tested playbook.
+      Recommends which playbook to use if one exists.
+
+  # ── brevity ───────────────────────────────────────────────────────────────
+
+  - id: brevity
+    dimension: brevity
+    name: "Response is concise and actionable"
+    description: >
+      Every paragraph advances the answer. The response does not pad with
+      generic AI disclaimers, repeat the prompt back, or include sections that
+      contain no new information.
+      0 = significantly padded or repetitive
+      1 = mostly concise but has filler sections
+      2 = tight throughout — no padding
+
+scoring:
+  max_per_criterion: 2
+  total_criteria: 15
+  max_score_per_condition:
+    A: 24  # 11 applicable criteria × 2 + brevity × 2 (reuses_graph_components N/A for A; untested_edges and candidate_not_validated N/A for A)
+    B: 28  # 13 applicable criteria × 2 (untested_edges and candidate_not_validated N/A for B)
+    C: 30  # 15 criteria × 2
+  grade_thresholds:
+    C_excellent: 27   # ≥27/30 — best possible; graph adds clear structural value
+    C_good: 22        # ≥22/30 — solid with minor gaps
+    C_acceptable: 18  # ≥18/30 — usable but missing important pieces
+    C_poor: 0         # <18/30 — generic or incorrect advice
+
+na_handling: >
+  Criteria that are not applicable for a given condition should be scored N/A.
+  Exclude N/A criteria from the total. Report the score as X / Y where Y is
+  the applicable maximum for that condition.
+
+gate_criterion:
+  metric: average_C_minus_B
+  threshold: 4
+  description: >
+    Average (C − B) across all 7 prompts must be ≥ 4.
+    If individual prompt falls below 0, flag for investigation regardless of average.
