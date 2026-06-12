@@ -192,9 +192,25 @@ Score each criterion 0, 1 or 2 per `rubric-v2.yaml`. Also compute dimension subt
 
 ## Gate criteria
 
+> **v2.1 update (2026-06-12):** The 2026-06-12 benchmark run revealed that `compose_workflow_route` adds clear value for novel/graph-composed workflows but is not the right tool for playbook-matched requests. The original single-gate definition did not account for this split. The tiered gate below replaces the original primary gate for all runs from v2.1 onward.
+
+### Tiered gate (v2.1 — current)
+
+| Gate | Criterion | Applies to |
+|------|-----------|------------|
+| **Novel-route gate** | avg C − B ≥ +4 | Prompts with `has_exact_playbook: false` (p6, p7) |
+| **ETL / compose-corrects-noise gate** | C − B ≥ 0 | p5 (ETL — compose helps remove domain noise) |
+| **Playbook gate** | avg C − B ≥ 0 | Prompts with `has_exact_playbook: true` (p1–p4) |
+| **Floor** | No individual C − B < −5 | All prompts |
+| **False-positive** | No `forbidden` component unjustified in C | All prompts |
+
+**Rationale:** For playbook-matched requests, `list_known_routes + get_route` already provides comprehensive guidance. Compose output for those prompts introduces noise the model must manage, reducing response quality on completeness criteria (observability, retries, persistent state). The novel-route gate (p6, p7) is where compose delivers its primary value proposition.
+
+### Original gate (v2.0 — reference only)
+
 **Primary gate (M2.5 / MAR-98):** average C − B ≥ +4 across all 7 prompts.
 
-**Secondary checks:**
+**Secondary checks (v2.0):**
 - No individual prompt C − B < 0
 - At least 6 of 7 prompts at C − B ≥ +4
 - Condition A `non_hallucination` dimension score ≥ 2/4 (vanilla must not hallucinate graph components)
