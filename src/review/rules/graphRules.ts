@@ -150,6 +150,17 @@ const highSeverityEdgesBetweenComponents: ReviewRule = (
 
     // Only flag dangerous interactions that are actively paired
     if (edge.relation === "avoid_when") {
+      // Honor bypass_when_all_present (MAR-115): an avoid_when edge is satisfied
+      // — not a violation — when every listed safety guard is in the design.
+      // Keeps this rule consistent with detectAvoidViolations so plan_workflow's
+      // inlined safety review does not flag a correctly-guarded route.
+      if (
+        edge.bypass_when_all_present.length > 0 &&
+        edge.bypass_when_all_present.every((id) => componentSet.has(id))
+      ) {
+        continue;
+      }
+
       findings.push({
         severity: edge.severity as "high" | "critical",
         category: "graph",

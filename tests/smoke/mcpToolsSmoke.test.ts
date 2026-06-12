@@ -1,5 +1,5 @@
 /**
- * Smoke tests for OrchestrateKit MCP tools (health_check + 12 graph tools = 13 total).
+ * Smoke tests for OrchestrateKit MCP tools (health_check + 13 graph tools = 14 total).
  *
  * These tests call the underlying tool logic directly (same code path used by
  * the MCP server) and assert that every tool returns a JSON-serializable
@@ -10,6 +10,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { loadRegistry } from "../../src/registry/registryLoader.js";
 import { buildHealthCheckResult } from "../../src/tools/index.js";
 import { composeRoute } from "../../src/graph/routeComposer.js";
+import { planWorkflow } from "../../src/tools/planWorkflow.js";
 import { loadDocsIndex, matchDocsIndex } from "../../src/docs-index/loader.js";
 import { ALL_RULES } from "../../src/review/rules/index.js";
 import {
@@ -446,5 +447,38 @@ describe("review_workflow_design", () => {
       recommended_fix: "test",
     }));
     expect(calculateRiskScore(findings)).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 14. plan_workflow (MAR-100)
+// ---------------------------------------------------------------------------
+
+describe("plan_workflow", () => {
+  it("returns a fused plan for a playbook-matched goal", () => {
+    const r = planWorkflow(
+      { goal: "scan a codebase, plan changes, edit code, run tests and write a PR summary", must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    expect(r.plan_source).toBe("playbook");
+    expect(r.recommended_route.length).toBeGreaterThan(0);
+    expect(r.safety_review).toBeDefined();
+    expect(r.model_tier_profile).toBeDefined();
+  });
+
+  it("returns a composed plan for a novel goal", () => {
+    const r = planWorkflow(
+      { goal: "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval", must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    expect(r.plan_source).toBe("composed");
+  });
+
+  it("result is JSON-serialisable", () => {
+    const r = planWorkflow(
+      { goal: "read email and draft replies with approval", must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    expect(() => JSON.stringify(r)).not.toThrow();
   });
 });

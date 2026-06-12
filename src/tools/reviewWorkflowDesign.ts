@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { loadRegistry } from "../registry/registryLoader.js";
 import { matchCapabilities } from "../graph/capabilityMatcher.js";
 import { findOverlappingPlaybooks } from "../graph/playbookOverlap.js";
+import type { RegistrySnapshot } from "../graph/routeComposer.js";
 import { ALL_RULES } from "../review/rules/index.js";
 import {
   calculateRiskScore,
@@ -108,7 +109,7 @@ const EXTERNAL_WRITE_IDS = new Set([
   "calendar_write",
 ]);
 
-function buildContext(
+export function buildReviewContext(
   input: {
     workflow_name?: string;
     goal: string;
@@ -122,7 +123,7 @@ function buildContext(
     integrations: string[];
     risk_level?: "low" | "medium" | "high" | "critical";
   },
-  registry: ReturnType<typeof loadRegistry>,
+  registry: RegistrySnapshot,
 ): ReviewContext {
   const resolvedRoute = input.route_id
     ? registry.routes.find((r) => r.id === input.route_id)
@@ -353,7 +354,7 @@ export function registerReviewWorkflowDesign(server: McpServer): void {
         const enrichedInput = { ...input, component_ids: componentIds };
 
         // ── Step 3: Build context ──
-        const ctx = buildContext(enrichedInput, registry);
+        const ctx = buildReviewContext(enrichedInput, registry);
 
         // ── Step 4: Run all rules ──
         const allFindings: ReviewFinding[] = [

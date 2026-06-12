@@ -137,10 +137,43 @@ export type RegistrySnapshot = {
   playbooks: Playbook[];
 };
 
-function componentPurpose(component: Component): string {
+export function componentPurpose(component: Component): string {
   // One-line purpose from summary (first sentence)
   const first = component.summary.split(/[.!?]/)[0]?.trim() ?? component.summary;
   return first.length > 80 ? first.slice(0, 77) + "…" : first;
+}
+
+/**
+ * Groups components into the four model-tier buckets (MAR-116).
+ * Shared by composeRoute and planWorkflow so both report tiers identically.
+ */
+export function computeModelTierProfile(components: Component[]): {
+  frontier: string[];
+  standard: string[];
+  small: string[];
+  none: string[];
+} {
+  return {
+    frontier: components.filter((c) => c.model_tier === "frontier").map((c) => c.id),
+    standard: components.filter((c) => c.model_tier === "standard").map((c) => c.id),
+    small: components.filter((c) => c.model_tier === "small").map((c) => c.id),
+    none: components.filter((c) => c.model_tier === "none").map((c) => c.id),
+  };
+}
+
+/** Builds a RouteStep (with model-tier metadata) from a component at position i. */
+export function toRouteStep(component: Component, i: number): RouteStep {
+  return {
+    step: i + 1,
+    component_id: component.id,
+    component_name: component.name,
+    purpose: componentPurpose(component),
+    risk_level: component.risk_level,
+    model_tier: component.model_tier,
+    fallback_tier: component.fallback_tier,
+    context_need: component.context_need,
+    compression_strategy: component.compression_strategy,
+  };
 }
 
 function buildSummaryMarkdown(
@@ -501,24 +534,9 @@ export function composeRoute(
   });
 
   // ── Step 9: Build output ──
-  const steps: RouteStep[] = finalComponents.map((c, i) => ({
-    step: i + 1,
-    component_id: c.id,
-    component_name: c.name,
-    purpose: componentPurpose(c),
-    risk_level: c.risk_level,
-    model_tier: c.model_tier,
-    fallback_tier: c.fallback_tier,
-    context_need: c.context_need,
-    compression_strategy: c.compression_strategy,
-  }));
+  const steps: RouteStep[] = finalComponents.map((c, i) => toRouteStep(c, i));
 
-  const modelTierProfile = {
-    frontier: finalComponents.filter((c) => c.model_tier === "frontier").map((c) => c.id),
-    standard: finalComponents.filter((c) => c.model_tier === "standard").map((c) => c.id),
-    small: finalComponents.filter((c) => c.model_tier === "small").map((c) => c.id),
-    none: finalComponents.filter((c) => c.model_tier === "none").map((c) => c.id),
-  };
+  const modelTierProfile = computeModelTierProfile(finalComponents);
 
   const requiredApprovalGates = added_gates.length > 0
     ? [...added_gates]

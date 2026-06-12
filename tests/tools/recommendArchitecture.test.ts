@@ -229,8 +229,8 @@ describe("formatRecommendation", () => {
     const archData = buildArchData({
       goal: "test email workflow",
       route: [
-        { step: 1, component_id: "email_read", component_name: "Email Read", purpose: "Read incoming emails", risk_level: "low" },
-        { step: 2, component_id: "intent_classifier", component_name: "Intent Classifier", purpose: "Classify email intent", risk_level: "low" },
+        { step: 1, component_id: "email_read", component_name: "Email Read", purpose: "Read incoming emails", risk_level: "low", model_tier: "none", fallback_tier: "none", context_need: "minimal", compression_strategy: "none" },
+        { step: 2, component_id: "intent_classifier", component_name: "Intent Classifier", purpose: "Classify email intent", risk_level: "low", model_tier: "small", fallback_tier: "none", context_need: "minimal", compression_strategy: "none" },
       ],
     });
     const md = formatRecommendation(archData, "brief");
