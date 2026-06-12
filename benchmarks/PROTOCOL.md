@@ -104,6 +104,18 @@ The model must have **zero** OrchestrateKit context. This means:
 
 ---
 
+## Pre-run freshness check (MAR-114 — required before every B/C run)
+
+Before collecting any Condition B or C responses, call `health_check` and verify:
+
+1. `build.stale` is **false** — if true, run `pnpm build` and restart the MCP server before proceeding.
+2. Record `build.fingerprint` in the results metadata block.
+3. If `build.built_at` is null, the server is running in dev (tsx) mode — this is acceptable and means the registry is always fresh.
+
+A stale registry produces invalid C responses and must not be scored. Mark any run where `build.stale: true` was not caught before collecting responses as **CONTAMINATED** for the affected prompts.
+
+---
+
 ## Run metadata (required per results file)
 
 Every `results-YYYY-MM-DD.md` must start with this block:
@@ -116,6 +128,8 @@ Every `results-YYYY-MM-DD.md` must start with this block:
 **Model:** <model identifier, e.g. claude-sonnet-4-5, gpt-4o-2024-11-20>
 **Model version / snapshot:** <exact version string if available>
 **MCP server version:** <pnpm run health_check → version field>
+**Registry fingerprint:** <health_check → build.fingerprint>
+**Registry stale at run start:** yes | no  (health_check → build.stale; if yes, STOP and rebuild)
 **Registry at time of run:** <X components, Y edges, Z routes, N playbooks>
 **Settings:**
   - temperature: <value or "default">

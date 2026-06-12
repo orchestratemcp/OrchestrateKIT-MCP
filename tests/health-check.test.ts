@@ -3,6 +3,7 @@ import {
   buildHealthCheckResult,
   type HealthCheckResult,
   type RegistrySummary,
+  type RegistryBuild,
 } from "../src/tools/index.js";
 import { SERVER_NAME, SERVER_VERSION } from "../src/config.js";
 
@@ -45,13 +46,47 @@ describe("health_check tool", () => {
     expect(r.untested_edge_pct).toBeLessThanOrEqual(100);
   });
 
-  it("registry counts meet MAR-38 minimum seed targets", () => {
+  // MAR-114: count floor regression — must never drop below post-MAR-95 baseline
+  it("registry counts meet MAR-95 post-fix baseline (32 components, 53 edges)", () => {
     const r = buildHealthCheckResult().registry;
-    expect(r.component_count, "components").toBeGreaterThanOrEqual(20);
-    expect(r.edge_count, "edges").toBeGreaterThanOrEqual(40);
+    expect(r.component_count, "components (regression floor MAR-95)").toBeGreaterThanOrEqual(32);
+    expect(r.edge_count, "edges (regression floor MAR-95)").toBeGreaterThanOrEqual(53);
     expect(r.stack_count, "stacks").toBeGreaterThanOrEqual(1);
     expect(r.route_count, "routes").toBeGreaterThanOrEqual(5);
     expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(5);
+  });
+
+  // MAR-114: build fingerprint and stale-dist detection
+  it("returns a build object with required fields", () => {
+    const b: RegistryBuild = buildHealthCheckResult().build;
+    expect(b).toBeDefined();
+    expect(typeof b.fingerprint).toBe("string");
+    expect(b.fingerprint.length).toBeGreaterThan(0);
+    expect(typeof b.newest_mtime).toBe("string");
+    expect(new Date(b.newest_mtime).getTime()).toBeGreaterThan(0);
+    expect(typeof b.stale).toBe("boolean");
+    expect(Array.isArray(b.stale_files)).toBe(true);
+  });
+
+  it("build.built_at is null in dev (tsx) mode — no _build_manifest.json in src registry", () => {
+    // When running tests via tsx, defaultRegistryDir resolves to registry/ (source).
+    // There is no _build_manifest.json there, so built_at must be null.
+    const b = buildHealthCheckResult().build;
+    expect(b.built_at).toBeNull();
+  });
+
+  it("build.stale is false in dev mode (built_at is null, nothing to compare against)", () => {
+    const b = buildHealthCheckResult().build;
+    if (b.built_at === null) {
+      expect(b.stale).toBe(false);
+      expect(b.stale_files).toHaveLength(0);
+    }
+  });
+
+  it("build.fingerprint is stable across two calls with the same registry", () => {
+    const a = buildHealthCheckResult().build.fingerprint;
+    const b = buildHealthCheckResult().build.fingerprint;
+    expect(a).toBe(b);
   });
 
   it("result is JSON-serialisable and round-trips cleanly", () => {
@@ -60,6 +95,7 @@ describe("health_check tool", () => {
     const parsed = JSON.parse(JSON.stringify(result)) as HealthCheckResult;
     expect(parsed.name).toBe(SERVER_NAME);
     expect(parsed.version).toBe(SERVER_VERSION);
-    expect(parsed.registry.component_count).toBeGreaterThanOrEqual(20);
+    expect(parsed.registry.component_count).toBeGreaterThanOrEqual(32);
+    expect(parsed.build.fingerprint.length).toBeGreaterThan(0);
   });
 });

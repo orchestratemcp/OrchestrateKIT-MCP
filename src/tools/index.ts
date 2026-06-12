@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SERVER_NAME, SERVER_VERSION } from "../config.js";
 import { getRegistryStatus } from "../registry/registryLoader.js";
+import { getRegistryBuild, type RegistryBuild } from "../registry/buildManifest.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import { registerListGraphComponents } from "./listGraphComponents.js";
@@ -26,14 +27,18 @@ export type RegistrySummary = {
   untested_edge_pct: number;
 };
 
+export type { RegistryBuild };
+
 export type HealthCheckResult = {
   name: string;
   version: string;
   registry: RegistrySummary;
+  build: RegistryBuild;
 };
 
 export function buildHealthCheckResult(): HealthCheckResult {
   const status = getRegistryStatus();
+  const build = getRegistryBuild();
   return {
     name: SERVER_NAME,
     version: SERVER_VERSION,
@@ -45,6 +50,7 @@ export function buildHealthCheckResult(): HealthCheckResult {
       playbook_count: status.playbook_count,
       untested_edge_pct: status.untested_edge_pct,
     },
+    build,
   };
 }
 
@@ -67,7 +73,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Health Check",
       description:
-        "Returns the server name, version, and a summary of loaded workflow graph registry entities (components, edges, stacks, routes, playbooks). Use this to confirm the MCP server is running and the registry is loaded.",
+        "Returns the server name, version, a summary of loaded registry entities (components, edges, stacks, routes, playbooks), and a build fingerprint. The `build.stale` field is true when the dist/ registry is outdated vs the source — run `pnpm build` to fix. Use this to confirm the MCP server is running and the registry is fresh.",
     },
     async () => {
       try {

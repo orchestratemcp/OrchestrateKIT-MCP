@@ -46,7 +46,7 @@ function isAllowedStatus(status: string, opts: LoaderOptions): boolean {
   return false;
 }
 
-function defaultRegistryDir(): string {
+export function defaultRegistryDir(): string {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
 
