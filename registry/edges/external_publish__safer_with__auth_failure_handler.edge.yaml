@@ -1,0 +1,10 @@
+id: external_publish__safer_with__auth_failure_handler
+from: external_publish
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: External publishing depends on platform API credentials that expire or lose scope. Without a credential-failure path the workflow dies mid-publish instead of refreshing and retrying or halting cleanly.
+severity: high
+notes: Pair with retry_policy for transient network errors; auth_failure_handler covers the distinct case of expired tokens and missing scopes.
+conditions: []
+tested: false

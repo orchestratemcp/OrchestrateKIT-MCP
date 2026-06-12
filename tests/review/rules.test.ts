@@ -5,6 +5,7 @@ import { stateRules } from "../../src/review/rules/stateRules.js";
 import { toolSafetyRules } from "../../src/review/rules/toolSafetyRules.js";
 import { architectureRules } from "../../src/review/rules/architectureRules.js";
 import { graphRules } from "../../src/review/rules/graphRules.js";
+import { credentialRules } from "../../src/review/rules/credentialRules.js";
 import { calculateRiskScore, deriveStatus, type ReviewContext } from "../../src/review/types.js";
 
 const registry = loadRegistry({ includeBeta: true });
@@ -38,6 +39,7 @@ function ctx(overrides: Partial<ReviewContext> = {}): ReviewContext {
     hasHumanApprovalGate: false,
     hasAuditLog: false,
     hasRetryPolicy: false,
+    hasAuthFailureHandler: false,
     isMultiStep: false,
     isSimpleWorkflow: true,
     ...overrides,
@@ -373,5 +375,54 @@ describe("graphRules — missing required dependencies", () => {
     );
     // Should fire because requiresEdge.to is not in componentIds
     expect(findings.some((f) => f.severity === "high" && f.category === "graph")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MAR-117 — credentialRules
+// ---------------------------------------------------------------------------
+
+describe("credentialRules — external integration without credential path", () => {
+  it("fires a medium finding for an external write with no auth_failure_handler", () => {
+    const findings = credentialRules.flatMap((r) =>
+      r(ctx({ componentIds: ["external_publish", "human_approval_gate"] })),
+    );
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe("medium");
+    expect(findings[0]!.category).toBe("tool_safety");
+    expect(findings[0]!.recommended_fix).toContain("auth_failure_handler");
+    expect(findings[0]!.recommended_fix).toContain("secret manager");
+  });
+
+  it("does NOT fire when auth_failure_handler is present", () => {
+    const findings = credentialRules.flatMap((r) =>
+      r(ctx({
+        componentIds: ["external_publish", "auth_failure_handler"],
+        hasAuthFailureHandler: true,
+      })),
+    );
+    expect(findings.length).toBe(0);
+  });
+
+  it("fires for data_scraper (credentialed read-side pull)", () => {
+    const findings = credentialRules.flatMap((r) =>
+      r(ctx({ componentIds: ["data_scraper", "data_normalizer"] })),
+    );
+    expect(findings.length).toBe(1);
+  });
+
+  it("does NOT fire for a purely internal route", () => {
+    const findings = credentialRules.flatMap((r) =>
+      r(ctx({ componentIds: ["deduplication", "schema_validation"] })),
+    );
+    expect(findings.length).toBe(0);
+  });
+
+  it("is a warning, not blocking — does not push status to fail on its own", () => {
+    const findings = credentialRules.flatMap((r) =>
+      r(ctx({ componentIds: ["calendar_write"] })),
+    );
+    const score = calculateRiskScore(findings);
+    expect(deriveStatus(score, findings)).toBe("warnings");
   });
 });

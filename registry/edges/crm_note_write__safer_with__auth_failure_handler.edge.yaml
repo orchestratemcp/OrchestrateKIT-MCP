@@ -1,0 +1,10 @@
+id: crm_note_write__safer_with__auth_failure_handler
+from: crm_note_write
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: CRM writes depend on an API key or OAuth token that can expire or be scoped down. A credential-failure path prevents silent loss of lead activity when the token goes stale.
+severity: high
+notes: A revoked CRM token (403) is a permission gap, not a transient error — the handler must halt and alert rather than loop.
+conditions: []
+tested: false

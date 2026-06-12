@@ -1,0 +1,42 @@
+id: auth_failure_handler
+name: Auth Failure Handler
+status: published
+category: safety
+summary: Detects credential/permission failures from external integrations and degrades gracefully — refresh, retry with backoff, then alert or halt instead of dying silently.
+capabilities:
+  - detect_token_expiry
+  - refresh_and_retry_credentials
+  - alert_or_halt_on_auth_failure
+inputs:
+  - failure signal from an external integration step (HTTP 401/403, expired token, missing scope)
+  - credential refresh configuration (refresh endpoint, max attempts, backoff)
+outputs:
+  - recovered call result after refresh, or a structured halt/alert with the failing scope named
+risk_level: low
+side_effects:
+  - emits alerts to an operator channel when auth recovery is exhausted
+permissions:
+  read:
+    - token expiry / scope metadata from the secret manager (never the secret value itself)
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - retry_policy
+  - audit_log
+avoid_with: []
+failure_modes:
+  - refresh loop on a permanently revoked token wastes time — must cap attempts and halt
+  - swallowing a 403 (missing scope) as a transient error hides a real permission gap
+  - alerting without naming the failing scope leaves the operator guessing
+evals:
+  - recovery rate on simulated token-expiry (401) vs permanent-revocation (403)
+  - halt-and-alert fires with the correct scope named on exhausted refresh
+  - no duplicate side effect when the wrapped external write is retried after refresh
+tested_in_playbooks: []
+tested_in_routes: []
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none
+sources: []

@@ -384,6 +384,7 @@ describe("review_workflow_design", () => {
       hasHumanApprovalGate: false,
       hasAuditLog: false,
       hasRetryPolicy: false,
+      hasAuthFailureHandler: false,
       isMultiStep: false,
       isSimpleWorkflow: true,
       ...overrides,

@@ -47,10 +47,10 @@ describe("health_check tool", () => {
   });
 
   // MAR-114: count floor regression — must never drop below post-MAR-95 baseline
-  it("registry counts meet MAR-95 post-fix baseline (32 components, 53 edges)", () => {
+  it("registry counts meet baseline (≥33 components, ≥58 edges after MAR-117)", () => {
     const r = buildHealthCheckResult().registry;
-    expect(r.component_count, "components (regression floor MAR-95)").toBeGreaterThanOrEqual(32);
-    expect(r.edge_count, "edges (regression floor MAR-95)").toBeGreaterThanOrEqual(53);
+    expect(r.component_count, "components (regression floor: 33 after MAR-117 auth_failure_handler)").toBeGreaterThanOrEqual(33);
+    expect(r.edge_count, "edges (regression floor: 58 after MAR-117 auth_failure_handler edges)").toBeGreaterThanOrEqual(58);
     expect(r.stack_count, "stacks").toBeGreaterThanOrEqual(1);
     expect(r.route_count, "routes").toBeGreaterThanOrEqual(5);
     expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(5);

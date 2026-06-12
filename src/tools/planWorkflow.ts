@@ -23,8 +23,10 @@ import { loadRegistry } from "../registry/registryLoader.js";
 import {
   composeRoute,
   computeModelTierProfile,
+  computeCredentialAdvisory,
   toRouteStep,
   type ComposeInput,
+  type CredentialAdvisory,
   type RegistrySnapshot,
   type RouteStep,
 } from "../graph/routeComposer.js";
@@ -103,6 +105,7 @@ export type PlanWorkflowOutput = {
   confidence_label: string;
   stack: object;
   safety_review: SafetyReview;
+  credential_advisory: CredentialAdvisory;
   untested_edges: string[];
   avoid_when_violations: AvoidViolation[];
   required_approval_gates: string[];
@@ -177,6 +180,7 @@ function buildPlanMarkdown(
   playbook: PlanPlaybook | null,
   safety: SafetyReview,
   modelTiers: PlanWorkflowOutput["model_tier_profile"],
+  credentials: CredentialAdvisory,
   untestedEdges: string[],
 ): string {
   const lines: string[] = [];
@@ -243,6 +247,18 @@ function buildPlanMarkdown(
       `**Approval gates required:** ${safety.approval_gates_required.map((g) => `\`${g}\``).join(", ")}`,
       ``,
     );
+  }
+
+  if (credentials.components_requiring_credentials.length > 0) {
+    lines.push(`### Credentials & permissions`, ``);
+    for (const c of credentials.components_requiring_credentials) {
+      const scopes = c.required_scopes.length > 0 ? c.required_scopes.join("; ") : "see component docs";
+      lines.push(`- **\`${c.component_id}\`** needs: ${scopes}`);
+    }
+    if (credentials.secret_manager_recommendation) {
+      lines.push(``, `> ${credentials.secret_manager_recommendation}`);
+    }
+    lines.push(``);
   }
 
   if (untestedEdges.length > 0) {
@@ -325,6 +341,7 @@ export function planWorkflow(
   // ── Step 5: derived facts on the chosen route ──
   const routeComponents = resolveComponents(routeComponentIds, registry);
   const model_tier_profile = computeModelTierProfile(routeComponents);
+  const credential_advisory = computeCredentialAdvisory(routeComponents);
   const untested_edges = untestedEdgesWithin(routeComponentIds, registry);
   const avoid_when_violations = detectAvoidViolations(
     new Set(routeComponentIds),
@@ -342,6 +359,7 @@ export function planWorkflow(
     playbook,
     safety_review,
     model_tier_profile,
+    credential_advisory,
     untested_edges,
   );
 
@@ -359,6 +377,7 @@ export function planWorkflow(
     confidence_label: composed.confidence_label,
     stack: composed.recommended_stack,
     safety_review,
+    credential_advisory,
     untested_edges,
     avoid_when_violations,
     required_approval_gates,

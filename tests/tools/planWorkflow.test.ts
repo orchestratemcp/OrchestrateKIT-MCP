@@ -124,6 +124,22 @@ describe("planWorkflow — model-tier profile (MAR-116)", () => {
   });
 });
 
+describe("planWorkflow — credential advisory (MAR-117)", () => {
+  it("surfaces credential requirements + secret-manager rec for a publish plan", () => {
+    const r = plan("start from a content brief, generate copy, design visuals, approve and publish");
+    const comps = r.credential_advisory.components_requiring_credentials.map((c) => c.component_id);
+    expect(comps).toContain("external_publish");
+    expect(r.credential_advisory.secret_manager_recommendation).not.toBeNull();
+    expect(r.summary_markdown).toContain("Credentials & permissions");
+  });
+
+  it("has an empty credential advisory for a code-only plan", () => {
+    const r = plan("scan a codebase, plan changes, edit code, run tests and write a PR summary");
+    expect(r.credential_advisory.components_requiring_credentials.length).toBe(0);
+    expect(r.credential_advisory.secret_manager_recommendation).toBeNull();
+  });
+});
+
 describe("planWorkflow — output shape", () => {
   it("result is JSON-serialisable and has the fused fields", () => {
     const r = plan("read email, classify intent and draft replies with approval");

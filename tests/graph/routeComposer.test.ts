@@ -430,3 +430,32 @@ describe("composeRoute — MAR-116: model_tier_profile", () => {
     }
   });
 });
+
+describe("composeRoute — MAR-117: credential advisory + auth_failure_handler", () => {
+  it("injects auth_failure_handler into a publish route", () => {
+    const r = compose("generate marketing copy and publish it to an external channel");
+    const ids = r.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("auth_failure_handler");
+  });
+
+  it("credential_advisory lists the external integration and recommends a secret manager", () => {
+    const r = compose("generate marketing copy and publish it to an external channel");
+    const comps = r.credential_advisory.components_requiring_credentials.map((c) => c.component_id);
+    expect(comps).toContain("external_publish");
+    expect(r.credential_advisory.secret_manager_recommendation).not.toBeNull();
+    expect(r.credential_advisory.secret_manager_recommendation).toContain("secret manager");
+  });
+
+  it("credential_advisory is empty for a purely internal route", () => {
+    const r = compose("deduplicate records and validate them against a schema");
+    expect(r.credential_advisory.components_requiring_credentials.length).toBe(0);
+    expect(r.credential_advisory.secret_manager_recommendation).toBeNull();
+  });
+
+  it("credential_advisory is always present and serialisable", () => {
+    const r = compose("read emails and draft replies");
+    expect(r.credential_advisory).toBeDefined();
+    expect(Array.isArray(r.credential_advisory.components_requiring_credentials)).toBe(true);
+    expect(() => JSON.stringify(r.credential_advisory)).not.toThrow();
+  });
+});

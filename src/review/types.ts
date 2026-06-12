@@ -64,6 +64,7 @@ export type ReviewContext = {
   hasHumanApprovalGate: boolean; // human_approval_gate in resolved components
   hasAuditLog: boolean;
   hasRetryPolicy: boolean;
+  hasAuthFailureHandler: boolean; // auth_failure_handler in resolved components (MAR-117)
   isMultiStep: boolean;          // >3 components or >2 agents
   isSimpleWorkflow: boolean;     // <=3 components or <=2 agents
 };

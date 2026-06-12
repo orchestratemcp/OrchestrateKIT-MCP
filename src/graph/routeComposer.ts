@@ -104,6 +104,11 @@ export type ComposedRoute = {
   missing_capabilities: string[];
   required_approval_gates: string[];
   /**
+   * Credential/permission surface of the route (MAR-117): which steps need
+   * credentials, their declared scopes, and a secret-manager recommendation.
+   */
+  credential_advisory: CredentialAdvisory;
+  /**
    * Breakdown of route steps by required LLM tier (MAR-116).
    * Helps clients pick models per-step rather than over-provisioning the whole route.
    */
@@ -158,6 +163,58 @@ export function computeModelTierProfile(components: Component[]): {
     standard: components.filter((c) => c.model_tier === "standard").map((c) => c.id),
     small: components.filter((c) => c.model_tier === "small").map((c) => c.id),
     none: components.filter((c) => c.model_tier === "none").map((c) => c.id),
+  };
+}
+
+/**
+ * Components that authenticate against an external service and therefore need
+ * credentials/scopes provisioned at deploy time (MAR-117). Includes read-side
+ * integrations (email_read, calendar_lookup, page_monitor) — they need scopes
+ * too, even though only the write-side set gets an auth_failure_handler edge.
+ */
+const CREDENTIALED_COMPONENTS = new Set([
+  "external_publish",
+  "optional_email_send",
+  "calendar_write",
+  "calendar_lookup",
+  "email_read",
+  "crm_note_write",
+  "data_scraper",
+  "page_monitor",
+]);
+
+/** Advisory describing which steps need credentials and how to provision them safely. */
+export type CredentialAdvisory = {
+  components_requiring_credentials: Array<{
+    component_id: string;
+    required_scopes: string[];
+  }>;
+  /** Non-null when at least one credentialed component is in the route. */
+  secret_manager_recommendation: string | null;
+};
+
+export const SECRET_MANAGER_RECOMMENDATION =
+  "Provision credentials via a named secret manager (1Password, Doppler, " +
+  "HashiCorp Vault, or env + OIDC) with least-privilege scopes. OrchestrateKit " +
+  "is advisory and never stores credentials.";
+
+/**
+ * Surfaces the credential/permission surface of a route up front (MAR-117):
+ * which steps talk to an authenticated external service and the read/write
+ * scopes they declare. Recommends a named secret manager — never stores secrets.
+ */
+export function computeCredentialAdvisory(components: Component[]): CredentialAdvisory {
+  const requiring = components
+    .filter((c) => CREDENTIALED_COMPONENTS.has(c.id))
+    .map((c) => ({
+      component_id: c.id,
+      required_scopes: [...c.permissions.read, ...c.permissions.write],
+    }));
+
+  return {
+    components_requiring_credentials: requiring,
+    secret_manager_recommendation:
+      requiring.length > 0 ? SECRET_MANAGER_RECOMMENDATION : null,
   };
 }
 
@@ -349,6 +406,7 @@ export function composeRoute(
       playbook_recommendation: null,
       missing_capabilities,
       required_approval_gates: [],
+      credential_advisory: { components_requiring_credentials: [], secret_manager_recommendation: null },
       model_tier_profile: { frontier: [], standard: [], small: [], none: [] },
       recommended_stack: {},
       warnings: ["No registry components matched this goal."],
@@ -386,7 +444,7 @@ export function composeRoute(
   }
 
   // ── Step 4: Safety augmentation ──
-  const { components: augmented, added_gates, added_audit, added_validation, added_by_chain } =
+  const { components: augmented, added_gates, added_audit, added_validation, added_auth_handler, added_by_chain } =
     augmentWithSafety(selected, registry.edges, registry.components);
 
   if (added_gates.length > 0) {
@@ -408,6 +466,13 @@ export function composeRoute(
   }
   if (added_audit) {
     assumptions.push("Added audit_log because the route includes external actions.");
+  }
+  if (added_auth_handler) {
+    warnings.push(
+      `Added auth_failure_handler because the route calls an external integration with expirable credentials. ` +
+        `Provision those credentials via a named secret manager (1Password, Doppler, HashiCorp Vault, or env + OIDC) ` +
+        `with least-privilege scopes — OrchestrateKit is advisory and never stores credentials.`,
+    );
   }
   if (added_by_chain.length > 0) {
     assumptions.push(
@@ -452,6 +517,7 @@ export function composeRoute(
     ...added_gates,
     ...(added_validation ? ["schema_validation"] : []),
     ...(added_audit ? ["audit_log"] : []),
+    ...(added_auth_handler ? ["auth_failure_handler"] : []),
     ...added_by_chain,
   ]);
   const edgeTouchedIds = new Set<string>();
@@ -537,6 +603,7 @@ export function composeRoute(
   const steps: RouteStep[] = finalComponents.map((c, i) => toRouteStep(c, i));
 
   const modelTierProfile = computeModelTierProfile(finalComponents);
+  const credentialAdvisory = computeCredentialAdvisory(finalComponents);
 
   const requiredApprovalGates = added_gates.length > 0
     ? [...added_gates]
@@ -652,6 +719,7 @@ export function composeRoute(
     playbook_recommendation: playbookRecommendation,
     missing_capabilities,
     required_approval_gates: requiredApprovalGates,
+    credential_advisory: credentialAdvisory,
     model_tier_profile: modelTierProfile,
     recommended_stack: recommendedStack,
     warnings,

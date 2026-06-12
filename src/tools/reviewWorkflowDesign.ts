@@ -193,6 +193,7 @@ export function buildReviewContext(
     hasHumanApprovalGate: allComponentIds.includes("human_approval_gate"),
     hasAuditLog: allComponentIds.includes("audit_log"),
     hasRetryPolicy: allComponentIds.includes("retry_policy"),
+    hasAuthFailureHandler: allComponentIds.includes("auth_failure_handler"),
     isMultiStep,
     isSimpleWorkflow: !isMultiStep,
   };

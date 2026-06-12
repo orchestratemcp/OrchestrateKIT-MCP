@@ -169,3 +169,47 @@ describe("augmentWithSafety — MAR-89: requires chain walk", () => {
     expect(ids.length).toBe(uniqueIds.size);
   });
 });
+
+/**
+ * MAR-117 — credential resilience: auth_failure_handler injection for
+ * external-integration components.
+ */
+describe("augmentWithSafety — MAR-117: auth_failure_handler injection", () => {
+  it("injects auth_failure_handler when external_publish is present", () => {
+    const result = augmentWithSafety([findComponent("external_publish")], edges, components);
+    expect(result.components.map((c) => c.id)).toContain("auth_failure_handler");
+    expect(result.added_auth_handler).toBe(true);
+  });
+
+  it("injects auth_failure_handler for a read-side credentialed pull (data_scraper)", () => {
+    const result = augmentWithSafety([findComponent("data_scraper")], edges, components);
+    expect(result.components.map((c) => c.id)).toContain("auth_failure_handler");
+    expect(result.added_auth_handler).toBe(true);
+  });
+
+  it("injects auth_failure_handler for crm_note_write", () => {
+    const result = augmentWithSafety([findComponent("crm_note_write")], edges, components);
+    expect(result.components.map((c) => c.id)).toContain("auth_failure_handler");
+  });
+
+  it("does NOT inject auth_failure_handler for a purely internal route", () => {
+    const result = augmentWithSafety(
+      [findComponent("deduplication"), findComponent("schema_validation")],
+      edges,
+      components,
+    );
+    expect(result.added_auth_handler).toBe(false);
+    expect(result.components.map((c) => c.id)).not.toContain("auth_failure_handler");
+  });
+
+  it("does not duplicate auth_failure_handler if already present", () => {
+    const result = augmentWithSafety(
+      [findComponent("external_publish"), findComponent("auth_failure_handler")],
+      edges,
+      components,
+    );
+    const count = result.components.filter((c) => c.id === "auth_failure_handler").length;
+    expect(count).toBe(1);
+    expect(result.added_auth_handler).toBe(false);
+  });
+});

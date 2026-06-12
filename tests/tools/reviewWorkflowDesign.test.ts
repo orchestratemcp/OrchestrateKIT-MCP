@@ -41,6 +41,7 @@ function ctx(overrides: Partial<ReviewContext> = {}): ReviewContext {
     hasHumanApprovalGate: false,
     hasAuditLog: false,
     hasRetryPolicy: false,
+    hasAuthFailureHandler: false,
     isMultiStep: false,
     isSimpleWorkflow: true,
     ...overrides,

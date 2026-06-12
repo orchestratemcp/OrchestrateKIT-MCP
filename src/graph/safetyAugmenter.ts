@@ -4,6 +4,21 @@ import type { Edge } from "../registry/edgeSchema.js";
 const SAFETY_GATE_ID = "human_approval_gate";
 const AUDIT_LOG_ID = "audit_log";
 const SCHEMA_VALIDATION_ID = "schema_validation";
+const AUTH_FAILURE_HANDLER_ID = "auth_failure_handler";
+
+/**
+ * External-integration components that authenticate with an expirable credential
+ * (token / API key / OAuth scope). When any is present the route should carry a
+ * credential-failure path so it degrades gracefully instead of dying silently
+ * (MAR-117). Includes data_scraper — a read-side pull that still uses credentials.
+ */
+const NEEDS_AUTH_FAILURE_HANDLER = new Set([
+  "external_publish",
+  "optional_email_send",
+  "calendar_write",
+  "crm_note_write",
+  "data_scraper",
+]);
 
 /** External-write components that always require human_approval_gate. */
 const ALWAYS_REQUIRES_GATE = new Set([
@@ -40,6 +55,8 @@ export type AugmentResult = {
   added_audit: boolean;
   /** true when schema_validation was injected because an external-write component is present. */
   added_validation: boolean;
+  /** true when auth_failure_handler was injected for an external-integration component (MAR-117). */
+  added_auth_handler: boolean;
   /**
    * IDs of components added by the prerequisite chain walk (requires /
    * must_run_before edges on augmenter-added components).
@@ -72,6 +89,7 @@ export function augmentWithSafety(
   const added_gates: string[] = [];
   let added_audit = false;
   let added_validation = false;
+  let added_auth_handler = false;
   const added_by_chain: string[] = [];
 
   const findComponent = (id: string): Component | undefined =>
@@ -123,6 +141,12 @@ export function augmentWithSafety(
     added_audit = true;
   }
 
+  // ── Rule 5b: add auth_failure_handler for external-integration components (MAR-117) ──
+  const needsAuthHandler = selected.some((c) => NEEDS_AUTH_FAILURE_HANDLER.has(c.id));
+  if (needsAuthHandler && inject(AUTH_FAILURE_HANDLER_ID)) {
+    added_auth_handler = true;
+  }
+
   // ── Rule 6: prerequisite chain walk for augmenter-added components ──
   //
   // Walk requires edges (comp → dep: comp needs dep) and reverse
@@ -139,6 +163,7 @@ export function augmentWithSafety(
     ...(added_gates.length > 0 ? [SAFETY_GATE_ID] : []),
     ...(added_validation ? [SCHEMA_VALIDATION_ID] : []),
     ...(added_audit ? [AUDIT_LOG_ID] : []),
+    ...(added_auth_handler ? [AUTH_FAILURE_HANDLER_ID] : []),
   ]);
 
   const worklist = [...augmenterAddedIds];
@@ -173,5 +198,5 @@ export function augmentWithSafety(
     }
   }
 
-  return { components: selected, added_gates, added_audit, added_validation, added_by_chain };
+  return { components: selected, added_gates, added_audit, added_validation, added_auth_handler, added_by_chain };
 }

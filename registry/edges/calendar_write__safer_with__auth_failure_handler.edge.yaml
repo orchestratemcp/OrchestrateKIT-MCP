@@ -1,0 +1,10 @@
+id: calendar_write__safer_with__auth_failure_handler
+from: calendar_write
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: Calendar writes use a calendar API token that expires or loses the events scope. A credential-failure path refreshes and retries or halts cleanly instead of dropping the booking.
+severity: high
+notes: Show the failing scope (e.g. calendar.events.write) in the alert so the operator can re-grant the correct permission.
+conditions: []
+tested: false
