@@ -302,13 +302,43 @@ const AVOID_PENALTY: Record<string, number> = {
   low: 0.5,
 };
 
-/** Tokenize a string into lowercase words. */
+/** Tokenize a string into lowercase words (length >= 3). */
 function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length > 2);
 }
+
+/**
+ * Tokens too generic to be meaningful as capability/summary matching signals.
+ *
+ * Applied only to the cap/summary substring passes — keyword hints and
+ * id/name segment matching are unaffected.
+ *
+ * Key examples of why each group is here:
+ *   - English function words ("and", "the", "for", …): appear inside compound
+ *     capability IDs like `extract_audience_and_goals` — pure structural noise.
+ *   - Generic architectural nouns ("workflow", "process", "system", "data"):
+ *     nearly every component mentions these in its summary, so they provide
+ *     zero discriminating signal.
+ *   - Prepositions and conjunctions: only surface because capability names
+ *     use snake_case which contains them as fragments.
+ */
+const MATCH_STOPWORDS = new Set([
+  // English function words
+  "and", "the", "for", "are", "but", "not", "all", "was", "one", "our",
+  "has", "its", "did", "let", "put", "too", "use", "way", "new", "get",
+  "may", "see", "per", "set", "via", "can", "own", "any", "how", "who",
+  "that", "this", "from", "with", "when", "then", "into", "onto", "over",
+  "under", "also", "each", "both", "been", "will", "have", "more", "than",
+  "what", "when", "they", "them", "some", "such", "only", "very", "well",
+  "your", "just", "even", "most", "like", "make", "take",
+  // Generic architectural nouns that appear in nearly every component summary
+  "workflow", "process", "system", "service", "agent", "step", "task",
+  "item", "data", "input", "output", "result", "value", "type", "list",
+  "adds", "based", "given", "used",
+]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */
 function componentDomains(id: string): Domain[] {
@@ -395,6 +425,7 @@ export function matchCapabilities(
     }
 
     for (const token of goalTokens) {
+      if (MATCH_STOPWORDS.has(token)) continue;
       // Capability substring match
       for (const cap of component.capabilities) {
         if (cap.toLowerCase().includes(token)) {
@@ -428,12 +459,19 @@ export function matchCapabilities(
   }
 
   // ── Build matches from positively-scored components ──
+  //
+  // Minimum score of 1 is required: a component that only matched via a weak
+  // summary-substring hit (score = 0.5) is almost certainly noise — it got
+  // domain-eligible as a side effect of a common word in the goal (e.g.
+  // "published" triggers content_publishing, making content_idea_intake eligible,
+  // which then scores 0.5 on "workflow" in its summary).
+  const MIN_MATCH_SCORE = 1;
   const matches: CapabilityMatch[] = [];
   for (const component of components) {
     if (mustAvoidSet.has(component.id.toLowerCase())) continue;
 
     const entry = scoreMap.get(component.id);
-    if (entry && entry.score > 0) {
+    if (entry && entry.score >= MIN_MATCH_SCORE) {
       matches.push({
         component,
         score: entry.score,

@@ -106,4 +106,51 @@ describe("detectAvoidViolations — MAR-90", () => {
     const violations = detectAvoidViolations(ids, edges);
     expect(violations.length).toBe(0);
   });
+
+  // MAR-115 p7: bypass_when_all_present — avoid_when is satisfied when safety guards are present
+  it("MAR-115 p7: does NOT flag research_synthesis+external_publish when citation_checker+human_approval_gate are both present", () => {
+    const ids = new Set([
+      "research_synthesis",
+      "external_publish",
+      "citation_checker",
+      "human_approval_gate",
+    ]);
+    const violations = detectAvoidViolations(ids, edges);
+    const bypassable = violations.find(
+      (v) => v.from === "research_synthesis" && v.to === "external_publish",
+    );
+    expect(bypassable).toBeUndefined();
+  });
+
+  it("MAR-115 p7: DOES flag research_synthesis+external_publish when bypass guards are absent", () => {
+    const ids = new Set(["research_synthesis", "external_publish"]);
+    const violations = detectAvoidViolations(ids, edges);
+    const flagged = violations.find(
+      (v) => v.from === "research_synthesis" && v.to === "external_publish",
+    );
+    expect(flagged).toBeDefined();
+    expect(flagged!.severity).toBe("critical");
+  });
+});
+
+describe("computeExecutionOrder — MAR-115 p6: crm_note_write gate placement", () => {
+  it("places human_approval_gate before crm_note_write", () => {
+    const ordered = computeExecutionOrder(
+      pick(["email_read", "intent_classifier", "crm_note_write", "human_approval_gate", "audit_log"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("human_approval_gate")).toBeLessThan(
+      ids.indexOf("crm_note_write"),
+    );
+  });
+
+  it("keeps audit_log last in CRM route", () => {
+    const ordered = computeExecutionOrder(
+      pick(["email_read", "intent_classifier", "crm_note_write", "human_approval_gate", "audit_log"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids[ids.length - 1]).toBe("audit_log");
+  });
 });

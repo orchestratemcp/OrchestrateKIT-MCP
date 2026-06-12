@@ -10,6 +10,7 @@ const ALWAYS_REQUIRES_GATE = new Set([
   "external_publish",
   "optional_email_send",
   "calendar_write",
+  "crm_note_write",
 ]);
 
 /** External-write components that always require audit_log. */
@@ -17,6 +18,7 @@ const ALWAYS_RECOMMEND_AUDIT = new Set([
   "external_publish",
   "optional_email_send",
   "calendar_write",
+  "crm_note_write",
 ]);
 
 /**
@@ -29,6 +31,7 @@ const ALWAYS_REQUIRES_VALIDATION = new Set([
   "external_publish",
   "optional_email_send",
   "calendar_write",
+  "crm_note_write",
 ]);
 
 export type AugmentResult = {

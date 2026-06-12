@@ -9,3 +9,6 @@ notes: The pipeline must always route through citation_checker and human_approva
 conditions:
   - citations have not been verified
   - human approval has not been obtained
+bypass_when_all_present:
+  - citation_checker
+  - human_approval_gate

@@ -143,6 +143,7 @@ const IRREVERSIBLE_WRITES = new Set([
   "external_publish",
   "optional_email_send",
   "calendar_write",
+  "crm_note_write",
 ]);
 
 /**
@@ -286,6 +287,11 @@ export type AvoidViolation = {
 /**
  * Detects `avoid_when` edges whose BOTH endpoints are present in the route
  * (MAR-90). A critical violation should drive the route to `blocked_candidate`.
+ *
+ * Edges with `bypass_when_all_present` are skipped when ALL listed component IDs
+ * are present in the route — this encodes "avoid unless safety guards are in
+ * place" (e.g. research_synthesis→external_publish is safe when both
+ * citation_checker and human_approval_gate are present).
  */
 export function detectAvoidViolations(
   componentIds: Set<string>,
@@ -294,15 +300,23 @@ export function detectAvoidViolations(
   const violations: AvoidViolation[] = [];
   for (const edge of allEdges) {
     if (edge.relation !== "avoid_when") continue;
-    if (componentIds.has(edge.from) && componentIds.has(edge.to)) {
-      violations.push({
-        edge_id: edge.id,
-        from: edge.from,
-        to: edge.to,
-        severity: edge.severity,
-        reason: edge.reason,
-      });
+    if (!componentIds.has(edge.from) || !componentIds.has(edge.to)) continue;
+
+    // bypass_when_all_present: skip the violation if every listed guard is present
+    if (
+      edge.bypass_when_all_present.length > 0 &&
+      edge.bypass_when_all_present.every((id) => componentIds.has(id))
+    ) {
+      continue;
     }
+
+    violations.push({
+      edge_id: edge.id,
+      from: edge.from,
+      to: edge.to,
+      severity: edge.severity,
+      reason: edge.reason,
+    });
   }
   return violations;
 }

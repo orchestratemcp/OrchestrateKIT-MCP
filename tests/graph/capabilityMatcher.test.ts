@@ -176,6 +176,15 @@ describe("matchCapabilities — MAR-88 p1–p7 regression (domain gating)", () =
     expect(ids).toContain("research_synthesis");
   });
 
+  // MAR-115 p1: "published" in goal must not inject content_idea_intake via bridge
+  // bleed. "and" inside extract_audience_and_goals was the scoring vector (stopword fix).
+  it("MAR-115 p1: excludes content_idea_intake from research-only goal even when 'published' appears", () => {
+    const ids = matchedIds(P1_RESEARCH);
+    expect(ids).not.toContain("content_idea_intake");
+    expect(ids).not.toContain("design_brief_generation");
+    expect(ids).not.toContain("copy_generation");
+  });
+
   it("p2 content: excludes research cluster; keeps content components", () => {
     const ids = matchedIds(P2_CONTENT);
     // research cluster is noise on a pure content goal (no sources/citations asked)

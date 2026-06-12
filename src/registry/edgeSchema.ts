@@ -32,6 +32,12 @@ export const EdgeSchema = z.object({
   /** Legacy/alternate condition list — prefer `condition` for new edges. */
   conditions: z.array(z.string()).default([]),
   severity: z.enum(RISK_LEVELS),
+  /**
+   * When ALL listed component IDs are present in the route, this avoid_when edge
+   * is considered satisfied and does NOT count as a violation. Use to encode
+   * "avoid unless safety guards are in place" patterns.
+   */
+  bypass_when_all_present: z.array(z.string()).default([]),
   tested: z.boolean().default(false),
   test_refs: z.array(z.string()).default([]),
   failure_modes: z.array(z.string()).default([]),
