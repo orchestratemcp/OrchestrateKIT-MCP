@@ -41,6 +41,10 @@ export type RouteStep = {
   component_name: string;
   purpose: string;
   risk_level: string;
+  model_tier: string;
+  fallback_tier: string;
+  context_need: string;
+  compression_strategy: string;
 };
 
 export type ComposeNoiseFlag = {
@@ -99,6 +103,16 @@ export type ComposedRoute = {
   playbook_recommendation: PlaybookRecommendation | null;
   missing_capabilities: string[];
   required_approval_gates: string[];
+  /**
+   * Breakdown of route steps by required LLM tier (MAR-116).
+   * Helps clients pick models per-step rather than over-provisioning the whole route.
+   */
+  model_tier_profile: {
+    frontier: string[];
+    standard: string[];
+    small: string[];
+    none: string[];
+  };
   recommended_stack: object;
   warnings: string[];
   assumptions: string[];
@@ -302,6 +316,7 @@ export function composeRoute(
       playbook_recommendation: null,
       missing_capabilities,
       required_approval_gates: [],
+      model_tier_profile: { frontier: [], standard: [], small: [], none: [] },
       recommended_stack: {},
       warnings: ["No registry components matched this goal."],
       assumptions: [],
@@ -492,7 +507,18 @@ export function composeRoute(
     component_name: c.name,
     purpose: componentPurpose(c),
     risk_level: c.risk_level,
+    model_tier: c.model_tier,
+    fallback_tier: c.fallback_tier,
+    context_need: c.context_need,
+    compression_strategy: c.compression_strategy,
   }));
+
+  const modelTierProfile = {
+    frontier: finalComponents.filter((c) => c.model_tier === "frontier").map((c) => c.id),
+    standard: finalComponents.filter((c) => c.model_tier === "standard").map((c) => c.id),
+    small: finalComponents.filter((c) => c.model_tier === "small").map((c) => c.id),
+    none: finalComponents.filter((c) => c.model_tier === "none").map((c) => c.id),
+  };
 
   const requiredApprovalGates = added_gates.length > 0
     ? [...added_gates]
@@ -608,6 +634,7 @@ export function composeRoute(
     playbook_recommendation: playbookRecommendation,
     missing_capabilities,
     required_approval_gates: requiredApprovalGates,
+    model_tier_profile: modelTierProfile,
     recommended_stack: recommendedStack,
     warnings,
     assumptions,

@@ -376,3 +376,57 @@ describe("composeRoute — output structure", () => {
     expect(brief.summary_markdown.length).toBeLessThan(standard.summary_markdown.length);
   });
 });
+
+describe("composeRoute — MAR-116: model_tier_profile", () => {
+  it("returns a model_tier_profile with all four tier buckets", () => {
+    const result = compose("research and synthesise with citations");
+    expect(result.model_tier_profile).toBeDefined();
+    expect(Array.isArray(result.model_tier_profile.frontier)).toBe(true);
+    expect(Array.isArray(result.model_tier_profile.standard)).toBe(true);
+    expect(Array.isArray(result.model_tier_profile.small)).toBe(true);
+    expect(Array.isArray(result.model_tier_profile.none)).toBe(true);
+  });
+
+  it("research route puts research_synthesis in frontier tier", () => {
+    const result = compose("research a topic and synthesise with citations");
+    expect(result.model_tier_profile.frontier).toContain("research_synthesis");
+  });
+
+  it("coding route puts plan_generation and code_editing in frontier tier", () => {
+    const result = compose("scan codebase, plan changes and edit code");
+    expect(result.model_tier_profile.frontier).toContain("plan_generation");
+    expect(result.model_tier_profile.frontier).toContain("code_editing");
+  });
+
+  it("every step component_id appears in exactly one tier bucket", () => {
+    const result = compose("read emails and draft replies");
+    const allBuckets = [
+      ...result.model_tier_profile.frontier,
+      ...result.model_tier_profile.standard,
+      ...result.model_tier_profile.small,
+      ...result.model_tier_profile.none,
+    ];
+    const routeIds = result.recommended_route.map((s) => s.component_id);
+    for (const id of routeIds) {
+      expect(allBuckets.filter((b) => b === id).length, `${id} appears in exactly one bucket`).toBe(1);
+    }
+  });
+
+  it("each RouteStep carries model_tier and context_need fields", () => {
+    const result = compose("research and synthesise");
+    for (const step of result.recommended_route) {
+      expect(typeof step.model_tier).toBe("string");
+      expect(typeof step.context_need).toBe("string");
+      expect(typeof step.fallback_tier).toBe("string");
+      expect(typeof step.compression_strategy).toBe("string");
+    }
+  });
+
+  it("not_found result has empty tier buckets", () => {
+    const result = compose("xyzzy frobnicate the quantum zork");
+    if (result.status === "not_found") {
+      expect(result.model_tier_profile.frontier).toEqual([]);
+      expect(result.model_tier_profile.standard).toEqual([]);
+    }
+  });
+});

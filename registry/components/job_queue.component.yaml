@@ -38,3 +38,8 @@ tested_in_playbooks:
 tested_in_routes:
   - data_extraction_route_v1
 sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

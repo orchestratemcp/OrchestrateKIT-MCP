@@ -39,3 +39,8 @@ tested_in_routes:
   - content_approval_route_v1
   - email_calendar_route_v1
 sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

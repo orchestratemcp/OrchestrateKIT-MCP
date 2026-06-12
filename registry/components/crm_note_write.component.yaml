@@ -39,3 +39,8 @@ evals:
 tested_in_playbooks: []
 tested_in_routes: []
 sources: []
+
+model_tier: small
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

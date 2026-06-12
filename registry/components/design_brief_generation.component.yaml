@@ -34,3 +34,8 @@ tested_in_playbooks:
 tested_in_routes:
   - content_approval_route_v1
 sources: []
+
+model_tier: standard
+fallback_tier: small
+context_need: moderate
+compression_strategy: summarise

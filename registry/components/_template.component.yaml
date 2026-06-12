@@ -32,6 +32,10 @@ evals:
   - How to evaluate this component
 tested_in_playbooks: []
 tested_in_routes: []
+model_tier: none  # none | small | standard | frontier
+fallback_tier: none  # none | small | standard | frontier
+context_need: minimal  # minimal | moderate | large | full
+compression_strategy: none  # none | truncate | summarise | chunk | rank_and_drop
 sources:
   - title: Source title
     url: https://example.com

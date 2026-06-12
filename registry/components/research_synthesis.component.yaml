@@ -40,3 +40,8 @@ tested_in_playbooks:
 tested_in_routes:
   - research_route_v1
 sources: []
+
+model_tier: frontier
+fallback_tier: standard
+context_need: large
+compression_strategy: rank_and_drop

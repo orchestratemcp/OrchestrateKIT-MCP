@@ -35,3 +35,8 @@ tested_in_routes:
   - research_route_v1
   - codebase_agent_route_v1
 sources: []
+
+model_tier: small
+fallback_tier: none
+context_need: minimal
+compression_strategy: none
