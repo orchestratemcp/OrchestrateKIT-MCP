@@ -8,3 +8,6 @@ severity: critical
 notes: The pipeline must always include data_normalizer, deduplication and schema_validation between data_scraper and external_publish.
 conditions:
   - data has not passed through normalisation, deduplication and schema validation
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: data_scraper__avoid__external_publish"

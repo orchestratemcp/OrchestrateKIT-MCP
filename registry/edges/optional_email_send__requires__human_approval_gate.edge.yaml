@@ -3,7 +3,10 @@ from: optional_email_send
 to: human_approval_gate
 relation: requires
 status: published
-reason: Sending email to external recipients is irreversible. Autonomous email sending is a significant risk — wrong recipient, wrong content, wrong time.
+reason: Sending email to external recipients is irreversible. Autonomous email sending is a significant risk ï¿½ wrong recipient, wrong content, wrong time.
 severity: critical
 notes: Make the approval UI show the full draft, recipient list and any context the sender used. Approval without full context is not approval.
 conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: optional_email_send__requires__human_approval_gate"

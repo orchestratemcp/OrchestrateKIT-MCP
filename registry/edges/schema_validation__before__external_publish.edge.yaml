@@ -7,3 +7,6 @@ reason: Publishing content that fails schema validation risks corrupting the tar
 severity: high
 notes: Schema validation failures must block publish, not just warn. Silent publish of invalid data is harder to debug than a clean rejection.
 conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: schema_validation__before__external_publish"

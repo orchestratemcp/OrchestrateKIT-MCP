@@ -7,4 +7,6 @@ reason: Tests must run after code changes are applied. Running tests before edit
 severity: high
 notes: Always run the full test suite (or at minimum the affected test scope) after every edit, not just the final edit in a sequence.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: code_editing__before__test_runner"

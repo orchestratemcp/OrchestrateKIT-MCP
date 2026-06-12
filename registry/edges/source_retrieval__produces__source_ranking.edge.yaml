@@ -7,4 +7,6 @@ reason: Raw retrieved documents must be ranked by relevance before synthesis. Pa
 severity: high
 notes: Always rank before synthesising. Even a simple score-based sort outperforms passing raw results.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: source_retrieval__produces__source_ranking"

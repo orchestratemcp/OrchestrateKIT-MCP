@@ -7,4 +7,6 @@ reason: Editing without a current codebase scan produces stale-context patches t
 severity: high
 notes: Re-scan after any external change to the codebase (e.g. git pull) before editing.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: codebase_scan__before__code_editing"

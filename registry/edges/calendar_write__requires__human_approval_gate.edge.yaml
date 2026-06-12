@@ -7,3 +7,6 @@ reason: Creating or modifying calendar events sends invites to external attendee
 severity: high
 notes: Show full event details including attendee list before approval. Timezone display errors in approval UI are a common source of mistakes.
 conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: calendar_write__requires__human_approval_gate"

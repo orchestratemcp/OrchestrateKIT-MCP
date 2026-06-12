@@ -5,6 +5,8 @@ relation: produces_input_for
 status: published
 reason: The step-by-step plan is the direct instruction set for code editing. Editing without a plan produces unfocused changes.
 severity: high
-notes: Pass one plan step at a time to code_editing rather than the full plan — improves edit accuracy and makes rollback easier.
+notes: Pass one plan step at a time to code_editing rather than the full plan ï¿½ improves edit accuracy and makes rollback easier.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: plan_generation__produces__code_editing"

@@ -7,8 +7,9 @@ reason: Writing to a CRM record is externally visible and effectively irreversib
 severity: critical
 notes: Approval UI must show the full note content, the resolved contact identifier, and the source context the agent used to generate the note. Approval without full context is not approval.
 conditions: []
-tested: false
-test_refs: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: crm_note_write__requires__human_approval_gate"
 failure_modes:
   - CRM record updated with hallucinated content when LLM output is not reviewed
   - wrong contact record mutated when identifier resolution was ambiguous
