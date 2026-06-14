@@ -1,5 +1,5 @@
 /**
- * Smoke tests for OrchestrateKit MCP tools (health_check + 13 graph tools = 14 total).
+ * Smoke tests for OrchestrateKit MCP tools (health_check + 14 graph tools = 15 total).
  *
  * These tests call the underlying tool logic directly (same code path used by
  * the MCP server) and assert that every tool returns a JSON-serializable
@@ -11,6 +11,7 @@ import { loadRegistry } from "../../src/registry/registryLoader.js";
 import { buildHealthCheckResult } from "../../src/tools/index.js";
 import { composeRoute } from "../../src/graph/routeComposer.js";
 import { planWorkflow } from "../../src/tools/planWorkflow.js";
+import { buildSessionFeedback } from "../../src/tools/recordSessionFeedback.js";
 import { loadDocsIndex, matchDocsIndex } from "../../src/docs-index/loader.js";
 import { ALL_RULES } from "../../src/review/rules/index.js";
 import {
@@ -480,6 +481,39 @@ describe("plan_workflow", () => {
       { goal: "read email and draft replies with approval", must_have_capabilities: [], must_avoid: [] },
       registry,
     );
+    expect(() => JSON.stringify(r)).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 15. record_session_feedback (MAR-126) — stateless ship-step
+// ---------------------------------------------------------------------------
+
+describe("record_session_feedback", () => {
+  it("emits a stateless, Lab-ready record with safety self-checks", () => {
+    const r = buildSessionFeedback(
+      {
+        goal: "publish approved content to social",
+        route_components: ["external_publish"],
+        route_selected: "",
+        client: "claude",
+        model: "claude-opus-4-8",
+        user_goal_domain: "content-publishing",
+        edges_used: [],
+        untested_edges: [],
+        what_helped: "",
+        what_was_noise: "",
+        missing_components: [],
+        wrong_components: [],
+        new_edge_candidates: [],
+        playbook_candidate: "",
+        linear_issue_candidates: [],
+        baseline_comparison: "",
+      },
+      registry,
+    );
+    expect(r.stateless).toBe(true);
+    expect(r.self_checks.length).toBeGreaterThanOrEqual(1);
     expect(() => JSON.stringify(r)).not.toThrow();
   });
 });

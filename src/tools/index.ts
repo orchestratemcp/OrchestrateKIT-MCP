@@ -17,6 +17,7 @@ import { registerGetRelevantDocs } from "./getRelevantDocs.js";
 import { registerRecommendArchitecture } from "./recommendArchitecture.js";
 import { registerReviewWorkflowDesign } from "./reviewWorkflowDesign.js";
 import { registerPlanWorkflow } from "./planWorkflow.js";
+import { registerRecordSessionFeedback } from "./recordSessionFeedback.js";
 
 export type RegistrySummary = {
   component_count: number;
@@ -69,6 +70,7 @@ export function registerTools(server: McpServer): void {
   registerRecommendArchitecture(server);
   registerReviewWorkflowDesign(server);
   registerPlanWorkflow(server);
+  registerRecordSessionFeedback(server);
 
   server.registerTool(
     "health_check",
