@@ -91,8 +91,11 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
  * NOT a research trigger because research uses the plural "sources").
  *
  * IMPORTANT: research is intentionally NOT triggered by the bare word
- * "summary" (so "PR summary" stays a code concern) — only by explicit research
- * verbs/nouns (research, sources, citation, synthesize/summarize, freshness…).
+ * "summary" (so "PR summary" stays a code concern). "summarize"/"summarise" are
+ * WEAK research triggers (see WEAK_RESEARCH_KEYWORDS): they count toward the
+ * research domain on their own, but are suppressed in a code_agent context with
+ * no strong research signal — "summarize a PR" / "scan the codebase and
+ * summarize" must not pull research_synthesis (MAR-127).
  */
 const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]> = {
   research: [
@@ -199,6 +202,14 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
 };
 
 /**
+ * Weak research triggers: generic summary verbs that also appear in code,
+ * monitoring and email goals. They classify as research on their own, but are
+ * suppressed when the goal is a code-agent task with no strong research signal
+ * (MAR-127 — "summarize a PR" must not pull research_synthesis).
+ */
+const WEAK_RESEARCH_KEYWORDS = ["summarize", "summarise"];
+
+/**
  * Classify a goal into workflow domains (MAR-88).
  * Always includes `generic_orchestration` so safety/orchestration components
  * are never blocked. Exported for unit testing.
@@ -213,6 +224,19 @@ export function classifyGoalDomains(goal: string): Set<Domain> {
   ][]) {
     if (keywords.some((kw) => goalLower.includes(kw))) {
       domains.add(domain);
+    }
+  }
+
+  // MAR-127: in a code-agent goal, a weak research trigger (summarize/summarise)
+  // alone must not establish the research domain — otherwise research_synthesis
+  // bleeds into "summarize a PR" / "scan the codebase and summarize" routes.
+  // Keep research only if a STRONG research keyword is present.
+  if (domains.has("code_agent") && domains.has("research")) {
+    const strongResearch = DOMAIN_KEYWORDS.research.filter(
+      (kw) => !WEAK_RESEARCH_KEYWORDS.includes(kw),
+    );
+    if (!strongResearch.some((kw) => goalLower.includes(kw))) {
+      domains.delete("research");
     }
   }
 
