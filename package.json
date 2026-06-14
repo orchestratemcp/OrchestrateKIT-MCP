@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "registry:lint": "tsx scripts/registry-lint.ts",
+    "probe": "tsx scripts/node-probes.ts",
     "smoke": "vitest run tests/smoke",
     "verify": "pnpm typecheck && pnpm registry:lint && pnpm test"
   },
