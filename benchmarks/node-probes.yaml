@@ -1,0 +1,104 @@
+# OrchestrateKit MCP — Node probes (MAR-125 / TEST-01)
+#
+# Deterministic, single-capability assertions run through the FULL composeRoute
+# (matcher + safety augmenter + ordering). No LLM, no human. These are FIXTURES
+# that pin matcher/composer behaviour at the unit level — NOT logged sessions.
+#
+# Per probe:
+#   goal       — a single-capability goal in plain language
+#   must_have  — component ids that MUST appear in the composed route
+#   forbidden  — component ids that MUST NOT appear (guards cross-domain bleed)
+#   xfail      — (optional) known-failing probe documenting an open bug. Does not
+#                fail the gate; if it starts PASSING the runner errors so the
+#                marker (and the bug) can be closed out. `finding` = Linear id.
+#
+# Run:  pnpm probe            (exit 1 on any miss/leak)
+# CI:   tests/graph/nodeProbes.test.ts runs the same probes under vitest.
+
+probes:
+  # ── email / calendar domain ──────────────────────────────────────────────
+  - id: email_draft_basic
+    goal: "Draft a reply email to a customer enquiry."
+    must_have: [email_draft]
+    forbidden: [design_brief_generation, research_synthesis, external_publish]
+
+  - id: email_read_triage
+    goal: "Read and triage my incoming emails."
+    must_have: [email_read]
+    forbidden: [design_brief_generation, external_publish]
+
+  - id: calendar_lookup_availability
+    goal: "Look up my calendar availability for next week."
+    must_have: [calendar_lookup]
+    forbidden: [external_publish, research_synthesis, design_brief_generation]
+
+  # ── research domain ──────────────────────────────────────────────────────
+  - id: research_synthesis_with_citations
+    goal: "Synthesize a grounded summary from multiple research sources with inline citations."
+    must_have: [research_synthesis, citation_checker]
+    forbidden: [external_publish, design_brief_generation, crm_note_write]
+
+  - id: source_retrieval_only
+    goal: "Retrieve documents from multiple origins for a research task."
+    must_have: [source_retrieval]
+    forbidden: [external_publish, design_brief_generation]
+
+  # ── content / publishing domain ──────────────────────────────────────────
+  - id: design_brief_generation
+    goal: "Generate a creative design brief for a marketing campaign."
+    must_have: [design_brief_generation]
+    forbidden: [research_synthesis, external_publish, crm_note_write]
+
+  - id: external_publish_safety_chain
+    goal: "Publish approved marketing content to our social channels, with an audit trail, only after I approve it."
+    must_have: [external_publish, human_approval_gate, audit_log]
+    forbidden: [crm_note_write]
+
+  # ── data / ETL domain ────────────────────────────────────────────────────
+  - id: etl_scrape_normalize_validate
+    goal: "Build a pipeline that scrapes data, normalizes it, and validates the schema."
+    must_have: [data_scraper, data_normalizer, schema_validation]
+    forbidden: [external_publish, research_synthesis, design_brief_generation]
+
+  - id: deduplication_only
+    goal: "Deduplicate records in a dataset."
+    must_have: [deduplication]
+    forbidden: [external_publish, design_brief_generation, research_synthesis]
+
+  # ── code-agent domain ────────────────────────────────────────────────────
+  - id: code_edit_and_test
+    goal: "An agent that edits code in my repository and runs the test suite."
+    must_have: [code_editing, test_runner]
+    forbidden: [research_synthesis, external_publish, design_brief_generation]
+
+  - id: codebase_scan_only
+    goal: "Scan the codebase and summarize its structure."
+    must_have: [codebase_scan]
+    forbidden: [external_publish, research_synthesis, design_brief_generation]
+    xfail: true # MAR-127 — "summarize" bleeds research_synthesis into code-agent routes
+    finding: MAR-127
+
+  - id: pr_summary_only
+    goal: "Summarize a pull request for reviewers."
+    must_have: [pr_summary]
+    forbidden: [research_synthesis, external_publish, design_brief_generation]
+    xfail: true # MAR-127 — "summarize" bleeds research_synthesis into code-agent routes
+    finding: MAR-127
+
+  # ── crm / sales domain ───────────────────────────────────────────────────
+  - id: crm_note_after_call
+    goal: "Write a note to our CRM after a sales call."
+    must_have: [crm_note_write]
+    forbidden: [external_publish, design_brief_generation, research_synthesis]
+
+  # ── monitoring domain ────────────────────────────────────────────────────
+  - id: page_monitor_alert
+    goal: "Monitor a web page for changes and alert me when it changes."
+    must_have: [page_monitor]
+    forbidden: [external_publish, design_brief_generation, research_synthesis]
+
+  # ── generic orchestration ────────────────────────────────────────────────
+  - id: intent_classifier_only
+    goal: "Classify the intent of an incoming support message."
+    must_have: [intent_classifier]
+    forbidden: [external_publish, design_brief_generation, research_synthesis]
