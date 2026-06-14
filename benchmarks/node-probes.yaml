@@ -75,15 +75,11 @@ probes:
     goal: "Scan the codebase and summarize its structure."
     must_have: [codebase_scan]
     forbidden: [external_publish, research_synthesis, design_brief_generation]
-    xfail: true # MAR-127 — "summarize" bleeds research_synthesis into code-agent routes
-    finding: MAR-127
 
   - id: pr_summary_only
     goal: "Summarize a pull request for reviewers."
     must_have: [pr_summary]
     forbidden: [research_synthesis, external_publish, design_brief_generation]
-    xfail: true # MAR-127 — "summarize" bleeds research_synthesis into code-agent routes
-    finding: MAR-127
 
   # ── crm / sales domain ───────────────────────────────────────────────────
   - id: crm_note_after_call
