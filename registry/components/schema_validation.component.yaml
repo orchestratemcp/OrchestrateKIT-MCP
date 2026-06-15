@@ -20,7 +20,6 @@ permissions:
 requires: []
 recommended_with:
   - deduplication
-  - external_publish
 avoid_with: []
 failure_modes:
   - schema too strict rejects valid records with minor format differences
