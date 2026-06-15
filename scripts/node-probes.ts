@@ -56,6 +56,7 @@ for (const probe of probes) {
     lines.push(`  ❌ ${probe.id}`);
     if (r.missing.length) lines.push(`       missing must_have: ${r.missing.join(", ")}`);
     if (r.leaked.length) lines.push(`       forbidden leaked:  ${r.leaked.join(", ")}`);
+    if (r.leaked_playbook.length) lines.push(`       forbidden playbook: ${r.leaked_playbook.join(", ")}`);
     lines.push(`       route: ${r.routeIds.join(", ")}`);
   }
 }

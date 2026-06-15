@@ -6,12 +6,12 @@
  * get_stack_recommendation → review_workflow_design).
  *
  * It runs one composeRoute pass, then:
- *  - decides plan_source: when a validated playbook strongly matches the goal
- *    (recall ≥ 0.80, precision ≥ 0.50 — the threshold compose uses for its
- *    playbook recommendation) it LEADS WITH THE PLAYBOOK's golden-path route
- *    rather than the composed candidate. This operationalises the MAR-98 finding
- *    that for playbook-matched requests the validated route is the right answer
- *    and compose output is noise.
+ *  - decides plan_source: when a validated playbook matches the goal with high
+ *    enough recall and PRECISION (recall ≥ 0.60, precision ≥ 0.72 — see the
+ *    threshold block below; the precision floor was retuned in MAR-130) it LEADS
+ *    WITH THE PLAYBOOK's golden-path route rather than the composed candidate.
+ *    This operationalises the MAR-98 finding that for playbook-matched requests
+ *    the validated route is the right answer and compose output is noise.
  *  - runs the deterministic review rule set on the chosen route's component set
  *    and inlines the safety findings.
  *  - inlines the stack recommendation and the MAR-116 model-tier profile.
@@ -54,19 +54,31 @@ export type PlanSource = "playbook" | "composed";
 export type PlanWorkflowInput = ComposeInput;
 
 /**
- * plan_workflow's own playbook-routing thresholds (MAR-100). Deliberately more
- * lenient than compose's "use playbook" banner (recall ≥ 0.80) and PRECISION-aware.
+ * plan_workflow's own playbook-routing thresholds (MAR-100, retuned in MAR-130).
  *
- * The MAR-98 split is precision-driven: playbook-matched goals produce a
+ * The MAR-98 split is PRECISION-driven: a genuine playbook match produces a
  * high-precision composed set (almost everything compose picked is in the
- * playbook), whereas novel/graph-composed goals (p6, p7) pull a playbook's
- * components in alongside many others — high recall but low precision. Gating on
- * precision ≥ 0.60 keeps novel goals on the composed path while routing genuine
- * playbook matches (codebase 0.75/0.86, research 0.71/1.0, data 0.63/1.0,
- * content 1.0/1.0, email 1.0/0.80) to their validated route.
+ * playbook), whereas a goal whose primary domain is something else only overlaps
+ * a playbook because of generic glue (intent_classifier + the auto-added
+ * human_approval_gate / audit_log) plus a couple of lexically-injected
+ * components — high recall, mediocre precision.
+ *
+ * MAR-130 regression: the old precision floor of 0.60 let `email_calendar_assistant`
+ * lead 5/10 dogfood sessions across CRM / invoice / HR / social, dropping the real
+ * primary-domain component (e.g. crm_note_write) for calendar_lookup/calendar_write.
+ * compose's MAR-91 guard (recall ≥ 0.80) correctly rejected those, but it is NOT
+ * applied here — plan_workflow has this separate, weaker gate.
+ *
+ * Calibration across the canonical goals cleanly separates the two populations by
+ * PRECISION (recall is too low for genuine data/research/codebase to use the 0.80
+ * compose floor):
+ *   genuine playbook (keep):   research 0.83 · content 0.78 · email 0.73 · codebase 1.00 · data 0.83  (min 0.73)
+ *   over-match / composed:     CRM 0.63 · invoice 0.67 · HR 0.70 · social 0.44 · p6 0.50 · p7 0.50    (max 0.70)
+ * A precision floor of 0.72 sits in the gap and downgrades every over-match
+ * (including HR) to a composed candidate while keeping all genuine matches.
  */
 const PLAYBOOK_RECALL_MIN = 0.6;
-const PLAYBOOK_PRECISION_MIN = 0.6;
+const PLAYBOOK_PRECISION_MIN = 0.72;
 
 export type SafetyReview = {
   status: "pass" | "warnings" | "fail";

@@ -47,6 +47,13 @@ describe("node probes (MAR-125)", () => {
       it("leaks no forbidden component", () => {
         expect(r.leaked, `${probe.id} leaked: ${r.leaked.join(", ")}`).toEqual([]);
       });
+
+      it("matches no forbidden playbook", () => {
+        expect(
+          r.leaked_playbook,
+          `${probe.id} matched forbidden playbook: ${r.leaked_playbook.join(", ")}`,
+        ).toEqual([]);
+      });
     });
   }
 });

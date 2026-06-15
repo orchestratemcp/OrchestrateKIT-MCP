@@ -210,6 +210,58 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
 const WEAK_RESEARCH_KEYWORDS = ["summarize", "summarise"];
 
 /**
+ * Weak email_calendar triggers (MAR-131, generalizing MAR-127). "schedule" /
+ * "scheduling" name an infra/timing concept ("runs on a schedule", "schedule
+ * social posts") far more often than a literal calendar action, so they bleed
+ * calendar_lookup/calendar_write into monitoring, content and ETL goals that
+ * have nothing to do with a calendar. They stay WEAK email_calendar triggers,
+ * but are dropped when the goal has a stronger primary domain and no STRONG
+ * email/calendar token (email, inbox, reply, draft, calendar, meeting, invite…).
+ *
+ * "hourly"/"nightly"/"cron" are pure infra and are intentionally NOT in any
+ * DOMAIN_KEYWORDS list — they never establish a domain on their own.
+ */
+const WEAK_EMAIL_CALENDAR_KEYWORDS = ["schedule", "scheduling"];
+
+/**
+ * Domains strong enough that, when present, a sibling domain established ONLY by
+ * weak lexical triggers should be dropped. `generic_orchestration` is excluded —
+ * it is always present and must never suppress a real domain.
+ */
+const PRIMARY_DOMAINS: Exclude<Domain, "generic_orchestration">[] = [
+  "research",
+  "content_publishing",
+  "email_calendar",
+  "data_etl",
+  "code_agent",
+  "crm_sales",
+  "monitoring",
+];
+
+/**
+ * Drop `domain` from `domains` when it was established ONLY by weak lexical
+ * triggers AND a different primary domain is present. Shared de-biasing helper
+ * for MAR-127 (research/"summarize") and MAR-131 (email_calendar/"schedule").
+ */
+function suppressWeakOnlyDomain(
+  domain: Exclude<Domain, "generic_orchestration">,
+  weakKeywords: string[],
+  goalLower: string,
+  domains: Set<Domain>,
+): void {
+  if (!domains.has(domain)) return;
+  const strongKeywords = DOMAIN_KEYWORDS[domain].filter(
+    (kw) => !weakKeywords.includes(kw),
+  );
+  const hasStrong = strongKeywords.some((kw) => goalLower.includes(kw));
+  if (hasStrong) return; // domain legitimately present — keep it
+  const hasOtherPrimary = PRIMARY_DOMAINS.some(
+    (d) => d !== domain && domains.has(d),
+  );
+  if (hasOtherPrimary) domains.delete(domain);
+}
+
+/**
  * Classify a goal into workflow domains (MAR-88).
  * Always includes `generic_orchestration` so safety/orchestration components
  * are never blocked. Exported for unit testing.
@@ -230,7 +282,8 @@ export function classifyGoalDomains(goal: string): Set<Domain> {
   // MAR-127: in a code-agent goal, a weak research trigger (summarize/summarise)
   // alone must not establish the research domain — otherwise research_synthesis
   // bleeds into "summarize a PR" / "scan the codebase and summarize" routes.
-  // Keep research only if a STRONG research keyword is present.
+  // Kept scoped to code_agent: "summarize" legitimately reads as research in
+  // many non-code contexts, so we only suppress it where it is clearly wrong.
   if (domains.has("code_agent") && domains.has("research")) {
     const strongResearch = DOMAIN_KEYWORDS.research.filter(
       (kw) => !WEAK_RESEARCH_KEYWORDS.includes(kw),
@@ -239,6 +292,19 @@ export function classifyGoalDomains(goal: string): Set<Domain> {
       domains.delete("research");
     }
   }
+
+  // MAR-131: "schedule"/"scheduling" almost never names a literal calendar
+  // action outside an email/calendar goal, so suppress email_calendar whenever
+  // it was established only by those weak tokens and any other primary domain is
+  // present (monitoring "runs on a schedule", social "schedule posts", …). This
+  // stops calendar_lookup/calendar_write from being injected into non-calendar
+  // routes — the general form of the MAR-127 bug on a new token/domain pair.
+  suppressWeakOnlyDomain(
+    "email_calendar",
+    WEAK_EMAIL_CALENDAR_KEYWORDS,
+    goalLower,
+    domains,
+  );
 
   return domains;
 }

@@ -98,3 +98,41 @@ probes:
     goal: "Classify the intent of an incoming support message."
     must_have: [intent_classifier]
     forbidden: [external_publish, design_brief_generation, research_synthesis]
+
+  # ── MAR-131: "schedule"/"hourly" must not inject calendar_* ───────────────
+  # Weak timing tokens are infra signals, not calendar signals. A monitoring or
+  # content goal with no email/calendar intent must not pull calendar components.
+  - id: hourly_monitor_no_calendar
+    goal: "Monitor a competitor's pricing page on an hourly schedule and alert me when the price changes."
+    must_have: [page_monitor]
+    forbidden: [calendar_lookup, calendar_write]
+
+  - id: social_schedule_no_calendar
+    goal: "Repurpose a blog post into social posts and schedule them across channels."
+    must_have: [external_publish]
+    forbidden: [calendar_lookup, calendar_write]
+
+  # ── MAR-130: email_calendar_assistant must not over-match other domains ────
+  # Run through plan_workflow (the playbook-routing path). A generic
+  # trigger+approval+write shape must NOT be led by email_calendar_assistant when
+  # the goal's primary domain is CRM / invoice / HR.
+  - id: crm_lead_not_email_calendar
+    goal: "When a new lead comes in, log a note to our CRM and draft a follow-up email for approval."
+    via: plan
+    must_have: [crm_note_write]
+    forbidden: []
+    forbidden_playbook: [email_calendar_assistant]
+
+  - id: invoice_reminder_not_email_calendar
+    goal: "Read incoming invoice emails, extract the totals, and send a reminder email when one is overdue."
+    via: plan
+    must_have: [email_read]
+    forbidden: []
+    forbidden_playbook: [email_calendar_assistant]
+
+  - id: hr_onboarding_not_email_calendar
+    goal: "Onboard a new hire: schedule their intro meetings and send a welcome email."
+    via: plan
+    must_have: [email_draft]
+    forbidden: []
+    forbidden_playbook: [email_calendar_assistant]

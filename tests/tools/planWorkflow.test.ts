@@ -34,12 +34,35 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
     expect(r.playbook?.id).toBe("research_agent_citations");
   });
 
+  // MAR-130: the email assistant is the genuine match nearest the 0.72 precision
+  // floor (precision ≈ 0.73). It MUST still route to playbook — this guards the
+  // upper side of the floor so a future tweak can't silently break real matches.
+  it("routes a genuine email/calendar goal to the email playbook", () => {
+    const r = plan(
+      "read my email inbox, classify intent, draft replies and calendar invites, and only send or book after approval",
+    );
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("email_calendar_assistant");
+  });
+
   it("keeps a novel CRM goal on the composed path (low precision)", () => {
     const r = plan(
       "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
     );
     expect(r.plan_source).toBe("composed");
     expect(r.playbook).toBeNull();
+  });
+
+  // MAR-130 regression: email_calendar_assistant over-matched CRM / invoice / HR
+  // (precision 0.63–0.70) and overrode the route, dropping the primary-domain
+  // component. The 0.72 precision floor must downgrade these to composed.
+  it.each([
+    ["CRM", "when a new lead comes in, log a note to our CRM and draft a follow-up email for approval"],
+    ["invoice", "read incoming invoice emails, extract the totals, and send a reminder email when one is overdue"],
+    ["HR", "onboard a new hire: schedule their intro meetings and send a welcome email"],
+  ])("does not over-match %s to email_calendar_assistant", (_label, goal) => {
+    const r = plan(goal);
+    expect(r.playbook?.id).not.toBe("email_calendar_assistant");
   });
 
   it("keeps a novel monitor goal on the composed path", () => {
