@@ -53,6 +53,18 @@ export type ComposeNoiseFlag = {
 };
 
 /**
+ * An untested edge within the route, with its registry-declared severity (MAR-133).
+ * Severity is a required field on every edge (edgeSchema), so it is always
+ * present and deterministic — wiring it here lets consumers triage which
+ * untested edges to validate first instead of inferring severity from the
+ * relation type (which made the output non-deterministic across clients).
+ */
+export type UntestedEdge = {
+  id: string;
+  severity: Edge["severity"];
+};
+
+/**
  * Playbook-first recommendation output (MAR-91).
  * Present when a known playbook covers >= 80 % of the composed route.
  */
@@ -94,7 +106,8 @@ export type ComposedRoute = {
   execution_order: string[];
   edges_used: InlineEdgeSummary[];
   known_playbooks_reused: string[];
-  untested_edges: string[];
+  /** Untested edges within the route, each with its registry severity (MAR-133). */
+  untested_edges: UntestedEdge[];
   /** avoid_when edges violated by this route (critical → blocked_candidate). */
   avoid_when_violations: AvoidViolation[];
   /** Components that matched but have no graph edges to the route — possible false positives. */
@@ -498,7 +511,9 @@ export function composeRoute(
   // ── Step 6: Edges used & untested ──
   const finalIds = new Set(finalComponents.map((c) => c.id));
   const internalEdges = edgesWithinSet(finalIds, registry.edges);
-  const untestedEdges = internalEdges.filter((e) => !e.tested).map((e) => e.id);
+  const untestedEdges: UntestedEdge[] = internalEdges
+    .filter((e) => !e.tested)
+    .map((e) => ({ id: e.id, severity: e.severity }));
 
   // ── Step 6b: avoid_when violations & compose noise ──
   const avoidViolations = detectAvoidViolations(finalIds, registry.edges);

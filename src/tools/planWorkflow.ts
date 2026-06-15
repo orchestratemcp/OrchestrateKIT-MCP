@@ -29,6 +29,7 @@ import {
   type CredentialAdvisory,
   type RegistrySnapshot,
   type RouteStep,
+  type UntestedEdge,
 } from "../graph/routeComposer.js";
 import {
   computeExecutionOrder,
@@ -118,7 +119,8 @@ export type PlanWorkflowOutput = {
   stack: object;
   safety_review: SafetyReview;
   credential_advisory: CredentialAdvisory;
-  untested_edges: string[];
+  /** Untested edges within the route, each with its registry severity (MAR-133). */
+  untested_edges: UntestedEdge[];
   avoid_when_violations: AvoidViolation[];
   required_approval_gates: string[];
   evals_to_add: string[];
@@ -175,14 +177,14 @@ function reviewRoute(
   return { status, risk_score, blocking_issues, warnings, approval_gates_required };
 }
 
-/** Untested edges fully within the route's component set. */
+/** Untested edges fully within the route's component set, with severity (MAR-133). */
 function untestedEdgesWithin(
   componentIds: string[],
   registry: RegistrySnapshot,
-): string[] {
+): UntestedEdge[] {
   return edgesWithinSet(new Set(componentIds), registry.edges)
     .filter((e) => !e.tested)
-    .map((e) => e.id);
+    .map((e) => ({ id: e.id, severity: e.severity }));
 }
 
 function buildPlanMarkdown(
@@ -193,7 +195,7 @@ function buildPlanMarkdown(
   safety: SafetyReview,
   modelTiers: PlanWorkflowOutput["model_tier_profile"],
   credentials: CredentialAdvisory,
-  untestedEdges: string[],
+  untestedEdges: UntestedEdge[],
 ): string {
   const lines: string[] = [];
 
@@ -277,7 +279,7 @@ function buildPlanMarkdown(
     lines.push(
       `### Untested edges (${untestedEdges.length})`,
       ``,
-      `${untestedEdges.slice(0, 8).map((e) => `\`${e}\``).join(", ")}${untestedEdges.length > 8 ? " …" : ""}`,
+      `${untestedEdges.slice(0, 8).map((e) => `\`${e.id}\` (${e.severity})`).join(", ")}${untestedEdges.length > 8 ? " …" : ""}`,
       ``,
     );
   }
