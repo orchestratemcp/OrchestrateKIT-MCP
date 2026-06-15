@@ -22,7 +22,6 @@ permissions:
   approval_required_for: []
 requires: []
 recommended_with:
-  - external_publish
   - optional_email_send
   - calendar_write
 avoid_with: []

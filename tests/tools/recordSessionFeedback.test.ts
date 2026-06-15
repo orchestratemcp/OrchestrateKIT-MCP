@@ -97,6 +97,29 @@ describe("record_session_feedback", () => {
     expect(medium.join(" ")).toContain("audit_log");
   });
 
+  it("does not nudge a non-publishing route toward external_publish", () => {
+    // Regression: retry_policy / schema_validation / audit_log used to declare
+    // recommended_with external_publish (backwards), so a data pipeline with no
+    // publish step got false "safer with external_publish" self-checks.
+    const r = buildSessionFeedback(
+      baseInput({
+        goal: "Nightly scrape, normalize, validate and load to Postgres",
+        user_goal_domain: "data-pipeline",
+        route_components: [
+          "data_scraper",
+          "retry_policy",
+          "data_normalizer",
+          "deduplication",
+          "schema_validation",
+          "audit_log",
+        ],
+      }),
+      registry,
+    );
+    const allMessages = r.self_checks.map((c) => c.message).join(" ");
+    expect(allMessages).not.toContain("external_publish");
+  });
+
   it("reports unknown component ids", () => {
     const r = buildSessionFeedback(
       baseInput({ route_components: ["external_publish", "not_a_real_component"] }),

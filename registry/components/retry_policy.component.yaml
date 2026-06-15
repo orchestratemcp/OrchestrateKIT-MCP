@@ -21,7 +21,6 @@ permissions:
 requires: []
 recommended_with:
   - job_queue
-  - external_publish
   - data_scraper
 avoid_with: []
 failure_modes:
