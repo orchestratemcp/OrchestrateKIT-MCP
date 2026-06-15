@@ -327,3 +327,36 @@ describe("classifyGoalDomains — MAR-88", () => {
     expect(d.has("email_calendar")).toBe(true);
   });
 });
+
+describe("classifyGoalDomains — MAR-131 weak email_calendar de-bias", () => {
+  it("does NOT classify a scheduled monitor goal as email_calendar", () => {
+    const d = classifyGoalDomains(
+      "monitor a competitor pricing page on an hourly schedule and alert on changes",
+    );
+    expect(d.has("monitoring")).toBe(true);
+    expect(d.has("email_calendar")).toBe(false);
+  });
+
+  it("does NOT classify a 'schedule posts' content goal as email_calendar", () => {
+    const d = classifyGoalDomains(
+      "repurpose a blog post into social posts and schedule them across channels",
+    );
+    expect(d.has("content_publishing")).toBe(true);
+    expect(d.has("email_calendar")).toBe(false);
+  });
+
+  it("KEEPS email_calendar when a strong calendar token is present", () => {
+    const d = classifyGoalDomains("schedule a meeting and send a calendar invite");
+    expect(d.has("email_calendar")).toBe(true);
+  });
+
+  it("KEEPS email_calendar when 'schedule' co-occurs with email", () => {
+    const d = classifyGoalDomains("draft a welcome email and schedule the intro session");
+    expect(d.has("email_calendar")).toBe(true);
+  });
+
+  it("KEEPS email_calendar for a schedule-only goal with no other primary domain", () => {
+    const d = classifyGoalDomains("help me schedule things");
+    expect(d.has("email_calendar")).toBe(true);
+  });
+});
