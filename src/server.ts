@@ -5,11 +5,10 @@ import { registerTools } from "./tools/index.js";
 import { logger } from "./lib/logger.js";
 
 async function main(): Promise<void> {
-  const server = new McpServer({
-    name: SERVER_NAME,
-    version: SERVER_VERSION,
-    instructions: SERVER_INSTRUCTIONS,
-  });
+  const server = new McpServer(
+    { name: SERVER_NAME, version: SERVER_VERSION },
+    { instructions: SERVER_INSTRUCTIONS },
+  );
 
   registerTools(server);
 
