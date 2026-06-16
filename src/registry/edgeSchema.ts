@@ -29,6 +29,12 @@ export const EdgeSchema = z.object({
   condition: z.string().default(""),
   /** Optional human notes (distinct from `condition`). */
   notes: z.string().default(""),
+  /**
+   * Advisory text explaining control-flow implications of using this edge
+   * (MAR-134). Non-blocking — for documentation and explain_component output.
+   * Example: "Parallel branch — add fan_out_collector to merge results."
+   */
+  control_flow_note: z.string().default(""),
   /** Legacy/alternate condition list — prefer `condition` for new edges. */
   conditions: z.array(z.string()).default([]),
   severity: z.enum(RISK_LEVELS),

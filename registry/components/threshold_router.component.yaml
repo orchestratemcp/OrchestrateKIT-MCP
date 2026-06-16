@@ -1,0 +1,49 @@
+id: threshold_router
+name: Threshold Router
+status: published
+category: orchestration
+summary: Evaluates a numeric score or confidence value against configurable thresholds and routes execution to different downstream branches (e.g., approve / queue-for-review / reject based on a score range). Replaces hand-coded if/else logic in multi-outcome workflows.
+capabilities:
+  - confidence_routing
+  - threshold_evaluation
+  - multi_branch_routing
+  - score_based_gating
+  - traffic_splitting
+inputs:
+  - numeric score or probability (0.0–1.0 range typical, but configurable)
+  - "threshold configuration (e.g., high_threshold=0.85, low_threshold=0.40)"
+  - "branch labels for each segment (e.g., approve, review, reject)"
+outputs:
+  - selected branch label
+  - input score and which threshold band it fell into
+  - routing decision audit entry (when audit_log is wired)
+risk_level: low
+side_effects:
+  - routes to branches that may have irreversible downstream effects (write, send, delete); the router itself is read-only but its decision is not
+permissions:
+  read:
+    - input score or evaluation result
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - audit_log
+  - human_approval_gate
+avoid_with: []
+failure_modes:
+  - score falls exactly on a threshold boundary — tie-breaking rule not defined causes non-deterministic routing
+  - thresholds misconfigured (high_threshold < low_threshold) — all inputs fall into an undefined band
+  - upstream scorer not calibrated — score distribution shifts over time, causing silent routing drift
+  - binary threshold used where a three-way split is needed — edge cases pile up in "review" bucket
+evals:
+  - boundary test — score == threshold routes to the correct (lower) bucket
+  - full-coverage test — at least one input reaches each configured branch
+  - misconfiguration guard — overlapping thresholds raise a config error at init time
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

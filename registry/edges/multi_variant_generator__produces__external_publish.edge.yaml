@@ -1,0 +1,10 @@
+id: multi_variant_generator__produces__external_publish
+from: multi_variant_generator
+to: external_publish
+relation: produces_input_for
+status: published
+reason: Generated variants are typically published to an external A/B testing platform or content channel. The produces edge signals that external_publish is the intended consumer of the variant array and should be preceded by a human_approval_gate for the selected variant.
+severity: medium
+notes: Only one variant should be published per test arm unless the platform manages multi-arm delivery. Always gate variant selection with human_approval_gate or a campaign-management tool.
+conditions: []
+tested: false

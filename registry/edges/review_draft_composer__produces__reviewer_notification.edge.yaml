@@ -1,0 +1,10 @@
+id: review_draft_composer__produces__reviewer_notification
+from: review_draft_composer
+to: reviewer_notification
+relation: produces_input_for
+status: published
+reason: After a draft is composed and staged, the natural next step is to alert the designated reviewer. reviewer_notification carries the draft reference and review instructions to the human reviewer, closing the loop between AI generation and human approval.
+severity: medium
+notes: reviewer_notification is NOT a substitute for human_approval_gate — it alerts a reviewer that their attention is needed, but the gate is still required to block downstream publish until approval is received.
+conditions: []
+tested: false

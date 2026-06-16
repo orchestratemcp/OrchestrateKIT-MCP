@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { load as parseYaml } from "js-yaml";
@@ -65,14 +65,14 @@ type ParseResult<T> =
 function loadYamlDir<T>(
   dir: string,
   schema: ZodTypeAny,
-): Array<{ filePath: string; data: T }> {
+): Array<{ filePath: string; fileMtime: Date; data: T }> {
   if (!existsSync(dir)) return [];
 
   const files = readdirSync(dir).filter(
     (f) => f.endsWith(".yaml") && !f.startsWith("_"),
   );
 
-  const results: Array<{ filePath: string; data: T }> = [];
+  const results: Array<{ filePath: string; fileMtime: Date; data: T }> = [];
 
   for (const file of files) {
     const filePath = join(dir, file);
@@ -93,7 +93,8 @@ function loadYamlDir<T>(
       throw new Error(`Schema validation failed for ${filePath}:\n${issues}`);
     }
 
-    results.push({ filePath, data: result.data as T });
+    const fileMtime = statSync(filePath).mtime;
+    results.push({ filePath, fileMtime, data: result.data as T });
   }
 
   return results;
@@ -101,6 +102,8 @@ function loadYamlDir<T>(
 
 export type LoadedRegistry = Registry & {
   validationWarnings: ValidationError[];
+  /** Map from component id → file modification time (for freshness reporting). */
+  componentMtimes: Map<string, Date>;
 };
 
 export function loadRegistry(opts: LoaderOptions = {}): LoadedRegistry {
@@ -118,6 +121,13 @@ export function loadRegistry(opts: LoaderOptions = {}): LoadedRegistry {
   const stacks = allStacks.map((r) => r.data).filter((s) => isAllowedStatus(s.status, opts));
   const routes = allRoutes.map((r) => r.data).filter((r) => isAllowedStatus(r.status, opts));
   const playbooks = allPlaybooks.map((r) => r.data).filter((p) => isAllowedStatus(p.status, opts));
+
+  // Build component mtime map (id → file mtime) from the raw load results.
+  const componentMtimes = new Map<string, Date>(
+    allComponents
+      .filter((r) => isAllowedStatus(r.data.status, opts))
+      .map((r) => [r.data.id, r.fileMtime]),
+  );
 
   validateNoDuplicateIds(components, "component");
   validateNoDuplicateIds(edges, "edge");
@@ -138,7 +148,7 @@ export function loadRegistry(opts: LoaderOptions = {}): LoadedRegistry {
     );
   }
 
-  return { ...registry, validationWarnings };
+  return { ...registry, validationWarnings, componentMtimes };
 }
 
 export function getRegistryStatus(opts: LoaderOptions = {}): RegistryStatus {
@@ -147,6 +157,13 @@ export function getRegistryStatus(opts: LoaderOptions = {}): RegistryStatus {
   const untestedEdges = registry.edges.filter((e) => !e.tested).length;
   const untested_edge_pct =
     totalEdges > 0 ? Math.round((untestedEdges / totalEdges) * 1000) / 10 : 0;
+
+  const STALE_THRESHOLD_MS = 90 * 86_400_000;
+  const now = Date.now();
+  const stale_component_count = [...registry.componentMtimes.values()].filter(
+    (mtime) => now - mtime.getTime() > STALE_THRESHOLD_MS,
+  ).length;
+
   return {
     component_count: registry.components.length,
     edge_count: registry.edges.length,
@@ -154,5 +171,6 @@ export function getRegistryStatus(opts: LoaderOptions = {}): RegistryStatus {
     route_count: registry.routes.length,
     playbook_count: registry.playbooks.length,
     untested_edge_pct,
+    stale_component_count,
   };
 }

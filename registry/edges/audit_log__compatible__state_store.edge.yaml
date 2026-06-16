@@ -7,3 +7,6 @@ reason: Audit log and state store often share the same database backend for loca
 severity: low
 notes: Keep audit log as append-only even if the backing store supports mutations. Never allow workflow logic to delete audit entries.
 conditions: []
+tested: true
+test_refs:
+  - route:data_extraction_route_v1

@@ -134,6 +134,29 @@ See `docs/CLAUDE_DESKTOP_USAGE.md` for usage guidance.
 
 ---
 
+## Connect via HTTP (ChatGPT / claude.ai)
+
+ChatGPT and claude.ai connect over HTTP rather than stdio. A separate HTTP server
+handles those connections:
+
+```bash
+# Start the HTTP server (keep this terminal open)
+pnpm start:http
+```
+
+You should see:
+
+```
+OrchestrateKit MCP HTTP server listening on http://127.0.0.1:3001
+```
+
+Point your AI client at `http://127.0.0.1:3001/mcp`. The server stays running
+until you press `Ctrl+C` or close the terminal.
+
+See `docs/CHATGPT_USAGE.md` for full connection instructions and prompt templates.
+
+---
+
 ## Run smoke tests
 
 ```bash

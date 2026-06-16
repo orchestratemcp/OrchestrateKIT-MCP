@@ -1,0 +1,10 @@
+id: scheduled_trigger__compatible__page_monitor
+from: scheduled_trigger
+to: page_monitor
+relation: compatible_with
+status: published
+reason: A scheduled trigger is the natural upstream driver for a page monitor — the trigger fires on the configured interval and hands off to page_monitor which performs the actual polling and change detection.
+severity: low
+notes: When both are present, scheduled_trigger is the entrypoint and page_monitor handles the fetch/hash logic. Do not add a second scheduling layer inside page_monitor.
+conditions: []
+tested: false

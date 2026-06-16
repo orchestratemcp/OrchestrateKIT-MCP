@@ -29,6 +29,7 @@ export type Domain =
   | "code_agent"
   | "crm_sales"
   | "monitoring"
+  | "notification"
   | "generic_orchestration";
 
 /**
@@ -63,6 +64,9 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   data_scraper: ["data_etl"],
   data_normalizer: ["data_etl"],
   deduplication: ["data_etl"],
+  pdf_extraction: ["data_etl"],
+  airtable_lookup: ["data_etl"],
+  stripe_data_read: ["data_etl"],
   // code_agent
   codebase_scan: ["code_agent"],
   code_editing: ["code_agent"],
@@ -73,7 +77,17 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   crm_note_write: ["crm_sales"],
   // monitoring
   page_monitor: ["monitoring"],
-  // generic_orchestration — always eligible
+  // notification
+  slack_notification: ["notification"],
+  // generic_orchestration — always eligible (trigger + infra components)
+  scheduled_trigger: ["generic_orchestration"],
+  webhook_trigger: ["generic_orchestration"],
+  github_trigger: ["code_agent", "generic_orchestration"],
+  loop_controller: ["generic_orchestration"],
+  fan_out_collector: ["generic_orchestration"],
+  reviewer_notification: ["content_publishing", "generic_orchestration"],
+  review_draft_composer: ["generic_orchestration"],
+  multi_variant_generator: ["generic_orchestration"],
   user_goal_intake: ["generic_orchestration"],
   intent_classifier: ["generic_orchestration"],
   state_store: ["generic_orchestration"],
@@ -82,6 +96,10 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   job_queue: ["generic_orchestration"],
   human_approval_gate: ["generic_orchestration"],
   schema_validation: ["generic_orchestration"],
+  // MAR-134: control-flow marker components (HINT_ONLY — see below)
+  saga_compensation: ["generic_orchestration"],
+  // threshold_router is a signal-driven router, eligible in any domain
+  threshold_router: ["generic_orchestration"],
 };
 
 /**
@@ -162,6 +180,10 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
     "enrichment",
     "enrich",
     "records",
+    "pdf",
+    "airtable",
+    "stripe",
+    "parse",
   ],
   code_agent: [
     "code",
@@ -198,6 +220,13 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
     "change detection",
     "for changes",
     "uptime",
+  ],
+  notification: [
+    "slack",
+    "notify",
+    "notification",
+    "teams",
+    "discord",
   ],
 };
 
@@ -236,12 +265,21 @@ const PRIMARY_DOMAINS: Exclude<Domain, "generic_orchestration">[] = [
   "code_agent",
   "crm_sales",
   "monitoring",
+  "notification",
 ];
 
 /**
  * Drop `domain` from `domains` when it was established ONLY by weak lexical
  * triggers AND a different primary domain is present. Shared de-biasing helper
  * for MAR-127 (research/"summarize") and MAR-131 (email_calendar/"schedule").
+ *
+ * MAR-140: the `hasStrong` recheck must honour negation. A goal like
+ * "...write a CRM note ... No outbound emails to customer" establishes
+ * email_calendar only via the weak "schedule" token, but the strong keyword
+ * "email" is present *in a negated context*. Counting that negated "email" as
+ * a strong signal kept email_calendar alive and leaked email_read/email_draft/
+ * optional_email_send onto a CRM goal. Applying isNegatedInContext here lets
+ * the weak-only suppression fire and drop the spurious domain.
  */
 function suppressWeakOnlyDomain(
   domain: Exclude<Domain, "generic_orchestration">,
@@ -253,12 +291,35 @@ function suppressWeakOnlyDomain(
   const strongKeywords = DOMAIN_KEYWORDS[domain].filter(
     (kw) => !weakKeywords.includes(kw),
   );
-  const hasStrong = strongKeywords.some((kw) => goalLower.includes(kw));
+  const hasStrong = strongKeywords.some(
+    (kw) => goalLower.includes(kw) && !isNegatedInContext(goalLower, kw),
+  );
   if (hasStrong) return; // domain legitimately present — keep it
   const hasOtherPrimary = PRIMARY_DOMAINS.some(
     (d) => d !== domain && domains.has(d),
   );
   if (hasOtherPrimary) domains.delete(domain);
+}
+
+/**
+ * Words that negate what follows them. Used by isNegatedInContext to detect
+ * phrases like "no emails sent" that contain a domain keyword in a negated
+ * context (MAR-140).
+ */
+const NEGATION_WORDS = new Set(["no", "not", "never", "without"]);
+
+/**
+ * Returns true when `keyword` appears in `text` and the preceding 1-3 words
+ * contain a negation word — e.g. "no emails sent", "never send notifications".
+ * Only called when the keyword has already been found in text.
+ */
+function isNegatedInContext(text: string, keyword: string): boolean {
+  const idx = text.indexOf(keyword);
+  if (idx === -1) return false;
+  // Grab up to 25 chars before the keyword and split into words.
+  const before = text.slice(Math.max(0, idx - 25), idx).trim();
+  const words = before.split(/\s+/).slice(-3);
+  return words.some((w) => NEGATION_WORDS.has(w));
 }
 
 /**
@@ -274,7 +335,8 @@ export function classifyGoalDomains(goal: string): Set<Domain> {
     Exclude<Domain, "generic_orchestration">,
     string[],
   ][]) {
-    if (keywords.some((kw) => goalLower.includes(kw))) {
+    // A keyword hit counts only when it is not negated in context (MAR-140).
+    if (keywords.some((kw) => goalLower.includes(kw) && !isNegatedInContext(goalLower, kw))) {
       domains.add(domain);
     }
   }
@@ -322,8 +384,8 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   reply: ["email_draft"],
   draft: ["email_draft"],
   calendar: ["calendar_lookup", "calendar_write"],
-  schedule: ["calendar_lookup", "calendar_write"],
   meeting: ["calendar_lookup", "calendar_write"],
+  slack: ["slack_notification"],
   research: ["source_retrieval", "source_ranking", "research_synthesis"],
   search: ["source_retrieval", "source_ranking"],
   retrieve: ["source_retrieval"],
@@ -352,7 +414,55 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   monitor: ["page_monitor"],
   poll: ["page_monitor"],
   watch: ["page_monitor"],
-  extract: ["data_scraper", "data_normalizer"],
+  cron: ["scheduled_trigger"],
+  scheduled: ["scheduled_trigger"],
+  nightly: ["scheduled_trigger"],
+  hourly: ["scheduled_trigger"],
+  daily: ["scheduled_trigger"],
+  weekly: ["scheduled_trigger"],
+  webhook: ["webhook_trigger"],
+  github: ["github_trigger"],
+  "pull request": ["github_trigger", "pr_summary"],
+  "github event": ["github_trigger"],
+  loop: ["loop_controller"],
+  iterate: ["loop_controller"],
+  iteration: ["loop_controller"],
+  "for each": ["loop_controller"],
+  parallel: ["fan_out_collector"],
+  "fan out": ["fan_out_collector"],
+  "fan-out": ["fan_out_collector"],
+  reviewer: ["reviewer_notification"],
+  "notify reviewer": ["reviewer_notification"],
+  "review request": ["reviewer_notification"],
+  "review draft": ["review_draft_composer"],
+  "draft review": ["review_draft_composer"],
+  "editorial review": ["review_draft_composer"],
+  "stage for review": ["review_draft_composer"],
+  "compose a draft": ["review_draft_composer"],
+  variant: ["multi_variant_generator"],
+  variants: ["multi_variant_generator"],
+  "a/b": ["multi_variant_generator"],
+  "test variant": ["multi_variant_generator"],
+  "ab test": ["multi_variant_generator"],
+  // MAR-134: saga/compensation (HINT_ONLY)
+  saga: ["saga_compensation"],
+  compensation: ["saga_compensation"],
+  compensate: ["saga_compensation"],
+  rollback: ["saga_compensation"],
+  "roll back": ["saga_compensation"],
+  undo: ["saga_compensation"],
+  // threshold_router
+  threshold: ["threshold_router"],
+  "route based on": ["threshold_router"],
+  "confidence score": ["threshold_router"],
+  "confidence threshold": ["threshold_router"],
+  pdf: ["pdf_extraction"],
+  airtable: ["airtable_lookup"],
+  stripe: ["stripe_data_read"],
+  billing: ["stripe_data_read"],
+  subscription: ["stripe_data_read"],
+  invoice: ["stripe_data_read"],
+  extract: ["data_scraper", "data_normalizer", "pdf_extraction"],
   normalize: ["data_normalizer"],
   normalise: ["data_normalizer"],
   deduplicate: ["deduplication"],
@@ -369,7 +479,6 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   approval: ["human_approval_gate"],
   approve: ["human_approval_gate"],
   "human review": ["human_approval_gate"],
-  "pull request": ["pr_summary"],
   audit: ["audit_log"],
   log: ["audit_log"],
   intent: ["intent_classifier"],
@@ -440,7 +549,30 @@ const MATCH_STOPWORDS = new Set([
  * approve / human review) and added deterministically by the safety augmenter for
  * real external writes, so excluding it from fuzzy matching loses no real signal.
  */
-const HINT_ONLY_COMPONENTS = new Set(["human_approval_gate"]);
+const HINT_ONLY_COMPONENTS = new Set([
+  "human_approval_gate",
+  // calendar_lookup/calendar_write are only valid in genuine calendar goals.
+  // Fuzzy matching on "calendar" / "meeting" tokens in non-calendar goals
+  // (e.g. "team meeting summary", "schedule social posts") injected these
+  // write-side components inappropriately (MAR-140). They remain reachable via
+  // KEYWORD_HINTS on "calendar" and "meeting".
+  "calendar_lookup",
+  "calendar_write",
+  // review_draft_composer and multi_variant_generator are composing/variant tools
+  // that only belong in goals that explicitly mention staging/reviewing drafts or
+  // A/B variants. Their id/summary tokens ("draft", "composer", "variant",
+  // "generator") score positively on many generic content goals and dilute
+  // playbook precision for content_approval_pipeline below the 0.72 floor.
+  // They are reachable via KEYWORD_HINTS ("review draft", "editorial review",
+  // "variant", "a/b", etc.).
+  "review_draft_composer",
+  "multi_variant_generator",
+  // saga_compensation is a complex rollback orchestrator. Fuzzy matching on
+  // "compensation" (salary), "undo" (text editing), or "rollback" (git) would
+  // inject it into unrelated goals. Reachable via KEYWORD_HINTS (saga,
+  // compensation, rollback, compensate).
+  "saga_compensation",
+]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */
 function componentDomains(id: string): Domain[] {

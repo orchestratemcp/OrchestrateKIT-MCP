@@ -1,0 +1,10 @@
+id: webhook_trigger__safer_with__auth_failure_handler
+from: webhook_trigger
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: Webhook signing secrets can be rotated or invalidated by the source service. An auth failure handler lets the endpoint respond correctly during secret rotation, surfaces the error to operators, and prevents silent event loss or stuck retries.
+severity: high
+notes: On signature mismatch return HTTP 401 immediately — do not acknowledge the event. The handler should alert on repeated failures so a rotated secret is caught within one polling cycle.
+conditions: []
+tested: false

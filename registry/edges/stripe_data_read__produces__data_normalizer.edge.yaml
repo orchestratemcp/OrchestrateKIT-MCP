@@ -1,0 +1,10 @@
+id: stripe_data_read__produces__data_normalizer
+from: stripe_data_read
+to: data_normalizer
+relation: produces_input_for
+status: published
+reason: Stripe API responses use snake_case Stripe-specific field names (e.g. current_period_end as a Unix timestamp). Normalisation converts these to human-readable ISO dates and business-domain field names.
+severity: medium
+notes: Stripe amounts are in smallest currency unit (cents). Always normalise to decimal before display or calculation. Never expose raw Stripe customer IDs in audit logs without anonymisation.
+conditions: []
+tested: false

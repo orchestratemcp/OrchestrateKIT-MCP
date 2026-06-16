@@ -7,4 +7,6 @@ reason: Scrapers and API pulls authenticate with keys or session tokens that exp
 severity: high
 notes: Distinguish auth failure (401/403) from rate limiting (429) — the latter is retry_policy's job, the former is auth_failure_handler's.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - route:data_extraction_route_v1

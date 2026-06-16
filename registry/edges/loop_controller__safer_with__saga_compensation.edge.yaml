@@ -1,0 +1,12 @@
+id: loop_controller__safer_with__saga_compensation
+from: loop_controller
+to: saga_compensation
+relation: safer_with
+status: published
+reason: When a loop iteration performs external writes (CRM updates, file uploads, API calls), a failure mid-loop leaves earlier iterations' side effects in place. saga_compensation gives the loop a rollback path that undoes completed iterations in reverse order.
+severity: medium
+control_flow_note: Only add saga_compensation when loop iterations have irreversible external side effects. For read-only or idempotent iterations, it is not needed.
+notes: This edge is conditional on iteration side effects. For pure data-transformation loops with no external writes, saga_compensation adds unnecessary complexity.
+conditions:
+  - each loop iteration performs at least one irreversible external write
+tested: false

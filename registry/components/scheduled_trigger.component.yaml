@@ -1,0 +1,44 @@
+id: scheduled_trigger
+name: Scheduled Trigger
+status: published
+category: input
+summary: Fires a workflow on a time-based schedule (cron expression, hourly, daily, nightly, weekly). Emits a trigger event with a timestamp and run metadata; downstream steps receive it as the workflow entrypoint.
+capabilities:
+  - cron_schedule_execution
+  - time_based_trigger
+  - run_metadata_emission
+  - configurable_interval
+  - missed_run_detection
+inputs:
+  - cron expression or interval config (hourly/daily/nightly/weekly), optional run-window constraint
+outputs:
+  - trigger event with ISO timestamp, run_id, and scheduled interval label
+risk_level: low
+side_effects:
+  - initiates downstream workflow steps on schedule
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - state_store
+  - audit_log
+  - retry_policy
+avoid_with: []
+failure_modes:
+  - missed trigger due to infrastructure downtime (if scheduler is not durable)
+  - clock skew causes run to overlap with previous unfinished run
+  - silent failure when downstream step is unavailable at trigger time
+evals:
+  - trigger fires within acceptable drift of scheduled time (< 5s for minutely, < 60s for hourly)
+  - missed-run detection surfaces in audit log
+  - overlapping-run guard prevents double execution on slow downstream
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

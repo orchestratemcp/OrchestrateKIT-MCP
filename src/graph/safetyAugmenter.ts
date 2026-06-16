@@ -18,6 +18,10 @@ const NEEDS_AUTH_FAILURE_HANDLER = new Set([
   "calendar_write",
   "crm_note_write",
   "data_scraper",
+  "slack_notification",
+  "webhook_trigger",
+  "airtable_lookup",
+  "stripe_data_read",
 ]);
 
 /** External-write components that always require human_approval_gate. */
@@ -26,6 +30,7 @@ export const ALWAYS_REQUIRES_GATE = new Set([
   "optional_email_send",
   "calendar_write",
   "crm_note_write",
+  "slack_notification",
 ]);
 
 /** External-write components that always require audit_log. */
@@ -34,6 +39,11 @@ const ALWAYS_RECOMMEND_AUDIT = new Set([
   "optional_email_send",
   "calendar_write",
   "crm_note_write",
+  "slack_notification",
+  "reviewer_notification",
+  // saga_compensation executes undo calls against external systems — the compensation
+  // audit trail is the only record of what was reversed and whether it succeeded.
+  "saga_compensation",
 ]);
 
 /**
@@ -47,6 +57,7 @@ const ALWAYS_REQUIRES_VALIDATION = new Set([
   "optional_email_send",
   "calendar_write",
   "crm_note_write",
+  "slack_notification",
 ]);
 
 export type AugmentResult = {

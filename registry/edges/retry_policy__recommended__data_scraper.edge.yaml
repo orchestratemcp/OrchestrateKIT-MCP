@@ -7,3 +7,6 @@ reason: Scraping is inherently unreliable due to rate limiting, transient networ
 severity: medium
 notes: Use exponential backoff with jitter. Set a circuit breaker so repeated failures do not consume all worker capacity.
 conditions: []
+tested: true
+test_refs:
+  - route:data_extraction_route_v1

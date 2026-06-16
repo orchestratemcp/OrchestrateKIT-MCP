@@ -1,0 +1,56 @@
+id: saga_compensation
+name: Saga Compensation
+status: published
+category: orchestration
+summary: Executes compensating transactions to undo completed steps when a downstream step fails in a multi-step saga, maintaining eventual consistency without distributed transactions. Each completed step must register an undo action; saga_compensation replays them in reverse order on failure.
+capabilities:
+  - compensating_transactions
+  - rollback_orchestration
+  - eventual_consistency
+  - saga_coordination
+  - failure_recovery
+inputs:
+  - saga execution log (ordered list of completed steps + their undo actions)
+  - failure signal from the step that triggered compensation
+  - max_compensation_attempts per step
+outputs:
+  - compensation status (fully_compensated | partially_compensated | compensation_failed)
+  - list of compensation actions executed and their outcomes
+  - remaining steps that could not be compensated (require manual intervention)
+risk_level: high
+side_effects:
+  - triggers external undo calls (API deletes, refunds, record reversals) — irreversible if compensation itself fails
+  - may send notifications to stakeholders about the rollback
+  - external systems may observe partially-compensated state during execution
+permissions:
+  read:
+    - saga execution log / audit trail
+  write:
+    - compensation audit entries
+    - undo actions in each external system involved in the saga
+  approval_required_for:
+    - financial reversals
+    - data deletion as part of compensation
+requires:
+  - audit_log
+recommended_with:
+  - retry_policy
+  - human_approval_gate
+avoid_with: []
+failure_modes:
+  - compensating transaction itself fails — leaves the saga in an inconsistent partially-compensated state requiring manual cleanup
+  - saga log incomplete — compensation skips steps that have no registered undo action
+  - compensation executed out of order — reverse-order enforcement is the caller's responsibility
+  - idempotency not enforced on undo actions — a duplicate compensation attempt causes double-undo
+evals:
+  - happy-path compensation — all steps undo cleanly in reverse order
+  - partial-failure test — compensation action itself fails mid-sequence; verify status is partially_compensated
+  - idempotency test — calling compensation twice produces same final state
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

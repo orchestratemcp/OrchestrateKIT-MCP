@@ -1,0 +1,10 @@
+id: scheduled_trigger__produces__state_store
+from: scheduled_trigger
+to: state_store
+relation: produces_input_for
+status: published
+reason: A scheduled trigger must persist its last-run timestamp and run_id so the next execution can detect missed runs, prevent overlapping executions, and enable idempotent restarts after failures.
+severity: medium
+notes: Store at minimum last_run_at and last_run_id. Without this, a scheduler outage causes silent duplicate execution on resume.
+conditions: []
+tested: false

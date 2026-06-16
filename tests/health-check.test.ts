@@ -5,7 +5,7 @@ import {
   type RegistrySummary,
   type RegistryBuild,
 } from "../src/tools/index.js";
-import { SERVER_NAME, SERVER_VERSION } from "../src/config.js";
+import { SERVER_NAME, SERVER_VERSION, SERVER_INSTRUCTIONS } from "../src/config.js";
 
 describe("health_check tool", () => {
   it("returns the correct server name", () => {
@@ -24,7 +24,7 @@ describe("health_check tool", () => {
     expect(typeof result.registry).toBe("object");
   });
 
-  it("registry summary has all five count fields as non-negative numbers", () => {
+  it("registry summary has all count fields as non-negative numbers", () => {
     const r: RegistrySummary = buildHealthCheckResult().registry;
     const fields: (keyof RegistrySummary)[] = [
       "component_count",
@@ -32,6 +32,7 @@ describe("health_check tool", () => {
       "stack_count",
       "route_count",
       "playbook_count",
+      "stale_component_count",
     ];
     for (const field of fields) {
       expect(typeof r[field], field).toBe("number");
@@ -46,11 +47,17 @@ describe("health_check tool", () => {
     expect(r.untested_edge_pct).toBeLessThanOrEqual(100);
   });
 
-  // MAR-114: count floor regression — must never drop below post-MAR-95 baseline
-  it("registry counts meet baseline (≥33 components, ≥58 edges after MAR-117)", () => {
+  // MAR-137: stale_component_count — all registry files are new, should be 0
+  it("stale_component_count is 0 when all component files are recent (MAR-137)", () => {
     const r = buildHealthCheckResult().registry;
-    expect(r.component_count, "components (regression floor: 33 after MAR-117 auth_failure_handler)").toBeGreaterThanOrEqual(33);
-    expect(r.edge_count, "edges (regression floor: 58 after MAR-117 auth_failure_handler edges)").toBeGreaterThanOrEqual(58);
+    expect(r.stale_component_count).toBe(0);
+  });
+
+  // MAR-114: count floor regression — must never drop below post-MAR-95 baseline
+  it("registry counts meet baseline (≥47 components, ≥78 edges after MAR-134 saga_compensation + threshold_router)", () => {
+    const r = buildHealthCheckResult().registry;
+    expect(r.component_count, "components (regression floor: 47 after saga_compensation/threshold_router)").toBeGreaterThanOrEqual(47);
+    expect(r.edge_count, "edges (regression floor: 78 after MAR-134 edges)").toBeGreaterThanOrEqual(78);
     expect(r.stack_count, "stacks").toBeGreaterThanOrEqual(1);
     expect(r.route_count, "routes").toBeGreaterThanOrEqual(5);
     expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(5);
@@ -87,6 +94,33 @@ describe("health_check tool", () => {
     const a = buildHealthCheckResult().build.fingerprint;
     const b = buildHealthCheckResult().build.fingerprint;
     expect(a).toBe(b);
+  });
+
+  // MAR-141: process_started_at and process_stale fields
+  it("build.process_started_at is a valid ISO timestamp", () => {
+    const b = buildHealthCheckResult().build;
+    expect(typeof b.process_started_at).toBe("string");
+    expect(new Date(b.process_started_at).getTime()).toBeGreaterThan(0);
+  });
+
+  it("build.process_stale is false in dev mode (built_at is null)", () => {
+    const b = buildHealthCheckResult().build;
+    if (b.built_at === null) {
+      expect(b.process_stale).toBe(false);
+    }
+  });
+
+  it("build.process_stale is boolean", () => {
+    const b = buildHealthCheckResult().build;
+    expect(typeof b.process_stale).toBe("boolean");
+  });
+
+  // MAR-99: server instructions are defined and mention key entry point
+  it("SERVER_INSTRUCTIONS is defined and mentions plan_workflow (MAR-99)", () => {
+    expect(typeof SERVER_INSTRUCTIONS).toBe("string");
+    expect(SERVER_INSTRUCTIONS.length).toBeGreaterThan(0);
+    expect(SERVER_INSTRUCTIONS).toContain("plan_workflow");
+    expect(SERVER_INSTRUCTIONS).toContain("explain_component");
   });
 
   it("result is JSON-serialisable and round-trips cleanly", () => {

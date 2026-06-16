@@ -7,4 +7,6 @@ reason: Schema validation should operate on the final deduplicated set to avoid 
 severity: low
 notes: Running validation before deduplication is wasteful but not incorrect. Running it after reduces validation error noise.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - route:data_extraction_route_v1

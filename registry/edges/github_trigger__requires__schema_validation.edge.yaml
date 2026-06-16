@@ -1,0 +1,10 @@
+id: github_trigger__requires__schema_validation
+from: github_trigger
+to: schema_validation
+relation: requires
+status: published
+reason: GitHub webhook payloads can arrive with unexpected or malformed fields if the event type filter is misconfigured. Schema validation on the raw payload prevents invalid data from triggering expensive or irreversible downstream steps.
+severity: high
+notes: Always verify the HMAC-SHA256 signature BEFORE schema validation. Reject unsigned payloads at the transport layer, not in the workflow.
+conditions: []
+tested: false

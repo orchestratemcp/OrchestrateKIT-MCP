@@ -82,6 +82,46 @@ export type PlanWorkflowInput = ComposeInput;
 const PLAYBOOK_RECALL_MIN = 0.6;
 const PLAYBOOK_PRECISION_MIN = 0.72;
 
+/**
+ * Strong email/calendar signal tokens. At least one must be present in the goal
+ * for email_calendar_assistant to fire as a playbook match (MAR-142). Prevents
+ * the playbook routing from claiming a Stripe-to-Slack reporting goal (which
+ * mentions neither email nor calendar) just because its lexical tokens happen to
+ * score above the precision floor.
+ */
+const STRONG_EMAIL_CALENDAR_TOKENS = [
+  "email", "inbox", "mailbox", "reply", "replies", "draft", "calendar",
+  "meeting", "invite", "appointment", "send email", "mail",
+];
+
+function hasEmailCalendarSignal(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return STRONG_EMAIL_CALENDAR_TOKENS.some((t) => g.includes(t));
+}
+
+/**
+ * Explicit "read-only / no-write" constraint phrases (MAR-142). When present in
+ * a goal that was routed to a playbook containing write components, surface a
+ * safety warning — the playbook route's fixed structure cannot adapt its writes
+ * to match the constraint (unlike the composed path which has MAR-132 advisory).
+ */
+const WRITE_CONSTRAINT_SIGNALS = [
+  "read-only",
+  "read only",
+  "never write",
+  "no write",
+  "no writes",
+  "no database update",
+  "no emails sent",
+  "no email sent",
+  "never send",
+];
+
+function hasWriteConstraint(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return WRITE_CONSTRAINT_SIGNALS.some((s) => g.includes(s));
+}
+
 export type SafetyReview = {
   status: "pass" | "warnings" | "fail";
   risk_score: number;
@@ -232,6 +272,53 @@ function untestedEdgesWithin(
     .map((e) => ({ id: e.id, severity: e.severity }));
 }
 
+function buildBriefPlanMarkdown(
+  goal: string,
+  planSource: PlanSource,
+  steps: RouteStep[],
+  playbook: PlanPlaybook | null,
+  safety: SafetyReview,
+  untestedEdges: UntestedEdge[],
+  requiredGates: string[],
+  approvalAdvisory: ApprovalGateAdvisory | null,
+): string {
+  const lines: string[] = [];
+
+  if (planSource === "playbook" && playbook) {
+    lines.push(
+      `**Validated playbook:** \`${playbook.id}\` — ${playbook.title} ` +
+        `(recall ${Math.round(playbook.recall * 100)}%, precision ${Math.round(playbook.precision * 100)}%)`,
+      ``,
+    );
+  } else {
+    lines.push(`**Composed candidate route** — no validated playbook strongly matches.`, ``);
+  }
+
+  lines.push(`**Steps**`, ``);
+  for (const s of steps) {
+    const tier = s.model_tier === "none" ? "deterministic" : `${s.model_tier} LLM`;
+    lines.push(`${s.step}. **${s.component_name ?? s.component_id}** — ${s.purpose} [${tier}, ${s.risk_level} risk]`);
+  }
+  lines.push(``);
+
+  const safetyMark = safety.status === "pass" ? "✅" : safety.status === "warnings" ? "⚠️" : "❌";
+  lines.push(`**Safety:** ${safetyMark} ${safety.status.toUpperCase()}`);
+  if (requiredGates.length > 0) {
+    lines.push(`**Approval required:** ${requiredGates.map((g) => `\`${g}\``).join(", ")}`);
+  }
+  if (approvalAdvisory) {
+    lines.push(`**Gate advisory:** ${approvalAdvisory.reason}`);
+  }
+  if (safety.blocking_issues.length > 0) {
+    lines.push(`**Blocking issues:** ${safety.blocking_issues.join("; ")}`);
+  }
+  if (untestedEdges.length > 0) {
+    lines.push(`**Untested edges:** ${untestedEdges.length} — verify before building.`);
+  }
+
+  return lines.join("\n");
+}
+
 function buildPlanMarkdown(
   goal: string,
   planSource: PlanSource,
@@ -349,10 +436,20 @@ export function planWorkflow(
   // ── Step 2: plan_workflow's own precision-aware playbook routing (MAR-98) ──
   const composedIds = new Set(composed.recommended_route.map((s) => s.component_id));
   const bestOverlap = findOverlappingPlaybooks(composedIds, registry.playbooks, 0.3)[0];
+  // MAR-142: also require at least one strong email/calendar token in the goal
+  // before accepting email_calendar_assistant as a playbook match — the precision
+  // floor alone (0.72) is not sufficient when generic tokens like "read" happen
+  // to score above it on a non-email goal (e.g. Stripe→Slack read-only report).
+  const emailCalendarGatePassed =
+    !bestOverlap ||
+    bestOverlap.playbook_id !== "email_calendar_assistant" ||
+    hasEmailCalendarSignal(input.goal);
+
   const playbookMatch =
     bestOverlap &&
     bestOverlap.overlap_fraction >= PLAYBOOK_RECALL_MIN &&
-    bestOverlap.precision >= PLAYBOOK_PRECISION_MIN
+    bestOverlap.precision >= PLAYBOOK_PRECISION_MIN &&
+    emailCalendarGatePassed
       ? bestOverlap
       : null;
   const planSource: PlanSource = playbookMatch ? "playbook" : "composed";
@@ -440,18 +537,46 @@ export function planWorkflow(
       : composed.required_approval_gates;
   }
 
+  // ── MAR-142: warn when a playbook route contains writes the goal explicitly forbade ──
+  // The composed path has MAR-132's advisory; the playbook path serves a fixed
+  // route structure and cannot adapt its write steps to a read-only constraint.
+  // Surface a warning instead of silently contradicting the goal's constraint.
+  if (planSource === "playbook" && hasWriteConstraint(input.goal)) {
+    const writeComponents = routeComponentIds.filter((id) => ALWAYS_REQUIRES_GATE.has(id));
+    if (writeComponents.length > 0) {
+      safety_review.warnings.push(
+        `Read-only / no-write constraint in goal conflicts with write step(s) in this ` +
+        `playbook route (${writeComponents.join(", ")}). Consider switching to a composed ` +
+        `candidate or removing the write components manually.`,
+      );
+    }
+  }
+
   // ── Step 6: fused markdown ──
-  const summary_markdown = buildPlanMarkdown(
-    input.goal,
-    planSource,
-    steps,
-    playbook,
-    safety_review,
-    model_tier_profile,
-    credential_advisory,
-    untested_edges,
-    approval_gate_advisory,
-  );
+  const outputDepth = input.output_depth ?? "standard";
+  const summary_markdown =
+    outputDepth === "brief"
+      ? buildBriefPlanMarkdown(
+          input.goal,
+          planSource,
+          steps,
+          playbook,
+          safety_review,
+          untested_edges,
+          required_approval_gates,
+          approval_gate_advisory,
+        )
+      : buildPlanMarkdown(
+          input.goal,
+          planSource,
+          steps,
+          playbook,
+          safety_review,
+          model_tier_profile,
+          credential_advisory,
+          untested_edges,
+          approval_gate_advisory,
+        );
 
   return {
     plan_source: planSource,

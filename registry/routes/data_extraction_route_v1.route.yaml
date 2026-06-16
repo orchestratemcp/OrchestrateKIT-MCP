@@ -1,6 +1,6 @@
 ﻿id: data_extraction_route_v1
 name: Data Extraction and Enrichment
-status: published
+status: validated
 summary: A golden-path route for scraping, normalising, deduplicating and validating structured data at scale.
 components:
   - data_scraper

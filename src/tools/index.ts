@@ -18,6 +18,7 @@ import { registerRecommendArchitecture } from "./recommendArchitecture.js";
 import { registerReviewWorkflowDesign } from "./reviewWorkflowDesign.js";
 import { registerPlanWorkflow } from "./planWorkflow.js";
 import { registerRecordSessionFeedback } from "./recordSessionFeedback.js";
+import { registerExplainComponent } from "./explainComponent.js";
 
 export type RegistrySummary = {
   component_count: number;
@@ -27,6 +28,8 @@ export type RegistrySummary = {
   playbook_count: number;
   /** Percentage of edges with tested=false (MAR-92). */
   untested_edge_pct: number;
+  /** Components whose registry YAML is >90 days old by file mtime (MAR-137). */
+  stale_component_count: number;
 };
 
 export type { RegistryBuild };
@@ -51,6 +54,7 @@ export function buildHealthCheckResult(): HealthCheckResult {
       route_count: status.route_count,
       playbook_count: status.playbook_count,
       untested_edge_pct: status.untested_edge_pct,
+      stale_component_count: status.stale_component_count,
     },
     build,
   };
@@ -71,6 +75,7 @@ export function registerTools(server: McpServer): void {
   registerReviewWorkflowDesign(server);
   registerPlanWorkflow(server);
   registerRecordSessionFeedback(server);
+  registerExplainComponent(server);
 
   server.registerTool(
     "health_check",

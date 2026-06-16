@@ -7,3 +7,6 @@ reason: Scraping the same source on repeated runs often produces overlapping rec
 severity: medium
 notes: Use a stable identity key (URL + canonical content hash). Do not use scrape timestamp as part of the key.
 conditions: []
+tested: true
+test_refs:
+  - route:data_extraction_route_v1

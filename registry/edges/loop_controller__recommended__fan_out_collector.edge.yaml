@@ -1,0 +1,11 @@
+id: loop_controller__recommended__fan_out_collector
+from: loop_controller
+to: fan_out_collector
+relation: recommended_for
+status: published
+reason: When a loop_controller runs parallel branches per iteration (e.g. scrape N URLs concurrently), a fan_out_collector should gather and merge the results before the next sequential step processes the combined output.
+severity: low
+notes: For strictly sequential loops (one item at a time) fan_out_collector is not needed. Only add it when iterations genuinely run in parallel.
+conditions:
+  - loop is configured for parallel iteration
+tested: false

@@ -1,0 +1,10 @@
+id: airtable_lookup__safer_with__auth_failure_handler
+from: airtable_lookup
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: Airtable personal access tokens expire and OAuth tokens can be revoked. An auth failure handler allows the pipeline to detect 401/403 responses and prompt for token refresh rather than silently returning empty results.
+severity: high
+notes: Distinguish between expired token (recoverable) and insufficient scope (configuration error — needs human intervention). Do not retry indefinitely on scope errors.
+conditions: []
+tested: false

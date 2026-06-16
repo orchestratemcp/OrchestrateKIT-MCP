@@ -1,0 +1,47 @@
+id: loop_controller
+name: Loop Controller
+status: published
+category: orchestration
+summary: Manages bounded iteration over a list or until a condition is met, driving a repeated workflow step without making the graph cyclic — the loop is expressed as a counter-limited fan-out, not a structural cycle in the DAG.
+capabilities:
+  - bounded_iteration
+  - list_processing
+  - batch_processing
+  - iteration_state
+  - loop_exit_condition
+inputs:
+  - input list or item generator, iteration limit (max_iterations required), exit condition predicate, step function reference
+outputs:
+  - collected results from all iterations, iteration count, exit reason (completed | limit_reached | condition_met | error)
+risk_level: low
+side_effects:
+  - may trigger many downstream tool calls if the input list is large; upstream rate limits apply
+permissions:
+  read:
+    - input list or paginated data source
+  write:
+    - iteration state store (to enable resume after failure)
+  approval_required_for: []
+requires: []
+recommended_with:
+  - state_store
+  - retry_policy
+  - fan_out_collector
+avoid_with: []
+failure_modes:
+  - missing max_iterations allows unbounded loops that exhaust resources or credits
+  - iteration state not persisted — a crash at iteration 50/100 restarts from 0
+  - exit condition never evaluates to true, hitting the hard limit silently
+  - loop produces side effects on each iteration without idempotency — re-runs cause duplicates
+evals:
+  - bounded termination test — always exits when max_iterations is reached
+  - early-exit test — verify condition_met exit fires correctly
+  - resume test — restart from last completed iteration after simulated failure
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

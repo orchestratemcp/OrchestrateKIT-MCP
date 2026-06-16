@@ -9,6 +9,7 @@ import {
 } from "./graphToolFormatters.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { freshnessLabel } from "../lib/freshness.js";
 
 const InputShape = {
   component_id: z.string().min(1).describe(
@@ -45,6 +46,11 @@ export function registerGetGraphComponent(server: McpServer): void {
 
         const warnings = statusWarnings(component.status, "component", component.id);
 
+        // Freshness metadata from file mtime
+        const mtime = registry.componentMtimes.get(component.id);
+        const last_updated = mtime ? mtime.toISOString().slice(0, 10) : null;
+        const freshness = last_updated ? freshnessLabel(mtime!) : "unknown";
+
         // Build the component data payload
         type ComponentData = {
           id: string;
@@ -61,6 +67,8 @@ export function registerGetGraphComponent(server: McpServer): void {
           recommended_with: string[];
           avoid_with: string[];
           failure_modes: string[];
+          last_updated: string | null;
+          freshness: string;
           evals?: string[];
           tested_in_playbooks?: string[];
           tested_in_routes?: string[];
@@ -83,6 +91,8 @@ export function registerGetGraphComponent(server: McpServer): void {
           recommended_with: component.recommended_with,
           avoid_with: component.avoid_with,
           failure_modes: component.failure_modes,
+          last_updated,
+          freshness,
         };
 
         if (input.include_tests) {
@@ -116,7 +126,7 @@ export function registerGetGraphComponent(server: McpServer): void {
         const lines = [
           `## ${component.name} (\`${component.id}\`)`,
           ``,
-          `**Category:** \`${component.category}\` | **Risk:** \`${component.risk_level}\` | **Status:** \`${component.status}\``,
+          `**Category:** \`${component.category}\` | **Risk:** \`${component.risk_level}\` | **Status:** \`${component.status}\` | **Freshness:** ${freshness}${last_updated ? ` (${last_updated})` : ""}`,
           ``,
           component.summary.trim(),
           ``,

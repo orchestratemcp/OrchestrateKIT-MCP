@@ -1,0 +1,10 @@
+id: review_draft_composer__produces__human_approval_gate
+from: review_draft_composer
+to: human_approval_gate
+relation: produces_input_for
+status: published
+reason: A composed draft is staging content for human review — the approval gate is the natural next step that enforces the review before any publish or send action can proceed. Without this edge the draft is generated but there is no mechanism to prevent it being published automatically.
+severity: high
+notes: The gate receives the draft object and blocks downstream publish/send until the reviewer approves or rejects. On rejection, route back to review_draft_composer with revision notes.
+conditions: []
+tested: false

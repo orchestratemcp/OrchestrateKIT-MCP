@@ -209,14 +209,18 @@ describe("planWorkflow — output shape", () => {
 });
 
 describe("planWorkflow — MAR-132 unattended / no-gate handling", () => {
-  it("s7: an unattended read-only monitor gets no approval gate at all", () => {
+  it("s7: an unattended monitor+Slack goal gets an advisory gate (Slack is an external write)", () => {
     const r = plan(
       "monitor a competitor pricing page on an hourly schedule and alert me on Slack when it changes; runs unattended, no human in the loop",
     );
     const ids = r.recommended_route.map((s) => s.component_id);
-    expect(ids).not.toContain("human_approval_gate");
+    // slack_notification is an external write → gate kept but downgraded to advisory
+    expect(ids).toContain("slack_notification");
+    expect(ids).toContain("human_approval_gate");
     expect(r.required_approval_gates).toEqual([]);
-    expect(r.approval_gate_advisory).toBeNull();
+    expect(r.approval_gate_advisory).not.toBeNull();
+    expect(r.approval_gate_advisory!.gate).toBe("human_approval_gate");
+    expect(r.approval_gate_advisory!.write_components).toContain("slack_notification");
   });
 
   it("s10: an explicit no-gate waiver over a real write keeps the gate as advisory", () => {
@@ -241,5 +245,50 @@ describe("planWorkflow — MAR-132 unattended / no-gate handling", () => {
     expect(r.recommended_route.map((s) => s.component_id)).toContain("human_approval_gate");
     expect(r.required_approval_gates).toEqual(["human_approval_gate"]);
     expect(r.approval_gate_advisory).toBeNull();
+  });
+});
+
+// MAR-101: output_depth wired in plan_workflow
+describe("planWorkflow — output_depth (MAR-101)", () => {
+  const goal = "start from a content brief, generate copy, design visuals, approve and publish";
+
+  it("brief mode produces a shorter summary_markdown than standard", () => {
+    const brief = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    const standard = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" }, registry);
+    expect(brief.summary_markdown.length).toBeLessThan(standard.summary_markdown.length);
+  });
+
+  it("brief mode summary includes numbered steps", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    // each step is numbered "1." "2." etc.
+    const stepCount = r.recommended_route.length;
+    expect(r.summary_markdown).toContain(`${stepCount}.`);
+  });
+
+  it("brief mode summary includes safety status", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    const statusUpper = r.safety_review.status.toUpperCase();
+    expect(r.summary_markdown).toContain(statusUpper);
+  });
+
+  it("brief mode still returns the full recommended_route array", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    expect(r.recommended_route.length).toBeGreaterThan(0);
+    for (const s of r.recommended_route) {
+      expect(typeof s.component_id).toBe("string");
+      expect(typeof s.component_name).toBe("string");
+    }
+  });
+
+  it("brief mode on playbook path mentions the playbook", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    expect(r.plan_source).toBe("playbook");
+    expect(r.summary_markdown).toContain(r.playbook!.id);
+  });
+
+  it("standard mode is default (no output_depth param)", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
+    // standard mode includes "Model-tier profile" section
+    expect(r.summary_markdown).toContain("Model-tier profile");
   });
 });

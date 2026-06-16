@@ -1,0 +1,45 @@
+id: fan_out_collector
+name: Fan-Out Collector
+status: published
+category: orchestration
+summary: Merges results from two or more parallel branches back into a single output, handling partial failures, timeouts, and result ordering before handing off to the next sequential step.
+capabilities:
+  - parallel_merge
+  - result_aggregation
+  - partial_failure_handling
+  - branch_timeout
+  - output_ordering
+inputs:
+  - references to two or more parallel branch outputs, merge strategy (all_success | any_success | best_of), optional timeout per branch
+outputs:
+  - merged result set with per-branch status (success | timeout | error), merged_at timestamp
+risk_level: low
+side_effects: []
+permissions:
+  read:
+    - outputs from parallel upstream branches
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - loop_controller
+  - state_store
+  - retry_policy
+avoid_with: []
+failure_modes:
+  - all-success merge strategy fails the whole workflow when one branch times out, even if others succeeded
+  - ordering not enforced — results arrive out of order and downstream logic breaks
+  - branch results are large and held in memory simultaneously — causes OOM on wide fan-outs
+  - missing timeout — one slow branch stalls the whole merge indefinitely
+evals:
+  - partial-failure test — one branch fails with merge_strategy=any_success; verify merge succeeds with remaining results
+  - timeout test — slow branch hits timeout; verify merge proceeds after timeout
+  - ordering test — results arrive out of order; verify output is in correct order
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

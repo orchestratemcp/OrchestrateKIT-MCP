@@ -1,0 +1,11 @@
+id: saga_compensation__requires__audit_log
+from: saga_compensation
+to: audit_log
+relation: requires
+status: published
+reason: Compensation replays undo actions against external systems. Without an audit log, there is no authoritative record of what was completed (and therefore what must be reversed), making it impossible to determine correct compensation order or prove that rollback occurred.
+severity: high
+control_flow_note: The audit_log records the forward saga steps that compensation will undo in reverse. Wire audit_log before the first saga step, not only at the compensation stage.
+notes: saga_compensation reads the audit trail to determine which steps completed and what their undo actions are. The log must be append-only and durable.
+conditions: []
+tested: false

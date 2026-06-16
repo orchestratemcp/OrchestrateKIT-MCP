@@ -1,0 +1,45 @@
+id: airtable_lookup
+name: Airtable Lookup
+status: published
+category: integration
+summary: Reads records from an Airtable base via the Airtable API, supporting filtered queries, field selection, and pagination for use in downstream enrichment or routing logic.
+capabilities:
+  - airtable_read
+  - record_lookup
+  - filter_records
+  - list_records
+inputs:
+  - Airtable base ID, table name, optional filter formula, field list, and pagination cursor
+outputs:
+  - array of Airtable records with fields as key-value pairs and record metadata (id, created_time)
+risk_level: low
+side_effects:
+  - outbound API requests to api.airtable.com counted against rate limits
+permissions:
+  read:
+    - Airtable base (read-only personal access token or OAuth scope)
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - auth_failure_handler
+  - data_normalizer
+  - schema_validation
+avoid_with: []
+failure_modes:
+  - API token expires or lacks required base scope — fails with 401/403 silently on first call
+  - filter formula syntax error returns empty result set instead of an error
+  - large bases exceed rate limit (5 req/s per base) without retry policy
+  - field names with spaces or special characters break downstream key access
+evals:
+  - record retrieval accuracy on a known test base
+  - filter formula correctness across 5 query patterns
+  - rate-limit resilience test (burst of 20 requests)
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none
