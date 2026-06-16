@@ -1,0 +1,10 @@
+id: slack_notification__safer_with__auth_failure_handler
+from: slack_notification
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: Slack posting relies on a Bot Token or OAuth credential that can expire or be revoked. A credential-failure path lets the notification refresh-and-retry or halt with a named error instead of silently dropping the message.
+severity: high
+notes: The handler must not retry a post that may have already succeeded — deduplicate using the Slack message timestamp returned on a successful post.
+conditions: []
+tested: false

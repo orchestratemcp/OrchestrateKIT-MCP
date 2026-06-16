@@ -18,6 +18,7 @@ const NEEDS_AUTH_FAILURE_HANDLER = new Set([
   "calendar_write",
   "crm_note_write",
   "data_scraper",
+  "slack_notification",
 ]);
 
 /** External-write components that always require human_approval_gate. */
@@ -26,6 +27,7 @@ export const ALWAYS_REQUIRES_GATE = new Set([
   "optional_email_send",
   "calendar_write",
   "crm_note_write",
+  "slack_notification",
 ]);
 
 /** External-write components that always require audit_log. */
@@ -34,6 +36,7 @@ const ALWAYS_RECOMMEND_AUDIT = new Set([
   "optional_email_send",
   "calendar_write",
   "crm_note_write",
+  "slack_notification",
 ]);
 
 /**
@@ -47,6 +50,7 @@ const ALWAYS_REQUIRES_VALIDATION = new Set([
   "optional_email_send",
   "calendar_write",
   "crm_note_write",
+  "slack_notification",
 ]);
 
 export type AugmentResult = {

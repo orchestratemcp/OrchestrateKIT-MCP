@@ -29,6 +29,7 @@ export type Domain =
   | "code_agent"
   | "crm_sales"
   | "monitoring"
+  | "notification"
   | "generic_orchestration";
 
 /**
@@ -73,6 +74,8 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   crm_note_write: ["crm_sales"],
   // monitoring
   page_monitor: ["monitoring"],
+  // notification
+  slack_notification: ["notification"],
   // generic_orchestration — always eligible
   user_goal_intake: ["generic_orchestration"],
   intent_classifier: ["generic_orchestration"],
@@ -199,6 +202,13 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
     "for changes",
     "uptime",
   ],
+  notification: [
+    "slack",
+    "notify",
+    "notification",
+    "teams",
+    "discord",
+  ],
 };
 
 /**
@@ -236,6 +246,7 @@ const PRIMARY_DOMAINS: Exclude<Domain, "generic_orchestration">[] = [
   "code_agent",
   "crm_sales",
   "monitoring",
+  "notification",
 ];
 
 /**
@@ -262,6 +273,27 @@ function suppressWeakOnlyDomain(
 }
 
 /**
+ * Words that negate what follows them. Used by isNegatedInContext to detect
+ * phrases like "no emails sent" that contain a domain keyword in a negated
+ * context (MAR-140).
+ */
+const NEGATION_WORDS = new Set(["no", "not", "never", "without"]);
+
+/**
+ * Returns true when `keyword` appears in `text` and the preceding 1-3 words
+ * contain a negation word — e.g. "no emails sent", "never send notifications".
+ * Only called when the keyword has already been found in text.
+ */
+function isNegatedInContext(text: string, keyword: string): boolean {
+  const idx = text.indexOf(keyword);
+  if (idx === -1) return false;
+  // Grab up to 25 chars before the keyword and split into words.
+  const before = text.slice(Math.max(0, idx - 25), idx).trim();
+  const words = before.split(/\s+/).slice(-3);
+  return words.some((w) => NEGATION_WORDS.has(w));
+}
+
+/**
  * Classify a goal into workflow domains (MAR-88).
  * Always includes `generic_orchestration` so safety/orchestration components
  * are never blocked. Exported for unit testing.
@@ -274,7 +306,8 @@ export function classifyGoalDomains(goal: string): Set<Domain> {
     Exclude<Domain, "generic_orchestration">,
     string[],
   ][]) {
-    if (keywords.some((kw) => goalLower.includes(kw))) {
+    // A keyword hit counts only when it is not negated in context (MAR-140).
+    if (keywords.some((kw) => goalLower.includes(kw) && !isNegatedInContext(goalLower, kw))) {
       domains.add(domain);
     }
   }
@@ -322,8 +355,8 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   reply: ["email_draft"],
   draft: ["email_draft"],
   calendar: ["calendar_lookup", "calendar_write"],
-  schedule: ["calendar_lookup", "calendar_write"],
   meeting: ["calendar_lookup", "calendar_write"],
+  slack: ["slack_notification"],
   research: ["source_retrieval", "source_ranking", "research_synthesis"],
   search: ["source_retrieval", "source_ranking"],
   retrieve: ["source_retrieval"],
@@ -440,7 +473,16 @@ const MATCH_STOPWORDS = new Set([
  * approve / human review) and added deterministically by the safety augmenter for
  * real external writes, so excluding it from fuzzy matching loses no real signal.
  */
-const HINT_ONLY_COMPONENTS = new Set(["human_approval_gate"]);
+const HINT_ONLY_COMPONENTS = new Set([
+  "human_approval_gate",
+  // calendar_lookup/calendar_write are only valid in genuine calendar goals.
+  // Fuzzy matching on "calendar" / "meeting" tokens in non-calendar goals
+  // (e.g. "team meeting summary", "schedule social posts") injected these
+  // write-side components inappropriately (MAR-140). They remain reachable via
+  // KEYWORD_HINTS on "calendar" and "meeting".
+  "calendar_lookup",
+  "calendar_write",
+]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */
 function componentDomains(id: string): Domain[] {

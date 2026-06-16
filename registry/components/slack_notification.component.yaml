@@ -1,0 +1,45 @@
+id: slack_notification
+name: Slack Notification
+status: published
+category: integration
+summary: Sends a structured notification message to a Slack channel or user via the Slack API. Requires human approval before posting; never posts autonomously.
+capabilities:
+  - send_slack_message
+  - notify_channel
+  - notify_user
+  - require_human_approval_before_send
+inputs:
+  - approved message payload, Slack Bot Token or OAuth credential, channel or user ID
+outputs:
+  - post confirmation with message timestamp and channel ID
+risk_level: high
+side_effects:
+  - posts irreversible message to external Slack workspace
+permissions:
+  read: []
+  write:
+    - external Slack channel post
+  approval_required_for:
+    - every post action
+requires:
+  - human_approval_gate
+recommended_with:
+  - audit_log
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - posted to wrong channel due to misconfigured channel ID
+  - duplicate post on retry after transient API error
+  - credential expiry causes silent failure with no fallback
+evals:
+  - idempotency test — duplicate trigger does not cause duplicate post
+  - rejection test — post blocked when approval is missing
+  - auth failure test — expired token routes to auth_failure_handler gracefully
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none
