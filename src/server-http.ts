@@ -26,7 +26,7 @@
 import { createServer } from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { SERVER_NAME, SERVER_VERSION } from "./config.js";
+import { SERVER_NAME, SERVER_VERSION, SERVER_INSTRUCTIONS } from "./config.js";
 import { registerTools } from "./tools/index.js";
 import { logger } from "./lib/logger.js";
 
@@ -37,6 +37,7 @@ async function main(): Promise<void> {
   const server = new McpServer({
     name: SERVER_NAME,
     version: SERVER_VERSION,
+    instructions: SERVER_INSTRUCTIONS,
   });
 
   registerTools(server);

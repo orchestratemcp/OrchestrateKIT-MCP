@@ -5,7 +5,7 @@ import {
   type RegistrySummary,
   type RegistryBuild,
 } from "../src/tools/index.js";
-import { SERVER_NAME, SERVER_VERSION } from "../src/config.js";
+import { SERVER_NAME, SERVER_VERSION, SERVER_INSTRUCTIONS } from "../src/config.js";
 
 describe("health_check tool", () => {
   it("returns the correct server name", () => {
@@ -113,6 +113,14 @@ describe("health_check tool", () => {
   it("build.process_stale is boolean", () => {
     const b = buildHealthCheckResult().build;
     expect(typeof b.process_stale).toBe("boolean");
+  });
+
+  // MAR-99: server instructions are defined and mention key entry point
+  it("SERVER_INSTRUCTIONS is defined and mentions plan_workflow (MAR-99)", () => {
+    expect(typeof SERVER_INSTRUCTIONS).toBe("string");
+    expect(SERVER_INSTRUCTIONS.length).toBeGreaterThan(0);
+    expect(SERVER_INSTRUCTIONS).toContain("plan_workflow");
+    expect(SERVER_INSTRUCTIONS).toContain("explain_component");
   });
 
   it("result is JSON-serialisable and round-trips cleanly", () => {

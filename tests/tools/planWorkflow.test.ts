@@ -247,3 +247,48 @@ describe("planWorkflow — MAR-132 unattended / no-gate handling", () => {
     expect(r.approval_gate_advisory).toBeNull();
   });
 });
+
+// MAR-101: output_depth wired in plan_workflow
+describe("planWorkflow — output_depth (MAR-101)", () => {
+  const goal = "start from a content brief, generate copy, design visuals, approve and publish";
+
+  it("brief mode produces a shorter summary_markdown than standard", () => {
+    const brief = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    const standard = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" }, registry);
+    expect(brief.summary_markdown.length).toBeLessThan(standard.summary_markdown.length);
+  });
+
+  it("brief mode summary includes numbered steps", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    // each step is numbered "1." "2." etc.
+    const stepCount = r.recommended_route.length;
+    expect(r.summary_markdown).toContain(`${stepCount}.`);
+  });
+
+  it("brief mode summary includes safety status", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    const statusUpper = r.safety_review.status.toUpperCase();
+    expect(r.summary_markdown).toContain(statusUpper);
+  });
+
+  it("brief mode still returns the full recommended_route array", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    expect(r.recommended_route.length).toBeGreaterThan(0);
+    for (const s of r.recommended_route) {
+      expect(typeof s.component_id).toBe("string");
+      expect(typeof s.component_name).toBe("string");
+    }
+  });
+
+  it("brief mode on playbook path mentions the playbook", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
+    expect(r.plan_source).toBe("playbook");
+    expect(r.summary_markdown).toContain(r.playbook!.id);
+  });
+
+  it("standard mode is default (no output_depth param)", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
+    // standard mode includes "Model-tier profile" section
+    expect(r.summary_markdown).toContain("Model-tier profile");
+  });
+});

@@ -272,6 +272,53 @@ function untestedEdgesWithin(
     .map((e) => ({ id: e.id, severity: e.severity }));
 }
 
+function buildBriefPlanMarkdown(
+  goal: string,
+  planSource: PlanSource,
+  steps: RouteStep[],
+  playbook: PlanPlaybook | null,
+  safety: SafetyReview,
+  untestedEdges: UntestedEdge[],
+  requiredGates: string[],
+  approvalAdvisory: ApprovalGateAdvisory | null,
+): string {
+  const lines: string[] = [];
+
+  if (planSource === "playbook" && playbook) {
+    lines.push(
+      `**Validated playbook:** \`${playbook.id}\` — ${playbook.title} ` +
+        `(recall ${Math.round(playbook.recall * 100)}%, precision ${Math.round(playbook.precision * 100)}%)`,
+      ``,
+    );
+  } else {
+    lines.push(`**Composed candidate route** — no validated playbook strongly matches.`, ``);
+  }
+
+  lines.push(`**Steps**`, ``);
+  for (const s of steps) {
+    const tier = s.model_tier === "none" ? "deterministic" : `${s.model_tier} LLM`;
+    lines.push(`${s.step}. **${s.component_name ?? s.component_id}** — ${s.purpose} [${tier}, ${s.risk_level} risk]`);
+  }
+  lines.push(``);
+
+  const safetyMark = safety.status === "pass" ? "✅" : safety.status === "warnings" ? "⚠️" : "❌";
+  lines.push(`**Safety:** ${safetyMark} ${safety.status.toUpperCase()}`);
+  if (requiredGates.length > 0) {
+    lines.push(`**Approval required:** ${requiredGates.map((g) => `\`${g}\``).join(", ")}`);
+  }
+  if (approvalAdvisory) {
+    lines.push(`**Gate advisory:** ${approvalAdvisory.reason}`);
+  }
+  if (safety.blocking_issues.length > 0) {
+    lines.push(`**Blocking issues:** ${safety.blocking_issues.join("; ")}`);
+  }
+  if (untestedEdges.length > 0) {
+    lines.push(`**Untested edges:** ${untestedEdges.length} — verify before building.`);
+  }
+
+  return lines.join("\n");
+}
+
 function buildPlanMarkdown(
   goal: string,
   planSource: PlanSource,
@@ -506,17 +553,30 @@ export function planWorkflow(
   }
 
   // ── Step 6: fused markdown ──
-  const summary_markdown = buildPlanMarkdown(
-    input.goal,
-    planSource,
-    steps,
-    playbook,
-    safety_review,
-    model_tier_profile,
-    credential_advisory,
-    untested_edges,
-    approval_gate_advisory,
-  );
+  const outputDepth = input.output_depth ?? "standard";
+  const summary_markdown =
+    outputDepth === "brief"
+      ? buildBriefPlanMarkdown(
+          input.goal,
+          planSource,
+          steps,
+          playbook,
+          safety_review,
+          untested_edges,
+          required_approval_gates,
+          approval_gate_advisory,
+        )
+      : buildPlanMarkdown(
+          input.goal,
+          planSource,
+          steps,
+          playbook,
+          safety_review,
+          model_tier_profile,
+          credential_advisory,
+          untested_edges,
+          approval_gate_advisory,
+        );
 
   return {
     plan_source: planSource,
