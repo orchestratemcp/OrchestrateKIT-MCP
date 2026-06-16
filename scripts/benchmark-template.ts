@@ -165,7 +165,7 @@ function renderPrompt(p: Prompt): string[] {
 
   const untestedNote =
     composed.untested_edges.length > 0
-      ? `**Untested edges (${composed.untested_edges.length}):** ${composed.untested_edges.slice(0, 6).join(", ")}${composed.untested_edges.length > 6 ? " …" : ""}`
+      ? `**Untested edges (${composed.untested_edges.length}):** ${composed.untested_edges.slice(0, 6).map((e) => `${e.id} (${e.severity})`).join(", ")}${composed.untested_edges.length > 6 ? " …" : ""}`
       : "**Untested edges:** none flagged";
 
   const playbookNote =
