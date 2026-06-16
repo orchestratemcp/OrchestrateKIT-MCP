@@ -191,6 +191,21 @@ describe("planWorkflow — output shape", () => {
     const r = plan("scan a codebase, plan changes, edit code, run tests and write a PR summary");
     expect(r.next_steps.some((s) => s.includes("get_playbook"))).toBe(true);
   });
+
+  // MAR-133: every untested edge carries a deterministic registry severity, and
+  // the summary surfaces it — clients no longer have to infer HIGH/MEDIUM/LOW.
+  it("untested_edges entries carry id + a valid severity, rendered in markdown", () => {
+    const r = plan(
+      "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
+    );
+    expect(r.untested_edges.length).toBeGreaterThan(0);
+    for (const e of r.untested_edges) {
+      expect(typeof e.id).toBe("string");
+      expect(["low", "medium", "high", "critical"]).toContain(e.severity);
+    }
+    const first = r.untested_edges[0]!;
+    expect(r.summary_markdown).toContain(`\`${first.id}\` (${first.severity})`);
+  });
 });
 
 describe("planWorkflow — MAR-132 unattended / no-gate handling", () => {

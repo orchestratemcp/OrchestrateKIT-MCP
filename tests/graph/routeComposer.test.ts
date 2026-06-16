@@ -365,6 +365,27 @@ describe("composeRoute — output structure", () => {
     expect(result.summary_markdown.length).toBeGreaterThan(0);
   });
 
+  // MAR-133: untested_edges carries a deterministic {id, severity} for every
+  // entry (severity is a required edge field), so consumers stop inferring it.
+  it("untested_edges entries carry id + a valid registry severity", () => {
+    const result = compose(
+      "read emails, detect leads, research the sender, write a CRM note and draft a follow-up with approval",
+    );
+    expect(result.untested_edges.length).toBeGreaterThan(0);
+    for (const e of result.untested_edges) {
+      expect(typeof e.id).toBe("string");
+      expect(e.id.length).toBeGreaterThan(0);
+      expect(["low", "medium", "high", "critical"]).toContain(e.severity);
+    }
+  });
+
+  it("untested_edges is deterministic across runs", () => {
+    const goal = "monitor product docs, summarise changes, extract content ideas, approve and publish";
+    const a = compose(goal).untested_edges;
+    const b = compose(goal).untested_edges;
+    expect(a).toEqual(b);
+  });
+
   it("result is JSON-serialisable", () => {
     const result = compose("research and email workflow");
     expect(() => JSON.stringify(result)).not.toThrow();

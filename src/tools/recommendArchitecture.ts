@@ -226,9 +226,13 @@ export function registerRecommendArchitecture(server: McpServer): void {
             ? composed.evals_to_add
             : composed.evals_to_add.slice(0, 3);
 
+        // composed.untested_edges carries {id, severity} (MAR-133); this tool's
+        // contract is a flat id list, so project to ids here.
+        const untestedEdgeIds = composed.untested_edges.map((e) => e.id);
+
         // ── Step 11: Next steps ──
         const nextSteps = deriveNextSteps(
-          composed.untested_edges,
+          untestedEdgeIds,
           doNotBuild,
           evals,
           composed.known_playbooks_reused,
@@ -274,7 +278,7 @@ export function registerRecommendArchitecture(server: McpServer): void {
           doNotBuild,
           assumptions: composed.assumptions,
           warnings,
-          untestedEdges: composed.untested_edges,
+          untestedEdges: untestedEdgeIds,
           nextSteps,
         };
 
@@ -304,7 +308,7 @@ export function registerRecommendArchitecture(server: McpServer): void {
           },
           assumptions: composed.assumptions,
           warnings,
-          untested_edges: composed.untested_edges,
+          untested_edges: untestedEdgeIds,
           next_steps: nextSteps,
           next_recommended_tools: [
             "get_playbook",
