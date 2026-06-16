@@ -24,7 +24,7 @@ describe("health_check tool", () => {
     expect(typeof result.registry).toBe("object");
   });
 
-  it("registry summary has all five count fields as non-negative numbers", () => {
+  it("registry summary has all count fields as non-negative numbers", () => {
     const r: RegistrySummary = buildHealthCheckResult().registry;
     const fields: (keyof RegistrySummary)[] = [
       "component_count",
@@ -32,6 +32,7 @@ describe("health_check tool", () => {
       "stack_count",
       "route_count",
       "playbook_count",
+      "stale_component_count",
     ];
     for (const field of fields) {
       expect(typeof r[field], field).toBe("number");
@@ -44,6 +45,12 @@ describe("health_check tool", () => {
     expect(typeof r.untested_edge_pct).toBe("number");
     expect(r.untested_edge_pct).toBeGreaterThanOrEqual(0);
     expect(r.untested_edge_pct).toBeLessThanOrEqual(100);
+  });
+
+  // MAR-137: stale_component_count — all registry files are new, should be 0
+  it("stale_component_count is 0 when all component files are recent (MAR-137)", () => {
+    const r = buildHealthCheckResult().registry;
+    expect(r.stale_component_count).toBe(0);
   });
 
   // MAR-114: count floor regression — must never drop below post-MAR-95 baseline

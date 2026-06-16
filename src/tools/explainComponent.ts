@@ -23,6 +23,7 @@ import type { Component } from "../registry/componentSchema.js";
 import type { Edge } from "../registry/edgeSchema.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { freshnessLabel } from "../lib/freshness.js";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -252,6 +253,10 @@ export function registerExplainComponent(server: McpServer): void {
           registry.components,
         );
 
+        const mtime = registry.componentMtimes.get(component.id);
+        const last_updated = mtime ? mtime.toISOString().slice(0, 10) : null;
+        const freshness = mtime ? freshnessLabel(mtime) : "unknown";
+
         logger.debug(`explain_component → ${component.id}`);
         return {
           content: [
@@ -261,6 +266,8 @@ export function registerExplainComponent(server: McpServer): void {
                 status: "ok",
                 component_id: component.id,
                 name: component.name,
+                last_updated,
+                freshness,
                 explanation: prose,
               }),
             },
