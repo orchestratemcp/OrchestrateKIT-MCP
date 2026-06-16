@@ -1,0 +1,11 @@
+id: threshold_router__recommended__audit_log
+from: threshold_router
+to: audit_log
+relation: recommended_for
+status: published
+reason: Threshold routing decisions are invisible without a log — when a downstream action fails, there is no way to verify which branch was taken or why the score landed in that bucket. An audit entry per routing decision enables post-hoc review and model calibration.
+severity: low
+control_flow_note: Log the score, configured thresholds, and chosen branch label on each routing event.
+notes: Especially important when threshold_router drives approval decisions (approve vs. review vs. reject) — the audit trail is the evidence that the decision was score-driven and not ad hoc.
+conditions: []
+tested: false

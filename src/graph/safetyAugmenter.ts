@@ -41,6 +41,9 @@ const ALWAYS_RECOMMEND_AUDIT = new Set([
   "crm_note_write",
   "slack_notification",
   "reviewer_notification",
+  // saga_compensation executes undo calls against external systems — the compensation
+  // audit trail is the only record of what was reversed and whether it succeeded.
+  "saga_compensation",
 ]);
 
 /**

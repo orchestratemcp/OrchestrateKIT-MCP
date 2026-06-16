@@ -96,6 +96,10 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   job_queue: ["generic_orchestration"],
   human_approval_gate: ["generic_orchestration"],
   schema_validation: ["generic_orchestration"],
+  // MAR-134: control-flow marker components (HINT_ONLY — see below)
+  saga_compensation: ["generic_orchestration"],
+  // threshold_router is a signal-driven router, eligible in any domain
+  threshold_router: ["generic_orchestration"],
 };
 
 /**
@@ -430,6 +434,18 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   "a/b": ["multi_variant_generator"],
   "test variant": ["multi_variant_generator"],
   "ab test": ["multi_variant_generator"],
+  // MAR-134: saga/compensation (HINT_ONLY)
+  saga: ["saga_compensation"],
+  compensation: ["saga_compensation"],
+  compensate: ["saga_compensation"],
+  rollback: ["saga_compensation"],
+  "roll back": ["saga_compensation"],
+  undo: ["saga_compensation"],
+  // threshold_router
+  threshold: ["threshold_router"],
+  "route based on": ["threshold_router"],
+  "confidence score": ["threshold_router"],
+  "confidence threshold": ["threshold_router"],
   pdf: ["pdf_extraction"],
   airtable: ["airtable_lookup"],
   stripe: ["stripe_data_read"],
@@ -541,6 +557,11 @@ const HINT_ONLY_COMPONENTS = new Set([
   // "variant", "a/b", etc.).
   "review_draft_composer",
   "multi_variant_generator",
+  // saga_compensation is a complex rollback orchestrator. Fuzzy matching on
+  // "compensation" (salary), "undo" (text editing), or "rollback" (git) would
+  // inject it into unrelated goals. Reachable via KEYWORD_HINTS (saga,
+  // compensation, rollback, compensate).
+  "saga_compensation",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */

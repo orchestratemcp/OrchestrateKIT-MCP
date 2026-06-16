@@ -209,3 +209,16 @@ probes:
     via: plan
     must_have: [reviewer_notification]
     forbidden: [calendar_lookup, calendar_write]
+
+  # ── MAR-134: saga_compensation + threshold_router ────────────────────────────
+  - id: saga_compensation_loop_rollback
+    goal: "Send bulk API updates to 500 customers; if any step fails, roll back all completed updates."
+    via: plan
+    must_have: [saga_compensation, audit_log]
+    forbidden: [calendar_lookup, calendar_write, design_brief_generation]
+
+  - id: threshold_router_confidence
+    goal: "Route a document through approve, manual-review, or reject based on an AI confidence score threshold."
+    via: plan
+    must_have: [threshold_router]
+    forbidden: [calendar_lookup, calendar_write, design_brief_generation]
