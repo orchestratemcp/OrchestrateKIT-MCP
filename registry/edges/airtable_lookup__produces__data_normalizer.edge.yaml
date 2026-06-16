@@ -1,0 +1,10 @@
+id: airtable_lookup__produces__data_normalizer
+from: airtable_lookup
+to: data_normalizer
+relation: produces_input_for
+status: published
+reason: Airtable field names use free-text labels that diverge across bases and workspaces. Normalisation maps them to canonical schema keys before records enter any ETL pipeline.
+severity: medium
+notes: Airtable formula fields can return mixed types depending on their inputs. Always normalise before schema validation.
+conditions: []
+tested: false

@@ -1,0 +1,10 @@
+id: stripe_data_read__safer_with__auth_failure_handler
+from: stripe_data_read
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: Stripe API keys can be rotated or revoked, and restricted keys may lack the specific read scopes needed. Auth failure handling ensures a key rotation event does not silently corrupt a billing pipeline.
+severity: high
+notes: Stripe returns 403 for scope mismatch and 401 for invalid/revoked keys — treat both as auth failures requiring human review, not automatic retry.
+conditions: []
+tested: false

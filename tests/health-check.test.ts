@@ -47,10 +47,10 @@ describe("health_check tool", () => {
   });
 
   // MAR-114: count floor regression — must never drop below post-MAR-95 baseline
-  it("registry counts meet baseline (≥38 components, ≥67 edges after T2 content gaps)", () => {
+  it("registry counts meet baseline (≥41 components, ≥72 edges after T3 integration components)", () => {
     const r = buildHealthCheckResult().registry;
-    expect(r.component_count, "components (regression floor: 38 after scheduled/webhook/review_draft/multi_variant)").toBeGreaterThanOrEqual(38);
-    expect(r.edge_count, "edges (regression floor: 67 after T2 trigger+content edges)").toBeGreaterThanOrEqual(67);
+    expect(r.component_count, "components (regression floor: 41 after pdf_extraction/airtable_lookup/stripe_data_read)").toBeGreaterThanOrEqual(41);
+    expect(r.edge_count, "edges (regression floor: 72 after T3 integration edges)").toBeGreaterThanOrEqual(72);
     expect(r.stack_count, "stacks").toBeGreaterThanOrEqual(1);
     expect(r.route_count, "routes").toBeGreaterThanOrEqual(5);
     expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(5);

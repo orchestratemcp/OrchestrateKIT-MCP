@@ -20,6 +20,8 @@ const NEEDS_AUTH_FAILURE_HANDLER = new Set([
   "data_scraper",
   "slack_notification",
   "webhook_trigger",
+  "airtable_lookup",
+  "stripe_data_read",
 ]);
 
 /** External-write components that always require human_approval_gate. */

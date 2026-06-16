@@ -1,0 +1,47 @@
+id: stripe_data_read
+name: Stripe Data Read
+status: published
+category: integration
+summary: Reads payment, subscription, and customer data from Stripe via the Stripe API for use in billing analytics, churn detection, or revenue reporting pipelines.
+capabilities:
+  - stripe_read
+  - subscription_lookup
+  - payment_history
+  - customer_data_read
+  - invoice_read
+inputs:
+  - Stripe resource type (customer | subscription | invoice | charge), optional filters (date range, status, customer_id)
+outputs:
+  - array of Stripe resource objects with full field set as returned by the Stripe API
+risk_level: low
+side_effects:
+  - outbound API requests to api.stripe.com counted against rate limits
+permissions:
+  read:
+    - Stripe restricted API key with read-only permissions (customers:read, subscriptions:read, charges:read)
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - auth_failure_handler
+  - data_normalizer
+  - audit_log
+  - retry_policy
+avoid_with: []
+failure_modes:
+  - API key lacks required read scope — fails with 403 with no actionable error message to downstream
+  - pagination cursor expires for very large exports (>10k records) causing incomplete data sets
+  - webhook events and polling reads can produce stale data if called immediately after a mutation
+  - PII in customer records requires downstream anonymisation before storage or logging
+evals:
+  - subscription retrieval completeness on a Stripe test-mode account
+  - pagination correctness for >100 records
+  - auth failure detection rate (invalid key)
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

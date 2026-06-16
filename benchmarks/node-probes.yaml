@@ -171,3 +171,22 @@ probes:
     via: plan
     must_have: [multi_variant_generator]
     forbidden: [calendar_lookup, calendar_write]
+
+  # ── T3 integration components ────────────────────────────────────────────────
+  - id: pdf_extraction_invoice
+    goal: "Extract line items and totals from uploaded PDF invoices and load the structured data into the accounting system."
+    via: plan
+    must_have: [pdf_extraction, data_normalizer]
+    forbidden: [calendar_lookup, calendar_write, email_draft]
+
+  - id: airtable_lookup_crm
+    goal: "Look up customer records from the Airtable CRM base, normalise the fields, and generate a weekly summary report."
+    via: plan
+    must_have: [airtable_lookup]
+    forbidden: [calendar_lookup, calendar_write]
+
+  - id: stripe_data_read_churn
+    goal: "Read subscription data from Stripe, identify customers who cancelled in the last 30 days, and produce a churn analysis report."
+    via: plan
+    must_have: [stripe_data_read, data_normalizer]
+    forbidden: [calendar_lookup, calendar_write]

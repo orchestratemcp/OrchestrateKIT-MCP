@@ -1,0 +1,10 @@
+id: pdf_extraction__produces__data_normalizer
+from: pdf_extraction
+to: data_normalizer
+relation: produces_input_for
+status: published
+reason: Raw extracted PDF records (mixed text blocks, tables, and metadata) need normalisation to canonical field names and data types before they can be stored or used by downstream components.
+severity: high
+notes: PDF extraction output varies significantly across document types — field name normalisation is always required. Do not pass raw extraction output directly to storage or LLM steps.
+conditions: []
+tested: false

@@ -1,0 +1,44 @@
+id: pdf_extraction
+name: PDF Extraction
+status: published
+category: input
+summary: Parses PDF documents and extracts structured text, tables, and metadata for downstream processing pipelines.
+capabilities:
+  - pdf_parsing
+  - table_extraction
+  - text_extraction
+  - metadata_extraction
+inputs:
+  - PDF file path, URL, or binary stream; optional field mapping config for table extraction
+outputs:
+  - structured record set with extracted text blocks, tables as arrays, and document metadata (author, date, page count)
+risk_level: low
+side_effects: []
+permissions:
+  read:
+    - PDF files from local storage or remote URL
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - data_normalizer
+  - schema_validation
+  - deduplication
+avoid_with: []
+failure_modes:
+  - scanned PDF with no text layer produces empty extraction (requires OCR fallback)
+  - complex multi-column layouts cause text ordering errors
+  - password-protected or DRM-locked PDFs fail silently without error if decryption is not configured
+  - large PDFs (>100 pages) exceed model context or processing timeout
+evals:
+  - field coverage — all expected sections extracted on a test corpus of 10 representative PDFs (target >90%)
+  - table extraction accuracy on structured financial/tabular PDFs
+  - error detection rate for scanned-only PDFs
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: small
+fallback_tier: none
+context_need: moderate
+compression_strategy: chunk
