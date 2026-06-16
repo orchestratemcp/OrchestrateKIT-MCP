@@ -1,0 +1,48 @@
+id: webhook_trigger
+name: Webhook Trigger
+status: published
+category: input
+summary: Receives inbound HTTP webhook events from external services (Stripe, GitHub, Slack, Airtable, etc.), validates the payload signature, and emits a structured event to the downstream workflow. Acts as the event-driven entrypoint for reactive automations.
+capabilities:
+  - inbound_webhook_reception
+  - payload_signature_validation
+  - structured_event_emission
+  - event_type_routing
+  - idempotent_delivery_via_event_id
+inputs:
+  - webhook secret or signing key, expected event types, optional event-id dedup store
+outputs:
+  - structured event payload with event_type, source, timestamp, and raw body
+risk_level: low
+side_effects:
+  - validates inbound requests against webhook secret — rejects invalid signatures with 401
+permissions:
+  read:
+    - webhook signing secret (read-only, never logged)
+  write: []
+  approval_required_for: []
+requires:
+  - schema_validation
+recommended_with:
+  - auth_failure_handler
+  - audit_log
+  - state_store
+avoid_with: []
+failure_modes:
+  - signature validation fails due to stale or rotated secret
+  - duplicate delivery without idempotency key causes double processing
+  - payload shape changes upstream break downstream schema_validation
+  - webhook endpoint unreachable causes silent event loss at source
+evals:
+  - valid signature accepted, invalid signature rejected (unit)
+  - duplicate event_id deduplicated correctly
+  - unknown event type routed to dead-letter or ignored gracefully
+  - signature rotation handled without downtime
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

@@ -146,3 +146,28 @@ probes:
     goal: "Monitor a competitor's pricing page on an hourly schedule and alert me on Slack when it changes. Runs unattended, no human in the loop."
     must_have: [page_monitor, slack_notification]
     forbidden: [calendar_lookup, calendar_write]
+
+  # ── T2 content gaps: trigger components ─────────────────────────────────────
+  - id: scheduled_trigger_nightly_etl
+    goal: "Run a nightly data extraction job that scrapes the product catalogue and loads it into the warehouse."
+    via: plan
+    must_have: [scheduled_trigger, data_scraper]
+    forbidden: [calendar_lookup, calendar_write, email_draft]
+
+  - id: webhook_trigger_stripe_payment
+    goal: "React to Stripe payment events via webhook: validate the payload, update CRM, and notify the sales team on Slack."
+    via: plan
+    must_have: [webhook_trigger, schema_validation]
+    forbidden: [calendar_lookup, calendar_write]
+
+  - id: review_draft_composer_content
+    goal: "Draft a weekly market update report from research sources and stage it for editorial review before publishing."
+    via: plan
+    must_have: [review_draft_composer]
+    forbidden: [calendar_lookup, calendar_write]
+
+  - id: multi_variant_generator_ab
+    goal: "Generate five A/B test variants of the product launch email subject line and body for the campaign."
+    via: plan
+    must_have: [multi_variant_generator]
+    forbidden: [calendar_lookup, calendar_write]

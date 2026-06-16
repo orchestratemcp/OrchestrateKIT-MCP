@@ -37,6 +37,7 @@ tested_in_playbooks:
 tested_in_routes:
   - research_route_v1
   - codebase_agent_route_v1
+  - data_extraction_route_v1
 sources: []
 
 model_tier: none

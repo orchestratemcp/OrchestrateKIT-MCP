@@ -1,0 +1,10 @@
+id: webhook_trigger__requires__schema_validation
+from: webhook_trigger
+to: schema_validation
+relation: requires
+status: published
+reason: Webhook payloads arrive from external services with no shape guarantee. schema_validation enforces the expected structure before any downstream logic processes the payload — a missing or malformed field that passes unvalidated can corrupt state or trigger incorrect writes.
+severity: high
+notes: Validate immediately after signature check. Use a strict schema pinned to the source API version; add a version header check so schema drift is caught immediately.
+conditions: []
+tested: false

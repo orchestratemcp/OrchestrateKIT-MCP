@@ -76,7 +76,11 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   page_monitor: ["monitoring"],
   // notification
   slack_notification: ["notification"],
-  // generic_orchestration — always eligible
+  // generic_orchestration — always eligible (trigger + infra components)
+  scheduled_trigger: ["generic_orchestration"],
+  webhook_trigger: ["generic_orchestration"],
+  review_draft_composer: ["generic_orchestration"],
+  multi_variant_generator: ["generic_orchestration"],
   user_goal_intake: ["generic_orchestration"],
   intent_classifier: ["generic_orchestration"],
   state_store: ["generic_orchestration"],
@@ -385,6 +389,23 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   monitor: ["page_monitor"],
   poll: ["page_monitor"],
   watch: ["page_monitor"],
+  cron: ["scheduled_trigger"],
+  scheduled: ["scheduled_trigger"],
+  nightly: ["scheduled_trigger"],
+  hourly: ["scheduled_trigger"],
+  daily: ["scheduled_trigger"],
+  weekly: ["scheduled_trigger"],
+  webhook: ["webhook_trigger"],
+  "review draft": ["review_draft_composer"],
+  "draft review": ["review_draft_composer"],
+  "editorial review": ["review_draft_composer"],
+  "stage for review": ["review_draft_composer"],
+  "compose a draft": ["review_draft_composer"],
+  variant: ["multi_variant_generator"],
+  variants: ["multi_variant_generator"],
+  "a/b": ["multi_variant_generator"],
+  "test variant": ["multi_variant_generator"],
+  "ab test": ["multi_variant_generator"],
   extract: ["data_scraper", "data_normalizer"],
   normalize: ["data_normalizer"],
   normalise: ["data_normalizer"],
@@ -482,6 +503,15 @@ const HINT_ONLY_COMPONENTS = new Set([
   // KEYWORD_HINTS on "calendar" and "meeting".
   "calendar_lookup",
   "calendar_write",
+  // review_draft_composer and multi_variant_generator are composing/variant tools
+  // that only belong in goals that explicitly mention staging/reviewing drafts or
+  // A/B variants. Their id/summary tokens ("draft", "composer", "variant",
+  // "generator") score positively on many generic content goals and dilute
+  // playbook precision for content_approval_pipeline below the 0.72 floor.
+  // They are reachable via KEYWORD_HINTS ("review draft", "editorial review",
+  // "variant", "a/b", etc.).
+  "review_draft_composer",
+  "multi_variant_generator",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */

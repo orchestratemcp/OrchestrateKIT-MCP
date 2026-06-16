@@ -8,3 +8,6 @@ severity: medium
 notes: Assign each URL or page range its own job. This gives per-URL retry, avoids one slow page blocking the whole batch, and enables progress tracking.
 conditions:
   - scraping more than 10 pages or URLs
+tested: true
+test_refs:
+  - route:data_extraction_route_v1

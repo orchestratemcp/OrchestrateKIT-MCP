@@ -19,6 +19,7 @@ const NEEDS_AUTH_FAILURE_HANDLER = new Set([
   "crm_note_write",
   "data_scraper",
   "slack_notification",
+  "webhook_trigger",
 ]);
 
 /** External-write components that always require human_approval_gate. */

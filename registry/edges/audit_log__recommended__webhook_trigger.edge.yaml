@@ -1,0 +1,10 @@
+id: audit_log__recommended__webhook_trigger
+from: audit_log
+to: webhook_trigger
+relation: recommended_for
+status: published
+reason: Webhook events are the origin of reactive automations — logging each received event with its event_id, type, source, and processing outcome provides the only reliable audit trail for debugging misfired or missing triggers.
+severity: medium
+notes: Log event_id (for dedup audit), event_type, source IP/service, processing status, and any schema validation errors. Avoid logging the full payload if it contains PII or payment data unless your data policy permits it.
+conditions: []
+tested: false

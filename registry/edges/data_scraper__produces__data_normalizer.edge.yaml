@@ -5,6 +5,8 @@ relation: produces_input_for
 status: published
 reason: Raw scraped records must be normalised before any downstream processing or storage.
 severity: high
-notes: Never pass raw scraped data directly to downstream consumers — field formats, encodings and value ranges vary too widely.
+notes: Never pass raw scraped data directly to downstream consumers ï¿½ field formats, encodings and value ranges vary too widely.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - route:data_extraction_route_v1

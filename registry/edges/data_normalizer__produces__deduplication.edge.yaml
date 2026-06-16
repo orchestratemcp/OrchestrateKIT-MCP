@@ -7,4 +7,6 @@ reason: Deduplication requires normalised records to compare on canonical identi
 severity: medium
 notes: Normalise first, then deduplicate. The reverse order causes near-duplicate detection to miss format-only variants.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - route:data_extraction_route_v1
