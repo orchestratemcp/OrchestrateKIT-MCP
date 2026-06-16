@@ -87,6 +87,14 @@ probes:
     must_have: [crm_note_write]
     forbidden: [external_publish, design_brief_generation, research_synthesis]
 
+  # MAR-140: a CRM goal that explicitly negates email ("No outbound emails")
+  # must not leak email_* components. The email_calendar domain was kept alive
+  # by a negated strong keyword inside suppressWeakOnlyDomain's hasStrong recheck.
+  - id: crm_note_no_outbound_email
+    goal: "Write a clean internal CRM note after a sales call and schedule a follow-up task. No outbound emails to customer."
+    must_have: [crm_note_write]
+    forbidden: [email_read, email_draft, optional_email_send, external_publish, research_synthesis]
+
   # ── monitoring domain ────────────────────────────────────────────────────
   - id: page_monitor_alert
     goal: "Monitor a web page for changes and alert me when it changes."

@@ -272,6 +272,14 @@ const PRIMARY_DOMAINS: Exclude<Domain, "generic_orchestration">[] = [
  * Drop `domain` from `domains` when it was established ONLY by weak lexical
  * triggers AND a different primary domain is present. Shared de-biasing helper
  * for MAR-127 (research/"summarize") and MAR-131 (email_calendar/"schedule").
+ *
+ * MAR-140: the `hasStrong` recheck must honour negation. A goal like
+ * "...write a CRM note ... No outbound emails to customer" establishes
+ * email_calendar only via the weak "schedule" token, but the strong keyword
+ * "email" is present *in a negated context*. Counting that negated "email" as
+ * a strong signal kept email_calendar alive and leaked email_read/email_draft/
+ * optional_email_send onto a CRM goal. Applying isNegatedInContext here lets
+ * the weak-only suppression fire and drop the spurious domain.
  */
 function suppressWeakOnlyDomain(
   domain: Exclude<Domain, "generic_orchestration">,
@@ -283,7 +291,9 @@ function suppressWeakOnlyDomain(
   const strongKeywords = DOMAIN_KEYWORDS[domain].filter(
     (kw) => !weakKeywords.includes(kw),
   );
-  const hasStrong = strongKeywords.some((kw) => goalLower.includes(kw));
+  const hasStrong = strongKeywords.some(
+    (kw) => goalLower.includes(kw) && !isNegatedInContext(goalLower, kw),
+  );
   if (hasStrong) return; // domain legitimately present — keep it
   const hasOtherPrimary = PRIMARY_DOMAINS.some(
     (d) => d !== domain && domains.has(d),

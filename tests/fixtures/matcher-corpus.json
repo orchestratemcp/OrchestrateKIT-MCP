@@ -326,7 +326,10 @@
       "forbidden": [
         "codebase_scan",
         "design_brief_generation",
+        "email_draft",
+        "email_read",
         "external_publish",
+        "optional_email_send",
         "research_synthesis"
       ],
       "missing_but_expected": [],
