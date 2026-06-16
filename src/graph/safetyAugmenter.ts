@@ -40,6 +40,7 @@ const ALWAYS_RECOMMEND_AUDIT = new Set([
   "calendar_write",
   "crm_note_write",
   "slack_notification",
+  "reviewer_notification",
 ]);
 
 /**

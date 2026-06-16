@@ -1,0 +1,48 @@
+id: github_trigger
+name: GitHub Trigger
+status: published
+category: input
+summary: Listens for GitHub webhook events (push, pull request, issue, release, workflow_run, etc.) and provides the event payload as structured input to downstream workflow steps.
+capabilities:
+  - github_event_listen
+  - webhook_receive
+  - pr_event
+  - push_event
+  - issue_event
+  - release_event
+inputs:
+  - GitHub webhook secret for signature verification, event type filter (push/pull_request/issues/release/workflow_run), optional branch or label filter
+outputs:
+  - structured event payload (repository, sender, branch/tag ref, diff summary, PR metadata, etc.) validated against the GitHub event schema
+risk_level: low
+side_effects:
+  - requires a public HTTPS endpoint to receive GitHub webhook deliveries
+permissions:
+  read:
+    - GitHub repository events (public or private with appropriate OAuth scope/app installation)
+  write: []
+  approval_required_for: []
+requires:
+  - schema_validation
+recommended_with:
+  - auth_failure_handler
+  - audit_log
+  - state_store
+avoid_with: []
+failure_modes:
+  - webhook secret not verified — opens the endpoint to spoofed event injection
+  - missing event type filter causes irrelevant events to trigger downstream steps
+  - GitHub re-delivery of a failed event causes the same workflow to run twice without idempotency check
+  - private repo events expose code/issue content to downstream systems without access control
+evals:
+  - signature verification test — reject a request with an invalid HMAC signature
+  - event-type filter accuracy — only trigger on selected event types
+  - idempotency test — duplicate webhook delivery does not duplicate workflow execution
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

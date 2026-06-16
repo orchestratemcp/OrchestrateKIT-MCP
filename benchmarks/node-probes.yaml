@@ -190,3 +190,22 @@ probes:
     via: plan
     must_have: [stripe_data_read, data_normalizer]
     forbidden: [calendar_lookup, calendar_write]
+
+  # ── T4 control-flow + trigger components ────────────────────────────────────
+  - id: github_trigger_pr_review
+    goal: "Trigger a code review workflow when a pull request is opened on GitHub — validate the payload, run tests, and notify the reviewer."
+    via: plan
+    must_have: [github_trigger, schema_validation]
+    forbidden: [calendar_lookup, calendar_write]
+
+  - id: loop_controller_batch
+    goal: "Process each item in a backlog list by iterating through them one at a time and generating a summary for each."
+    via: plan
+    must_have: [loop_controller]
+    forbidden: [calendar_lookup, calendar_write]
+
+  - id: reviewer_notification_draft
+    goal: "Generate a draft article from the content brief and send a review request to the editorial team before publishing."
+    via: plan
+    must_have: [reviewer_notification]
+    forbidden: [calendar_lookup, calendar_write]
