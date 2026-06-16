@@ -192,3 +192,39 @@ describe("planWorkflow — output shape", () => {
     expect(r.next_steps.some((s) => s.includes("get_playbook"))).toBe(true);
   });
 });
+
+describe("planWorkflow — MAR-132 unattended / no-gate handling", () => {
+  it("s7: an unattended read-only monitor gets no approval gate at all", () => {
+    const r = plan(
+      "monitor a competitor pricing page on an hourly schedule and alert me on Slack when it changes; runs unattended, no human in the loop",
+    );
+    const ids = r.recommended_route.map((s) => s.component_id);
+    expect(ids).not.toContain("human_approval_gate");
+    expect(r.required_approval_gates).toEqual([]);
+    expect(r.approval_gate_advisory).toBeNull();
+  });
+
+  it("s10: an explicit no-gate waiver over a real write keeps the gate as advisory", () => {
+    const r = plan(
+      "onboard a new hire: send a welcome email and create a calendar reminder; fully automated, no approval gate needed",
+    );
+    const ids = r.recommended_route.map((s) => s.component_id);
+    // gate is KEPT in the route ...
+    expect(ids).toContain("human_approval_gate");
+    // ... but downgraded from required to advisory, naming the real write(s)
+    expect(r.required_approval_gates).toEqual([]);
+    expect(r.approval_gate_advisory).not.toBeNull();
+    expect(r.approval_gate_advisory!.gate).toBe("human_approval_gate");
+    expect(r.approval_gate_advisory!.write_components.length).toBeGreaterThan(0);
+    expect(r.summary_markdown.toLowerCase()).toContain("advisory");
+  });
+
+  it("control: a real write WITHOUT a waiver still hard-requires the gate", () => {
+    const r = plan(
+      "start from a content brief, generate copy, design visuals, approve and publish to our blog",
+    );
+    expect(r.recommended_route.map((s) => s.component_id)).toContain("human_approval_gate");
+    expect(r.required_approval_gates).toEqual(["human_approval_gate"]);
+    expect(r.approval_gate_advisory).toBeNull();
+  });
+});

@@ -36,6 +36,7 @@ import {
   edgesWithinSet,
   type AvoidViolation,
 } from "../graph/routeOrdering.js";
+import { ALWAYS_REQUIRES_GATE } from "../graph/safetyAugmenter.js";
 import { findOverlappingPlaybooks } from "../graph/playbookOverlap.js";
 import { buildReviewContext } from "./reviewWorkflowDesign.js";
 import { ALL_RULES } from "../review/rules/index.js";
@@ -97,6 +98,43 @@ export type PlanPlaybook = {
   precision: number;
 };
 
+/**
+ * Surfaced when the goal explicitly opts out of human approval (unattended /
+ * no-gate / fully automated) but the route still contains an irreversible
+ * external write that warrants a gate (MAR-132). The gate is KEPT in the route
+ * as a strong recommendation rather than dropped — never silently removed — and
+ * moved out of `required_approval_gates` so the output stops contradicting the
+ * user's stated constraint.
+ */
+export type ApprovalGateAdvisory = {
+  gate: string;
+  write_components: string[];
+  reason: string;
+};
+
+/**
+ * Explicit "no human gate" phrases. Substring-matched on the lowercased goal.
+ * Deliberately narrow — only unambiguous opt-outs, never bare "automated".
+ */
+const UNATTENDED_WAIVER_SIGNALS = [
+  "unattended",
+  "no human",
+  "without human",
+  "no approval",
+  "without approval",
+  "no gate",
+  "without a gate",
+  "no manual approval",
+  "fully automated",
+  "fully autonomous",
+];
+
+/** True when the goal explicitly waives a human approval gate (MAR-132). */
+export function hasUnattendedWaiver(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return UNATTENDED_WAIVER_SIGNALS.some((s) => g.includes(s));
+}
+
 export type PlanWorkflowOutput = {
   plan_source: PlanSource;
   goal: string;
@@ -121,6 +159,13 @@ export type PlanWorkflowOutput = {
   untested_edges: string[];
   avoid_when_violations: AvoidViolation[];
   required_approval_gates: string[];
+  /**
+   * Non-null when the goal explicitly opted out of a human gate but the route
+   * still performs an irreversible external write (MAR-132). The gate stays in
+   * `recommended_route` as a strong recommendation; it is just not listed in
+   * `required_approval_gates`.
+   */
+  approval_gate_advisory: ApprovalGateAdvisory | null;
   evals_to_add: string[];
   next_steps: string[];
 };
@@ -194,6 +239,7 @@ function buildPlanMarkdown(
   modelTiers: PlanWorkflowOutput["model_tier_profile"],
   credentials: CredentialAdvisory,
   untestedEdges: string[],
+  approvalAdvisory: ApprovalGateAdvisory | null,
 ): string {
   const lines: string[] = [];
 
@@ -253,6 +299,12 @@ function buildPlanMarkdown(
     lines.push(`**Blocking issues (${safety.blocking_issues.length}):**`);
     for (const b of safety.blocking_issues) lines.push(`- ${b}`);
     lines.push(``);
+  }
+  if (approvalAdvisory) {
+    lines.push(
+      `**⚠️ Approval gate (advisory, not enforced):** ${approvalAdvisory.reason}`,
+      ``,
+    );
   }
   if (safety.approval_gates_required.length > 0) {
     lines.push(
@@ -359,9 +411,32 @@ export function planWorkflow(
     new Set(routeComponentIds),
     registry.edges,
   );
-  const required_approval_gates = routeComponentIds.includes("human_approval_gate")
-    ? ["human_approval_gate"]
-    : composed.required_approval_gates;
+  const hasGate = routeComponentIds.includes("human_approval_gate");
+  const gatedWrites = routeComponentIds.filter((id) => ALWAYS_REQUIRES_GATE.has(id));
+
+  // ── MAR-132: reconcile an explicit "unattended / no-gate" constraint ──
+  // When the user opts out but an irreversible external write is present, keep
+  // the gate in the route (never silently dropped) but downgrade it from a hard
+  // requirement to an advisory so the output stops contradicting the prompt.
+  let required_approval_gates: string[];
+  let approval_gate_advisory: ApprovalGateAdvisory | null = null;
+
+  if (hasGate && gatedWrites.length > 0 && hasUnattendedWaiver(input.goal)) {
+    required_approval_gates = [];
+    approval_gate_advisory = {
+      gate: "human_approval_gate",
+      write_components: gatedWrites,
+      reason:
+        `You asked for an unattended / no-gate flow, but this route performs an ` +
+        `irreversible external write (${gatedWrites.join(", ")}). \`human_approval_gate\` ` +
+        `is kept as a STRONG RECOMMENDATION, not an enforced requirement — remove it ` +
+        `deliberately only if you accept unattended external writes with no human review.`,
+    };
+  } else {
+    required_approval_gates = hasGate
+      ? ["human_approval_gate"]
+      : composed.required_approval_gates;
+  }
 
   // ── Step 6: fused markdown ──
   const summary_markdown = buildPlanMarkdown(
@@ -373,6 +448,7 @@ export function planWorkflow(
     model_tier_profile,
     credential_advisory,
     untested_edges,
+    approval_gate_advisory,
   );
 
   return {
@@ -393,6 +469,7 @@ export function planWorkflow(
     untested_edges,
     avoid_when_violations,
     required_approval_gates,
+    approval_gate_advisory,
     evals_to_add: composed.evals_to_add,
     next_steps:
       planSource === "playbook"

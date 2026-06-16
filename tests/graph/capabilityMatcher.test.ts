@@ -77,6 +77,30 @@ describe("matchCapabilities", () => {
   });
 });
 
+describe("matchCapabilities — MAR-132 human_approval_gate is not fuzzy-matched", () => {
+  it("does NOT select human_approval_gate from the word 'human' in 'no human in the loop'", () => {
+    const { matches } = matchCapabilities(
+      "monitor a pricing page on an hourly schedule and alert me; runs unattended, no human in the loop",
+      [],
+      [],
+      components,
+    );
+    const ids = matches.map((m) => m.component.id);
+    expect(ids).not.toContain("human_approval_gate");
+  });
+
+  it("STILL selects human_approval_gate when the goal asks for approval", () => {
+    const { matches } = matchCapabilities(
+      "draft a reply and require human review and approval before sending",
+      [],
+      [],
+      components,
+    );
+    const ids = matches.map((m) => m.component.id);
+    expect(ids).toContain("human_approval_gate");
+  });
+});
+
 describe("matchCapabilities — domain guards (MAR-80)", () => {
   it("does NOT include pr_summary for a research goal with the word 'summary'", () => {
     const { matches } = matchCapabilities(
