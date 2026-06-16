@@ -430,6 +430,18 @@ const MATCH_STOPWORDS = new Set([
   "adds", "based", "given", "used",
 ]);
 
+/**
+ * Components excluded from fuzzy token matching — the id-segment, capability and
+ * summary passes (MAR-132). human_approval_gate is a safety gate whose id and
+ * summary are built from generic English ("human", "approval", "gate", "review"),
+ * so fuzzy matching inserted a blocking gate into goals that explicitly said the
+ * opposite — "no human in the loop" / "unattended" scored it via the bare token
+ * "human". It is still selected intentionally via KEYWORD_HINTS (approval /
+ * approve / human review) and added deterministically by the safety augmenter for
+ * real external writes, so excluding it from fuzzy matching loses no real signal.
+ */
+const HINT_ONLY_COMPONENTS = new Set(["human_approval_gate"]);
+
 /** Domains a component belongs to (defaults to generic_orchestration). */
 function componentDomains(id: string): Domain[] {
   return COMPONENT_DOMAINS[id] ?? ["generic_orchestration"];
@@ -501,6 +513,8 @@ export function matchCapabilities(
   // Passes 2–4: per-component token matching (gated)
   for (const component of components) {
     if (!domainAllowed.has(component.id)) continue;
+    // MAR-132: safety gates are added via hints / the augmenter, never fuzzy-matched.
+    if (HINT_ONLY_COMPONENTS.has(component.id)) continue;
 
     // Whole-segment id/name match — strong, but only on exact token equality
     // (not substring), so "summary" no longer pulls in pr_summary on a research

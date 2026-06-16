@@ -21,7 +21,7 @@ const NEEDS_AUTH_FAILURE_HANDLER = new Set([
 ]);
 
 /** External-write components that always require human_approval_gate. */
-const ALWAYS_REQUIRES_GATE = new Set([
+export const ALWAYS_REQUIRES_GATE = new Set([
   "external_publish",
   "optional_email_send",
   "calendar_write",
