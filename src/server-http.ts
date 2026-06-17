@@ -31,7 +31,12 @@ import { registerTools } from "./tools/index.js";
 import { logger } from "./lib/logger.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
-const HOST = process.env.HOST ?? "127.0.0.1";
+// When a hosting platform injects PORT (Railway, Render, Fly, etc.) we must
+// bind all interfaces so the platform's router can reach us. Locally (no PORT
+// injected) we keep 127.0.0.1 — the tunnel connects via loopback. HOST always
+// wins if explicitly set.
+const HOST =
+  process.env.HOST ?? (process.env.PORT ? "0.0.0.0" : "127.0.0.1");
 
 async function main(): Promise<void> {
   const httpServer = createServer(async (req, res) => {
