@@ -302,6 +302,7 @@ export function registerGetPlaybook(server: McpServer): void {
         "Returns warnings for beta/deprecated/low-confidence matches. " +
         "Use list_known_routes to browse available route ids.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

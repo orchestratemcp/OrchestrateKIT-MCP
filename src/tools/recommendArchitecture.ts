@@ -101,6 +101,7 @@ export function registerRecommendArchitecture(server: McpServer): void {
         "Candidate routes are clearly labelled. High-risk workflows always include approval guidance. " +
         "Use compose_workflow_route for raw route composition without architecture framing.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

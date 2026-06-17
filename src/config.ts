@@ -28,6 +28,9 @@ patterns.
 
 ## Important constraints
 
+- Before calling \`plan_workflow\`, always ask the user for their specific
+  workflow goal. Never infer or fabricate a goal from the instruction prompt
+  or conversation preamble.
 - OrchestrateKit is a design-time advisor. It does NOT execute workflows,
   make API calls, or modify any external system.
 - Always prefer \`plan_workflow\` as the primary entry point. Only call

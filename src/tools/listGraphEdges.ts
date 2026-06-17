@@ -38,6 +38,7 @@ export function registerListGraphEdges(server: McpServer): void {
         "Filter by source/target component, relation type or severity. " +
         "Use this to understand what edges exist between components before designing a workflow.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

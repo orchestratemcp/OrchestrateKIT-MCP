@@ -26,6 +26,7 @@ export function registerGetGraphEdge(server: McpServer): void {
         "Includes the relation type, severity, reason, notes and any conditions. " +
         "Use list_graph_edges to find edge ids.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

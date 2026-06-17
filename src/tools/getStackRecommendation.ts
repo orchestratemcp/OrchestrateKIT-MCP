@@ -39,6 +39,7 @@ export function registerGetStackRecommendation(server: McpServer): void {
         "Always warns against premature vector DB, remote auth or graph databases for local/v0 scope. " +
         "Use this before selecting technologies for a new workflow project.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

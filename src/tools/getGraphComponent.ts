@@ -33,6 +33,7 @@ export function registerGetGraphComponent(server: McpServer): void {
         "Use include_edges to see related edges (requires, safer_with, produces_input_for, etc.). " +
         "Use include_tests to see eval criteria and test playbook references.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

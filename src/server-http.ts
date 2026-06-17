@@ -34,20 +34,6 @@ const PORT = Number(process.env.PORT ?? 3001);
 const HOST = process.env.HOST ?? "127.0.0.1";
 
 async function main(): Promise<void> {
-  const server = new McpServer(
-    { name: SERVER_NAME, version: SERVER_VERSION },
-    { instructions: SERVER_INSTRUCTIONS },
-  );
-
-  registerTools(server);
-
-  // Stateless transport: no session tracking — each request is self-contained.
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
-  });
-
-  await server.connect(transport);
-
   const httpServer = createServer(async (req, res) => {
     // CORS — allow all origins (OrchestrateKit is read-only advisory; no secrets)
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -80,6 +66,18 @@ async function main(): Promise<void> {
 
     // MCP endpoint — all Streamable HTTP MCP methods (POST, GET/SSE, DELETE)
     if (url === "/mcp") {
+      // The SDK requires a fresh McpServer + transport per request in stateless mode.
+      // Reusing a stateless transport throws on the second request (message ID collision guard).
+      const server = new McpServer(
+        { name: SERVER_NAME, version: SERVER_VERSION },
+        { instructions: SERVER_INSTRUCTIONS },
+      );
+      registerTools(server);
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+      });
+      await server.connect(transport);
+
       try {
         await transport.handleRequest(req, res);
       } catch (err) {
@@ -109,15 +107,14 @@ async function main(): Promise<void> {
     );
   });
 
-  // Graceful shutdown
+  // Graceful shutdown. Transports are created per-request (stateless mode),
+  // so there is no long-lived transport to close here — just the HTTP server.
   process.on("SIGTERM", () => {
     httpServer.close();
-    void transport.close();
     process.exit(0);
   });
   process.on("SIGINT", () => {
     httpServer.close();
-    void transport.close();
     process.exit(0);
   });
 }

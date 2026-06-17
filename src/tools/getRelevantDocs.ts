@@ -94,6 +94,7 @@ export function registerGetRelevantDocs(server: McpServer): void {
         "Use playbook_id or route_id to narrow to a specific workflow. " +
         "Use frameworks/topics for broad technology-level references.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

@@ -224,6 +224,7 @@ export function registerRecordSessionFeedback(server: McpServer): void {
         "your feedback. Save the returned record in OrchestrateLab yourself to accumulate evidence. " +
         "Call this once the user is done designing/building a workflow with OrchestrateKit.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
     async (input) => {
       try {

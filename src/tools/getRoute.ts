@@ -32,6 +32,7 @@ export function registerGetRoute(server: McpServer): void {
         "Includes the component list, edge list, confidence score, risk level and failure modes. " +
         "Use list_known_routes to discover available route ids.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

@@ -83,6 +83,7 @@ export function registerTools(server: McpServer): void {
       title: "Health Check",
       description:
         "Returns the server name, version, a summary of loaded registry entities (components, edges, stacks, routes, playbooks), and a build fingerprint. The `build.stale` field is true when the dist/ registry is outdated vs the source — run `pnpm build` to fix. Use this to confirm the MCP server is running and the registry is fresh.",
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => {
       try {

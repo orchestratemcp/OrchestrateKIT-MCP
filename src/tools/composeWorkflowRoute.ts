@@ -41,6 +41,7 @@ export function registerComposeWorkflowRoute(server: McpServer): void {
         "The result is a CANDIDATE ROUTE — not a validated playbook. Always review before implementing. " +
         "Use get_route and list_known_routes to check if a validated playbook already exists.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

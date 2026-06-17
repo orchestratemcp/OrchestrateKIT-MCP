@@ -324,6 +324,7 @@ export function registerReviewWorkflowDesign(server: McpServer): void {
         "Use before implementing to catch critical design problems early. " +
         "Provide route_id or component_ids for graph-aware analysis.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

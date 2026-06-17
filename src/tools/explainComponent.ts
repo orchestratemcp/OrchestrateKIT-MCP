@@ -222,6 +222,7 @@ export function registerExplainComponent(server: McpServer): void {
         "Use get_graph_component instead when you need structured JSON fields for " +
         "programmatic processing or technical documentation.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

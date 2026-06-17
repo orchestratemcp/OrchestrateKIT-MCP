@@ -35,6 +35,7 @@ export function registerListGraphComponents(server: McpServer): void {
         "Returns id, name, category, capabilities and summary for each match. " +
         "Use get_graph_component to get full details including related edges.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

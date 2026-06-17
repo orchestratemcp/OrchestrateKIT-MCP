@@ -647,6 +647,7 @@ export function registerPlanWorkflow(server: McpServer): void {
         "get_stack_recommendation → review_workflow_design. " +
         "Prefer this as the entry point for designing a new AI workflow.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {

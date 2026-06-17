@@ -25,6 +25,7 @@ export function registerListKnownRoutes(server: McpServer): void {
         "Each route is a tested sequence of components and edges for a specific workflow pattern. " +
         "Use get_route to get full details and component/edge lists for a specific route.",
       inputSchema: InputShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
       try {
