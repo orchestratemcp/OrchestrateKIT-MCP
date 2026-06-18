@@ -255,7 +255,7 @@ describe("planWorkflow — MAR-132 unattended / no-gate handling", () => {
     // slack_notification is an external write → gate kept but downgraded to advisory
     expect(ids).toContain("slack_notification");
     expect(ids).toContain("human_approval_gate");
-    expect(r.required_approval_gates).toEqual([]);
+    expect(r.enforced_approval_gates).toEqual([]);
     expect(r.approval_gate_advisory).not.toBeNull();
     expect(r.approval_gate_advisory!.gate).toBe("human_approval_gate");
     expect(r.approval_gate_advisory!.write_components).toContain("slack_notification");
@@ -269,7 +269,7 @@ describe("planWorkflow — MAR-132 unattended / no-gate handling", () => {
     // gate is KEPT in the route ...
     expect(ids).toContain("human_approval_gate");
     // ... but downgraded from required to advisory, naming the real write(s)
-    expect(r.required_approval_gates).toEqual([]);
+    expect(r.enforced_approval_gates).toEqual([]);
     expect(r.approval_gate_advisory).not.toBeNull();
     expect(r.approval_gate_advisory!.gate).toBe("human_approval_gate");
     expect(r.approval_gate_advisory!.write_components.length).toBeGreaterThan(0);
@@ -281,8 +281,49 @@ describe("planWorkflow — MAR-132 unattended / no-gate handling", () => {
       "start from a content brief, generate copy, design visuals, approve and publish to our blog",
     );
     expect(r.recommended_route.map((s) => s.component_id)).toContain("human_approval_gate");
-    expect(r.required_approval_gates).toEqual(["human_approval_gate"]);
+    expect(r.enforced_approval_gates).toEqual(["human_approval_gate"]);
     expect(r.approval_gate_advisory).toBeNull();
+  });
+});
+
+// MAR-148 item-2: the two approval-gate fields must not contradict each other.
+// `enforced_approval_gates` = gates present in the route; `safety_review.
+// approval_gates_required` = gates the review says are needed. When they differ
+// it is a legible GAP (needed but not enforced), not a self-contradiction.
+describe("planWorkflow — approval-gate field self-consistency (MAR-148)", () => {
+  // A write goal that explicitly waives the gate (unattended) reproduces the
+  // G2 shape: review still requires a gate, but the route does not enforce one.
+  const g2 = plan(
+    "When a Stripe webhook fires, update the customer LTV field in Airtable. " +
+      "Runs unattended, no human in the loop.",
+  );
+
+  it("enforced_approval_gates exists and required_approval_gates is gone", () => {
+    expect(Array.isArray(g2.enforced_approval_gates)).toBe(true);
+    expect((g2 as Record<string, unknown>).required_approval_gates).toBeUndefined();
+  });
+
+  it("a required-but-unenforced gate renders as a ❌ gap in the header, not a contradiction", () => {
+    // The two fields genuinely differ here (the point of the test) ...
+    if (
+      g2.enforced_approval_gates.length === 0 &&
+      g2.safety_review.approval_gates_required.length > 0
+    ) {
+      const header = g2.summary_markdown.split("\n\n")[0];
+      // ... and the header names the gap explicitly rather than claiming "none".
+      expect(header).toContain("REQUIRED but NOT enforced");
+      expect(header).not.toContain("approval:       ✅ none needed");
+    }
+  });
+
+  it("an enforced gate reads as enforced, never as a missing requirement", () => {
+    const r = plan(
+      "start from a content brief, generate copy, design visuals, approve and publish to our blog",
+    );
+    expect(r.enforced_approval_gates).toContain("human_approval_gate");
+    const header = r.summary_markdown.split("\n\n")[0];
+    expect(header).toContain("✅ enforced — human_approval_gate");
+    expect(header).not.toContain("REQUIRED but NOT enforced");
   });
 });
 
