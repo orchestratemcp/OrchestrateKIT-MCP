@@ -7,6 +7,9 @@ import {
 import { join, relative } from "node:path";
 import { createHash } from "node:crypto";
 import { defaultRegistryDir } from "./registryLoader.js";
+import type { RegistryBuild } from "./buildInfoTypes.js";
+
+export type { RegistryBuild };
 
 type RawManifest = { built_at: string };
 
@@ -17,32 +20,6 @@ type RawManifest = { built_at: string };
  * be restarted to pick up the new code (MAR-141).
  */
 const PROCESS_STARTED_AT = new Date().toISOString();
-
-export type RegistryBuild = {
-  /** Short sha256 fingerprint of all YAML file paths + contents. */
-  fingerprint: string;
-  /** ISO timestamp of the newest YAML file in the registry dir. */
-  newest_mtime: string;
-  /** ISO timestamp written by the build script into `_build_manifest.json`. Null in dev (tsx) mode. */
-  built_at: string | null;
-  /** True when any YAML file or TypeScript source is newer than built_at (dist is stale). Always false in dev mode. */
-  stale: boolean;
-  /** Up to 5 files/reasons that are newer than built_at. Empty when stale=false. */
-  stale_files: string[];
-  /**
-   * ISO timestamp of when this process started (module import time). Enables
-   * detection of the "rebuilt but not reconnected" trap: when built_at >
-   * process_started_at the binary on disk is newer than what this process loaded.
-   * The process must be restarted for the new code to take effect (MAR-141).
-   */
-  process_started_at: string;
-  /**
-   * True when the on-disk build (built_at) is newer than this process started.
-   * The running process is serving code compiled BEFORE the latest build — restart
-   * the server and reconnect the MCP client to pick up the new logic (MAR-141).
-   */
-  process_stale: boolean;
-};
 
 type YamlEntry = { path: string; content: string; mtime: Date };
 

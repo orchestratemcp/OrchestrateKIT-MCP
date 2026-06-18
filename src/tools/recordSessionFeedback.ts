@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { loadRegistry } from "../registry/registryLoader.js";
+import { loadRegistry } from "../registry/registryProvider.js";
 import type { Registry } from "../registry/registryTypes.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";

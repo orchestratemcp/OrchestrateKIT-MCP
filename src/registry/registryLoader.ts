@@ -15,36 +15,15 @@ import type { Route } from "./routeSchema.js";
 import type { Playbook } from "./playbookSchema.js";
 import type { Registry, RegistryStatus } from "./registryTypes.js";
 import {
-  validateNoDuplicateIds,
-  validateCrossReferences,
-  RegistryValidationError,
-  type ValidationError,
-} from "./registryValidation.js";
+  assembleRegistry,
+  computeRegistryStatus,
+  type LoaderOptions,
+  type LoadedRegistry,
+  type RawEntries,
+} from "./registryAssembly.js";
 
 export type { Registry, RegistryStatus };
-
-export type LoaderOptions = {
-  /** Include entities with status "beta". Default: false. */
-  includeBeta?: boolean;
-  /** Include entities with status "candidate". Default: false. */
-  includeCandidates?: boolean;
-  /**
-   * Throw on broken cross-references. Default: true.
-   * Set to false to get a warning array instead of throwing.
-   */
-  strict?: boolean;
-  /** Override registry root directory (useful for tests). */
-  registryDir?: string;
-};
-
-const DEFAULT_ALLOWED = new Set(["published", "validated"]);
-
-function isAllowedStatus(status: string, opts: LoaderOptions): boolean {
-  if (DEFAULT_ALLOWED.has(status)) return true;
-  if (opts.includeBeta === true && status === "beta") return true;
-  if (opts.includeCandidates === true && status === "candidate") return true;
-  return false;
-}
+export type { LoaderOptions, LoadedRegistry };
 
 export function defaultRegistryDir(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -57,10 +36,6 @@ export function defaultRegistryDir(): string {
   // When running via tsx from src/registry/registryLoader.ts, go up two levels.
   return join(__dirname, "..", "..", "registry");
 }
-
-type ParseResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; filePath: string };
 
 function loadYamlDir<T>(
   dir: string,
@@ -100,77 +75,31 @@ function loadYamlDir<T>(
   return results;
 }
 
-export type LoadedRegistry = Registry & {
-  validationWarnings: ValidationError[];
-  /** Map from component id → file modification time (for freshness reporting). */
-  componentMtimes: Map<string, Date>;
-};
+/**
+ * Read every registry YAML file from disk, parse + schema-validate it, and
+ * return raw entries. Node/fs only. The pure filtering/validation/status logic
+ * lives in registryAssembly.ts so it can be shared with the Worker bundle.
+ */
+export function readRawEntries(registryDir: string = defaultRegistryDir()): RawEntries {
+  const map = <T>(
+    rows: Array<{ fileMtime: Date; data: T }>,
+  ): Array<{ data: T; fileMtime: Date }> =>
+    rows.map((r) => ({ data: r.data, fileMtime: r.fileMtime }));
+
+  return {
+    components: map(loadYamlDir<Component>(join(registryDir, "components"), ComponentSchema)),
+    edges: map(loadYamlDir<Edge>(join(registryDir, "edges"), EdgeSchema)),
+    stacks: map(loadYamlDir<Stack>(join(registryDir, "stacks"), StackSchema)),
+    routes: map(loadYamlDir<Route>(join(registryDir, "routes"), RouteSchema)),
+    playbooks: map(loadYamlDir<Playbook>(join(registryDir, "playbooks"), PlaybookSchema)),
+  };
+}
 
 export function loadRegistry(opts: LoaderOptions = {}): LoadedRegistry {
-  const strict = opts.strict ?? true;
   const registryDir = opts.registryDir ?? defaultRegistryDir();
-
-  const allComponents = loadYamlDir<Component>(join(registryDir, "components"), ComponentSchema);
-  const allEdges = loadYamlDir<Edge>(join(registryDir, "edges"), EdgeSchema);
-  const allStacks = loadYamlDir<Stack>(join(registryDir, "stacks"), StackSchema);
-  const allRoutes = loadYamlDir<Route>(join(registryDir, "routes"), RouteSchema);
-  const allPlaybooks = loadYamlDir<Playbook>(join(registryDir, "playbooks"), PlaybookSchema);
-
-  const components = allComponents.map((r) => r.data).filter((c) => isAllowedStatus(c.status, opts));
-  const edges = allEdges.map((r) => r.data).filter((e) => isAllowedStatus(e.status, opts));
-  const stacks = allStacks.map((r) => r.data).filter((s) => isAllowedStatus(s.status, opts));
-  const routes = allRoutes.map((r) => r.data).filter((r) => isAllowedStatus(r.status, opts));
-  const playbooks = allPlaybooks.map((r) => r.data).filter((p) => isAllowedStatus(p.status, opts));
-
-  // Build component mtime map (id → file mtime) from the raw load results.
-  const componentMtimes = new Map<string, Date>(
-    allComponents
-      .filter((r) => isAllowedStatus(r.data.status, opts))
-      .map((r) => [r.data.id, r.fileMtime]),
-  );
-
-  validateNoDuplicateIds(components, "component");
-  validateNoDuplicateIds(edges, "edge");
-  validateNoDuplicateIds(stacks, "stack");
-  validateNoDuplicateIds(routes, "route");
-  validateNoDuplicateIds(playbooks, "playbook");
-
-  const registry: Registry = { components, edges, stacks, routes, playbooks };
-  const validationWarnings = validateCrossReferences(registry);
-
-  if (strict && validationWarnings.length > 0) {
-    const details = validationWarnings
-      .map((e) => `  [${e.entity}] ${e.field}: ${e.message}`)
-      .join("\n");
-    throw new RegistryValidationError(
-      `Registry cross-reference errors:\n${details}`,
-      validationWarnings,
-    );
-  }
-
-  return { ...registry, validationWarnings, componentMtimes };
+  return assembleRegistry(readRawEntries(registryDir), opts);
 }
 
 export function getRegistryStatus(opts: LoaderOptions = {}): RegistryStatus {
-  const registry = loadRegistry(opts);
-  const totalEdges = registry.edges.length;
-  const untestedEdges = registry.edges.filter((e) => !e.tested).length;
-  const untested_edge_pct =
-    totalEdges > 0 ? Math.round((untestedEdges / totalEdges) * 1000) / 10 : 0;
-
-  const STALE_THRESHOLD_MS = 90 * 86_400_000;
-  const now = Date.now();
-  const stale_component_count = [...registry.componentMtimes.values()].filter(
-    (mtime) => now - mtime.getTime() > STALE_THRESHOLD_MS,
-  ).length;
-
-  return {
-    component_count: registry.components.length,
-    edge_count: registry.edges.length,
-    stack_count: registry.stacks.length,
-    route_count: registry.routes.length,
-    playbook_count: registry.playbooks.length,
-    untested_edge_pct,
-    stale_component_count,
-  };
+  return computeRegistryStatus(loadRegistry(opts));
 }

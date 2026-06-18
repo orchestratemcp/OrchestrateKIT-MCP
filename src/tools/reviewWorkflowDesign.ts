@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { loadRegistry } from "../registry/registryLoader.js";
+import { loadRegistry } from "../registry/registryProvider.js";
 import { matchCapabilities } from "../graph/capabilityMatcher.js";
 import { findOverlappingPlaybooks } from "../graph/playbookOverlap.js";
 import type { RegistrySnapshot } from "../graph/routeComposer.js";

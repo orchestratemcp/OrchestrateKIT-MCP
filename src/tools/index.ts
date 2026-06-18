@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SERVER_NAME, SERVER_VERSION } from "../config.js";
-import { getRegistryStatus } from "../registry/registryLoader.js";
-import { getRegistryBuild, type RegistryBuild } from "../registry/buildManifest.js";
+import { getRegistryStatus, getRegistryBuild } from "../registry/registryProvider.js";
+import type { RegistryBuild } from "../registry/buildInfoTypes.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import { registerListGraphComponents } from "./listGraphComponents.js";

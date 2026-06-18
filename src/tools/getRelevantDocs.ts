@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { loadRegistry } from "../registry/registryLoader.js";
-import { loadDocsIndex, matchDocsIndex } from "../docs-index/loader.js";
+import { loadRegistry } from "../registry/registryProvider.js";
+import { loadDocsIndex, matchDocsIndex } from "../docs-index/provider.js";
 import type { Source } from "../registry/sharedSchemas.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";

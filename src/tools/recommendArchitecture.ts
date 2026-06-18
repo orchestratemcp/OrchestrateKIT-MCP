@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { loadRegistry } from "../registry/registryLoader.js";
+import { loadRegistry } from "../registry/registryProvider.js";
 import { composeRoute } from "../graph/routeComposer.js";
 import { findOverlappingRoutes } from "../graph/playbookOverlap.js";
 import { classifySteps, describeStateNeeds } from "../architecture/stepClassifier.js";

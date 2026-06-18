@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { loadRegistry } from "../registry/registryLoader.js";
+import { loadRegistry } from "../registry/registryProvider.js";
 import { COMPONENT_CATEGORIES } from "../registry/componentSchema.js";
 import { RISK_LEVELS } from "../registry/sharedSchemas.js";
 import { okResponse, toMcpContent } from "./graphToolFormatters.js";

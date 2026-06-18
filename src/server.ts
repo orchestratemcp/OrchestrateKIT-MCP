@@ -2,9 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SERVER_NAME, SERVER_VERSION, SERVER_INSTRUCTIONS } from "./config.js";
 import { registerTools } from "./tools/index.js";
+import { bootstrapNodeRegistry } from "./registry/nodeRegistryBootstrap.js";
 import { logger } from "./lib/logger.js";
 
 async function main(): Promise<void> {
+  bootstrapNodeRegistry();
+
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
     { instructions: SERVER_INSTRUCTIONS },

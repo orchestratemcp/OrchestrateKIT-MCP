@@ -9,6 +9,9 @@
     "start": "node dist/server-http.js",
     "build": "tsup src/server.ts src/server-http.ts --format esm --out-dir dist --clean && node -e \"const{cpSync,writeFileSync}=require('fs');cpSync('registry','dist/registry',{recursive:true});writeFileSync('dist/registry/_build_manifest.json',JSON.stringify({built_at:new Date().toISOString()}));console.log('registry/ copied to dist/registry/ with build manifest')\"",
     "typecheck": "tsc --noEmit",
+    "gen:registry": "tsx scripts/gen-registry-bundle.ts",
+    "dev:worker": "pnpm gen:registry && wrangler dev",
+    "deploy:worker": "pnpm gen:registry && wrangler deploy",
     "test": "vitest run",
     "registry:lint": "tsx scripts/registry-lint.ts",
     "probe": "tsx scripts/node-probes.ts",
@@ -26,7 +29,8 @@
     "tsup": "^8.5.1",
     "tsx": "^4.22.4",
     "typescript": "^5.8.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.0",
+    "wrangler": "^4.0.0"
   },
   "engines": {
     "node": ">=20.0.0"

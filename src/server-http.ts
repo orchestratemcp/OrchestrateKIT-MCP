@@ -28,6 +28,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SERVER_NAME, SERVER_VERSION, SERVER_INSTRUCTIONS } from "./config.js";
 import { registerTools } from "./tools/index.js";
+import { bootstrapNodeRegistry } from "./registry/nodeRegistryBootstrap.js";
 import { logger } from "./lib/logger.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
@@ -39,6 +40,8 @@ const HOST =
   process.env.HOST ?? (process.env.PORT ? "0.0.0.0" : "127.0.0.1");
 
 async function main(): Promise<void> {
+  bootstrapNodeRegistry();
+
   const httpServer = createServer(async (req, res) => {
     // CORS — allow all origins (OrchestrateKit is read-only advisory; no secrets)
     res.setHeader("Access-Control-Allow-Origin", "*");
