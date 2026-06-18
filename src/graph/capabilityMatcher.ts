@@ -323,6 +323,57 @@ function isNegatedInContext(text: string, keyword: string): boolean {
 }
 
 /**
+ * MAR-140: phrases that forbid editing / writing / committing code. When one is
+ * present in a code-agent goal, code_editing — the only write-side component in
+ * the code domain — must be suppressed.
+ *
+ * This is the most dangerous class of matcher leak: proposing a write step when
+ * the user explicitly forbade it ("GitHub PR review, never edit code, read-only"
+ * still yielded code_editing in Dogfood Round 3). The trigger token for
+ * code_editing is the bare word "code", so the negation ("never edit") never
+ * reaches it via isNegatedInContext — it needs an explicit constraint check.
+ *
+ * Scoped to the code domain on purpose: a bare "read-only" in a monitoring or
+ * data goal scopes to the DATA SOURCE, not the whole workflow (you can be
+ * "read-only" on a page yet still want a Slack alert), so generalising this to
+ * every write component would over-suppress. Other domains' read-only semantics
+ * stay un-wired until dogfooding gives evidence (tracked on MAR-140).
+ */
+const CODE_READONLY_PHRASES = [
+  "read-only",
+  "read only",
+  "readonly",
+  "never edit",
+  "never write",
+  "never modify",
+  "never change",
+  "never commit",
+  "never push",
+  "don't edit",
+  "do not edit",
+  "dont edit",
+  "don't modify",
+  "do not modify",
+  "don't write",
+  "do not write",
+  "without editing",
+  "without modifying",
+  "without writing",
+  "without committing",
+  "no edits",
+  "no code changes",
+  "no commits",
+  "suggest only",
+  "review only",
+  "comment only",
+];
+
+/** True when the goal forbids editing/writing code (read-only review, MAR-140). */
+function hasCodeReadonlyConstraint(goalLower: string): boolean {
+  return CODE_READONLY_PHRASES.some((p) => goalLower.includes(p));
+}
+
+/**
  * Classify a goal into workflow domains (MAR-88).
  * Always includes `generic_orchestration` so safety/orchestration components
  * are never blocked. Exported for unit testing.
@@ -420,6 +471,22 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   hourly: ["scheduled_trigger"],
   daily: ["scheduled_trigger"],
   weekly: ["scheduled_trigger"],
+  // Round-3 scheduled_trigger inversion: MAR-140 removed "schedule" from the
+  // calendar hints, which also dropped the path that natural recurring-time
+  // phrasing took to the scheduler — "every morning at 8am" no longer reached
+  // scheduled_trigger (missed in G1) while it still fired as fuzzy noise in G2
+  // (fixed by the HINT_ONLY change above). These multi-word phrases restore the
+  // natural-language path WITHOUT reintroducing the bare-"schedule" calendar bleed.
+  "every morning": ["scheduled_trigger"],
+  "each morning": ["scheduled_trigger"],
+  "every evening": ["scheduled_trigger"],
+  "every night": ["scheduled_trigger"],
+  "every day": ["scheduled_trigger"],
+  "each day": ["scheduled_trigger"],
+  "every hour": ["scheduled_trigger"],
+  "every week": ["scheduled_trigger"],
+  "every month": ["scheduled_trigger"],
+  midnight: ["scheduled_trigger"],
   webhook: ["webhook_trigger"],
   github: ["github_trigger"],
   "pull request": ["github_trigger", "pr_summary"],
@@ -572,6 +639,20 @@ const HINT_ONLY_COMPONENTS = new Set([
   // inject it into unrelated goals. Reachable via KEYWORD_HINTS (saga,
   // compensation, rollback, compensate).
   "saga_compensation",
+  // MAR-145: the three trigger entrypoints share the id-segment "trigger" and
+  // cross-reference each other in their summaries/capabilities (webhook_trigger's
+  // summary lists "Stripe, GitHub, Slack, Airtable"; github_trigger's
+  // capabilities include "webhook_receive"). The fuzzy id/summary/capability
+  // passes therefore pulled ALL THREE whenever any one was mentioned — the bare
+  // token "webhook" yielded webhook+github+scheduled (Dogfood Round 3 G2), and
+  // the bare token "trigger" pulled all three. They are precise concepts with
+  // dedicated KEYWORD_HINTS, so restrict them to hint-only selection:
+  //   scheduled_trigger ← cron/scheduled/nightly/hourly/daily/weekly + time phrases
+  //   webhook_trigger   ← webhook
+  //   github_trigger    ← github / "github event" / "pull request"
+  "scheduled_trigger",
+  "webhook_trigger",
+  "github_trigger",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */
@@ -621,6 +702,16 @@ export function matchCapabilities(
     if (componentDomains(component.id).some((d) => goalDomains.has(d))) {
       domainAllowed.add(component.id);
     }
+  }
+
+  // MAR-140: a code goal that explicitly forbids editing ("never edit code",
+  // "read-only") must not yield code_editing. Drop it from the eligible set
+  // before scoring so neither the keyword hint ("code") nor the fuzzy passes can
+  // select it. Nothing downstream re-adds it: compose Step 3 expands `requires`
+  // only (nothing requires code_editing) and the safety augmenter adds only
+  // safety components, so suppressing here removes it from the whole route.
+  if (goalDomains.has("code_agent") && hasCodeReadonlyConstraint(goalLower)) {
+    domainAllowed.delete("code_editing");
   }
 
   // ── Phase 2: scoped scoring ──

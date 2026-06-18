@@ -384,3 +384,60 @@ describe("classifyGoalDomains — MAR-131 weak email_calendar de-bias", () => {
     expect(d.has("email_calendar")).toBe(true);
   });
 });
+
+describe("matchCapabilities — Dogfood Round 3 residuals", () => {
+  // ── MAR-140: code read-only constraint suppresses code_editing ──
+  it("MAR-140: does NOT select code_editing when the goal forbids editing", () => {
+    const ids = matchedIds(
+      "Review pull requests on GitHub for code quality and leave inline comments, " +
+        "but never edit code — read-only reviewer.",
+    );
+    expect(ids).not.toContain("code_editing");
+    // positive control: it is still recognised as a code-review route
+    expect(ids).toContain("codebase_scan");
+  });
+
+  it("MAR-140: STILL selects code_editing for a normal code-editing goal", () => {
+    const ids = matchedIds(
+      "an agent that edits code in my repository and runs the test suite",
+    );
+    expect(ids).toContain("code_editing");
+  });
+
+  // ── MAR-145: trigger isolation — one keyword must not pull the siblings ──
+  it("MAR-145: 'webhook' selects webhook_trigger only, not scheduled/github triggers", () => {
+    const ids = matchedIds(
+      "When a Stripe webhook fires, validate the payload and update the customer " +
+        "LTV field in Airtable.",
+    );
+    expect(ids).toContain("webhook_trigger");
+    expect(ids).not.toContain("scheduled_trigger");
+    expect(ids).not.toContain("github_trigger");
+  });
+
+  it("MAR-145: bare 'trigger' does not pull any of the three trigger components", () => {
+    const ids = matchedIds("manually trigger the workflow and process the batch");
+    expect(ids).not.toContain("scheduled_trigger");
+    expect(ids).not.toContain("webhook_trigger");
+    expect(ids).not.toContain("github_trigger");
+  });
+
+  // ── scheduled_trigger inversion — natural time phrasing reaches the scheduler ──
+  it("inversion: 'every morning at 8am' selects scheduled_trigger (and no sibling triggers)", () => {
+    const ids = matchedIds(
+      "Every morning at 8am, pull yesterday's signups from the database and post a " +
+        "summary to Slack.",
+    );
+    expect(ids).toContain("scheduled_trigger");
+    expect(ids).not.toContain("webhook_trigger");
+    expect(ids).not.toContain("github_trigger");
+  });
+
+  it("inversion: the time phrase does NOT reintroduce calendar bleed", () => {
+    const ids = matchedIds(
+      "Every morning at 8am, generate a report from the database and post it to Slack.",
+    );
+    expect(ids).not.toContain("calendar_lookup");
+    expect(ids).not.toContain("calendar_write");
+  });
+});
