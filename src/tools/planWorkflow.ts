@@ -272,6 +272,54 @@ function untestedEdgesWithin(
     .map((e) => ({ id: e.id, severity: e.severity }));
 }
 
+/**
+ * MAR-101: scannable front-matter status block prepended to every
+ * `summary_markdown`, regardless of `output_depth`. It surfaces the four facts
+ * that decide whether a plan is safe to build — route_status, safety, blocking
+ * issues, approval state, untested-edge count — at the very top so pipeline
+ * problems (an unvalidated route, a failed safety review, a write that forfeits
+ * its gate) are unmissable instead of buried below the step list.
+ *
+ * Rendered as a YAML-style front-matter fence: machine-scannable for a client
+ * that wants to gate on it, glanceable for a human, with a ✅/⚠️/❌ status icon
+ * per line.
+ */
+function buildStatusHeader(
+  routeStatus: string,
+  safety: SafetyReview,
+  untestedEdges: UntestedEdge[],
+  requiredGates: string[],
+  approvalAdvisory: ApprovalGateAdvisory | null,
+): string {
+  const routeIcon =
+    routeStatus === "validated" ? "✅" : routeStatus === "blocked_candidate" ? "❌" : "⚠️";
+  const safetyIcon =
+    safety.status === "pass" ? "✅" : safety.status === "warnings" ? "⚠️" : "❌";
+  const blockingCount = safety.blocking_issues.length;
+  const blockingIcon = blockingCount === 0 ? "✅" : "❌";
+
+  let approval: string;
+  if (requiredGates.length > 0) {
+    approval = `⚠️ required — ${requiredGates.join(", ")}`;
+  } else if (approvalAdvisory) {
+    approval = `⚠️ advisory — ${approvalAdvisory.gate} kept but not enforced`;
+  } else {
+    approval = "✅ none required";
+  }
+
+  const untestedIcon = untestedEdges.length === 0 ? "✅" : "⚠️";
+
+  return [
+    `---`,
+    `route_status:   ${routeIcon} ${routeStatus}`,
+    `safety:         ${safetyIcon} ${safety.status} (risk ${safety.risk_score}/100)`,
+    `blocking:       ${blockingIcon} ${blockingCount} issue${blockingCount === 1 ? "" : "s"}`,
+    `approval:       ${approval}`,
+    `untested_edges: ${untestedIcon} ${untestedEdges.length}`,
+    `---`,
+  ].join("\n");
+}
+
 function buildBriefPlanMarkdown(
   goal: string,
   planSource: PlanSource,
@@ -571,8 +619,18 @@ export function planWorkflow(
     : composed.route_status;
 
   // ── Step 6: fused markdown ──
+  // MAR-101: every depth leads with the same scannable status front-matter so
+  // route_status / safety / blocking / approval / untested-edge count are
+  // unmissable regardless of how much detail follows.
   const outputDepth = input.output_depth ?? "standard";
-  const summary_markdown =
+  const statusHeader = buildStatusHeader(
+    route_status,
+    safety_review,
+    untested_edges,
+    required_approval_gates,
+    approval_gate_advisory,
+  );
+  const body =
     outputDepth === "brief"
       ? buildBriefPlanMarkdown(
           input.goal,
@@ -595,6 +653,7 @@ export function planWorkflow(
           untested_edges,
           approval_gate_advisory,
         );
+  const summary_markdown = `${statusHeader}\n\n${body}`;
 
   return {
     plan_source: planSource,
