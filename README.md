@@ -95,6 +95,17 @@ Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ---
 
+## Connecting your workflow's services
+
+Connecting the MCP to your client takes no auth (it's a read-only advisor). But
+the workflows it plans need *your* credentials for Gmail, Slack, Stripe, your
+CRM, and so on. For how to provision those safely — least-privilege scopes,
+secret managers, and managed-auth brokers — see
+**[docs/CONNECTION_SETUP.md](docs/CONNECTION_SETUP.md)**. OrchestrateKit never
+holds a credential.
+
+---
+
 ## Scripts
 
 | Script | Description |
