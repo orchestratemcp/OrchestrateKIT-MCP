@@ -552,6 +552,24 @@ export function planWorkflow(
     }
   }
 
+  // ── route_status consistent with plan_workflow's OWN plan_source (MAR-133) ──
+  // composeRoute sets route_status="validated" only via its internal
+  // playbook-first flag (recall ≥ 0.80 / precision ≥ 0.50). plan_workflow applies
+  // a STRICTER gate (recall ≥ 0.60 / precision ≥ 0.72 + email/calendar signal),
+  // so passing compose's status through verbatim produced `route_status:
+  // "validated"` alongside `plan_source: "composed"` / `playbook: null` — a
+  // self-contradicting, trust-overclaiming output (Dogfood Round 3 G4). Derive
+  // the status from the route plan_workflow actually returns: a validated playbook
+  // golden-path → "validated"; a composed candidate can never be "validated".
+  const hasCriticalAvoid = avoid_when_violations.some((v) => v.severity === "critical");
+  const route_status: string = hasCriticalAvoid
+    ? "blocked_candidate"
+    : planSource === "playbook"
+    ? "validated"
+    : composed.route_status === "validated"
+    ? "candidate"
+    : composed.route_status;
+
   // ── Step 6: fused markdown ──
   const outputDepth = input.output_depth ?? "standard";
   const summary_markdown =
@@ -587,7 +605,7 @@ export function planWorkflow(
     execution_order: executionOrder,
     model_tier_profile,
     playbook,
-    route_status: composed.route_status,
+    route_status,
     route_score: composed.route_score,
     confidence_label: composed.confidence_label,
     stack: composed.recommended_stack,

@@ -192,6 +192,44 @@ describe("planWorkflow — output shape", () => {
     expect(r.next_steps.some((s) => s.includes("get_playbook"))).toBe(true);
   });
 
+  // MAR-133 (Dogfood Round 3 G4): a composed candidate must NEVER be labelled
+  // "validated". composeRoute's looser internal playbook-first flag could set
+  // route_status="validated" while plan_workflow's stricter gate fell back to
+  // plan_source="composed" / playbook=null — a self-contradicting output. The
+  // status must agree with the route plan_workflow actually returns.
+  it("never reports route_status 'validated' on a composed (no-playbook) plan", () => {
+    // This exact goal reproduced the contradiction: compose said "validated",
+    // plan chose the composed path.
+    const r = plan(
+      "Take a blog post, generate 3 social media variants, have a human approve them, then notify the team.",
+    );
+    expect(r.plan_source).toBe("composed");
+    expect(r.playbook).toBeNull();
+    expect(r.route_status).not.toBe("validated");
+  });
+
+  it("route_status agrees with plan_source across a spread of goals", () => {
+    const goals = [
+      "Take a blog post, generate 3 social media variants, have a human approve them, then notify the team.",
+      "start from a content brief, generate copy, design visuals, approve and publish",
+      "scan a codebase, plan changes, edit code, run tests and write a PR summary",
+      "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
+      "every morning pull data from the warehouse and post a summary to Slack",
+    ];
+    for (const g of goals) {
+      const r = plan(g);
+      // "validated" is reserved for the playbook path; the composed path is at
+      // most a "candidate" (or "blocked_candidate"). The playbook path is
+      // "validated" unless a critical avoid_when conflict blocks it.
+      if (r.plan_source === "composed") {
+        expect(["candidate", "blocked_candidate"]).toContain(r.route_status);
+      } else {
+        expect(["validated", "blocked_candidate"]).toContain(r.route_status);
+        expect(r.playbook).not.toBeNull();
+      }
+    }
+  });
+
   // MAR-133: every untested edge carries a deterministic registry severity, and
   // the summary surfaces it — clients no longer have to infer HIGH/MEDIUM/LOW.
   it("untested_edges entries carry id + a valid severity, rendered in markdown", () => {
