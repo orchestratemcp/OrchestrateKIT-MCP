@@ -166,7 +166,9 @@ probes:
     goal: "React to Stripe payment events via webhook: validate the payload, update CRM, and notify the sales team on Slack."
     via: plan
     must_have: [webhook_trigger, schema_validation]
-    forbidden: [calendar_lookup, calendar_write]
+    # MAR-145: "webhook" must select ONLY webhook_trigger — not the sibling
+    # scheduled_trigger / github_trigger (the three shared the id-segment "trigger").
+    forbidden: [calendar_lookup, calendar_write, scheduled_trigger, github_trigger]
 
   - id: review_draft_composer_content
     goal: "Draft a weekly market update report from research sources and stage it for editorial review before publishing."
@@ -230,3 +232,34 @@ probes:
     via: plan
     must_have: [threshold_router]
     forbidden: [calendar_lookup, calendar_write, design_brief_generation]
+
+  # ── Dogfood Round 3 residuals (2026-06-18) ──────────────────────────────────
+
+  # MAR-140: a code goal that explicitly forbids editing ("never edit code",
+  # "read-only") must NOT yield code_editing. Most dangerous leak class —
+  # proposing a write when the user forbade it. The trigger token is the bare
+  # word "code", so this needs the explicit read-only constraint check, not the
+  # negation heuristic (which keys off "edit").
+  - id: readonly_pr_review_no_code_editing
+    goal: "Review pull requests on GitHub for code quality and leave inline comments, but never edit code — this is a read-only reviewer."
+    via: plan
+    must_have: [pr_summary]
+    forbidden: [code_editing]
+
+  # MAR-145: the bare token "webhook" must select ONLY webhook_trigger, not the
+  # sibling scheduled_trigger / github_trigger. Mirrors Dogfood Round 3 G2.
+  - id: webhook_only_no_sibling_triggers
+    goal: "When a Stripe webhook fires, validate the payload and update the customer LTV field in Airtable."
+    via: plan
+    must_have: [webhook_trigger]
+    forbidden: [github_trigger, scheduled_trigger, calendar_lookup, calendar_write]
+
+  # scheduled_trigger inversion: natural recurring-time phrasing ("every morning
+  # at 8am") must reach scheduled_trigger — it was missed in G1 after MAR-140
+  # removed "schedule" from the calendar hints. Also asserts the over-match fix:
+  # no webhook/github trigger noise leaks into a purely scheduled goal.
+  - id: scheduled_trigger_morning_report
+    goal: "Every morning at 8am, pull yesterday's signups from the database, summarise them, and post the summary to Slack."
+    via: plan
+    must_have: [scheduled_trigger]
+    forbidden: [webhook_trigger, github_trigger, calendar_lookup, calendar_write]
