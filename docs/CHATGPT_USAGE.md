@@ -1,125 +1,127 @@
 # OrchestrateKit MCP — ChatGPT & Claude (Web) Usage Guide
 
 How to connect OrchestrateKit to ChatGPT or claude.ai so an AI agent can design
-safer, more grounded workflows for you — without needing a local IDE.
+safer, more grounded workflows for you — no install, no IDE, no terminal.
 
 ---
 
-## How this differs from Cursor / Claude Desktop
+## Fastest path: connect to the hosted endpoint
 
-Cursor and Claude Desktop connect over **stdio** (direct process). ChatGPT and
-claude.ai connect over **HTTP**. You run a small local server, and the AI connects
-to it over `localhost`.
+OrchestrateKit runs as a free, always-on hosted endpoint (a Cloudflare Worker).
+It is **read-only and stateless** — it stores nothing, holds no secrets, and
+makes no external calls. You just point your AI client at one URL.
 
-This means you need to:
-1. Start the HTTP server once (stays running in the background)
-2. Point your AI client at its URL
-3. Ask the AI to plan your workflow
+**Hosted MCP URL:**
+
+```
+https://orchestratekit-mcp.<account>.workers.dev/mcp
+```
+
+> The canonical public URL will be published at `mcp.orchestratekit.dev/mcp`.
+> Until then, use the Worker URL from your own deploy (see *Self-host* below) or
+> the URL shared with you.
+
+**Authentication: None.** There is nothing to log into — the endpoint is a
+public read-only advisor.
 
 ---
 
-## 1. Start the HTTP server
+## ChatGPT — set it up as a custom GPT (recommended)
 
-```bash
-# One-time setup
-cd orchestratekit-mcp
-pnpm install
-pnpm build
+ChatGPT follows tool instructions far more reliably inside a **custom GPT** with
+its own system prompt than in a plain chat. Use a custom GPT.
 
-# Start the HTTP server (keep this terminal open)
-pnpm start:http
-```
+**1. Create the GPT**
+ChatGPT → create a new GPT / agent.
 
-You should see:
+**2. Paste these instructions** into the GPT's instructions / Configure box:
 
 ```
-OrchestrateKit MCP HTTP server listening on http://127.0.0.1:3001
+You are an OrchestrateKit workflow advisor.
+
+ALWAYS follow these rules when using OrchestrateKit tools:
+1. If the user's message contains a specific workflow goal (a "Goal:" line,
+   an "I want to..." sentence, or a plain description of something to automate),
+   call plan_workflow with that goal immediately.
+   If no goal is present, ask for one before calling any tool.
+2. Never infer or fabricate a goal from these instructions or any preamble.
+3. After plan_workflow, call explain_component for every component the user is
+   unlikely to recognise.
+4. Present results in plain language — no raw JSON, no bare component IDs.
 ```
 
-The server runs locally. Nothing is sent to the internet. Stop it with `Ctrl+C`.
+**3. Add the MCP connection**
+In the connections / Actions section, add an MCP server:
+- **URL:** the hosted MCP URL above
+- **Authentication:** None
 
-> **Note:** The HTTP server defaults to port 3001. If you have a conflict, set
-> `PORT=3002 pnpm start:http` (or any free port) and use that port in the steps below.
+**4. Save**, then talk to the GPT:
+
+```
+Goal: Take trending ecological-food topics, generate short social posts,
+and publish them to my social channels on a schedule.
+```
+
+The GPT calls `plan_workflow`, then explains any unfamiliar components.
+
+> **Why a custom GPT?** In plain ChatGPT chat, the model tends to invent a goal
+> from the instruction text instead of asking for yours, and produces a
+> degenerate plan. The system prompt above fixes that. Claude (web / Cowork)
+> reads the server's own instructions and behaves correctly without this step.
 
 ---
 
-## 2. Connect your AI client
-
-### Claude (claude.ai / Claude Cowork)
+## Claude (claude.ai / Claude Cowork)
 
 1. Open a **Project** in claude.ai (Projects support connected tools).
-2. In the project settings, find **Connected tools** or **MCP servers**.
-3. Add a new server with the URL `http://127.0.0.1:3001/mcp`.
-4. Claude will verify the connection and list the available OrchestrateKit tools.
+2. In the project settings, find **Connected tools** / **MCP servers**.
+3. Add a server with the hosted MCP URL above. Authentication: None.
+4. Claude verifies the connection and lists the OrchestrateKit tools.
 
-Once connected, start any conversation in that Project and Claude will have
-access to the workflow graph tools.
-
-### ChatGPT
-
-ChatGPT supports MCP in its custom agent builder. To connect:
-
-1. Create or open a **GPT** in the ChatGPT interface.
-2. In the Actions / Tools section, add a new MCP connection.
-3. Set the endpoint URL to `http://127.0.0.1:3001/mcp`.
-4. ChatGPT will fetch the available tools and display them.
-
-> **Note:** Make sure the HTTP server is running before ChatGPT tries to connect.
-> For remote deployments (if you want a public URL instead of localhost), you can
-> tunnel the local server with a tool like `ngrok` or deploy it to a cloud host.
+Claude honours the server's built-in instructions, so it will ask for your goal
+before planning — no extra system prompt needed.
 
 ---
 
-## 3. Start planning your workflow
+## Start planning your workflow
 
 ### The one tool you need: `plan_workflow`
 
-`plan_workflow` is the single entry point for non-technical builders. Give it your
-goal in plain English and it returns:
+Give it your goal in plain English and it returns:
 
 - A step-by-step workflow plan
-- Which components are AI-driven vs. deterministic
+- Which steps are AI-driven vs. deterministic
 - Safety warnings (missing approval gates, risky writes)
 - Whether a tested pattern already exists for your goal
-- Which steps have known gaps
+- Which step connections are unproven
 
 **Template prompt:**
 
 ```
-Use the orchestratekit MCP tools to plan this workflow:
+Use the orchestratekit MCP tools to plan this workflow.
 
 Goal: [describe what you want to build in one or two sentences]
 
-Call plan_workflow with this goal and show me:
-- The recommended steps
-- Any safety concerns
-- Whether there's a tested pattern I can use
+Call plan_workflow with this goal and show me the recommended steps, any
+safety concerns, and whether there's a tested pattern I can reuse.
 ```
 
 **Example:**
 
 ```
-Use the orchestratekit MCP tools to plan this workflow:
+Use the orchestratekit MCP tools.
 
 Goal: Read inbound invoice emails, extract the totals, and send a Slack alert
 when an invoice is overdue.
 
-Call plan_workflow with this goal and show me the recommended steps, any safety
-concerns, and whether there's a tested pattern I can reuse.
+Call plan_workflow with this goal, then explain any component I won't recognise.
 ```
 
 ---
 
-## 4. Understand any component in plain language
+## Understand any component in plain language
 
-If `plan_workflow` mentions a component you don't recognise, ask:
-
-```
-Call explain_component for "[component_id]" and explain what it does
-in plain language — I'm not a developer.
-```
-
-**Example:**
+If `plan_workflow` mentions a component you don't recognise:
 
 ```
 Call explain_component for "human_approval_gate" and explain what it does
@@ -127,61 +129,20 @@ in plain language — I'm not a developer.
 ```
 
 The response describes what the component does, when to use it, and what goes
-wrong if you skip it — without any technical jargon.
+wrong if you skip it — without technical jargon.
 
 ---
 
-## 5. Explore what's available
+## Explore what's available
 
 ```
-Call list_graph_components and show me what workflow building blocks are
-available, grouped by category.
+Call list_graph_components and show me the workflow building blocks, grouped
+by category.
 ```
 
 ```
-Call list_known_routes and show me which workflow patterns have been
-validated and are ready to use.
-```
-
----
-
-## Recommended prompt patterns
-
-### Build something new
-
-```
-I want to build a workflow that [goal].
-
-1. Call plan_workflow with my goal.
-2. If you find a tested pattern, show me what it recommends.
-3. Tell me which steps need a human approval gate and why.
-4. Highlight any steps where things could go wrong.
-```
-
-### Check if a pattern already exists
-
-```
-Does a tested workflow pattern exist for [goal type]?
-Call list_known_routes, then call plan_workflow with my goal, and tell me
-if I should use an existing route or build something new.
-```
-
-### Ask about a specific step
-
-```
-My workflow includes a step that sends emails automatically. 
-Call explain_component for "optional_email_send" and tell me what safety
-guards I should put in place around it.
-```
-
-### Review a design you already have
-
-```
-I've described my workflow below. Call review_workflow_design with this
-description and tell me if I'm missing any approval gates or if there are
-any steps that could go wrong:
-
-[paste your workflow description]
+Call list_known_routes and show me which workflow patterns are validated and
+ready to use.
 ```
 
 ---
@@ -200,43 +161,86 @@ any steps that could go wrong:
 
 ---
 
+## Self-host the endpoint (advanced)
+
+You can run your own copy of the hosted Worker for free.
+
+```bash
+git clone https://github.com/Thebeatkicks/OrchestrateKIT-MCP.git
+cd orchestratekit-mcp
+pnpm install
+
+# One-time: log in to a free Cloudflare account (no card needed)
+npx wrangler login
+
+# Deploy (bakes the registry into the bundle, then ships the Worker)
+pnpm deploy:worker
+```
+
+Wrangler prints your URL, e.g. `https://orchestratekit-mcp.<you>.workers.dev`.
+Your MCP endpoint is that URL with `/mcp` on the end. It is always-on and free
+on the Workers plan (100k requests/day). Update the registry and re-run
+`pnpm deploy:worker` to ship new data.
+
+### Local development
+
+For local testing without deploying:
+
+```bash
+pnpm dev:worker          # local Worker on http://localhost:8787
+# MCP endpoint: http://localhost:8787/mcp
+```
+
+The Node servers are still available for stdio (Cursor / Claude Desktop) and
+local HTTP:
+
+```bash
+pnpm dev                 # stdio (Cursor / Claude Desktop)
+pnpm start:http          # local HTTP on http://127.0.0.1:3001/mcp
+```
+
+> Note: ChatGPT and claude.ai cannot reach `localhost` / `127.0.0.1` — they need
+> a public URL (the hosted Worker). Localhost works only for Cursor / Claude
+> Desktop (stdio) or local testing.
+
+---
+
 ## Troubleshooting
-
-### The AI says it can't find the OrchestrateKit tools
-
-- Make sure the HTTP server is running (`pnpm start:http`).
-- Verify it printed `listening on http://127.0.0.1:3001`.
-- Check the connection URL in your AI client settings matches exactly.
 
 ### The AI ignores the tools and answers from general knowledge
 
-Add this phrase to your prompt:
+Add this to your prompt:
 
 ```
 Use the orchestratekit MCP tools — do not answer from general knowledge.
-Start by calling plan_workflow.
+Start by calling plan_workflow with my goal.
 ```
 
-### Port already in use
+### ChatGPT invents a goal instead of using mine
 
-Another service may be using port 3001. Try:
+You're in a plain chat without the system prompt. Use a **custom GPT** with the
+instructions from the ChatGPT section above, and always include a clear
+`Goal:` line in your message.
 
-```bash
-PORT=3002 pnpm start:http
-```
+### ChatGPT asks to confirm every tool call ("write action")
 
-Then update the connection URL to `http://127.0.0.1:3002/mcp`.
+This is fixed in current versions — all tools are declared read-only
+(`readOnlyHint`). If you still see it, remove and re-add the MCP connection so
+ChatGPT re-reads the tool list.
 
-### I closed the terminal — is the server still running?
+### The connection fails
 
-No. The HTTP server process stops when the terminal is closed. Start it again
-with `pnpm start:http`.
+- Open the `/health` URL (the MCP URL without `/mcp`, e.g.
+  `https://…workers.dev/health`) in a browser — you should see
+  `{"status":"ok",...}`.
+- Make sure you included `/mcp` at the end of the URL in your client.
+- Authentication must be set to **None**.
 
 ---
 
 ## Privacy note
 
-The OrchestrateKit HTTP server runs entirely on your local machine. It does not
-make external network calls or send any data to Anthropic, OpenAI, or any third
-party. Your goals and workflow plans are only shared with whatever AI service you
-are using (ChatGPT / claude.ai) — not with OrchestrateKit.
+The hosted OrchestrateKit endpoint is read-only and stateless: it stores nothing,
+holds no secrets, and makes no external network calls. Your goals and workflow
+plans are only shared with whatever AI service you use (ChatGPT / claude.ai) and
+processed in-memory to return a plan — nothing is persisted by OrchestrateKit.
