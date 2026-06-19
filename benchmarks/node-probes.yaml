@@ -263,3 +263,41 @@ probes:
     via: plan
     must_have: [scheduled_trigger]
     forbidden: [webhook_trigger, github_trigger, calendar_lookup, calendar_write]
+
+  # ── MAR-140 round-3 residual: non-code negation (2026-06-19) ────────────────
+
+  # An explicit "do not publish externally" must drop external_publish, the same
+  # way "never edit code" drops code_editing. Generalises the read-only
+  # suppression to the publish capability. Goal stays on the composed path (a
+  # social-variant goal, too low precision for the content playbook).
+  - id: no_publish_drops_external_publish
+    goal: "Generate three social media post variants from this blog and route them for human approval. Do not publish anything externally."
+    must_have: [multi_variant_generator]
+    forbidden: [external_publish]
+
+  # An explicit "no mailbox polling" must drop email_read while keeping the rest
+  # of the email domain (the goal still sends a digest, so email_draft stays).
+  - id: no_mailbox_polling_drops_email_read
+    goal: "Send a daily digest email to the team. No mailbox polling — you do not read any inbox."
+    must_have: [email_draft]
+    forbidden: [email_read]
+
+  # OVER-SUPPRESSION GUARD: a bare "read-only" scopes to the DATA SOURCE, not the
+  # whole workflow. It must NOT kill the wanted Slack alert. This pins the line
+  # the negation suppression must never cross (the explicit boundary in MAR-140).
+  - id: readonly_monitor_keeps_slack
+    goal: "Monitor our pricing page read-only and send me a Slack alert when the price changes."
+    must_have: [page_monitor, slack_notification]
+    forbidden: [calendar_lookup, calendar_write]
+
+  # XFAIL — broader residual: a "drafts only" social goal still leaks email_draft
+  # and optional_email_send (the word "draft" pulls the email components even
+  # though there is no email/inbox intent). Distinct from the external_publish
+  # leak fixed above; suppressing email_draft on a goal that *might* legitimately
+  # want a draft is ambiguous, so it is documented here, not fixed blind.
+  - id: drafts_only_social_no_email_components
+    goal: "Generate three social post variants from this blog, drafts only, and send them for human approval."
+    must_have: [multi_variant_generator]
+    forbidden: [email_draft, optional_email_send]
+    xfail: true
+    finding: MAR-140

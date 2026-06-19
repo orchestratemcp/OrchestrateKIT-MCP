@@ -374,6 +374,77 @@ function hasCodeReadonlyConstraint(goalLower: string): boolean {
 }
 
 /**
+ * MAR-140 (round-3 residual): generalise the read-only suppression beyond
+ * code_editing to the other dogfood bullets — an explicit "no external
+ * publishing" must drop external_publish, "no mailbox polling" must drop
+ * email_read.
+ *
+ * Each entry is keyed to ONE component and requires an EXPLICIT phrase that
+ * already NAMES the negated action ("do not publish", "no mailbox polling").
+ * This is deliberately stricter than the code-domain check: a bare "read-only"
+ * is in NO list, because in a monitoring/data goal it scopes to the data SOURCE
+ * (you can be read-only on a page and still want a Slack alert), so a generic
+ * write-suppression would over-suppress. The phrases all carry their own
+ * negation, so they never fire on an affirmative goal ("publish to our blog").
+ *
+ * Like the code_editing suppression, this drops the component from the eligible
+ * set before scoring; nothing re-adds it (neither component `requires`
+ * email_read / external_publish, and the augmenter adds only safety components).
+ * It does NOT touch the playbook path — a playbook route serves a fixed
+ * component list, where MAR-142's write-constraint warning is the right surface.
+ */
+const NEGATED_CAPABILITY_PHRASES: { component: string; phrases: string[] }[] = [
+  {
+    component: "external_publish",
+    phrases: [
+      "do not publish",
+      "don't publish",
+      "dont publish",
+      "never publish",
+      "no publishing",
+      "no external publish",
+      "no external publishing",
+      "without publishing",
+      "do not post publicly",
+      "don't post publicly",
+      "no public post",
+      "not for publishing",
+    ],
+  },
+  {
+    component: "email_read",
+    phrases: [
+      "no mailbox polling",
+      "no inbox polling",
+      "don't poll the mailbox",
+      "do not read email",
+      "don't read email",
+      "dont read email",
+      "do not read emails",
+      "don't read emails",
+      "no email reading",
+      "without reading email",
+      "no mailbox access",
+      "don't read my inbox",
+      "do not read my inbox",
+      "no reading the inbox",
+    ],
+  },
+];
+
+/**
+ * Drop any component whose explicit, component-targeted negation phrase is
+ * present in the goal (MAR-140 round-3 residual). Mutates `domainAllowed`.
+ */
+function suppressNegatedCapabilities(goalLower: string, domainAllowed: Set<string>): void {
+  for (const { component, phrases } of NEGATED_CAPABILITY_PHRASES) {
+    if (phrases.some((p) => goalLower.includes(p))) {
+      domainAllowed.delete(component);
+    }
+  }
+}
+
+/**
  * Classify a goal into workflow domains (MAR-88).
  * Always includes `generic_orchestration` so safety/orchestration components
  * are never blocked. Exported for unit testing.
@@ -713,6 +784,12 @@ export function matchCapabilities(
   if (goalDomains.has("code_agent") && hasCodeReadonlyConstraint(goalLower)) {
     domainAllowed.delete("code_editing");
   }
+
+  // MAR-140 round-3 residual: drop a specific publish/read component when the
+  // goal explicitly forbids that exact action ("do not publish externally",
+  // "no mailbox polling"). Stricter than the code-domain check — bare "read-only"
+  // never fires here (it scopes to the data source, not the workflow).
+  suppressNegatedCapabilities(goalLower, domainAllowed);
 
   // ── Phase 2: scoped scoring ──
   const scoreMap = new Map<string, { score: number; tokens: Set<string> }>();

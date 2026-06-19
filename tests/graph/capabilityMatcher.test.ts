@@ -440,4 +440,45 @@ describe("matchCapabilities — Dogfood Round 3 residuals", () => {
     expect(ids).not.toContain("calendar_lookup");
     expect(ids).not.toContain("calendar_write");
   });
+
+  // ── MAR-140 round-3 residual: non-code negation generalisation ──
+  it("MAR-140: 'do not publish externally' suppresses external_publish", () => {
+    const ids = matchedIds(
+      "Generate three social media post variants from this blog and route them for " +
+        "human approval. Do not publish anything externally.",
+    );
+    expect(ids).not.toContain("external_publish");
+    // positive control: still a content/variant route
+    expect(ids).toContain("multi_variant_generator");
+  });
+
+  it("MAR-140: STILL selects external_publish for an affirmative publish goal", () => {
+    const ids = matchedIds(
+      "Draft a blog post, get it approved, and publish it externally to our site.",
+    );
+    expect(ids).toContain("external_publish");
+  });
+
+  it("MAR-140: 'no mailbox polling' suppresses email_read but keeps email_draft", () => {
+    const ids = matchedIds(
+      "Send a daily digest email to the team. No mailbox polling — you do not read any inbox.",
+    );
+    expect(ids).not.toContain("email_read");
+    expect(ids).toContain("email_draft");
+  });
+
+  it("MAR-140: STILL selects email_read for a normal triage goal", () => {
+    const ids = matchedIds("Read and triage my incoming emails and draft replies.");
+    expect(ids).toContain("email_read");
+  });
+
+  // OVER-SUPPRESSION GUARD: a bare "read-only" scopes to the data source and
+  // must NOT remove a wanted Slack alert. The explicit line MAR-140 must not cross.
+  it("MAR-140: bare 'read-only' on a monitor goal keeps slack_notification", () => {
+    const ids = matchedIds(
+      "Monitor our pricing page read-only and send me a Slack alert when the price changes.",
+    );
+    expect(ids).toContain("slack_notification");
+    expect(ids).toContain("page_monitor");
+  });
 });
