@@ -330,3 +330,60 @@ describe("planWorkflow — output_depth (MAR-101)", () => {
     expect(r.summary_markdown).toContain("Model-tier profile");
   });
 });
+
+// MAR-101: scannable front-matter status block leads every plan output
+describe("planWorkflow — status front-matter header (MAR-101)", () => {
+  const playbookGoal = "start from a content brief, generate copy, design visuals, approve and publish";
+  const composedGoal =
+    "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval";
+
+  it("summary_markdown opens with a front-matter fence", () => {
+    const r = plan(playbookGoal);
+    expect(r.summary_markdown.startsWith("---\n")).toBe(true);
+  });
+
+  it("header surfaces route_status, safety, blocking, approval, untested_edges", () => {
+    const r = plan(playbookGoal);
+    const header = r.summary_markdown.split("\n\n")[0];
+    for (const key of [
+      "route_status:",
+      "safety:",
+      "blocking:",
+      "approval:",
+      "untested_edges:",
+    ]) {
+      expect(header, key).toContain(key);
+    }
+  });
+
+  it("header route_status matches the output route_status field", () => {
+    const r = plan(playbookGoal);
+    const header = r.summary_markdown.split("\n\n")[0];
+    expect(header).toContain(`route_status:`);
+    expect(header).toContain(r.route_status);
+  });
+
+  it("header untested_edges count matches the output array length", () => {
+    const r = plan(composedGoal);
+    const header = r.summary_markdown.split("\n\n")[0];
+    expect(header).toContain(`untested_edges:`);
+    expect(header).toMatch(new RegExp(`untested_edges:\\s+\\S+\\s+${r.untested_edges.length}\\b`));
+  });
+
+  it("a composed candidate is NOT labelled validated in the header", () => {
+    const r = plan(composedGoal);
+    expect(r.plan_source).toBe("composed");
+    const header = r.summary_markdown.split("\n\n")[0];
+    expect(header).toContain("route_status:");
+    expect(header).not.toMatch(/route_status:\s+✅ validated/);
+  });
+
+  it("the header is present in brief mode too", () => {
+    const r = planWorkflow(
+      { goal: playbookGoal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+    expect(r.summary_markdown.startsWith("---\n")).toBe(true);
+    expect(r.summary_markdown.split("\n\n")[0]).toContain("route_status:");
+  });
+});
