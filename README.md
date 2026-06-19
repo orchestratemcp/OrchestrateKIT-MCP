@@ -1,14 +1,14 @@
-# OrchestrateKit MCP
+# OrchestrateMCP
 
-Local stdio MCP server that gives Cursor and Claude Desktop access to an opinionated, evidence-backed **workflow graph** for designing production-ready AI workflows.
+An evidence-backed **workflow-design advisor** for AI agents. Connect it to ChatGPT, Claude (web), Cursor, or Claude Desktop and it plans safer, more grounded AI workflows — grounded in a registry of tested components, edges, and golden-path playbooks. Read-only, stateless, holds no secrets.
 
-**Status:** M2.5 complete — full registry (33 components, 54 edges, 2 stacks, 6 routes, 6 playbooks), 13 tools, benchmark protocol v2.
+**Status:** registry of 47 components, 78 edges, 1 stack, 5 routes, 5 playbooks; 16 tools; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`).
 
 ---
 
 ## What it does
 
-OrchestrateKit MCP exposes a structured registry of:
+OrchestrateMCP exposes a structured registry of:
 
 ```
 components  →  the building blocks of AI workflows
@@ -31,9 +31,9 @@ When a user describes a workflow goal, the MCP can:
 
 ## What works right now
 
-- MCP server starts on stdio with 13 registered tools.
+- MCP server runs on stdio (Cursor, Claude Desktop) and over Streamable HTTP / a Cloudflare Worker (ChatGPT, claude.ai) — 16 registered tools.
 - `health_check` returns `{ name, version, registry: { component_count, edge_count, stack_count, route_count, playbook_count, untested_edge_pct } }`.
-- Registry loaded from YAML: 33 components, 54 edges, 2 stacks, 6 routes, 6 playbooks.
+- Registry loaded from YAML: 47 components, 78 edges, 1 stack, 5 routes, 5 playbooks.
 - `pnpm verify` (typecheck + lint + tests) passes from a clean clone and install.
 
 ---
@@ -95,13 +95,25 @@ Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ---
 
+## Connect from ChatGPT or claude.ai (hosted)
+
+No install, no terminal — point your AI client at the free hosted endpoint:
+
+```
+https://mcp.orchestratemcp.dev/mcp
+```
+
+Full walkthrough (ChatGPT Developer-Mode connector + claude.ai): **[docs/CHATGPT_USAGE.md](docs/CHATGPT_USAGE.md)**.
+
+---
+
 ## Connecting your workflow's services
 
 Connecting the MCP to your client takes no auth (it's a read-only advisor). But
 the workflows it plans need *your* credentials for Gmail, Slack, Stripe, your
 CRM, and so on. For how to provision those safely — least-privilege scopes,
 secret managers, and managed-auth brokers — see
-**[docs/CONNECTION_SETUP.md](docs/CONNECTION_SETUP.md)**. OrchestrateKit never
+**[docs/CONNECTION_SETUP.md](docs/CONNECTION_SETUP.md)**. OrchestrateMCP never
 holds a credential.
 
 ---
@@ -126,7 +138,7 @@ orchestratekit-mcp/
     server.ts               Entry point — wires MCP server to stdio transport
     config.ts               Server name and version constants
     tools/
-      index.ts              Tool registration (13 tools: health_check + 12 graph tools)
+      index.ts              Tool registration (16 tools: health_check + 15 graph/advisor tools)
       composeWorkflowRoute.ts
       listGraphComponents.ts / getGraphComponent.ts
       listGraphEdges.ts / getGraphEdge.ts
@@ -149,11 +161,11 @@ orchestratekit-mcp/
       logger.ts             Stderr-only logger (stdout reserved for transport)
 
   registry/
-    components/             33 component YAML files
-    edges/                  54 edge/relation YAML files
-    stacks/                 2 stack YAML files
-    routes/                 6 route YAML files
-    playbooks/              6 golden-path playbook YAML files
+    components/             component YAML files (47 active)
+    edges/                  edge/relation YAML files (78 active)
+    stacks/                 stack YAML files
+    routes/                 route YAML files (5 validated)
+    playbooks/              golden-path playbook YAML files (5)
 
   docs-index/               Supplementary context documents
   examples/
@@ -165,10 +177,10 @@ orchestratekit-mcp/
 
 ---
 
-## Non-goals (this phase)
+## Non-goals (by design)
 
-- No remote hosting
-- No auth / OAuth
+- No first-party credential storage — it recommends secret managers / managed-auth brokers, never holds a secret
+- No auth / OAuth / accounts — the hosted endpoint is read-only and stateless, nothing to log into
 - No vector database
 - No graph database (Neo4j etc.)
 - No automatic registry updates

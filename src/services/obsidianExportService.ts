@@ -14,7 +14,7 @@ import {
 /**
  * MAR-79 — Obsidian export: main export orchestrator.
  *
- * Transforms the OrchestrateKit registry (components, edges, routes, playbooks, stacks)
+ * Transforms the OrchestrateMCP registry (components, edges, routes, playbooks, stacks)
  * into a set of markdown files with wikilinks suitable for Obsidian's graph view.
  */
 
@@ -131,7 +131,7 @@ export function exportToObsidian(registry: Registry, includeCandidates: boolean 
 
 function buildReadme(registry: Registry, includeCandidates: boolean, timestamp: Date): string {
   const lines: string[] = [
-    "# OrchestrateKit Workflow Graph — Obsidian Vault",
+    "# OrchestrateMCP Workflow Graph — Obsidian Vault",
     "",
     `Exported: ${timestamp.toISOString()}`,
     `Include candidates: ${includeCandidates}`,

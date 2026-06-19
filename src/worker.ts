@@ -1,5 +1,5 @@
 /**
- * OrchestrateKit MCP — Cloudflare Worker entry (Streamable HTTP, stateless).
+ * OrchestrateMCP — Cloudflare Worker entry (Streamable HTTP, stateless).
  *
  * Same 16 tools as the Node servers, served from a filesystem-free runtime.
  * The registry and docs index are baked into the bundle at build time

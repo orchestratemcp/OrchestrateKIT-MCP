@@ -1,6 +1,6 @@
-# OrchestrateKit MCP — Local Setup Guide
+# OrchestrateMCP — Local Setup Guide
 
-Connect the OrchestrateKit workflow graph to Cursor or Claude Desktop via **stdio** —
+Connect the OrchestrateMCP workflow graph to Cursor or Claude Desktop via **stdio** —
 no remote hosting, no auth, no API keys required.
 
 ---
@@ -147,7 +147,7 @@ pnpm start:http
 You should see:
 
 ```
-OrchestrateKit MCP HTTP server listening on http://127.0.0.1:3001
+OrchestrateMCP HTTP server listening on http://127.0.0.1:3001
 ```
 
 Point your AI client at `http://127.0.0.1:3001/mcp`. The server stays running
