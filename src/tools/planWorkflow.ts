@@ -144,7 +144,7 @@ export type PlanPlaybook = {
  * no-gate / fully automated) but the route still contains an irreversible
  * external write that warrants a gate (MAR-132). The gate is KEPT in the route
  * as a strong recommendation rather than dropped — never silently removed — and
- * moved out of `required_approval_gates` so the output stops contradicting the
+ * moved out of `enforced_approval_gates` so the output stops contradicting the
  * user's stated constraint.
  */
 export type ApprovalGateAdvisory = {
@@ -200,12 +200,23 @@ export type PlanWorkflowOutput = {
   /** Untested edges within the route, each with its registry severity (MAR-133). */
   untested_edges: UntestedEdge[];
   avoid_when_violations: AvoidViolation[];
-  required_approval_gates: string[];
+  /**
+   * Approval gates ACTUALLY PRESENT AND ENFORCED in `recommended_route` (MAR-148).
+   *
+   * Distinct from `safety_review.approval_gates_required`, which is what the
+   * review rules say the route NEEDS. The two used to both be named "required",
+   * so a route that needs a gate but doesn't contain one read as a contradiction
+   * (Dogfood Round 3 G2: `required_approval_gates: []` next to
+   * `approval_gates_required: [human_approval_gate]`). Renamed to `enforced_*`
+   * so the pair reads as a legible gap — "needed, but not enforced" — rather than
+   * a self-contradiction. Empty when a gate is downgraded to advisory (below).
+   */
+  enforced_approval_gates: string[];
   /**
    * Non-null when the goal explicitly opted out of a human gate but the route
    * still performs an irreversible external write (MAR-132). The gate stays in
    * `recommended_route` as a strong recommendation; it is just not listed in
-   * `required_approval_gates`.
+   * `enforced_approval_gates`.
    */
   approval_gate_advisory: ApprovalGateAdvisory | null;
   evals_to_add: string[];
@@ -283,12 +294,17 @@ function untestedEdgesWithin(
  * Rendered as a YAML-style front-matter fence: machine-scannable for a client
  * that wants to gate on it, glanceable for a human, with a ✅/⚠️/❌ status icon
  * per line.
+ *
+ * MAR-148: the `approval` line distinguishes ENFORCED gates (present in the
+ * route) from gates the review REQUIRES but the route does not contain — the
+ * G2 gap that used to read as a self-contradiction. A required-but-unenforced
+ * gate (with no deliberate waiver) is the most dangerous state and renders ❌.
  */
 function buildStatusHeader(
   routeStatus: string,
   safety: SafetyReview,
   untestedEdges: UntestedEdge[],
-  requiredGates: string[],
+  enforcedGates: string[],
   approvalAdvisory: ApprovalGateAdvisory | null,
 ): string {
   const routeIcon =
@@ -298,13 +314,17 @@ function buildStatusHeader(
   const blockingCount = safety.blocking_issues.length;
   const blockingIcon = blockingCount === 0 ? "✅" : "❌";
 
+  // enforced (present) → advisory (deliberately waived) → required-but-missing
+  // (the G2 gap) → none needed.
   let approval: string;
-  if (requiredGates.length > 0) {
-    approval = `⚠️ required — ${requiredGates.join(", ")}`;
+  if (enforcedGates.length > 0) {
+    approval = `✅ enforced — ${enforcedGates.join(", ")}`;
   } else if (approvalAdvisory) {
-    approval = `⚠️ advisory — ${approvalAdvisory.gate} kept but not enforced`;
+    approval = `⚠️ advisory — ${approvalAdvisory.gate} kept but not enforced (you waived it)`;
+  } else if (safety.approval_gates_required.length > 0) {
+    approval = `❌ REQUIRED but NOT enforced — ${safety.approval_gates_required.join(", ")}`;
   } else {
-    approval = "✅ none required";
+    approval = "✅ none needed";
   }
 
   const untestedIcon = untestedEdges.length === 0 ? "✅" : "⚠️";
@@ -327,7 +347,7 @@ function buildBriefPlanMarkdown(
   playbook: PlanPlaybook | null,
   safety: SafetyReview,
   untestedEdges: UntestedEdge[],
-  requiredGates: string[],
+  enforcedGates: string[],
   approvalAdvisory: ApprovalGateAdvisory | null,
 ): string {
   const lines: string[] = [];
@@ -351,8 +371,14 @@ function buildBriefPlanMarkdown(
 
   const safetyMark = safety.status === "pass" ? "✅" : safety.status === "warnings" ? "⚠️" : "❌";
   lines.push(`**Safety:** ${safetyMark} ${safety.status.toUpperCase()}`);
-  if (requiredGates.length > 0) {
-    lines.push(`**Approval required:** ${requiredGates.map((g) => `\`${g}\``).join(", ")}`);
+  if (enforcedGates.length > 0) {
+    lines.push(`**Approval enforced:** ${enforcedGates.map((g) => `\`${g}\``).join(", ")}`);
+  } else if (!approvalAdvisory && safety.approval_gates_required.length > 0) {
+    // MAR-148: the review requires a gate the route does not enforce (G2 gap).
+    lines.push(
+      `**⚠️ Approval REQUIRED but NOT enforced:** ` +
+        `${safety.approval_gates_required.map((g) => `\`${g}\``).join(", ")}`,
+    );
   }
   if (approvalAdvisory) {
     lines.push(`**Gate advisory:** ${approvalAdvisory.reason}`);
@@ -565,11 +591,11 @@ export function planWorkflow(
   // When the user opts out but an irreversible external write is present, keep
   // the gate in the route (never silently dropped) but downgrade it from a hard
   // requirement to an advisory so the output stops contradicting the prompt.
-  let required_approval_gates: string[];
+  let enforced_approval_gates: string[];
   let approval_gate_advisory: ApprovalGateAdvisory | null = null;
 
   if (hasGate && gatedWrites.length > 0 && hasUnattendedWaiver(input.goal)) {
-    required_approval_gates = [];
+    enforced_approval_gates = [];
     approval_gate_advisory = {
       gate: "human_approval_gate",
       write_components: gatedWrites,
@@ -580,7 +606,7 @@ export function planWorkflow(
         `deliberately only if you accept unattended external writes with no human review.`,
     };
   } else {
-    required_approval_gates = hasGate
+    enforced_approval_gates = hasGate
       ? ["human_approval_gate"]
       : composed.required_approval_gates;
   }
@@ -627,7 +653,7 @@ export function planWorkflow(
     route_status,
     safety_review,
     untested_edges,
-    required_approval_gates,
+    enforced_approval_gates,
     approval_gate_advisory,
   );
   const body =
@@ -639,7 +665,7 @@ export function planWorkflow(
           playbook,
           safety_review,
           untested_edges,
-          required_approval_gates,
+          enforced_approval_gates,
           approval_gate_advisory,
         )
       : buildPlanMarkdown(
@@ -672,7 +698,7 @@ export function planWorkflow(
     credential_advisory,
     untested_edges,
     avoid_when_violations,
-    required_approval_gates,
+    enforced_approval_gates,
     approval_gate_advisory,
     evals_to_add: composed.evals_to_add,
     next_steps:
