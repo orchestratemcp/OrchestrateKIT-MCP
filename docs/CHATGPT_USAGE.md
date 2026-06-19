@@ -167,7 +167,7 @@ ready to use.
 You can run your own copy of the hosted Worker for free.
 
 ```bash
-git clone https://github.com/Thebeatkicks/OrchestrateKIT-MCP.git
+git clone https://github.com/orchestratemcp/OrchestrateKIT-MCP.git
 cd orchestratekit-mcp
 pnpm install
 
