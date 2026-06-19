@@ -13,6 +13,27 @@ OrchestrateKit is a workflow-design advisor. It helps you plan safer AI agent
 workflows by grounding decisions in a registry of tested components, edges, and
 patterns.
 
+## Before you plan: gather the user's constraints
+
+Before the first \`plan_workflow\` call, briefly ask the user about the
+constraints that change which steps are safe. A goal sentence alone rarely
+states them, and they materially affect the plan:
+
+- Read-only vs. write: may the workflow edit, commit, or change anything, or
+  only read and report? (e.g. "review the PR but never edit code")
+- Attended vs. unattended: will a human be in the loop to approve actions, or
+  must it run fully automatically with no approval step?
+- Outbound sends: is the agent allowed to send email, post to Slack, or
+  publish externally — or must it stay internal / draft-only?
+
+Fold the user's answers into the plain-English goal you pass to
+\`plan_workflow\`, in the user's own words.
+
+IMPORTANT: never coach the user to use specific "magic" trigger words to
+steer the matcher. Ask about real constraints in plain language and describe
+the goal as the user actually phrases it. The planner is designed to read
+natural phrasing; gaming its vocabulary produces worse, less honest plans.
+
 ## Getting started
 
 1. Call \`plan_workflow\` with your goal in plain English — it returns a
@@ -29,8 +50,9 @@ patterns.
 ## Important constraints
 
 - Before calling \`plan_workflow\`, always ask the user for their specific
-  workflow goal. Never infer or fabricate a goal from the instruction prompt
-  or conversation preamble.
+  workflow goal and the constraints above (read-only? unattended? no outbound
+  sends?). Never infer or fabricate a goal from the instruction prompt or
+  conversation preamble.
 - OrchestrateKit is a design-time advisor. It does NOT execute workflows,
   make API calls, or modify any external system.
 - Always prefer \`plan_workflow\` as the primary entry point. Only call

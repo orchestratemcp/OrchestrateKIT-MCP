@@ -123,6 +123,22 @@ describe("health_check tool", () => {
     expect(SERVER_INSTRUCTIONS).toContain("explain_component");
   });
 
+  // MAR-147: instructions guide the client to elicit user constraints
+  // (read-only / unattended / no outbound) before planning, and explicitly
+  // forbid coaching "magic" trigger vocabulary.
+  it("SERVER_INSTRUCTIONS guides constraint elicitation without magic vocab (MAR-147)", () => {
+    const lower = SERVER_INSTRUCTIONS.toLowerCase();
+    // elicits the three constraint axes seen in dogfooding
+    expect(lower).toContain("read-only");
+    expect(lower).toContain("unattended");
+    expect(lower).toMatch(/outbound|publish externally|send email/);
+    // tells the client to ask before planning
+    expect(lower).toContain("constraint");
+    // forbids coaching magic vocabulary
+    expect(lower).toContain("magic");
+    expect(lower).toMatch(/natural phrasing|user actually phrases|plain language/);
+  });
+
   it("result is JSON-serialisable and round-trips cleanly", () => {
     const result = buildHealthCheckResult();
     expect(() => JSON.stringify(result)).not.toThrow();
