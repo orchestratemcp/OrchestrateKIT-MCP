@@ -1,6 +1,6 @@
-# OrchestrateKit MCP — Claude Desktop Usage Guide
+# OrchestrateMCP — Claude Desktop Usage Guide
 
-How to use OrchestrateKit MCP from Claude Desktop for workflow graph-assisted
+How to use OrchestrateMCP from Claude Desktop for workflow graph-assisted
 architecture planning and safety review.
 
 ---

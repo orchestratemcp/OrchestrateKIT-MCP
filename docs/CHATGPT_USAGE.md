@@ -1,25 +1,26 @@
-# OrchestrateKit MCP — ChatGPT & Claude (Web) Usage Guide
+# OrchestrateMCP — ChatGPT & Claude (Web) Usage Guide
 
-How to connect OrchestrateKit to ChatGPT or claude.ai so an AI agent can design
+How to connect OrchestrateMCP to ChatGPT or claude.ai so an AI agent can design
 safer, more grounded workflows for you — no install, no IDE, no terminal.
 
 ---
 
 ## Fastest path: connect to the hosted endpoint
 
-OrchestrateKit runs as a free, always-on hosted endpoint (a Cloudflare Worker).
+OrchestrateMCP runs as a free, always-on hosted endpoint (a Cloudflare Worker).
 It is **read-only and stateless** — it stores nothing, holds no secrets, and
 makes no external calls. You just point your AI client at one URL.
 
 **Hosted MCP URL:**
 
 ```
-https://orchestratekit-mcp.<account>.workers.dev/mcp
+https://mcp.orchestratemcp.dev/mcp
 ```
 
-> The canonical public URL will be published at `mcp.orchestratekit.dev/mcp`.
-> Until then, use the Worker URL from your own deploy (see *Self-host* below) or
-> the URL shared with you.
+> This is the canonical public endpoint (a Cloudflare Worker behind
+> `mcp.orchestratemcp.dev`). If you self-host your own deploy, use the Worker
+> URL Wrangler prints for you (`https://orchestratekit-mcp.<account>.workers.dev/mcp`,
+> see *Self-host* below) instead.
 
 **Authentication: None.** There is nothing to log into — the endpoint is a
 public read-only advisor.
@@ -37,9 +38,9 @@ ChatGPT → create a new GPT / agent.
 **2. Paste these instructions** into the GPT's instructions / Configure box:
 
 ```
-You are an OrchestrateKit workflow advisor.
+You are an OrchestrateMCP workflow advisor.
 
-ALWAYS follow these rules when using OrchestrateKit tools:
+ALWAYS follow these rules when using OrchestrateMCP tools:
 1. If the user's message contains a specific workflow goal (a "Goal:" line,
    an "I want to..." sentence, or a plain description of something to automate),
    call plan_workflow with that goal immediately.
@@ -76,7 +77,7 @@ The GPT calls `plan_workflow`, then explains any unfamiliar components.
 1. Open a **Project** in claude.ai (Projects support connected tools).
 2. In the project settings, find **Connected tools** / **MCP servers**.
 3. Add a server with the hosted MCP URL above. Authentication: None.
-4. Claude verifies the connection and lists the OrchestrateKit tools.
+4. Claude verifies the connection and lists the OrchestrateMCP tools.
 
 Claude honours the server's built-in instructions, so it will ask for your goal
 before planning — no extra system prompt needed.
@@ -166,7 +167,7 @@ ready to use.
 You can run your own copy of the hosted Worker for free.
 
 ```bash
-git clone https://github.com/Thebeatkicks/OrchestrateKIT-MCP.git
+git clone https://github.com/orchestratemcp/OrchestrateKIT-MCP.git
 cd orchestratekit-mcp
 pnpm install
 
@@ -240,7 +241,7 @@ ChatGPT re-reads the tool list.
 
 ## Privacy note
 
-The hosted OrchestrateKit endpoint is read-only and stateless: it stores nothing,
+The hosted OrchestrateMCP endpoint is read-only and stateless: it stores nothing,
 holds no secrets, and makes no external network calls. Your goals and workflow
 plans are only shared with whatever AI service you use (ChatGPT / claude.ai) and
-processed in-memory to return a plan — nothing is persisted by OrchestrateKit.
+processed in-memory to return a plan — nothing is persisted by OrchestrateMCP.

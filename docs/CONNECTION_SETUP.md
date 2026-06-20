@@ -1,6 +1,6 @@
-# OrchestrateKit MCP — Connection Setup Guide (CTX-01)
+# OrchestrateMCP — Connection Setup Guide (CTX-01)
 
-You connected OrchestrateKit to your AI client and `plan_workflow` gave you a
+You connected OrchestrateMCP to your AI client and `plan_workflow` gave you a
 route. Now the route has steps like **"read your email inbox"**, **"post to
 Slack"**, or **"update a CRM note"** — and those steps need **credentials** for
 *your* third-party services.
@@ -8,12 +8,12 @@ Slack"**, or **"update a CRM note"** — and those steps need **credentials** fo
 This is the "how do I actually connect Gmail / Slack / Stripe?" wall. This guide
 covers it.
 
-> **First, the boundary that never changes.** OrchestrateKit is a **design-time
+> **First, the boundary that never changes.** OrchestrateMCP is a **design-time
 > advisor**. It is read-only, stateless, and **never holds, stores, or transmits
 > a credential** — yours or anyone's. It tells you *which* steps need access and
 > *how to provision it safely*. The actual credentials live in **your** runtime,
 > your secret manager, or a managed-auth broker you control. Nothing in this
-> guide asks you to give a secret to OrchestrateKit, and nothing ever will.
+> guide asks you to give a secret to OrchestrateMCP, and nothing ever will.
 
 ---
 
@@ -21,7 +21,7 @@ covers it.
 
 | Layer | What connects | Auth | Where it's documented |
 |---|---|---|---|
-| **1. Client ↔ MCP** | Your AI client (ChatGPT / Claude / Cursor) ↔ the OrchestrateKit endpoint | **None** — it's a public read-only advisor | [CHATGPT_USAGE.md](CHATGPT_USAGE.md), [CLAUDE_DESKTOP_USAGE.md](CLAUDE_DESKTOP_USAGE.md), [CURSOR_USAGE.md](CURSOR_USAGE.md), [LOCAL_SETUP.md](LOCAL_SETUP.md) |
+| **1. Client ↔ MCP** | Your AI client (ChatGPT / Claude / Cursor) ↔ the OrchestrateMCP endpoint | **None** — it's a public read-only advisor | [CHATGPT_USAGE.md](CHATGPT_USAGE.md), [CLAUDE_DESKTOP_USAGE.md](CLAUDE_DESKTOP_USAGE.md), [CURSOR_USAGE.md](CURSOR_USAGE.md), [LOCAL_SETUP.md](LOCAL_SETUP.md) |
 | **2. Workflow ↔ your services** | The workflow you *build* ↔ Gmail, Slack, Stripe, your CRM… | **Real OAuth / API keys**, your responsibility | **This guide** |
 
 Layer 1 is trivial (point a URL, no login). Layer 2 is the one that actually
@@ -41,7 +41,7 @@ route that reads an inbox and publishes externally you'll see something like:
     { "component_id": "external_publish", "required_scopes": ["external platform API"] }
   ],
   "secret_manager_recommendation":
-    "Provision credentials via a named secret manager (1Password, Doppler, HashiCorp Vault, or env + OIDC) with least-privilege scopes. OrchestrateKit is advisory and never stores credentials."
+    "Provision credentials via a named secret manager (1Password, Doppler, HashiCorp Vault, or env + OIDC) with least-privilege scopes. OrchestrateMCP is advisory and never stores credentials."
 }
 ```
 
@@ -109,7 +109,7 @@ broker holds the OAuth dance and hands your runtime short-lived tokens.
   connector catalogs (convenient, but a third party brokers the auth — weigh
   that trade-off).
 
-> **OrchestrateKit only *recommends* a broker — it never becomes one.** A broker
+> **OrchestrateMCP only *recommends* a broker — it never becomes one.** A broker
 > is a custodian of third-party secrets; the public MCP deliberately is not (see
 > the product split). If you adopt a broker, it's *your* deployment, holding
 > *your* tokens.
@@ -123,7 +123,7 @@ Nango).
 ## Safety checklist (before you run anything)
 
 - [ ] Every credential is **least-privilege** (read steps hold read-only tokens).
-- [ ] No secret is ever pasted into the prompt, the agent, or OrchestrateKit.
+- [ ] No secret is ever pasted into the prompt, the agent, or OrchestrateMCP.
 - [ ] Secrets live in a **secret manager or broker**, not in code or plaintext.
 - [ ] Any **write / publish / send** step has a **human approval gate** unless
       you've *deliberately* waived it (the plan's `approval` line will say
@@ -146,5 +146,5 @@ companion catalog of external apps + their MCP servers is tracked separately
 
 ---
 
-*OrchestrateKit is advisory and stores no credentials. Provision least-privilege
+*OrchestrateMCP is advisory and stores no credentials. Provision least-privilege
 access in your own secret manager or broker, and gate every external write.*

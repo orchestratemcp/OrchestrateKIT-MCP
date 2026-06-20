@@ -1,6 +1,6 @@
-# OrchestrateKit MCP — Cursor Usage Guide
+# OrchestrateMCP — Cursor Usage Guide
 
-How to use OrchestrateKit MCP effectively from Cursor to get graph-aware
+How to use OrchestrateMCP effectively from Cursor to get graph-aware
 architecture recommendations, playbook guidance, and workflow safety reviews.
 
 ---

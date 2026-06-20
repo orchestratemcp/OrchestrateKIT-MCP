@@ -1,5 +1,5 @@
 /**
- * MAR-111: OrchestrateKit MCP — HTTP (Streamable HTTP) transport server.
+ * MAR-111: OrchestrateMCP — HTTP (Streamable HTTP) transport server.
  *
  * Exposes the same 17 tools as the stdio server over the MCP Streamable HTTP
  * protocol so remote clients (ChatGPT Actions, Claude Cowork, Cursor remote,
@@ -20,7 +20,7 @@
  * Security note: this server has no auth built in. When exposing via a tunnel
  * (ngrok / Cloudflare Tunnel / etc.), add an API-key header check or OAuth
  * layer in front — the MCP spec supports bearer tokens via the Authorization
- * header, but OrchestrateKit has no secrets to protect (read-only advisory).
+ * header, but OrchestrateMCP has no secrets to protect (read-only advisory).
  */
 
 import { createServer } from "node:http";
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
   bootstrapNodeRegistry();
 
   const httpServer = createServer(async (req, res) => {
-    // CORS — allow all origins (OrchestrateKit is read-only advisory; no secrets)
+    // CORS — allow all origins (OrchestrateMCP is read-only advisory; no secrets)
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader(

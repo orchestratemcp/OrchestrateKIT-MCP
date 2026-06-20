@@ -208,7 +208,7 @@ export type CredentialAdvisory = {
 
 export const SECRET_MANAGER_RECOMMENDATION =
   "Provision credentials via a named secret manager (1Password, Doppler, " +
-  "HashiCorp Vault, or env + OIDC) with least-privilege scopes. OrchestrateKit " +
+  "HashiCorp Vault, or env + OIDC) with least-privilege scopes. OrchestrateMCP " +
   "is advisory and never stores credentials.";
 
 /**
@@ -484,7 +484,7 @@ export function composeRoute(
     warnings.push(
       `Added auth_failure_handler because the route calls an external integration with expirable credentials. ` +
         `Provision those credentials via a named secret manager (1Password, Doppler, HashiCorp Vault, or env + OIDC) ` +
-        `with least-privilege scopes — OrchestrateKit is advisory and never stores credentials.`,
+        `with least-privilege scopes — OrchestrateMCP is advisory and never stores credentials.`,
     );
   }
   if (added_by_chain.length > 0) {

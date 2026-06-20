@@ -58,7 +58,7 @@ const InputShape = {
     .max(5)
     .optional()
     .describe("Overall 1-5 rating (0 = unrated). Used when per-dimension ratings are absent."),
-  what_helped: z.string().default("").describe("One line: what OrchestrateKit added."),
+  what_helped: z.string().default("").describe("One line: what OrchestrateMCP added."),
   what_was_noise: z.string().default("").describe("One line: what was noise."),
   missing_components: z
     .array(z.string())
@@ -176,7 +176,7 @@ export function buildSessionFeedback(
 
   const lines = (label: string, arr: string[]) => `${label}: ${arr.length ? arr.join(", ") : "—"}`;
   const paste_ready_markdown = [
-    `### OrchestrateKit session — ${session.date}`,
+    `### OrchestrateMCP session — ${session.date}`,
     `client: ${session.client || "—"} · model: ${session.model || "—"} · domain: ${session.userGoalDomain || "—"}`,
     `prompt: ${session.prompt}`,
     `routeSelected: ${session.routeSelected || "—"}`,
@@ -222,7 +222,7 @@ export function registerRecordSessionFeedback(server: McpServer): void {
         "recommended safeguard is missing from the route). " +
         "STATELESS: this tool stores nothing and makes no network calls — it only formats and checks " +
         "your feedback. Save the returned record in OrchestrateLab yourself to accumulate evidence. " +
-        "Call this once the user is done designing/building a workflow with OrchestrateKit.",
+        "Call this once the user is done designing/building a workflow with OrchestrateMCP.",
       inputSchema: InputShape,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },

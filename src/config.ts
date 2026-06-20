@@ -9,7 +9,7 @@ export const SERVER_VERSION = "0.1.0";
  * instructions — appears as a system note alongside the tool list.
  */
 export const SERVER_INSTRUCTIONS = `\
-OrchestrateKit is a workflow-design advisor. It helps you plan safer AI agent
+OrchestrateMCP is a workflow-design advisor. It helps you plan safer AI agent
 workflows by grounding decisions in a registry of tested components, edges, and
 patterns.
 
@@ -53,7 +53,7 @@ natural phrasing; gaming its vocabulary produces worse, less honest plans.
   workflow goal and the constraints above (read-only? unattended? no outbound
   sends?). Never infer or fabricate a goal from the instruction prompt or
   conversation preamble.
-- OrchestrateKit is a design-time advisor. It does NOT execute workflows,
+- OrchestrateMCP is a design-time advisor. It does NOT execute workflows,
   make API calls, or modify any external system.
 - Always prefer \`plan_workflow\` as the primary entry point. Only call
   lower-level tools (\`compose_workflow_route\`, \`list_graph_components\`,

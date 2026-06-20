@@ -41,7 +41,7 @@ describe("exportToObsidian", () => {
     const result = exportToObsidian(registry, false);
     const readme = result.files.find((f) => f.path === "README.md");
     expect(readme).toBeDefined();
-    expect(readme!.content).toContain("OrchestrateKit");
+    expect(readme!.content).toContain("OrchestrateMCP");
     expect(readme!.content).toContain("Graph view");
   });
 
