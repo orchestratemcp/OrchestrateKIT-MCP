@@ -1,4 +1,4 @@
-﻿id: codebase_agent_route_v1
+id: codebase_agent_route_v1
 name: Codebase Agent Workflow
 status: published
 summary: A golden-path route for an AI agent that scans a codebase, generates a plan, makes targeted edits, runs tests and produces a PR summary.

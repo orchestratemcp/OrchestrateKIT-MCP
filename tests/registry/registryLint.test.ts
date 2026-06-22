@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import {
   lintRegistry,
   computeBrainCompletionPct,
+  lintNoByteOrderMark,
 } from "../../src/registry/registryLint.js";
 import { loadRegistry } from "../../src/registry/registryLoader.js";
 
@@ -50,6 +53,34 @@ describe("registry:lint — fixture registry", () => {
   it("passes on test fixtures", () => {
     const result = lintRegistry({ registryDir: FIXTURES_REGISTRY });
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("registry:lint — UTF-8 BOM hygiene gate (MAR-160)", () => {
+  it("the production registry has no BOM-prefixed YAML files", () => {
+    const errors = lintNoByteOrderMark(join(process.cwd(), "registry"));
+    const msgs = errors.map((e) => `[${e.entity}] ${e.message}`).join("\n");
+    expect(errors, msgs).toHaveLength(0);
+  });
+
+  it("flags a YAML file that begins with a UTF-8 BOM", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ok-bom-"));
+    try {
+      mkdirSync(join(dir, "components"));
+      // EF BB BF + valid YAML body
+      writeFileSync(
+        join(dir, "components", "bommed.component.yaml"),
+        Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("id: bommed\n")]),
+      );
+      writeFileSync(join(dir, "components", "clean.component.yaml"), "id: clean\n");
+
+      const errors = lintNoByteOrderMark(dir);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].entity).toBe("components:bommed.component.yaml");
+      expect(errors[0].field).toBe("encoding");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

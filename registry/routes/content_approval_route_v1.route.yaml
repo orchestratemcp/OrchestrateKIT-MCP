@@ -1,4 +1,4 @@
-﻿id: content_approval_route_v1
+id: content_approval_route_v1
 name: Content Approval Pipeline
 status: published
 summary: A golden-path route for AI-assisted content creation with schema validation, human approval and audited external publish.

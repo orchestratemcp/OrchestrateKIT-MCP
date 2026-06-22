@@ -23,6 +23,9 @@ const CRITICAL_WRITE_COMPONENTS = new Set([
   "calendar_write",
 ]);
 
+/** Registry subdirectories that hold YAML files (relative to the registry dir). */
+const REGISTRY_YAML_DIRS = ["components", "edges", "stacks", "routes", "playbooks"];
+
 export type LayerCompletion = {
   L0: number;
   L1: number;
@@ -68,6 +71,32 @@ function lintUnknownYamlFields(
           entity: `${entityType}:${(raw as { id?: string }).id ?? file}`,
           field: key,
           message: `Unknown YAML field "${key}" (stripped by Zod — add to schema or remove from file ${file})`,
+        });
+      }
+    }
+  }
+  return errors;
+}
+
+/**
+ * Hygiene gate (MAR-160): no registry YAML file may begin with a UTF-8 BOM
+ * (EF BB BF). The BOM is a Windows editor artifact — js-yaml tolerates it, but
+ * it breaks naive byte-level tooling and pollutes diffs. Reads raw bytes so the
+ * check is independent of UTF-8 decoding. Scans templates too, so a BOM can't
+ * sneak in via a copied `_template`.
+ */
+export function lintNoByteOrderMark(registryDir: string): ValidationError[] {
+  const errors: ValidationError[] = [];
+  for (const sub of REGISTRY_YAML_DIRS) {
+    const dir = join(registryDir, sub);
+    if (!existsSync(dir)) continue;
+    for (const file of readdirSync(dir).filter((f) => f.endsWith(".yaml"))) {
+      const buf = readFileSync(join(dir, file));
+      if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
+        errors.push({
+          entity: `${sub}:${file}`,
+          field: "encoding",
+          message: "File starts with a UTF-8 BOM — re-save as UTF-8 without BOM",
         });
       }
     }
@@ -258,6 +287,7 @@ export function lintRegistry(opts: LoaderOptions = {}): RegistryLintResult {
   const errors: ValidationError[] = [];
 
   errors.push(
+    ...lintNoByteOrderMark(registryDir),
     ...lintUnknownYamlFields(join(registryDir, "components"), ComponentSchema, "component"),
     ...lintUnknownYamlFields(join(registryDir, "edges"), EdgeSchema, "edge"),
     ...lintUnknownYamlFields(join(registryDir, "stacks"), StackSchema, "stack"),
