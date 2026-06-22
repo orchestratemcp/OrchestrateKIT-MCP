@@ -48,6 +48,7 @@ import {
 } from "../review/types.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { PlanWorkflowOutputShape } from "./outputSchemas.js";
 
 // ───────────────────────────── types ─────────────────────────────
 
@@ -869,6 +870,7 @@ export function registerPlanWorkflow(server: McpServer): void {
         "get_stack_recommendation → review_workflow_design. " +
         "Prefer this as the entry point for designing a new AI workflow.",
       inputSchema: InputShape,
+      outputSchema: PlanWorkflowOutputShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
@@ -878,13 +880,10 @@ export function registerPlanWorkflow(server: McpServer): void {
         const assessment = assessGoalInput(input.goal);
         if (!assessment.ok) {
           logger.debug(`plan_workflow → needs_goal (${assessment.reason})`);
+          const needsGoal = buildNeedsGoalResult(assessment.reason);
           return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(buildNeedsGoalResult(assessment.reason)),
-              },
-            ],
+            content: [{ type: "text" as const, text: JSON.stringify(needsGoal) }],
+            structuredContent: needsGoal,
           };
         }
 
@@ -906,7 +905,10 @@ export function registerPlanWorkflow(server: McpServer): void {
           `safety=${result.safety_review.status}`,
         );
 
-        return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(result) }],
+          structuredContent: result,
+        };
       } catch (err) {
         logger.error("plan_workflow failed", err);
         return toErrorResult(err);

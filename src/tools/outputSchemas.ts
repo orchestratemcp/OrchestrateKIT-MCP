@@ -1,0 +1,101 @@
+/**
+ * MCP output schemas (MAR-163).
+ *
+ * Declares `outputSchema` for the five key tools so MCP clients (ChatGPT,
+ * Claude, Cursor) receive a published output shape and a `structuredContent`
+ * object they can parse without re-deriving it from prose. Per the MCP spec, a
+ * tool that declares an outputSchema MUST return conforming `structuredContent`
+ * on every non-error response; the server AND the client validate it.
+ *
+ * DESIGN — minimal + `.passthrough()`:
+ *  - Each schema requires only the fields present in EVERY branch of that tool's
+ *    output (ok / not_found / needs_goal / disambiguation), so runtime validation
+ *    never breaks a live tool on a non-primary branch, and declares the
+ *    high-value fields a client switches on as optional.
+ *  - Every object is `.passthrough()` (→ JSON-Schema `additionalProperties: true`).
+ *    This is REQUIRED, not cosmetic: the client validates `structuredContent`
+ *    with Ajv against the published JSON schema, and a non-passthrough object
+ *    emits `additionalProperties: false`, which would REJECT every extra field
+ *    the tool returns. Passthrough keeps the schema a published *contract surface*
+ *    rather than a filter — the full result still reaches the client untouched.
+ *  - The golden snapshot tests (tests/tools/outputSchemas.test.ts) lock the full
+ *    shape against drift; these schemas keep the runtime contract.
+ */
+import { z } from "zod";
+
+/**
+ * plan_workflow — a full plan OR a `needs_goal` nudge (MAR-162). The only field
+ * common to both is `summary_markdown`; the plan fields and the needs_goal
+ * fields are therefore optional, discriminated by the presence of `status`.
+ */
+export const PlanWorkflowOutputShape = z
+  .object({
+    summary_markdown: z.string(),
+    // present on a plan
+    plan_source: z.enum(["playbook", "composed"]).optional(),
+    goal: z.string().optional(),
+    route_status: z.string().optional(),
+    route_score: z.number().optional(),
+    enforced_approval_gates: z.array(z.string()).optional(),
+    safety_review: z
+      .object({ status: z.enum(["pass", "warnings", "fail"]) })
+      .passthrough()
+      .optional(),
+    recommended_route: z
+      .array(z.object({ component_id: z.string() }).passthrough())
+      .optional(),
+    // present on a needs_goal nudge (MAR-162)
+    status: z.literal("needs_goal").optional(),
+    reason: z.string().optional(),
+    example: z.string().optional(),
+  })
+  .passthrough();
+
+/** explain_component — `ok` (component found) or `not_found`. */
+export const ExplainComponentOutputShape = z
+  .object({
+    status: z.enum(["ok", "not_found"]),
+    component_id: z.string().optional(),
+    name: z.string().optional(),
+    explanation: z.string().optional(),
+    message: z.string().optional(),
+  })
+  .passthrough();
+
+/** get_playbook — `ok` / `low_confidence` / `not_found`; all carry these. */
+export const GetPlaybookOutputShape = z
+  .object({
+    status: z.string(),
+    confidence: z.number(),
+    summary_markdown: z.string(),
+    warnings: z.array(z.string()),
+    next_recommended_tools: z.array(z.string()),
+    matched_playbook_id: z.string().optional(),
+    // polymorphic (full playbook | summary | implementation_focused) — z.unknown
+    // so any of the three shapes validates without re-declaring each.
+    playbook: z.unknown().optional(),
+  })
+  .passthrough();
+
+/** recommend_architecture — `ok` or `not_found`; both carry these. */
+export const RecommendArchitectureOutputShape = z
+  .object({
+    status: z.string(),
+    confidence: z.number(),
+    recommendation_markdown: z.string(),
+    next_recommended_tools: z.array(z.string()),
+  })
+  .passthrough();
+
+/** review_workflow_design — single shape. */
+export const ReviewWorkflowDesignOutputShape = z
+  .object({
+    status: z.string(),
+    risk_score: z.number(),
+    summary_markdown: z.string(),
+    blocking_issues: z.array(z.string()),
+    warnings: z.array(z.string()),
+    approval_gates_required: z.array(z.string()),
+    next_recommended_tools: z.array(z.string()),
+  })
+  .passthrough();

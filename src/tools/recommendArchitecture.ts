@@ -14,6 +14,7 @@ import {
 } from "../architecture/architectureFormatter.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { RecommendArchitectureOutputShape } from "./outputSchemas.js";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -101,6 +102,7 @@ export function registerRecommendArchitecture(server: McpServer): void {
         "Candidate routes are clearly labelled. High-risk workflows always include approval guidance. " +
         "Use compose_workflow_route for raw route composition without architecture framing.",
       inputSchema: InputShape,
+      outputSchema: RecommendArchitectureOutputShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
@@ -151,7 +153,10 @@ export function registerRecommendArchitecture(server: McpServer): void {
             next_recommended_tools: ["list_graph_components", "compose_workflow_route"],
           };
           logger.debug(`recommend_architecture → not_found`);
-          return { content: [{ type: "text" as const, text: JSON.stringify(output) }] };
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify(output) }],
+            structuredContent: output,
+          };
         }
 
         // ── Step 3: Resolve matched playbooks ──
@@ -324,7 +329,10 @@ export function registerRecommendArchitecture(server: McpServer): void {
           `playbooks=${output.matched_playbook_ids.join(",")} route=${output.route_id ?? "none"}`,
         );
 
-        return { content: [{ type: "text" as const, text: JSON.stringify(output) }] };
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(output) }],
+          structuredContent: output,
+        };
       } catch (err) {
         logger.error("recommend_architecture failed", err);
         return toErrorResult(err);
