@@ -1,4 +1,4 @@
-﻿id: retry_policy
+id: retry_policy
 name: Retry Policy
 status: published
 category: orchestration

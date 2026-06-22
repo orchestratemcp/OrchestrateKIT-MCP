@@ -1,4 +1,4 @@
-﻿id: job_queue
+id: job_queue
 name: Job Queue
 status: published
 category: orchestration

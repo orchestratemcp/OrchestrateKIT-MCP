@@ -1,4 +1,4 @@
-﻿id: research_route_v1
+id: research_route_v1
 name: Research Agent with Citations
 status: published
 summary: A golden-path route for a research agent that retrieves, ranks and synthesises information with verified citations and freshness checks.
