@@ -290,14 +290,23 @@ probes:
     must_have: [page_monitor, slack_notification]
     forbidden: [calendar_lookup, calendar_write]
 
-  # XFAIL — broader residual: a "drafts only" social goal still leaks email_draft
-  # and optional_email_send (the word "draft" pulls the email components even
-  # though there is no email/inbox intent). Distinct from the external_publish
-  # leak fixed above; suppressing email_draft on a goal that *might* legitimately
-  # want a draft is ambiguous, so it is documented here, not fixed blind.
+  # MAR-161 (un-xfail'd; was the MAR-140 broader-negation residual): a "drafts
+  # only" SOCIAL goal must not leak email_draft / optional_email_send. Root cause
+  # was that the word "draft" established the email_calendar domain; it is now a
+  # WEAK email_calendar trigger, dropped when a stronger primary domain (content)
+  # is present and no strong email token exists. "drafts only" additionally drops
+  # optional_email_send via the constraint engine.
   - id: drafts_only_social_no_email_components
     goal: "Generate three social post variants from this blog, drafts only, and send them for human approval."
     must_have: [multi_variant_generator]
     forbidden: [email_draft, optional_email_send]
-    xfail: true
-    finding: MAR-140
+
+  # MAR-161: the no-send constraint must fire even when the email domain is
+  # LEGITIMATELY present — "draft a reply ... but do not send" keeps email_read +
+  # email_draft (the user wants drafts) yet drops optional_email_send. This is the
+  # case the weak-"draft" domain de-bias can't reach (there IS real email intent
+  # here), so it pins the constraint engine specifically.
+  - id: draft_replies_no_send
+    goal: "Read my inbox and draft a reply to each email, but do not send anything — leave them as drafts for me to review."
+    must_have: [email_read, email_draft]
+    forbidden: [optional_email_send]

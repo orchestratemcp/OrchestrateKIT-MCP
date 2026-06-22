@@ -253,6 +253,32 @@ const WEAK_RESEARCH_KEYWORDS = ["summarize", "summarise"];
 const WEAK_EMAIL_CALENDAR_KEYWORDS = ["schedule", "scheduling"];
 
 /**
+ * Strong, unambiguous email/calendar tokens (MAR-161). Used to tell a real
+ * mailbox/calendar goal from one where an email word appears only incidentally.
+ * Deliberately EXCLUDES "draft" (a content draft just as often as an email
+ * draft), "schedule"/"scheduling" (infra timing) and "book" (overloaded) — those
+ * never prove email intent on their own. Negation-aware via the caller.
+ */
+const STRONG_EMAIL_CALENDAR_TOKENS = [
+  "email",
+  "inbox",
+  "mailbox",
+  "reply",
+  "replies",
+  "calendar",
+  "meeting",
+  "invite",
+  "send email",
+];
+
+/** True when the goal carries a non-negated strong email/calendar token (MAR-161). */
+function hasStrongEmailCalendarToken(goalLower: string): boolean {
+  return STRONG_EMAIL_CALENDAR_TOKENS.some(
+    (t) => goalLower.includes(t) && !isNegatedInContext(goalLower, t),
+  );
+}
+
+/**
  * Domains strong enough that, when present, a sibling domain established ONLY by
  * weak lexical triggers should be dropped. `generic_orchestration` is excluded —
  * it is always present and must never suppress a real domain.
@@ -368,34 +394,60 @@ const CODE_READONLY_PHRASES = [
   "comment only",
 ];
 
-/** True when the goal forbids editing/writing code (read-only review, MAR-140). */
-function hasCodeReadonlyConstraint(goalLower: string): boolean {
-  return CODE_READONLY_PHRASES.some((p) => goalLower.includes(p));
-}
-
 /**
- * MAR-140 (round-3 residual): generalise the read-only suppression beyond
- * code_editing to the other dogfood bullets — an explicit "no external
- * publishing" must drop external_publish, "no mailbox polling" must drop
- * email_read.
+ * Negation / constraint suppression engine (MAR-161, generalising MAR-140).
  *
- * Each entry is keyed to ONE component and requires an EXPLICIT phrase that
- * already NAMES the negated action ("do not publish", "no mailbox polling").
- * This is deliberately stricter than the code-domain check: a bare "read-only"
- * is in NO list, because in a monitoring/data goal it scopes to the data SOURCE
- * (you can be read-only on a page and still want a Slack alert), so a generic
- * write-suppression would over-suppress. The phrases all carry their own
- * negation, so they never fire on an affirmative goal ("publish to our blog").
+ * The matcher honours explicit user constraints that FORBID a capability by
+ * dropping the named component(s) from the eligible set before scoring. This is
+ * one structured, data-driven table that replaces the two ad-hoc mechanisms that
+ * grew during MAR-140 (the inline code_editing check + a per-component
+ * NEGATED_CAPABILITY_PHRASES list). Adding a new constraint is now one entry.
  *
- * Like the code_editing suppression, this drops the component from the eligible
- * set before scoring; nothing re-adds it (neither component `requires`
- * email_read / external_publish, and the augmenter adds only safety components).
- * It does NOT touch the playbook path — a playbook route serves a fixed
- * component list, where MAR-142's write-constraint warning is the right surface.
+ * Each rule:
+ *   - `components`     — dropped when any phrase matches.
+ *   - `phrases`        — explicit constraints. Every phrase NAMES the forbidden
+ *                        action AND carries its own negation ("do not publish",
+ *                        "no mailbox polling", "drafts only", "do not send"), so
+ *                        a rule never fires on an affirmative goal ("publish to
+ *                        our blog", "send the welcome email"). Gated/queued
+ *                        sends ("only send after approval", "before sending") are
+ *                        affirmative and deliberately absent.
+ *   - `requireDomain?` — when set, the rule only fires if that domain is present.
+ *                        Used for the code read-only case, which must stay code-
+ *                        scoped: a bare "read-only" in a monitoring/data goal
+ *                        scopes to the data SOURCE, not the workflow (you can be
+ *                        read-only on a page yet still want a Slack alert — see
+ *                        the readonly_monitor_keeps_slack probe).
+ *   - `requireNoStrongEmail?` — when set, the rule only fires if the goal has NO
+ *                        strong email/calendar token. Lets "drafts only" drop
+ *                        email_draft on a social/content goal ("social posts,
+ *                        drafts only") while NEVER touching a real mailbox goal
+ *                        ("save the email drafts only, don't send"), where
+ *                        email_draft is exactly what the user wants.
+ *
+ * Suppression happens at the domainAllowed stage; nothing downstream re-adds a
+ * dropped component (compose Step 3 expands `requires` only — none of these are
+ * required by another component — and the safety augmenter adds only safety
+ * components). It does NOT touch the playbook path, where a fixed component list
+ * is served and MAR-142's write-constraint warning is the right surface.
  */
-const NEGATED_CAPABILITY_PHRASES: { component: string; phrases: string[] }[] = [
+type CapabilitySuppressionRule = {
+  components: string[];
+  phrases: string[];
+  requireDomain?: Domain;
+  requireNoStrongEmail?: boolean;
+};
+
+const CAPABILITY_SUPPRESSION_RULES: CapabilitySuppressionRule[] = [
+  // code_editing — read-only / no-edit code review (MAR-140). Code-scoped.
   {
-    component: "external_publish",
+    components: ["code_editing"],
+    requireDomain: "code_agent",
+    phrases: CODE_READONLY_PHRASES,
+  },
+  // external_publish — "do not publish externally" (MAR-140 round-3).
+  {
+    components: ["external_publish"],
     phrases: [
       "do not publish",
       "don't publish",
@@ -411,8 +463,9 @@ const NEGATED_CAPABILITY_PHRASES: { component: string; phrases: string[] }[] = [
       "not for publishing",
     ],
   },
+  // email_read — "no mailbox polling" / "do not read the inbox" (MAR-140 round-3).
   {
-    component: "email_read",
+    components: ["email_read"],
     phrases: [
       "no mailbox polling",
       "no inbox polling",
@@ -430,16 +483,57 @@ const NEGATED_CAPABILITY_PHRASES: { component: string; phrases: string[] }[] = [
       "no reading the inbox",
     ],
   },
+  // optional_email_send — the "no-send" class: produce a draft but never send it
+  // (MAR-161). Fires even when the email domain is legitimately present (e.g.
+  // "draft replies but do not send them"). Phrases are high-precision: gated
+  // sends ("only send after approval", "before sending") are affirmative and
+  // absent, so a wanted gated send is never suppressed.
+  {
+    components: ["optional_email_send"],
+    phrases: [
+      "drafts only",
+      "draft only",
+      "drafts-only",
+      "draft-only",
+      "do not send",
+      "don't send",
+      "dont send",
+      "no sending",
+      "without sending",
+      "never auto-send",
+      "no auto-send",
+      "don't auto-send",
+      "do not auto-send",
+      "never auto send",
+      "no auto send",
+    ],
+  },
+  // email_draft — a "drafts only" / "draft only" goal with NO real mailbox intent
+  // is producing CONTENT drafts (social posts, an article), so email_draft is
+  // noise (MAR-161, the `drafts_only_social` residual). Gated by requireNoStrongEmail
+  // so a genuine mailbox goal ("save the email drafts only, never send") keeps
+  // email_draft — there the user explicitly wants the email draft.
+  {
+    components: ["email_draft"],
+    phrases: ["drafts only", "draft only", "drafts-only", "draft-only"],
+    requireNoStrongEmail: true,
+  },
 ];
 
 /**
- * Drop any component whose explicit, component-targeted negation phrase is
- * present in the goal (MAR-140 round-3 residual). Mutates `domainAllowed`.
+ * Drop every component whose explicit constraint phrase is present in the goal
+ * (MAR-161). Mutates `domainAllowed`.
  */
-function suppressNegatedCapabilities(goalLower: string, domainAllowed: Set<string>): void {
-  for (const { component, phrases } of NEGATED_CAPABILITY_PHRASES) {
-    if (phrases.some((p) => goalLower.includes(p))) {
-      domainAllowed.delete(component);
+function suppressConstrainedCapabilities(
+  goalLower: string,
+  domainAllowed: Set<string>,
+  goalDomains: Set<Domain>,
+): void {
+  for (const rule of CAPABILITY_SUPPRESSION_RULES) {
+    if (rule.requireDomain && !goalDomains.has(rule.requireDomain)) continue;
+    if (rule.requireNoStrongEmail && hasStrongEmailCalendarToken(goalLower)) continue;
+    if (rule.phrases.some((p) => goalLower.includes(p))) {
+      for (const c of rule.components) domainAllowed.delete(c);
     }
   }
 }
@@ -775,21 +869,13 @@ export function matchCapabilities(
     }
   }
 
-  // MAR-140: a code goal that explicitly forbids editing ("never edit code",
-  // "read-only") must not yield code_editing. Drop it from the eligible set
-  // before scoring so neither the keyword hint ("code") nor the fuzzy passes can
-  // select it. Nothing downstream re-adds it: compose Step 3 expands `requires`
-  // only (nothing requires code_editing) and the safety augmenter adds only
-  // safety components, so suppressing here removes it from the whole route.
-  if (goalDomains.has("code_agent") && hasCodeReadonlyConstraint(goalLower)) {
-    domainAllowed.delete("code_editing");
-  }
-
-  // MAR-140 round-3 residual: drop a specific publish/read component when the
-  // goal explicitly forbids that exact action ("do not publish externally",
-  // "no mailbox polling"). Stricter than the code-domain check — bare "read-only"
-  // never fires here (it scopes to the data source, not the workflow).
-  suppressNegatedCapabilities(goalLower, domainAllowed);
+  // MAR-161: honour explicit user constraints that forbid a capability — a code
+  // goal that says "never edit code"/"read-only" drops code_editing, "do not
+  // publish externally" drops external_publish, "no mailbox polling" drops
+  // email_read, "drafts only"/"do not send" drops optional_email_send. Drops
+  // happen here, before scoring, so neither keyword hints nor the fuzzy passes
+  // can re-select them; nothing downstream re-adds them (see the engine doc).
+  suppressConstrainedCapabilities(goalLower, domainAllowed, goalDomains);
 
   // ── Phase 2: scoped scoring ──
   const scoreMap = new Map<string, { score: number; tokens: Set<string> }>();

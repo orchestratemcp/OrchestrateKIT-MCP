@@ -482,3 +482,51 @@ describe("matchCapabilities — Dogfood Round 3 residuals", () => {
     expect(ids).toContain("page_monitor");
   });
 });
+
+describe("matchCapabilities — MAR-161 broader-negation engine", () => {
+  // ── "drafts only" on a social/content goal (no mailbox intent): the draft is a
+  //    CONTENT draft, so email_draft + optional_email_send must not leak. ──
+  it("'drafts only' social goal drops email_draft and optional_email_send", () => {
+    const ids = matchedIds(
+      "Generate three social post variants from this blog, drafts only, and send them for human approval.",
+    );
+    expect(ids).not.toContain("email_draft");
+    expect(ids).not.toContain("optional_email_send");
+    // positive control: it is still a content/variant route
+    expect(ids).toContain("multi_variant_generator");
+  });
+
+  // ── BOUNDARY: a real mailbox goal that says "drafts only" KEEPS email_draft —
+  //    there the user explicitly wants the email draft, just no auto-send. ──
+  it("'drafts only' on a real mailbox goal keeps email_draft, drops only the send", () => {
+    const ids = matchedIds(
+      "Read my inbox, draft replies to each email, and save the email drafts only — never send them.",
+    );
+    expect(ids).toContain("email_read");
+    expect(ids).toContain("email_draft");
+    expect(ids).not.toContain("optional_email_send");
+  });
+
+  it("STILL selects email_draft for a real email goal whose only verb is 'draft'", () => {
+    const ids = matchedIds("Draft a reply email to a customer enquiry.");
+    expect(ids).toContain("email_draft");
+  });
+
+  // ── no-send constraint: fires even when the email domain is legitimate ──
+  it("'do not send' keeps email_read + email_draft but drops optional_email_send", () => {
+    const ids = matchedIds(
+      "Read my inbox and draft a reply to each email, but do not send anything — leave them as drafts for me to review.",
+    );
+    expect(ids).toContain("email_read");
+    expect(ids).toContain("email_draft");
+    expect(ids).not.toContain("optional_email_send");
+  });
+
+  it("does NOT suppress a gated send ('only send after approval' is affirmative)", () => {
+    const ids = matchedIds(
+      "Read the inbox, draft replies, and only send each one after I approve it.",
+    );
+    expect(ids).toContain("email_draft");
+    expect(ids).toContain("optional_email_send");
+  });
+});
