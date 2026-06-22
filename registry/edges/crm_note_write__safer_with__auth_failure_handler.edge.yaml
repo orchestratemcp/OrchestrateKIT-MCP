@@ -7,4 +7,6 @@ reason: CRM writes depend on an API key or OAuth token that can expire or be sco
 severity: high
 notes: A revoked CRM token (403) is a permission gap, not a transient error — the handler must halt and alert rather than loop.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: crm_note_write__safer_with__auth_failure_handler"

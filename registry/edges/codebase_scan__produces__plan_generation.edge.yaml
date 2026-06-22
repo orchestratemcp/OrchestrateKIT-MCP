@@ -7,4 +7,6 @@ reason: Plan generation requires an accurate picture of the current codebase sta
 severity: high
 notes: Without a fresh codebase scan, plan generation operates on stale context and produces steps that reference non-existent files.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: codebase_scan__produces__plan_generation"

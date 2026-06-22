@@ -7,3 +7,6 @@ reason: Calendar writes affect attendees beyond the workflow operator. An audit 
 severity: medium
 notes: Log event_id, attendees list, time, approval actor and workflow run_id.
 conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__calendar_write"

@@ -7,4 +7,6 @@ reason: Ranked documents are the direct input to synthesis. The ranking score in
 severity: high
 notes: Pass rank position and score as metadata so the synthesis prompt can reference them explicitly.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: source_ranking__produces__research_synthesis"

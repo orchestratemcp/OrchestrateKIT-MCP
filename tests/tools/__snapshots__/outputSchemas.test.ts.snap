@@ -316,7 +316,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "step": 8,
     },
   ],
-  "route_score": 62,
+  "route_score": 69,
   "route_status": "validated",
   "safety_review": {
     "approval_gates_required": [],
@@ -333,20 +333,12 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
   "summary_markdown": "[text]",
   "untested_edges": [
     {
-      "id": "codebase_scan__produces__plan_generation",
-      "severity": "high",
-    },
-    {
       "id": "code_editing__produces__pr_summary",
       "severity": "medium",
     },
     {
       "id": "plan_generation__tested__test_runner",
       "severity": "medium",
-    },
-    {
-      "id": "pr_summary__safer_with__human_approval_gate",
-      "severity": "low",
     },
     {
       "id": "test_runner__before__pr_summary",
@@ -360,7 +352,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
 {
   "approval_gate_advisory": null,
   "avoid_when_violations": [],
-  "confidence_label": "low",
+  "confidence_label": "medium",
   "credential_advisory": {
     "components_requiring_credentials": [
       {
@@ -586,7 +578,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "step": 12,
     },
   ],
-  "route_score": 41,
+  "route_score": 53,
   "route_status": "candidate",
   "safety_review": {
     "approval_gates_required": [],
@@ -607,24 +599,8 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
   "summary_markdown": "[text]",
   "untested_edges": [
     {
-      "id": "audit_log__recommended__optional_email_send",
-      "severity": "high",
-    },
-    {
       "id": "citation_checker__compatible__source_freshness_check",
       "severity": "low",
-    },
-    {
-      "id": "email_draft__safer_with__human_approval_gate",
-      "severity": "medium",
-    },
-    {
-      "id": "research_synthesis__requires__source_freshness_check",
-      "severity": "medium",
-    },
-    {
-      "id": "source_ranking__produces__research_synthesis",
-      "severity": "high",
     },
     {
       "id": "source_retrieval__tested__research_synthesis",
@@ -805,7 +781,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "step": 8,
     },
   ],
-  "route_score": 62,
+  "route_score": 69,
   "route_status": "validated",
   "safety_review": {
     "approval_gates_required": [],
@@ -822,20 +798,12 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
   "summary_markdown": "[text]",
   "untested_edges": [
     {
-      "id": "codebase_scan__produces__plan_generation",
-      "severity": "high",
-    },
-    {
       "id": "code_editing__produces__pr_summary",
       "severity": "medium",
     },
     {
       "id": "plan_generation__tested__test_runner",
       "severity": "medium",
-    },
-    {
-      "id": "pr_summary__safer_with__human_approval_gate",
-      "severity": "low",
     },
     {
       "id": "test_runner__before__pr_summary",
@@ -1016,7 +984,7 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
   "assumptions": [
     "Added audit_log because the route includes external actions.",
   ],
-  "confidence": 0.49,
+  "confidence": 0.62,
   "matched_playbook_ids": [
     "email_calendar_assistant",
   ],
@@ -1037,12 +1005,9 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
   ],
   "recommendation_markdown": "[text]",
   "route_id": "email_calendar_route_v1",
-  "status": "low_confidence",
+  "status": "candidate_route",
   "untested_edges": [
-    "audit_log__recommended__optional_email_send",
-    "email_draft__safer_with__human_approval_gate",
     "email_read__produces__intent_classifier",
-    "optional_email_send__safer_with__auth_failure_handler",
     "user_goal_intake__produces__intent_classifier",
   ],
   "warnings": [

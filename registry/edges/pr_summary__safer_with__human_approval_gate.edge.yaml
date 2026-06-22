@@ -8,3 +8,6 @@ severity: low
 notes: For low-risk internal repos this gate can be skipped. For public or customer-visible repos it is worth the friction.
 conditions:
   - repository is public or customer-visible
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: pr_summary__safer_with__human_approval_gate"

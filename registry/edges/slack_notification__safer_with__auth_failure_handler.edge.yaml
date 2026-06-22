@@ -7,4 +7,6 @@ reason: Slack posting relies on a Bot Token or OAuth credential that can expire 
 severity: high
 notes: The handler must not retry a post that may have already succeeded — deduplicate using the Slack message timestamp returned on a successful post.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: slack_notification__safer_with__auth_failure_handler"

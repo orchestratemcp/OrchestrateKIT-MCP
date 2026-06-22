@@ -7,3 +7,6 @@ reason: Every external publish should produce an immutable audit record. Without
 severity: high
 notes: Log the full payload, not just a summary. You will need the full payload for rollback investigation.
 conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__external_publish"

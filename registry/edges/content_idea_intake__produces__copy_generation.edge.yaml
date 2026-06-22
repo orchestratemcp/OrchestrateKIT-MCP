@@ -7,4 +7,6 @@ reason: The structured brief from intake provides audience, tone and key message
 severity: high
 notes: A structured brief with explicit audience and tone constraints produces substantially better copy than a raw topic prompt.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: content_idea_intake__produces__copy_generation"

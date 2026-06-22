@@ -7,4 +7,6 @@ reason: Raw extracted PDF records (mixed text blocks, tables, and metadata) need
 severity: high
 notes: PDF extraction output varies significantly across document types — field name normalisation is always required. Do not pass raw extraction output directly to storage or LLM steps.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: pdf_extraction__produces__data_normalizer"

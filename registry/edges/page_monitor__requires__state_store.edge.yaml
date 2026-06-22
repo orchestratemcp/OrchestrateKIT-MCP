@@ -7,4 +7,6 @@ reason: page_monitor must persist the content hash of the last successful check 
 severity: high
 notes: The state key should be scoped to the URL being monitored. Use TTL-based expiry to handle URLs that are removed from the monitor list.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: page_monitor__requires__state_store"
