@@ -712,6 +712,125 @@ export function planWorkflow(
   };
 }
 
+// ─────────────────────────── goal guard (MAR-162) ───────────────────────────
+
+/**
+ * Deterministic goal-guard (MAR-162). ChatGPT — especially in plain chat —
+ * fabricates a "goal" from the server preamble / its own system instructions and
+ * calls plan_workflow before the user has stated a real workflow. Planning that
+ * produces confident garbage and breaks the honest-planner promise. This guard is
+ * the tool-side backstop to MAR-147's instruction-side elicitation.
+ *
+ * It is HIGH-PRECISION on purpose: a false positive (blocking a real goal) is
+ * worse than a false negative, so it only fires on UNMISTAKABLE non-goals —
+ * echoed instruction/preamble text, tool names, or content-free "plan a workflow"
+ * asks. Anything that reads like a real plain-English workflow passes through.
+ * No LLM; pure string checks.
+ */
+
+/**
+ * Phrases that appear in the server instructions / a model's own meta-narration
+ * but NEVER in a real user workflow goal. If the goal contains one, it is almost
+ * certainly echoed preamble, not a thing to build.
+ */
+const PREAMBLE_MARKERS = [
+  // product / tool identity
+  "orchestratemcp",
+  "orchestratekit",
+  "workflow-design advisor",
+  "plan_workflow",
+  "compose_workflow",
+  "list_known_routes",
+  "explain_component",
+  // instruction-text fragments (from SERVER_INSTRUCTIONS / MAR-147)
+  "gather the user's constraints",
+  "before you plan",
+  "before the first",
+  "ask the user",
+  "ask for the goal",
+  "read-only vs",
+  "attended vs",
+  "outbound sends",
+  "plain english goal",
+  "plain-english goal",
+  // model self-narration / persona echoes
+  "you are an ai",
+  "you are a workflow",
+  "as an ai assistant",
+  "i am an ai",
+  "language model",
+  "help the user",
+  "assist the user",
+];
+
+/**
+ * Whole-goal patterns for a content-free "just plan something" ask — a planning
+ * verb on a generic noun with nothing actually described. Anchored (`^…$`) so a
+ * real goal that merely STARTS this way ("build an agent that reads emails…")
+ * is never caught.
+ */
+const TRIVIAL_GOAL_PATTERNS: RegExp[] = [
+  /^(please\s+)?(can you\s+|could you\s+)?(help me\s+)?(to\s+)?(plan|design|build|create|make|set\s?up|architect)\s+(me\s+)?(a|an|my|the|some)?\s*(workflow|agent|automation|pipeline|process|orchestration|flow)\.?$/,
+  /^(what can you do|what do you do|how does this work|what is this|help|hi|hii|hello|hey|test|testing)\.?!?$/,
+  /^(i\s+(need|want)|i'?d\s+like)\s+(a|an|some)?\s*(workflow|agent|automation|help|plan)\.?$/,
+];
+
+export type GoalAssessment = { ok: true } | { ok: false; reason: string };
+
+/**
+ * Decide whether `goal` is a real workflow goal or echoed preamble / a content-
+ * free ask. Exported for unit testing (golden good vs bad cases).
+ */
+export function assessGoalInput(goal: string): GoalAssessment {
+  const g = goal.trim().toLowerCase();
+
+  for (const marker of PREAMBLE_MARKERS) {
+    if (g.includes(marker)) {
+      return { ok: false, reason: `looks like instructions/preamble (matched "${marker}")` };
+    }
+  }
+
+  for (const re of TRIVIAL_GOAL_PATTERNS) {
+    if (re.test(g)) {
+      return { ok: false, reason: "no workflow is described — just a generic 'plan something' ask" };
+    }
+  }
+
+  // A single token (after the schema's 5-char floor) cannot describe a workflow.
+  if (g.split(/\s+/).filter(Boolean).length < 2) {
+    return { ok: false, reason: "too short to describe a workflow" };
+  }
+
+  return { ok: true };
+}
+
+/** The example goal shown to a client that tripped the guard. */
+const NEEDS_GOAL_EXAMPLE =
+  "read emails, detect sales leads, research the company, and draft a reply for my approval";
+
+export type NeedsGoalResult = {
+  status: "needs_goal";
+  reason: string;
+  example: string;
+  summary_markdown: string;
+};
+
+/** Build the `needs_goal` payload returned instead of a fabricated plan (MAR-162). */
+export function buildNeedsGoalResult(reason: string): NeedsGoalResult {
+  return {
+    status: "needs_goal",
+    reason,
+    example: NEEDS_GOAL_EXAMPLE,
+    summary_markdown:
+      `## ⚠️ I need the actual workflow goal first\n\n` +
+      `That input reads like setup/instructions text, not a workflow to plan, so I haven't planned anything ` +
+      `(planning a guessed goal would produce confident-but-wrong output).\n\n` +
+      `**Tell me, in one plain-English sentence, what you want the agent to DO** — the steps, the data, and the tools.\n\n` +
+      `**Example:** _"${NEEDS_GOAL_EXAMPLE}."_\n\n` +
+      `Then call \`plan_workflow\` again with that as the \`goal\`.`,
+  };
+}
+
 // ─────────────────────────── registration ───────────────────────────
 
 const InputShape = {
@@ -754,6 +873,21 @@ export function registerPlanWorkflow(server: McpServer): void {
     },
     async (input) => {
       try {
+        // MAR-162: refuse to plan echoed preamble / a content-free ask. Returns
+        // a needs_goal nudge instead of a confident plan for a fabricated goal.
+        const assessment = assessGoalInput(input.goal);
+        if (!assessment.ok) {
+          logger.debug(`plan_workflow → needs_goal (${assessment.reason})`);
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(buildNeedsGoalResult(assessment.reason)),
+              },
+            ],
+          };
+        }
+
         const registry = loadRegistry({ includeBeta: false });
         const result = planWorkflow(
           {
