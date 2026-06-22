@@ -7,4 +7,6 @@ reason: Email send relies on an OAuth token or SMTP credential that can expire o
 severity: high
 notes: The handler must not retry a send that may have already succeeded — wrap an idempotent send or deduplicate.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: optional_email_send__safer_with__auth_failure_handler"

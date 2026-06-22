@@ -7,3 +7,6 @@ reason: Slack posts are irreversible. An audit log entry provides post-hoc evide
 severity: high
 notes: Log channel ID, message content hash, approval actor, and timestamp. Avoid logging full message bodies containing PII unless your data policy requires it.
 conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__slack_notification"

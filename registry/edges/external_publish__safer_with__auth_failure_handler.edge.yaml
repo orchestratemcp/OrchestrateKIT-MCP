@@ -7,4 +7,6 @@ reason: External publishing depends on platform API credentials that expire or l
 severity: high
 notes: Pair with retry_policy for transient network errors; auth_failure_handler covers the distinct case of expired tokens and missing scopes.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: external_publish__safer_with__auth_failure_handler"

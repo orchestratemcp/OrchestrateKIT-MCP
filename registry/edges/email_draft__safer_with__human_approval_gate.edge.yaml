@@ -7,3 +7,6 @@ reason: Even a draft email may contain PII, incorrect information or inappropria
 severity: medium
 notes: If your workflow always routes to optional_email_send (which requires approval), this becomes redundant but is still a useful review checkpoint.
 conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: email_draft__safer_with__human_approval_gate"

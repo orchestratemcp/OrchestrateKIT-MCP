@@ -7,4 +7,6 @@ reason: Webhook signing secrets can be rotated or invalidated by the source serv
 severity: high
 notes: On signature mismatch return HTTP 401 immediately — do not acknowledge the event. The handler should alert on repeated failures so a rotated secret is caught within one polling cycle.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: webhook_trigger__safer_with__auth_failure_handler"

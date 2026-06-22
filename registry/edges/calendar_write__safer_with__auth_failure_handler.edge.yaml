@@ -7,4 +7,6 @@ reason: Calendar writes use a calendar API token that expires or loses the event
 severity: high
 notes: Show the failing scope (e.g. calendar.events.write) in the alert so the operator can re-grant the correct permission.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: calendar_write__safer_with__auth_failure_handler"

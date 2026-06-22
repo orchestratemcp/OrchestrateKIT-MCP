@@ -8,4 +8,6 @@ severity: high
 control_flow_note: The audit_log records the forward saga steps that compensation will undo in reverse. Wire audit_log before the first saga step, not only at the compensation stage.
 notes: saga_compensation reads the audit trail to determine which steps completed and what their undo actions are. The log must be append-only and durable.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: saga_compensation__requires__audit_log"
