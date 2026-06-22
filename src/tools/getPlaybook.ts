@@ -14,6 +14,7 @@ import {
 } from "./graphToolFormatters.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { GetPlaybookOutputShape } from "./outputSchemas.js";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -302,6 +303,7 @@ export function registerGetPlaybook(server: McpServer): void {
         "Returns warnings for beta/deprecated/low-confidence matches. " +
         "Use list_known_routes to browse available route ids.",
       inputSchema: InputShape,
+      outputSchema: GetPlaybookOutputShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
@@ -325,7 +327,10 @@ export function registerGetPlaybook(server: McpServer): void {
               next_recommended_tools: ["compose_workflow_route", "list_known_routes"],
             };
             logger.debug(`get_playbook → not_found: ${input.playbook_id}`);
-            return { content: [{ type: "text" as const, text: JSON.stringify(output) }] };
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify(output) }],
+              structuredContent: output,
+            };
           }
         } else if (input.workflow_type) {
           const match = bestPlaybookMatch(registry.playbooks, input.workflow_type);
@@ -340,7 +345,10 @@ export function registerGetPlaybook(server: McpServer): void {
               next_recommended_tools: ["compose_workflow_route", "list_known_routes"],
             };
             logger.debug(`get_playbook → not_found by workflow_type: ${input.workflow_type}`);
-            return { content: [{ type: "text" as const, text: JSON.stringify(output) }] };
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify(output) }],
+              structuredContent: output,
+            };
           }
           playbook = match.playbook;
           confidence = match.confidence;
@@ -352,7 +360,10 @@ export function registerGetPlaybook(server: McpServer): void {
             warnings: ["Provide playbook_id or workflow_type to look up a playbook."],
             next_recommended_tools: ["list_known_routes", "compose_workflow_route"],
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(output) }] };
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify(output) }],
+            structuredContent: output,
+          };
         }
 
         // --- Collect warnings ---
@@ -444,7 +455,10 @@ export function registerGetPlaybook(server: McpServer): void {
         logger.debug(
           `get_playbook → status=${output.status} id=${playbook.id} confidence=${confidence}`,
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(output) }] };
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(output) }],
+          structuredContent: output,
+        };
       } catch (err) {
         logger.error("get_playbook failed", err);
         return toErrorResult(err);

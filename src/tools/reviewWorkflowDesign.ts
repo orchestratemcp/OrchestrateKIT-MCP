@@ -14,6 +14,7 @@ import {
 } from "../review/types.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { ReviewWorkflowDesignOutputShape } from "./outputSchemas.js";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -324,6 +325,7 @@ export function registerReviewWorkflowDesign(server: McpServer): void {
         "Use before implementing to catch critical design problems early. " +
         "Provide route_id or component_ids for graph-aware analysis.",
       inputSchema: InputShape,
+      outputSchema: ReviewWorkflowDesignOutputShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
@@ -451,7 +453,10 @@ export function registerReviewWorkflowDesign(server: McpServer): void {
           `findings=${allFindings.length} blocking=${blockingIssues.length}`,
         );
 
-        return { content: [{ type: "text" as const, text: JSON.stringify(output) }] };
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(output) }],
+          structuredContent: output,
+        };
       } catch (err) {
         logger.error("review_workflow_design failed", err);
         return toErrorResult(err);

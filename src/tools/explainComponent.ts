@@ -23,6 +23,7 @@ import type { Component } from "../registry/componentSchema.js";
 import type { Edge } from "../registry/edgeSchema.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { ExplainComponentOutputShape } from "./outputSchemas.js";
 import { freshnessLabel } from "../lib/freshness.js";
 
 // ---------------------------------------------------------------------------
@@ -222,6 +223,7 @@ export function registerExplainComponent(server: McpServer): void {
         "Use get_graph_component instead when you need structured JSON fields for " +
         "programmatic processing or technical documentation.",
       inputSchema: InputShape,
+      outputSchema: ExplainComponentOutputShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
@@ -231,16 +233,13 @@ export function registerExplainComponent(server: McpServer): void {
 
         if (!component) {
           logger.debug(`explain_component → not_found: ${input.component_id}`);
+          const notFound = {
+            status: "not_found" as const,
+            message: `No component found with id "${input.component_id}". Use list_graph_components to see available component ids.`,
+          };
           return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify({
-                  status: "not_found",
-                  message: `No component found with id "${input.component_id}". Use list_graph_components to see available component ids.`,
-                }),
-              },
-            ],
+            content: [{ type: "text" as const, text: JSON.stringify(notFound) }],
+            structuredContent: notFound,
           };
         }
 
@@ -259,20 +258,17 @@ export function registerExplainComponent(server: McpServer): void {
         const freshness = mtime ? freshnessLabel(mtime) : "unknown";
 
         logger.debug(`explain_component → ${component.id}`);
+        const output = {
+          status: "ok" as const,
+          component_id: component.id,
+          name: component.name,
+          last_updated,
+          freshness,
+          explanation: prose,
+        };
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({
-                status: "ok",
-                component_id: component.id,
-                name: component.name,
-                last_updated,
-                freshness,
-                explanation: prose,
-              }),
-            },
-          ],
+          content: [{ type: "text" as const, text: JSON.stringify(output) }],
+          structuredContent: output,
         };
       } catch (err) {
         logger.error("explain_component failed", err);
