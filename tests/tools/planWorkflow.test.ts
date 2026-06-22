@@ -6,7 +6,11 @@
  * output shape.
  */
 import { describe, it, expect } from "vitest";
-import { planWorkflow } from "../../src/tools/planWorkflow.js";
+import {
+  planWorkflow,
+  assessGoalInput,
+  buildNeedsGoalResult,
+} from "../../src/tools/planWorkflow.js";
 import { loadRegistry } from "../../src/registry/registryLoader.js";
 
 const registry = loadRegistry();
@@ -426,5 +430,56 @@ describe("planWorkflow — status front-matter header (MAR-101)", () => {
     );
     expect(r.summary_markdown.startsWith("---\n")).toBe(true);
     expect(r.summary_markdown.split("\n\n")[0]).toContain("route_status:");
+  });
+});
+
+describe("assessGoalInput — goal-guard (MAR-162)", () => {
+  // ── must PASS: real plain-English goals (no false positives) ──
+  const REAL_GOALS = [
+    "read emails, detect sales leads, research the company and draft a reply for approval",
+    "scan a codebase, plan changes, edit code, run tests and write a PR summary",
+    "read my email inbox, classify intent, draft replies and calendar invites, and only send or book after approval",
+    "Monitor a competitor's pricing page hourly and alert me on Slack when the price changes.",
+    "Deduplicate records in a dataset.",
+    "build an AI agent that reads emails and drafts replies",
+    "create a pipeline that scrapes data, normalizes it, and validates the schema",
+    "every morning at 8am, pull yesterday's signups from the database and post a summary to Slack",
+    "when the user submits a form, validate it and send a confirmation email",
+  ];
+
+  for (const goal of REAL_GOALS) {
+    it(`accepts a real goal: "${goal.slice(0, 40)}…"`, () => {
+      expect(assessGoalInput(goal), goal).toEqual({ ok: true });
+    });
+  }
+
+  // ── must BLOCK: echoed preamble / tool names / content-free asks ──
+  const NON_GOALS = [
+    "OrchestrateMCP is a workflow-design advisor. It helps you plan safer AI agent workflows.",
+    "Before you plan: gather the user's constraints (read-only? unattended? outbound sends?).",
+    "call plan_workflow with the user's goal in plain english",
+    "Help the user design a safe AI workflow.",
+    "plan a workflow",
+    "design my agent",
+    "build an automation",
+    "I need a workflow",
+    "what can you do",
+    "workflow",
+  ];
+
+  for (const goal of NON_GOALS) {
+    it(`blocks a non-goal: "${goal.slice(0, 40)}…"`, () => {
+      const a = assessGoalInput(goal);
+      expect(a.ok, goal).toBe(false);
+    });
+  }
+
+  it("buildNeedsGoalResult returns a needs_goal payload with an example", () => {
+    const r = buildNeedsGoalResult("looks like preamble");
+    expect(r.status).toBe("needs_goal");
+    expect(r.reason).toBe("looks like preamble");
+    expect(r.example.length).toBeGreaterThan(10);
+    expect(r.summary_markdown).toContain("need the actual workflow goal");
+    expect(r.summary_markdown).toContain(r.example);
   });
 });
