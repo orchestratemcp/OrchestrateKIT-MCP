@@ -93,6 +93,48 @@ const PLAYBOOK_RECALL_MIN = 0.6;
 const PLAYBOOK_PRECISION_MIN = 0.72;
 
 /**
+ * MAR-128: playbook coverage guard.
+ *
+ * Playbook-first routing leads with a validated playbook's golden-path route and
+ * DROPS any composed component the playbook omits (`extra_components`). That is
+ * right when the extras are generic glue — a domain-agnostic front-door,
+ * `schema_validation`, or the safety augmenter's gate/audit/auth injections — but
+ * WRONG when an extra is a goal-matched *primary-domain* capability the playbook
+ * simply doesn't cover (e.g. `reviewer_notification`, `page_monitor`,
+ * `crm_note_write`). Dropping it silently ships a design that no longer does what
+ * the user asked.
+ *
+ * A primary-domain extra has a concrete-capability category
+ * (input/output/tool/integration) and is NOT the domain-agnostic
+ * `user_goal_intake` front-door. processing-category extras (`intent_classifier`,
+ * `schema_validation`) count as glue. When the goal still matches a playbook, we
+ * keep leading with the validated playbook but APPEND these extras to its route
+ * so the capability is never silently dropped — the acceptance is that the
+ * component is included "whether or not it routes via a playbook". (Falling back
+ * to composed was rejected: a generic "approve" token matches
+ * `reviewer_notification` on genuine playbook goals too, so demoting on its
+ * presence would break real matches; appending preserves them.)
+ */
+const PLAYBOOK_PRIMARY_DOMAIN_CATEGORIES = new Set([
+  "input",
+  "output",
+  "tool",
+  "integration",
+]);
+const PLAYBOOK_GENERIC_GLUE_IDS = new Set(["user_goal_intake"]);
+
+function primaryDomainExtras(
+  extraComponentIds: string[],
+  registry: RegistrySnapshot,
+): string[] {
+  return extraComponentIds.filter((id) => {
+    if (PLAYBOOK_GENERIC_GLUE_IDS.has(id)) return false;
+    const c = registry.components.find((comp) => comp.id === id);
+    return !!c && PLAYBOOK_PRIMARY_DOMAIN_CATEGORIES.has(c.category);
+  });
+}
+
+/**
  * Strong email/calendar signal tokens. At least one must be present in the goal
  * for email_calendar_assistant to fire as a playbook match (MAR-142). Prevents
  * the playbook routing from claiming a Stripe-to-Slack reporting goal (which
@@ -696,7 +738,15 @@ export function planWorkflow(
     const route = pb
       ? registry.routes.find((r) => r.id === pb.golden_path_route_id)
       : undefined;
-    const ids = route?.components ?? pb?.components ?? [];
+    const baseIds = route?.components ?? pb?.components ?? [];
+    // MAR-128: append goal-matched primary-domain components the playbook omits
+    // (e.g. reviewer_notification, page_monitor, crm_note_write) so leading with
+    // the playbook never silently drops a capability the user explicitly asked
+    // for. Glue extras (front-door, schema_validation, safety injections) are not
+    // appended.
+    const extraIds = primaryDomainExtras(playbookMatch.extra_components, registry)
+      .filter((id) => !baseIds.includes(id));
+    const ids = [...baseIds, ...extraIds];
     const components = resolveComponents(ids, registry);
     const ordered = computeExecutionOrder(components, registry.edges);
 

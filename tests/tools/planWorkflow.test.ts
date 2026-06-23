@@ -117,6 +117,21 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
     expect(r.plan_source).toBe("composed");
     expect(r.playbook).toBeNull();
   });
+
+  // MAR-128: this goal overlaps content_approval_pipeline at precision 0.78
+  // (recall 1.0) — above the floor — but explicitly asks to notify a reviewer,
+  // a primary-domain (output) capability the playbook omits. The coverage guard
+  // appends it to the playbook route so the capability is delivered (the playbook
+  // lead is preserved; it must not be silently dropped).
+  it("appends an explicit reviewer-notification match the playbook omits", () => {
+    const r = plan(
+      "Write blog copy from the brief, send it to a reviewer to approve, and publish to the blog.",
+    );
+    expect(r.plan_source).toBe("playbook");
+    expect(r.recommended_route.map((s) => s.component_id)).toContain(
+      "reviewer_notification",
+    );
+  });
 });
 
 describe("planWorkflow — playbook path builds the golden-path route", () => {
