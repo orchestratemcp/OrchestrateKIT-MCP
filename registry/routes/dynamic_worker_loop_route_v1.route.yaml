@@ -1,0 +1,57 @@
+id: dynamic_worker_loop_route_v1
+name: Dynamic Worker Loop
+status: published
+summary: >
+  Bounded iterative agent loop — trigger → validate → planner sets the task →
+  a coder/tester/independent-reviewer cycle repeats until approval or escalation
+  → final human gate → audit. The golden path for the dynamic_worker_loop
+  playbook. Advisory only; OrchestrateMCP never runs the loop.
+goal_patterns:
+  - loop until the reviewer approves
+  - iterate on the task until tests pass
+  - keep refining until done
+  - agent that retries with feedback
+components:
+  - webhook_trigger
+  - schema_validation
+  - loop_controller
+  - saga_compensation
+  - state_store
+  - retry_policy
+  - human_approval_gate
+  - audit_log
+edges:
+  - webhook_trigger__requires__schema_validation
+  - loop_controller__safer_with__saga_compensation
+  - audit_log__compatible__state_store
+  - state_store__compatible__retry_policy
+  - audit_log__recommended__webhook_trigger
+known_playbooks_reused:
+  - dynamic_worker_loop
+untested_edges:
+  - loop_controller__safer_with__saga_compensation
+risk_level: high
+confidence: 0.6
+required_evals:
+  - loop terminates within max_iterations on a converging task
+  - loop escalates to a human when the reviewer never approves
+  - no external write occurs before the final human gate
+warnings:
+  - The loop MUST be bounded by max_iterations — never run it unbounded
+  - The reviewer must be a different worker than the planner and coder
+  - No external write / deploy / send / publish until the final human gate
+failure_modes:
+  - Loop never terminates because stop_condition is never satisfiable
+  - An external side effect fires mid-loop and cannot be rolled back
+  - State is not checkpointed, so a crash restarts the loop from scratch
+evals:
+  - loop body completes one iteration and checkpoints state before the next
+  - audit_log records each iteration number and reviewer verdict
+notes: >
+  The loop is expressed as a loop_controller with a termination contract, not a
+  cyclic graph edge — the registry stays DAG-only. See the dynamic_worker_loop
+  playbook for the full loop_contract and worker_sequence.
+sources:
+  - title: OrchestrateMCP advisory-only worker-loop design (MAR-167)
+    source_type: internal_note
+    last_checked: "2026-06-23"

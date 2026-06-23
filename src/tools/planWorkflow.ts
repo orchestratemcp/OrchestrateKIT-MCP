@@ -19,6 +19,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Component } from "../registry/componentSchema.js";
+import type { LoopContract } from "../registry/playbookSchema.js";
 import { loadRegistry } from "../registry/registryProvider.js";
 import {
   composeRoute,
@@ -232,8 +233,45 @@ export type PlanWorkflowOutput = {
    * same build team for every plan; empty when the registry has no workers.
    */
   worker_pipeline: WorkerPipeline;
+  /**
+   * Advisory bounded-loop guidance (MAR-167). Non-null only when the planned
+   * route contains `loop_controller` — i.e. the goal asks for an iterative /
+   * looping agent. Surfaces the canonical dynamic_worker_loop contract (max
+   * iterations, stop/escalation conditions, the reviewer-independence and
+   * no-write-until-final-gate guardrails) as the framework-agnostic spec to
+   * export. The graph itself stays DAG-only; this is a control-flow annotation.
+   */
+  loop_guidance: LoopGuidance | null;
   next_steps: string[];
 };
+
+export type LoopGuidance = {
+  playbook_id: string;
+  worker_sequence: string[];
+  loop_contract: LoopContract;
+  guardrail_checklist: string[];
+};
+
+/**
+ * When the planned route is loop-shaped (contains `loop_controller`), surface
+ * the canonical bounded-loop contract from the dynamic_worker_loop playbook.
+ * Sourced from the registry so the contract has a single source of truth, and
+ * deliberately decoupled from playbook ROUTING so it never affects precision.
+ */
+export function buildLoopGuidance(
+  routeComponentIds: string[],
+  registry: RegistrySnapshot,
+): LoopGuidance | null {
+  if (!routeComponentIds.includes("loop_controller")) return null;
+  const pb = registry.playbooks.find((p) => p.loop_contract);
+  if (!pb || !pb.loop_contract) return null;
+  return {
+    playbook_id: pb.id,
+    worker_sequence: pb.worker_sequence ?? [],
+    loop_contract: pb.loop_contract,
+    guardrail_checklist: pb.guardrails,
+  };
+}
 
 // ───────────────────────────── core ─────────────────────────────
 
@@ -416,6 +454,7 @@ function buildPlanMarkdown(
   untestedEdges: UntestedEdge[],
   approvalAdvisory: ApprovalGateAdvisory | null,
   workerPipeline: WorkerPipeline,
+  loopGuidance: LoopGuidance | null,
 ): string {
   const lines: string[] = [];
 
@@ -536,6 +575,31 @@ function buildPlanMarkdown(
           .join(", ")}`,
       );
     }
+    lines.push(``);
+  }
+
+  // MAR-167: bounded-loop contract when the route is loop-shaped.
+  if (loopGuidance) {
+    const lc = loopGuidance.loop_contract;
+    lines.push(
+      `### Loop contract & guardrails`,
+      ``,
+      `> This plan loops. It MUST be bounded and reviewer-independent. Export ` +
+        `this contract to your runtime (Cowork / LangGraph / CrewAI) — the graph ` +
+        `stays DAG-only; the loop bound lives in the contract.`,
+      ``,
+      `- **Worker loop:** ${loopGuidance.worker_sequence.map((w) => `\`${w}\``).join(" → ")}`,
+      `- **max_iterations:** ${lc.max_iterations}`,
+      `- **Stop when:** ${lc.stop_condition}`,
+      `- **Escalate when:** ${lc.escalation_condition}`,
+      `- **Human gate required for:** ${lc.human_gate_required_for.join(", ")}`,
+      `- **State persisted:** ${lc.state_required ? "yes" : "no"} · **Audited:** ${lc.audit_required ? "yes" : "no"}`,
+      `- **Reviewer independent of planner/coder:** ${lc.reviewer_independent ? "yes" : "no"}`,
+      `- **No external write/deploy/send until final gate:** ${lc.no_write_until_final_gate ? "yes" : "no"}`,
+      ``,
+      `**Guardrail checklist:**`,
+    );
+    for (const g of loopGuidance.guardrail_checklist) lines.push(`- [ ] ${g}`);
     lines.push(``);
   }
 
@@ -691,6 +755,9 @@ export function planWorkflow(
   // workers and their handoff contracts.
   const worker_pipeline = composeWorkerPipeline(registry.workers ?? []);
 
+  // ── MAR-167: bounded-loop contract when the route is loop-shaped ──
+  const loop_guidance = buildLoopGuidance(routeComponentIds, registry);
+
   // ── Step 6: fused markdown ──
   // MAR-101: every depth leads with the same scannable status front-matter so
   // route_status / safety / blocking / approval / untested-edge count are
@@ -726,6 +793,7 @@ export function planWorkflow(
           untested_edges,
           approval_gate_advisory,
           worker_pipeline,
+          loop_guidance,
         );
   const summary_markdown = `${statusHeader}\n\n${body}`;
 
@@ -750,6 +818,7 @@ export function planWorkflow(
     approval_gate_advisory,
     evals_to_add: composed.evals_to_add,
     worker_pipeline,
+    loop_guidance,
     next_steps:
       planSource === "playbook"
         ? [
