@@ -110,6 +110,15 @@ export function validateCrossReferences(registry: Registry): ValidationError[] {
         });
       }
     }
+    for (const wid of pb.worker_sequence ?? []) {
+      if (!workerIds.has(wid)) {
+        errors.push({
+          entity: `playbook:${pb.id}`,
+          field: "worker_sequence",
+          message: `Unknown worker id "${wid}"`,
+        });
+      }
+    }
   }
 
   for (const w of registry.workers) {

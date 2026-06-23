@@ -1,0 +1,110 @@
+id: dynamic_worker_loop
+version: "1.0.0"
+title: Dynamic Worker Loop (bounded, reviewer-independent)
+status: published
+summary: >
+  A bounded iterative agent loop — a planner sets the task, then a coder →
+  tester → independent reviewer cycle repeats until the reviewer approves or an
+  escalation condition routes to a human. Every iteration is state-checkpointed
+  and audit-logged, and no external write/deploy/send happens until a final
+  human gate. OrchestrateMCP helps DESIGN this safely; it never runs the loop.
+workflow_type: agentic-loop
+risk_level: high
+golden_path_route_id: dynamic_worker_loop_route_v1
+components:
+  - webhook_trigger
+  - schema_validation
+  - loop_controller
+  - saga_compensation
+  - state_store
+  - retry_policy
+  - human_approval_gate
+  - audit_log
+edges:
+  - webhook_trigger__requires__schema_validation
+  - loop_controller__safer_with__saga_compensation
+  - audit_log__compatible__state_store
+  - state_store__compatible__retry_policy
+  - audit_log__recommended__webhook_trigger
+stack_id: default_orchestratekit_stack
+best_for:
+  - an iterative build/refine task where a coder and reviewer loop until approved
+  - a triggered agent that retries with feedback until a quality bar is met
+  - long-running tasks that must checkpoint state and resume safely
+avoid_when:
+  - one-shot tasks with no refine/retry cycle (the loop is pure overhead)
+  - workflows that need fully unbounded autonomy (this is deliberately bounded)
+  - any design that would write/deploy/send mid-loop without a final human gate
+recommended_architecture:
+  pattern: >
+    Trigger → planner (once) → bounded loop[ coder → tester → independent
+    reviewer ] → final human gate → audit. The loop is expressed as a
+    loop_controller with a termination contract, NOT a cyclic graph edge — the
+    registry stays DAG-only and the loop bound lives in the contract.
+  why: >
+    A hard max_iterations plus an escalation condition guarantees termination;
+    an independent reviewer prevents the coder from grading its own work; gating
+    all external writes until the end keeps every iteration reversible.
+llm_driven_steps:
+  - planner reasoning (task decomposition)
+  - coder implementation per iteration
+  - reviewer judgement per iteration
+deterministic_steps:
+  - webhook_trigger
+  - schema_validation
+  - loop_controller
+  - state_store
+  - retry_policy
+  - audit_log
+worker_sequence:
+  - planner
+  - reviewer
+  - coder
+  - tester
+  - reviewer
+loop_contract:
+  max_iterations: 5
+  stop_condition: reviewer verdict == approved AND tester results all pass
+  escalation_condition: >
+    max_iterations reached OR the same test fails on two consecutive iterations
+    → break out of the loop and route to a human
+  state_required: true
+  audit_required: true
+  human_gate_required_for:
+    - external write
+    - deploy
+    - send
+    - publish
+  reviewer_independent: true
+  no_write_until_final_gate: true
+guardrails:
+  - The loop MUST have a hard max_iterations — never run unbounded
+  - The reviewer MUST be a different worker than the planner and coder
+  - No external write / deploy / send / publish until the final human gate
+  - Persist loop state every iteration so the loop can resume, not restart
+  - Audit-log every iteration with the iteration number and reviewer verdict
+  - On the escalation condition, hand off to a human rather than looping again
+failure_modes:
+  - Loop never terminates because stop_condition is never satisfiable
+  - Coder reviews its own work because the reviewer is not independent
+  - An external side effect fires mid-loop and cannot be rolled back
+  - State is not checkpointed, so a crash restarts the whole loop from scratch
+  - Repeated identical failure burns all iterations without escalating to a human
+  - max_iterations is set so high the loop is effectively unbounded
+evals:
+  - loop terminates within max_iterations on a task that should converge
+  - loop escalates to a human when the reviewer never approves
+  - no external write occurs before the final human gate in any iteration
+  - the reviewer worker id differs from the planner and coder worker ids
+  - every iteration produces an audit_log entry with its iteration number
+implementation_steps:
+  - "Step 1: Trigger the loop from webhook_trigger; validate the payload with schema_validation before entering the loop"
+  - "Step 2: Run the planner ONCE to produce the task spec and component plan"
+  - "Step 3: Enter loop_controller with max_iterations from the loop_contract"
+  - "Step 4: Each iteration: coder implements → tester runs the suite → independent reviewer verdicts; checkpoint to state_store and write an audit_log entry"
+  - "Step 5: Stop when stop_condition holds; on escalation_condition, break and route to a human"
+  - "Step 6: Only AFTER the loop, pass through human_approval_gate before any external write/deploy/send; wrap reversible steps with saga_compensation"
+sources:
+  - title: OrchestrateMCP worker registry + advisory-only loop design (MAR-166/MAR-167)
+    source_type: internal_note
+    last_checked: "2026-06-23"

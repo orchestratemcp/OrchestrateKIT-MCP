@@ -39,6 +39,27 @@ describe("planWorkflow — worker build pipeline (MAR-166)", () => {
   });
 });
 
+describe("planWorkflow — bounded loop contract (MAR-167)", () => {
+  it("surfaces loop_guidance when the route is loop-shaped", () => {
+    const r = plan(
+      "trigger an agent on a webhook that loops: a coder writes code, a tester runs " +
+        "tests, and an independent reviewer keeps iterating until approved",
+    );
+    expect(r.recommended_route.some((s) => s.component_id === "loop_controller")).toBe(true);
+    expect(r.loop_guidance).not.toBeNull();
+    expect(r.loop_guidance!.playbook_id).toBe("dynamic_worker_loop");
+    expect(r.loop_guidance!.loop_contract.max_iterations).toBeGreaterThan(0);
+    expect(r.loop_guidance!.loop_contract.reviewer_independent).toBe(true);
+    expect(r.summary_markdown).toContain("Loop contract & guardrails");
+  });
+
+  it("leaves loop_guidance null for a non-loop goal", () => {
+    const r = plan("read emails, detect leads and draft a reply");
+    expect(r.loop_guidance).toBeNull();
+    expect(r.summary_markdown).not.toContain("Loop contract & guardrails");
+  });
+});
+
 describe("planWorkflow — playbook routing (MAR-98 split)", () => {
   it("routes a codebase goal to the codebase playbook", () => {
     const r = plan("scan a codebase, plan changes, edit code, run tests and write a PR summary");

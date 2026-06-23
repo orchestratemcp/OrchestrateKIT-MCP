@@ -11,6 +11,7 @@ import { WorkerSchema, isWriteTool, READ_ONLY_ROLES } from "./workerSchema.js";
 import type { Component } from "./componentSchema.js";
 import type { Edge } from "./edgeSchema.js";
 import type { Worker } from "./workerSchema.js";
+import type { Playbook } from "./playbookSchema.js";
 import type { Registry } from "./registryTypes.js";
 import { loadRegistry, type LoaderOptions } from "./registryLoader.js";
 import {
@@ -152,6 +153,54 @@ export function lintWorkerContracts(workers: Worker[]): ValidationError[] {
           });
         }
       }
+    }
+  }
+  return errors;
+}
+
+/**
+ * Loop-playbook guardrail gate (MAR-167). The Zod LoopContractSchema already
+ * enforces the static guardrails (bounded max_iterations, state/audit required,
+ * reviewer_independent + no_write_until_final_gate literally true, ≥1 gated
+ * action class). This lint enforces the STRUCTURAL claim the boolean cannot:
+ * a playbook asserting `reviewer_independent` must actually sequence an
+ * independent reviewer — a reviewer-role worker AND a coder-role worker that
+ * are different agents. Keeps the contract honest against its worker_sequence.
+ */
+export function lintLoopPlaybooks(
+  playbooks: Playbook[],
+  workers: Worker[],
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const roleById = new Map(workers.map((w) => [w.id, w.role]));
+
+  for (const pb of playbooks) {
+    if (!pb.loop_contract) continue;
+    const seq = pb.worker_sequence ?? [];
+    const reviewers = seq.filter((id) => roleById.get(id) === "reviewer");
+    const coders = seq.filter((id) => roleById.get(id) === "coder");
+
+    if (reviewers.length === 0) {
+      errors.push({
+        entity: `playbook:${pb.id}`,
+        field: "worker_sequence",
+        message: "loop_contract.reviewer_independent requires a reviewer-role worker in worker_sequence",
+      });
+    }
+    if (coders.length === 0) {
+      errors.push({
+        entity: `playbook:${pb.id}`,
+        field: "worker_sequence",
+        message: "loop playbook requires a coder-role worker in worker_sequence",
+      });
+    }
+    // A worker cannot be both the reviewer and the coder — that breaks independence.
+    if (reviewers.some((r) => coders.includes(r))) {
+      errors.push({
+        entity: `playbook:${pb.id}`,
+        field: "worker_sequence",
+        message: "reviewer and coder must be different workers (reviewer not independent)",
+      });
     }
   }
   return errors;
@@ -348,6 +397,7 @@ export function lintRegistry(opts: LoaderOptions = {}): RegistryLintResult {
     ...lintTestedEdgesRequireRefs(registry.edges),
     ...lintComponentRefs(registry),
     ...lintWorkerContracts(registry.workers),
+    ...lintLoopPlaybooks(registry.playbooks, registry.workers),
     ...lintPublishedComponents(allComponents),
     ...lintValidatedComponents(allComponents),
     ...lintCriticalWriteComponents(allComponents),

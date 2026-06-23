@@ -53,6 +53,17 @@ export const PlanWorkflowOutputShape = z
       })
       .passthrough()
       .optional(),
+    // advisory bounded-loop contract — null unless the route is loop-shaped (MAR-167)
+    loop_guidance: z
+      .object({
+        playbook_id: z.string(),
+        worker_sequence: z.array(z.string()),
+        loop_contract: z.object({ max_iterations: z.number() }).passthrough(),
+        guardrail_checklist: z.array(z.string()),
+      })
+      .passthrough()
+      .nullable()
+      .optional(),
     // present on a needs_goal nudge (MAR-162)
     status: z.literal("needs_goal").optional(),
     reason: z.string().optional(),

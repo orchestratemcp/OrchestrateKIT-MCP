@@ -184,6 +184,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     "human_approval_gate",
   ],
   "goal": "scan a codebase, plan changes, edit code, run tests and write a PR summary",
+  "loop_guidance": null,
   "model_tier_profile": {
     "frontier": [
       "plan_generation",
@@ -582,6 +583,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     "audit_log",
   ],
   "goal": "[text]",
+  "loop_guidance": null,
   "model_tier_profile": {
     "frontier": [
       "research_synthesis",
@@ -1011,6 +1013,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     "human_approval_gate",
   ],
   "goal": "scan a codebase, plan changes, edit code, run tests and write a PR summary",
+  "loop_guidance": null,
   "model_tier_profile": {
     "frontier": [
       "plan_generation",

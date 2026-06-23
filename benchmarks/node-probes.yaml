@@ -321,3 +321,13 @@ probes:
     goal: "Read my inbox and draft a reply to each email, but do not send anything — leave them as drafts for me to review."
     must_have: [email_read, email_draft]
     forbidden: [optional_email_send]
+
+  # ── loop / orchestration domain (MAR-167) ────────────────────────────────
+  # An explicitly iterative goal must select loop_controller — the deterministic
+  # trigger that makes plan_workflow surface the bounded dynamic_worker_loop
+  # contract. Pins the "loop"/"iterate" hint so the loop guidance can't silently
+  # stop firing.
+  - id: iterative_loop_selects_loop_controller
+    goal: "Trigger an agent on a webhook that loops: a coder writes code and an independent reviewer keeps iterating until the tests pass and it is approved."
+    must_have: [loop_controller]
+    forbidden: [email_draft, crm_note_write]
