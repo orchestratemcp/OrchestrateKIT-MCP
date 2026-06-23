@@ -771,7 +771,7 @@ const PREAMBLE_MARKERS = [
  * is never caught.
  */
 const TRIVIAL_GOAL_PATTERNS: RegExp[] = [
-  /^(please\s+)?(can you\s+|could you\s+)?(help me\s+)?(to\s+)?(plan|design|build|create|make|set\s?up|architect)\s+(me\s+)?(a|an|my|the|some)?\s*(workflow|agent|automation|pipeline|process|orchestration|flow)\.?$/,
+  /^(please\s+)?(can you\s+|could you\s+)?(help me\s+)?(to\s+)?(plan|design|build|create|make|set\s?up|architect)\s+(me\s+)?(a|an|my|the|some)?\s*(?:(?:workflow|agent|automation|pipeline|process|orchestration|flow)\s*)+(for me|for us|for my team|for my business|for my company|please|now|today|asap|thanks|thank you)?\.?$/,
   /^(what can you do|what do you do|how does this work|what is this|help|hi|hii|hello|hey|test|testing)\.?!?$/,
   /^(i\s+(need|want)|i'?d\s+like)\s+(a|an|some)?\s*(workflow|agent|automation|help|plan)\.?$/,
 ];
@@ -816,15 +816,23 @@ export type NeedsGoalResult = {
   summary_markdown: string;
 };
 
-/** Build the `needs_goal` payload returned instead of a fabricated plan (MAR-162). */
-export function buildNeedsGoalResult(reason: string): NeedsGoalResult {
+/**
+ * Build the `needs_goal` payload returned instead of a fabricated plan (MAR-162).
+ * `diagnosis` is the one-line reason shown to the user; it defaults to the
+ * echoed-preamble case and is overridden for the too-vague / empty-route case
+ * (MAR-145 ChatGPT-dogfood finding) — both render the same headline + nudge.
+ */
+export function buildNeedsGoalResult(
+  reason: string,
+  diagnosis = "That input reads like setup/instructions text, not a workflow to plan",
+): NeedsGoalResult {
   return {
     status: "needs_goal",
     reason,
     example: NEEDS_GOAL_EXAMPLE,
     summary_markdown:
       `## ⚠️ I need the actual workflow goal first\n\n` +
-      `That input reads like setup/instructions text, not a workflow to plan, so I haven't planned anything ` +
+      `${diagnosis}, so I haven't planned anything ` +
       `(planning a guessed goal would produce confident-but-wrong output).\n\n` +
       `**Tell me, in one plain-English sentence, what you want the agent to DO** — the steps, the data, and the tools.\n\n` +
       `**Example:** _"${NEEDS_GOAL_EXAMPLE}."_\n\n` +
@@ -899,6 +907,22 @@ export function registerPlanWorkflow(server: McpServer): void {
           },
           registry,
         );
+
+        // MAR-145 (ChatGPT dogfood): a goal vague enough to match no components
+        // yields an empty route — a useless plan. Backstop the assessGoalInput
+        // guard by returning needs_goal instead of an empty plan ("set up an
+        // agent workflow for me" and similar slip past the phrase guard).
+        if (result.recommended_route.length === 0) {
+          logger.debug("plan_workflow → needs_goal (empty route — goal too vague)");
+          const needsGoal = buildNeedsGoalResult(
+            "no workflow steps matched the goal — it is too vague",
+            "I couldn't identify any workflow steps from that goal — it is too vague",
+          );
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify(needsGoal) }],
+            structuredContent: needsGoal,
+          };
+        }
 
         logger.debug(
           `plan_workflow → source=${result.plan_source} steps=${result.recommended_route.length} ` +

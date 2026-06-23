@@ -183,11 +183,13 @@ probes:
     forbidden: [calendar_lookup, calendar_write]
 
   # ── T3 integration components ────────────────────────────────────────────────
+  # MAR-145 (ChatGPT dogfood): "invoice" must NOT pull stripe_data_read — most
+  # invoice workflows are ERP/AP/accounting, not Stripe.
   - id: pdf_extraction_invoice
     goal: "Extract line items and totals from uploaded PDF invoices and load the structured data into the accounting system."
     via: plan
     must_have: [pdf_extraction, data_normalizer]
-    forbidden: [calendar_lookup, calendar_write, email_draft]
+    forbidden: [calendar_lookup, calendar_write, email_draft, stripe_data_read]
 
   - id: airtable_lookup_crm
     goal: "Look up customer records from the Airtable CRM base, normalise the fields, and generate a weekly summary report."
@@ -226,6 +228,15 @@ probes:
     via: plan
     must_have: [saga_compensation, audit_log]
     forbidden: [calendar_lookup, calendar_write, design_brief_generation]
+
+  # MAR-145 (ChatGPT dogfood): the conjugation "rolls back" must reach
+  # saga_compensation too — "rolls back everything if any step fails" missed it
+  # and collapsed the flagship invoice/batch plan's whole safety chain.
+  - id: saga_compensation_rolls_back_conjugation
+    goal: "Process 100 invoices in parallel and rolls back everything if any step fails."
+    via: plan
+    must_have: [saga_compensation, audit_log]
+    forbidden: [calendar_lookup, calendar_write, stripe_data_read]
 
   - id: threshold_router_confidence
     goal: "Route a document through approve, manual-review, or reject based on an AI confidence score threshold."
