@@ -44,6 +44,10 @@ import {
   composeWorkerPipeline,
   type WorkerPipeline,
 } from "../graph/workerPipeline.js";
+import {
+  computeAutomationClearance,
+  type AutomationClearance,
+} from "../graph/automationClearance.js";
 import { buildReviewContext } from "./reviewWorkflowDesign.js";
 import { ALL_RULES } from "../review/rules/index.js";
 import {
@@ -242,6 +246,13 @@ export type PlanWorkflowOutput = {
    * export. The graph itself stays DAG-only; this is a control-flow annotation.
    */
   loop_guidance: LoopGuidance | null;
+  /**
+   * Earned-by-evidence autonomy level (MAR-168). Present on every plan. The
+   * level is the highest blast-radius action class across the route; we ADVISE
+   * whether it can run unattended and list the controls required to earn it —
+   * we never drop the gate ourselves.
+   */
+  automation_clearance: AutomationClearance;
   next_steps: string[];
 };
 
@@ -356,6 +367,7 @@ function buildStatusHeader(
   untestedEdges: UntestedEdge[],
   enforcedGates: string[],
   approvalAdvisory: ApprovalGateAdvisory | null,
+  clearance: AutomationClearance,
 ): string {
   const routeIcon =
     routeStatus === "validated" ? "✅" : routeStatus === "blocked_candidate" ? "❌" : "⚠️";
@@ -379,12 +391,26 @@ function buildStatusHeader(
 
   const untestedIcon = untestedEdges.length === 0 ? "✅" : "⚠️";
 
+  // MAR-168: autonomy clearance. ✅ may run unattended · ⚠️ human by default
+  // (earnable) · ❌ human always required (L4).
+  const autoIcon = clearance.autonomous_allowed
+    ? "✅"
+    : clearance.level === "L4"
+    ? "❌"
+    : "⚠️";
+  const autoText = clearance.autonomous_allowed
+    ? "may run unattended"
+    : clearance.level === "L4"
+    ? "human ALWAYS required"
+    : "human by default";
+
   return [
     `---`,
     `route_status:   ${routeIcon} ${routeStatus}`,
     `safety:         ${safetyIcon} ${safety.status} (risk ${safety.risk_score}/100)`,
     `blocking:       ${blockingIcon} ${blockingCount} issue${blockingCount === 1 ? "" : "s"}`,
     `approval:       ${approval}`,
+    `automation:     ${autoIcon} ${clearance.level} — ${autoText}`,
     `untested_edges: ${untestedIcon} ${untestedEdges.length}`,
     `---`,
   ].join("\n");
@@ -455,6 +481,7 @@ function buildPlanMarkdown(
   approvalAdvisory: ApprovalGateAdvisory | null,
   workerPipeline: WorkerPipeline,
   loopGuidance: LoopGuidance | null,
+  clearance: AutomationClearance,
 ): string {
   const lines: string[] = [];
 
@@ -501,6 +528,28 @@ function buildPlanMarkdown(
   if (modelTiers.none.length > 0)
     lines.push(`- **deterministic (no LLM):** ${modelTiers.none.map((c) => `\`${c}\``).join(", ")}`);
   lines.push(``);
+
+  // MAR-168: autonomy clearance section.
+  const autoMark = clearance.autonomous_allowed ? "✅" : clearance.level === "L4" ? "❌" : "⚠️";
+  lines.push(
+    `### Automation clearance: ${autoMark} ${clearance.level}`,
+    ``,
+    `**Autonomous allowed:** ${clearance.autonomous_allowed ? "yes" : "no — human in the loop"}`,
+    ``,
+    `> ${clearance.reason}`,
+    ``,
+  );
+  if (clearance.highest_action_components.length > 0) {
+    lines.push(
+      `Driven by: ${clearance.highest_action_components.map((c) => `\`${c}\``).join(", ")}`,
+      ``,
+    );
+  }
+  if (clearance.required_controls.length > 0) {
+    lines.push(`**Required controls to run unattended:**`);
+    for (const ctrl of clearance.required_controls) lines.push(`- ${ctrl}`);
+    lines.push(``);
+  }
 
   const safetyEmoji =
     safety.status === "pass" ? "✅" : safety.status === "warnings" ? "⚠️" : "❌";
@@ -758,6 +807,13 @@ export function planWorkflow(
   // ── MAR-167: bounded-loop contract when the route is loop-shaped ──
   const loop_guidance = buildLoopGuidance(routeComponentIds, registry);
 
+  // ── MAR-168: earned-by-evidence autonomy clearance (every plan) ──
+  const automation_clearance = computeAutomationClearance(
+    routeComponentIds,
+    registry,
+    untested_edges,
+  );
+
   // ── Step 6: fused markdown ──
   // MAR-101: every depth leads with the same scannable status front-matter so
   // route_status / safety / blocking / approval / untested-edge count are
@@ -769,6 +825,7 @@ export function planWorkflow(
     untested_edges,
     enforced_approval_gates,
     approval_gate_advisory,
+    automation_clearance,
   );
   const body =
     outputDepth === "brief"
@@ -794,6 +851,7 @@ export function planWorkflow(
           approval_gate_advisory,
           worker_pipeline,
           loop_guidance,
+          automation_clearance,
         );
   const summary_markdown = `${statusHeader}\n\n${body}`;
 
@@ -819,6 +877,7 @@ export function planWorkflow(
     evals_to_add: composed.evals_to_add,
     worker_pipeline,
     loop_guidance,
+    automation_clearance,
     next_steps:
       planSource === "playbook"
         ? [

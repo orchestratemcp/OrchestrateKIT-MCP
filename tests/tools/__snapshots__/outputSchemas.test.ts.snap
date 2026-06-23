@@ -157,6 +157,20 @@ exports[`MAR-163 — get_playbook output schema > ok branch conforms + golden sn
 exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden snapshot 1`] = `
 {
   "approval_gate_advisory": null,
+  "automation_clearance": {
+    "autonomous_allowed": true,
+    "highest_action_components": [
+      "code_editing",
+      "test_runner",
+      "state_store",
+      "human_approval_gate",
+    ],
+    "level": "L1",
+    "reason": "[text]",
+    "required_controls": [
+      "audit log — MISSING, add audit_log",
+    ],
+  },
   "avoid_when_violations": [],
   "confidence_label": "medium",
   "credential_advisory": {
@@ -533,6 +547,24 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
 exports[`MAR-163 — plan_workflow output schema > composed plan conforms + golden snapshot 1`] = `
 {
   "approval_gate_advisory": null,
+  "automation_clearance": {
+    "autonomous_allowed": false,
+    "highest_action_components": [
+      "crm_note_write",
+      "optional_email_send",
+    ],
+    "level": "L3",
+    "reason": "[text]",
+    "required_controls": [
+      "audit log — present",
+      "rollback / compensation — MISSING, add saga_compensation",
+      "test coverage — 2 untested edge(s) in route",
+      "bounded permissions (least-privilege scopes)",
+      "dry-run / preview before any live action",
+      "idempotency (safe to retry)",
+      "kill switch (operator can halt the run)",
+    ],
+  },
   "avoid_when_violations": [],
   "confidence_label": "medium",
   "credential_advisory": {
@@ -986,6 +1018,20 @@ exports[`MAR-163 — plan_workflow output schema > needs_goal nudge conforms + g
 exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + golden snapshot 1`] = `
 {
   "approval_gate_advisory": null,
+  "automation_clearance": {
+    "autonomous_allowed": true,
+    "highest_action_components": [
+      "code_editing",
+      "test_runner",
+      "state_store",
+      "human_approval_gate",
+    ],
+    "level": "L1",
+    "reason": "[text]",
+    "required_controls": [
+      "audit log — MISSING, add audit_log",
+    ],
+  },
   "avoid_when_violations": [],
   "confidence_label": "medium",
   "credential_advisory": {
