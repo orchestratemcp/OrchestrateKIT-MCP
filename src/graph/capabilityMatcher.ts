@@ -682,6 +682,12 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   compensate: ["saga_compensation"],
   rollback: ["saga_compensation"],
   "roll back": ["saga_compensation"],
+  // MAR-145 (ChatGPT dogfood): natural conjugations of "roll back". "rolls back
+  // everything if any step fails" missed saga_compensation entirely, collapsing
+  // the flagship invoice/batch goal's whole safety chain to a 2-step plan.
+  "rolls back": ["saga_compensation"],
+  "rolling back": ["saga_compensation"],
+  "rolled back": ["saga_compensation"],
   undo: ["saga_compensation"],
   // threshold_router
   threshold: ["threshold_router"],
@@ -693,7 +699,10 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   stripe: ["stripe_data_read"],
   billing: ["stripe_data_read"],
   subscription: ["stripe_data_read"],
-  invoice: ["stripe_data_read"],
+  // MAR-145 (ChatGPT dogfood): "invoice" does NOT imply Stripe — most invoice
+  // workflows are ERP/AP/accounting, not Stripe. The hint injected stripe_data_read
+  // into every invoice goal (the ChatGPT session flagged it as irrelevant).
+  // stripe_data_read stays reachable via stripe/billing/subscription.
   extract: ["data_scraper", "data_normalizer", "pdf_extraction"],
   normalize: ["data_normalizer"],
   normalise: ["data_normalizer"],
@@ -818,6 +827,12 @@ const HINT_ONLY_COMPONENTS = new Set([
   "scheduled_trigger",
   "webhook_trigger",
   "github_trigger",
+  // MAR-145 (ChatGPT dogfood): stripe_data_read is a SPECIFIC Stripe integration,
+  // but its summary mentions "invoices / payments / billing", so the fuzzy
+  // summary pass pulled it into any invoice/accounting goal even after the
+  // `invoice` hint was removed. Restrict to explicit Stripe hints
+  // (stripe / billing / subscription) so a generic invoice workflow never gets it.
+  "stripe_data_read",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */

@@ -465,6 +465,9 @@ describe("assessGoalInput — goal-guard (MAR-162)", () => {
     "I need a workflow",
     "what can you do",
     "workflow",
+    // MAR-145 (ChatGPT dogfood): trailing filler used to dodge the guard.
+    "Set up an agent workflow for me.",
+    "build me an agent please",
   ];
 
   for (const goal of NON_GOALS) {

@@ -530,3 +530,33 @@ describe("matchCapabilities — MAR-161 broader-negation engine", () => {
     expect(ids).toContain("optional_email_send");
   });
 });
+
+describe("matchCapabilities — MAR-145 round-4 (ChatGPT dogfood)", () => {
+  it("'invoice' alone does NOT pull stripe_data_read (no Stripe context)", () => {
+    const ids = matchedIds(
+      "Process supplier invoices: extract the line items, validate totals, and load them into the accounting system.",
+    );
+    expect(ids).not.toContain("stripe_data_read");
+  });
+
+  it("STILL selects stripe_data_read when Stripe is actually named", () => {
+    const ids = matchedIds(
+      "Read subscription data from Stripe and produce a churn report.",
+    );
+    expect(ids).toContain("stripe_data_read");
+  });
+
+  it("'rolls back' (conjugated) selects saga_compensation", () => {
+    const ids = matchedIds(
+      "Send bulk API updates to 500 customers; if any step fails, it rolls back all completed updates.",
+    );
+    expect(ids).toContain("saga_compensation");
+  });
+
+  it("'rolling back' also selects saga_compensation", () => {
+    const ids = matchedIds(
+      "Process a batch and start rolling back every completed step the moment one fails.",
+    );
+    expect(ids).toContain("saga_compensation");
+  });
+});
