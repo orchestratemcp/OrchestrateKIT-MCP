@@ -8,11 +8,13 @@ import { EdgeSchema } from "./edgeSchema.js";
 import { StackSchema } from "./stackSchema.js";
 import { RouteSchema } from "./routeSchema.js";
 import { PlaybookSchema } from "./playbookSchema.js";
+import { WorkerSchema } from "./workerSchema.js";
 import type { Component } from "./componentSchema.js";
 import type { Edge } from "./edgeSchema.js";
 import type { Stack } from "./stackSchema.js";
 import type { Route } from "./routeSchema.js";
 import type { Playbook } from "./playbookSchema.js";
+import type { Worker } from "./workerSchema.js";
 import type { Registry, RegistryStatus } from "./registryTypes.js";
 import {
   assembleRegistry,
@@ -92,6 +94,7 @@ export function readRawEntries(registryDir: string = defaultRegistryDir()): RawE
     stacks: map(loadYamlDir<Stack>(join(registryDir, "stacks"), StackSchema)),
     routes: map(loadYamlDir<Route>(join(registryDir, "routes"), RouteSchema)),
     playbooks: map(loadYamlDir<Playbook>(join(registryDir, "playbooks"), PlaybookSchema)),
+    workers: map(loadYamlDir<Worker>(join(registryDir, "workers"), WorkerSchema)),
   };
 }
 

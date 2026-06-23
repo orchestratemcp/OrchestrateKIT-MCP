@@ -26,6 +26,7 @@ export function loadRegistryBundled(opts: LoaderOptions = {}): LoadedRegistry {
     stacks: toRaw(BUNDLE.stacks),
     routes: toRaw(BUNDLE.routes),
     playbooks: toRaw(BUNDLE.playbooks),
+    workers: toRaw(BUNDLE.workers ?? []),
   };
   return assembleRegistry(raw, opts);
 }

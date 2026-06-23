@@ -345,6 +345,187 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "severity": "medium",
     },
   ],
+  "worker_pipeline": {
+    "feedback_loops": [
+      {
+        "contract": "reviewer.outputs → coder.inputs",
+        "from": "reviewer",
+        "to": "coder",
+      },
+      {
+        "contract": "tester.outputs → coder.inputs",
+        "from": "tester",
+        "to": "coder",
+      },
+    ],
+    "handoffs": [
+      {
+        "contract": "planner.outputs → coder.inputs",
+        "from": "planner",
+        "to": "coder",
+      },
+      {
+        "contract": "coder.outputs → reviewer.inputs",
+        "from": "coder",
+        "to": "reviewer",
+      },
+      {
+        "contract": "reviewer.outputs → tester.inputs",
+        "from": "reviewer",
+        "to": "tester",
+      },
+    ],
+    "workers": [
+      {
+        "allowed_tools": [
+          "plan_workflow",
+          "list_known_routes",
+          "get_route",
+          "explain_component",
+          "recommend_architecture",
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "external_publish",
+          "deploy",
+        ],
+        "hands_off_to": [
+          "coder",
+        ],
+        "inputs": [
+          "user goal in plain language",
+          "constraints (read-only vs write, attended vs unattended, outbound sends)",
+        ],
+        "model_tier": "frontier",
+        "outputs": [
+          "ordered workflow plan (component list + execution order)",
+          "safety requirements (approval gates, irreversible actions flagged)",
+          "explicit assumptions and open questions",
+        ],
+        "quality_gates": [
+          "must identify irreversible / external-write actions and require an approval gate",
+          "must mark every assumption explicitly rather than guessing silently",
+          "must separate deterministic steps from LLM-driven steps",
+          "must refuse to plan a vague goal and ask for it instead (needs_goal)",
+        ],
+        "role": "planner",
+        "step": 1,
+        "title": "Planner",
+        "worker_id": "planner",
+      },
+      {
+        "allowed_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "run_build",
+          "file_read",
+        ],
+        "forbidden_tools": [
+          "deploy",
+          "external_publish",
+          "git_push_main",
+        ],
+        "hands_off_to": [
+          "reviewer",
+        ],
+        "inputs": [
+          "workflow plan (component list + execution order)",
+          "safety requirements from the planner",
+        ],
+        "model_tier": "standard",
+        "outputs": [
+          "implementation / code diff scoped to the plan",
+          "build notes (what was wired, what was left as a stub)",
+        ],
+        "quality_gates": [
+          "must implement only the components named in the plan",
+          "must not add external writes or side effects the plan did not authorise",
+          "must keep the change scoped to one task",
+          "must leave a build that compiles",
+        ],
+        "role": "coder",
+        "step": 2,
+        "title": "Coder",
+        "worker_id": "coder",
+      },
+      {
+        "allowed_tools": [
+          "file_read",
+          "code_read",
+          "run_lint",
+          "review_workflow_design",
+          "record_session_feedback",
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "deploy",
+          "external_publish",
+        ],
+        "hands_off_to": [
+          "tester",
+          "coder",
+        ],
+        "inputs": [
+          "code diff from the coder",
+          "workflow plan (component list + safety requirements)",
+        ],
+        "model_tier": "standard",
+        "outputs": [
+          "review findings (issues, severities)",
+          "verdict — approved or changes-requested",
+        ],
+        "quality_gates": [
+          "must not modify code — only report findings",
+          "must flag any write / irreversible step that lacks an approval gate",
+          "must check the diff matches the plan's component list",
+        ],
+        "role": "reviewer",
+        "step": 3,
+        "title": "Reviewer",
+        "worker_id": "reviewer",
+      },
+      {
+        "allowed_tools": [
+          "run_tests",
+          "run_build",
+          "file_read",
+          "record_session_feedback",
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "deploy",
+          "external_publish",
+        ],
+        "hands_off_to": [
+          "coder",
+        ],
+        "inputs": [
+          "implementation from the coder (post-review)",
+          "acceptance criteria / probes to run",
+        ],
+        "model_tier": "small",
+        "outputs": [
+          "test results (pass/fail per check)",
+          "raw failure output for any failing test",
+        ],
+        "quality_gates": [
+          "must run the real test suite — never fabricate or assume results",
+          "must report failures verbatim with their output",
+          "must not edit source to make a failing test pass",
+        ],
+        "role": "tester",
+        "step": 4,
+        "title": "Tester",
+        "worker_id": "tester",
+      },
+    ],
+  },
 }
 `;
 
@@ -607,6 +788,187 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "severity": "medium",
     },
   ],
+  "worker_pipeline": {
+    "feedback_loops": [
+      {
+        "contract": "reviewer.outputs → coder.inputs",
+        "from": "reviewer",
+        "to": "coder",
+      },
+      {
+        "contract": "tester.outputs → coder.inputs",
+        "from": "tester",
+        "to": "coder",
+      },
+    ],
+    "handoffs": [
+      {
+        "contract": "planner.outputs → coder.inputs",
+        "from": "planner",
+        "to": "coder",
+      },
+      {
+        "contract": "coder.outputs → reviewer.inputs",
+        "from": "coder",
+        "to": "reviewer",
+      },
+      {
+        "contract": "reviewer.outputs → tester.inputs",
+        "from": "reviewer",
+        "to": "tester",
+      },
+    ],
+    "workers": [
+      {
+        "allowed_tools": [
+          "plan_workflow",
+          "list_known_routes",
+          "get_route",
+          "explain_component",
+          "recommend_architecture",
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "external_publish",
+          "deploy",
+        ],
+        "hands_off_to": [
+          "coder",
+        ],
+        "inputs": [
+          "user goal in plain language",
+          "constraints (read-only vs write, attended vs unattended, outbound sends)",
+        ],
+        "model_tier": "frontier",
+        "outputs": [
+          "ordered workflow plan (component list + execution order)",
+          "safety requirements (approval gates, irreversible actions flagged)",
+          "explicit assumptions and open questions",
+        ],
+        "quality_gates": [
+          "must identify irreversible / external-write actions and require an approval gate",
+          "must mark every assumption explicitly rather than guessing silently",
+          "must separate deterministic steps from LLM-driven steps",
+          "must refuse to plan a vague goal and ask for it instead (needs_goal)",
+        ],
+        "role": "planner",
+        "step": 1,
+        "title": "Planner",
+        "worker_id": "planner",
+      },
+      {
+        "allowed_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "run_build",
+          "file_read",
+        ],
+        "forbidden_tools": [
+          "deploy",
+          "external_publish",
+          "git_push_main",
+        ],
+        "hands_off_to": [
+          "reviewer",
+        ],
+        "inputs": [
+          "workflow plan (component list + execution order)",
+          "safety requirements from the planner",
+        ],
+        "model_tier": "standard",
+        "outputs": [
+          "implementation / code diff scoped to the plan",
+          "build notes (what was wired, what was left as a stub)",
+        ],
+        "quality_gates": [
+          "must implement only the components named in the plan",
+          "must not add external writes or side effects the plan did not authorise",
+          "must keep the change scoped to one task",
+          "must leave a build that compiles",
+        ],
+        "role": "coder",
+        "step": 2,
+        "title": "Coder",
+        "worker_id": "coder",
+      },
+      {
+        "allowed_tools": [
+          "file_read",
+          "code_read",
+          "run_lint",
+          "review_workflow_design",
+          "record_session_feedback",
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "deploy",
+          "external_publish",
+        ],
+        "hands_off_to": [
+          "tester",
+          "coder",
+        ],
+        "inputs": [
+          "code diff from the coder",
+          "workflow plan (component list + safety requirements)",
+        ],
+        "model_tier": "standard",
+        "outputs": [
+          "review findings (issues, severities)",
+          "verdict — approved or changes-requested",
+        ],
+        "quality_gates": [
+          "must not modify code — only report findings",
+          "must flag any write / irreversible step that lacks an approval gate",
+          "must check the diff matches the plan's component list",
+        ],
+        "role": "reviewer",
+        "step": 3,
+        "title": "Reviewer",
+        "worker_id": "reviewer",
+      },
+      {
+        "allowed_tools": [
+          "run_tests",
+          "run_build",
+          "file_read",
+          "record_session_feedback",
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "deploy",
+          "external_publish",
+        ],
+        "hands_off_to": [
+          "coder",
+        ],
+        "inputs": [
+          "implementation from the coder (post-review)",
+          "acceptance criteria / probes to run",
+        ],
+        "model_tier": "small",
+        "outputs": [
+          "test results (pass/fail per check)",
+          "raw failure output for any failing test",
+        ],
+        "quality_gates": [
+          "must run the real test suite — never fabricate or assume results",
+          "must report failures verbatim with their output",
+          "must not edit source to make a failing test pass",
+        ],
+        "role": "tester",
+        "step": 4,
+        "title": "Tester",
+        "worker_id": "tester",
+      },
+    ],
+  },
 }
 `;
 
@@ -810,6 +1172,187 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "severity": "medium",
     },
   ],
+  "worker_pipeline": {
+    "feedback_loops": [
+      {
+        "contract": "reviewer.outputs → coder.inputs",
+        "from": "reviewer",
+        "to": "coder",
+      },
+      {
+        "contract": "tester.outputs → coder.inputs",
+        "from": "tester",
+        "to": "coder",
+      },
+    ],
+    "handoffs": [
+      {
+        "contract": "planner.outputs → coder.inputs",
+        "from": "planner",
+        "to": "coder",
+      },
+      {
+        "contract": "coder.outputs → reviewer.inputs",
+        "from": "coder",
+        "to": "reviewer",
+      },
+      {
+        "contract": "reviewer.outputs → tester.inputs",
+        "from": "reviewer",
+        "to": "tester",
+      },
+    ],
+    "workers": [
+      {
+        "allowed_tools": [
+          "plan_workflow",
+          "list_known_routes",
+          "get_route",
+          "explain_component",
+          "recommend_architecture",
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "external_publish",
+          "deploy",
+        ],
+        "hands_off_to": [
+          "coder",
+        ],
+        "inputs": [
+          "user goal in plain language",
+          "constraints (read-only vs write, attended vs unattended, outbound sends)",
+        ],
+        "model_tier": "frontier",
+        "outputs": [
+          "ordered workflow plan (component list + execution order)",
+          "safety requirements (approval gates, irreversible actions flagged)",
+          "explicit assumptions and open questions",
+        ],
+        "quality_gates": [
+          "must identify irreversible / external-write actions and require an approval gate",
+          "must mark every assumption explicitly rather than guessing silently",
+          "must separate deterministic steps from LLM-driven steps",
+          "must refuse to plan a vague goal and ask for it instead (needs_goal)",
+        ],
+        "role": "planner",
+        "step": 1,
+        "title": "Planner",
+        "worker_id": "planner",
+      },
+      {
+        "allowed_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "run_build",
+          "file_read",
+        ],
+        "forbidden_tools": [
+          "deploy",
+          "external_publish",
+          "git_push_main",
+        ],
+        "hands_off_to": [
+          "reviewer",
+        ],
+        "inputs": [
+          "workflow plan (component list + execution order)",
+          "safety requirements from the planner",
+        ],
+        "model_tier": "standard",
+        "outputs": [
+          "implementation / code diff scoped to the plan",
+          "build notes (what was wired, what was left as a stub)",
+        ],
+        "quality_gates": [
+          "must implement only the components named in the plan",
+          "must not add external writes or side effects the plan did not authorise",
+          "must keep the change scoped to one task",
+          "must leave a build that compiles",
+        ],
+        "role": "coder",
+        "step": 2,
+        "title": "Coder",
+        "worker_id": "coder",
+      },
+      {
+        "allowed_tools": [
+          "file_read",
+          "code_read",
+          "run_lint",
+          "review_workflow_design",
+          "record_session_feedback",
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "deploy",
+          "external_publish",
+        ],
+        "hands_off_to": [
+          "tester",
+          "coder",
+        ],
+        "inputs": [
+          "code diff from the coder",
+          "workflow plan (component list + safety requirements)",
+        ],
+        "model_tier": "standard",
+        "outputs": [
+          "review findings (issues, severities)",
+          "verdict — approved or changes-requested",
+        ],
+        "quality_gates": [
+          "must not modify code — only report findings",
+          "must flag any write / irreversible step that lacks an approval gate",
+          "must check the diff matches the plan's component list",
+        ],
+        "role": "reviewer",
+        "step": 3,
+        "title": "Reviewer",
+        "worker_id": "reviewer",
+      },
+      {
+        "allowed_tools": [
+          "run_tests",
+          "run_build",
+          "file_read",
+          "record_session_feedback",
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "deploy",
+          "external_publish",
+        ],
+        "hands_off_to": [
+          "coder",
+        ],
+        "inputs": [
+          "implementation from the coder (post-review)",
+          "acceptance criteria / probes to run",
+        ],
+        "model_tier": "small",
+        "outputs": [
+          "test results (pass/fail per check)",
+          "raw failure output for any failing test",
+        ],
+        "quality_gates": [
+          "must run the real test suite — never fabricate or assume results",
+          "must report failures verbatim with their output",
+          "must not edit source to make a failing test pass",
+        ],
+        "role": "tester",
+        "step": 4,
+        "title": "Tester",
+        "worker_id": "tester",
+      },
+    ],
+  },
 }
 `;
 

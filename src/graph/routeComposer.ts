@@ -3,6 +3,7 @@ import type { Edge } from "../registry/edgeSchema.js";
 import type { Playbook } from "../registry/playbookSchema.js";
 import type { Route } from "../registry/routeSchema.js";
 import type { Stack } from "../registry/stackSchema.js";
+import type { Worker } from "../registry/workerSchema.js";
 import { matchCapabilities } from "./capabilityMatcher.js";
 import { augmentWithSafety } from "./safetyAugmenter.js";
 import {
@@ -153,6 +154,11 @@ export type RegistrySnapshot = {
   stacks: Stack[];
   routes: Route[];
   playbooks: Playbook[];
+  /**
+   * Worker playbooks (MAR-166). Optional so the many test fixtures that build a
+   * minimal snapshot need not declare it; plan_workflow defaults to `[]`.
+   */
+  workers?: Worker[];
 };
 
 export function componentPurpose(component: Component): string {

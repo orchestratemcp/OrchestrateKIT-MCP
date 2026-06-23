@@ -32,10 +32,11 @@ function build(): void {
   const stacks = toBundleEntries(raw.stacks);
   const routes = toBundleEntries(raw.routes);
   const playbooks = toBundleEntries(raw.playbooks);
+  const workers = toBundleEntries(raw.workers);
 
   // Newest mtime across all entries.
   let newest = new Date(0);
-  for (const section of [components, edges, stacks, routes, playbooks]) {
+  for (const section of [components, edges, stacks, routes, playbooks, workers]) {
     for (const e of section) {
       const m = new Date(e.mtime);
       if (m > newest) newest = m;
@@ -51,12 +52,13 @@ function build(): void {
     stacks,
     routes,
     playbooks,
+    workers,
   };
 
   // Fingerprint over the data (excludes generated_at/fingerprint themselves).
   const hash = createHash("sha256");
   hash.update(
-    JSON.stringify({ components, edges, stacks, routes, playbooks }),
+    JSON.stringify({ components, edges, stacks, routes, playbooks, workers }),
   );
   bundle.fingerprint = hash.digest("hex").slice(0, 16);
 
@@ -73,11 +75,12 @@ function build(): void {
   writeFileSync(outPath, header + "\n" + body, "utf8");
 
   const total =
-    components.length + edges.length + stacks.length + routes.length + playbooks.length;
+    components.length + edges.length + stacks.length + routes.length +
+    playbooks.length + workers.length;
   process.stderr.write(
     `registry bundle generated: ${total} entities ` +
       `(${components.length} components, ${edges.length} edges, ${stacks.length} stacks, ` +
-      `${routes.length} routes, ${playbooks.length} playbooks) → ${outPath}\n`,
+      `${routes.length} routes, ${playbooks.length} playbooks, ${workers.length} workers) → ${outPath}\n`,
   );
 
   // ── Docs-index bundle ──

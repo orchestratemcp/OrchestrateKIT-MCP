@@ -1,0 +1,25 @@
+# Template — copy and rename to {id}.worker.yaml. Files starting with _ are ignored by the loader.
+id: worker_id
+version: "0.1.0"
+status: draft  # draft | beta | validated | published | deprecated
+title: Human-readable Worker Title
+role: planner  # planner | coder | reviewer | tester | researcher | operator
+summary: One sentence on what this specialist worker does in a build pipeline.
+best_for:
+  - the kind of goal this worker is the right specialist for
+inputs:
+  - what this worker consumes from the previous worker (handoff contract)
+outputs:
+  - what this worker produces for the next worker (handoff contract)
+allowed_tools:
+  - tool capabilities this worker MAY use
+forbidden_tools:
+  - tool capabilities this worker MUST NOT use
+handoff_to:
+  - worker_id_it_can_pass_to
+model_tier: standard  # none | small | standard | frontier
+quality_gates:
+  - a contract invariant this worker must satisfy on every run
+evals:
+  - a check that verifies the worker honours its contract
+sources: []

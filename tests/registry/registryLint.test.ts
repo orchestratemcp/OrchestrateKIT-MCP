@@ -7,8 +7,30 @@ import {
   lintRegistry,
   computeBrainCompletionPct,
   lintNoByteOrderMark,
+  lintWorkerContracts,
 } from "../../src/registry/registryLint.js";
 import { loadRegistry } from "../../src/registry/registryLoader.js";
+import type { Worker } from "../../src/registry/workerSchema.js";
+
+function makeWorker(partial: Partial<Worker> & Pick<Worker, "id" | "role">): Worker {
+  return {
+    version: "1.0.0",
+    status: "published",
+    title: partial.id,
+    summary: "test",
+    best_for: [],
+    inputs: ["in"],
+    outputs: ["out"],
+    allowed_tools: [],
+    forbidden_tools: [],
+    handoff_to: [],
+    model_tier: "standard",
+    quality_gates: ["g"],
+    evals: ["e"],
+    sources: [],
+    ...partial,
+  } as Worker;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -81,6 +103,37 @@ describe("registry:lint — UTF-8 BOM hygiene gate (MAR-160)", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("registry:lint — worker contract gate (MAR-166)", () => {
+  it("passes clean worker contracts", () => {
+    const errors = lintWorkerContracts([
+      makeWorker({ id: "planner", role: "planner", forbidden_tools: ["file_write"] }),
+      makeWorker({ id: "coder", role: "coder", allowed_tools: ["file_write"] }),
+    ]);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("flags a read-only role that allows a write tool", () => {
+    const errors = lintWorkerContracts([
+      makeWorker({ id: "planner", role: "planner", allowed_tools: ["file_write"] }),
+    ]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].entity).toBe("worker:planner");
+    expect(errors[0].field).toBe("allowed_tools");
+  });
+
+  it("flags a tool that is both allowed and forbidden", () => {
+    const errors = lintWorkerContracts([
+      makeWorker({
+        id: "coder",
+        role: "coder",
+        allowed_tools: ["git_commit"],
+        forbidden_tools: ["git_commit"],
+      }),
+    ]);
+    expect(errors.some((e) => e.message.includes("both allowed"))).toBe(true);
   });
 });
 

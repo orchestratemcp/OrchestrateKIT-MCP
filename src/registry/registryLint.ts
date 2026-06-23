@@ -7,8 +7,10 @@ import { EdgeSchema } from "./edgeSchema.js";
 import { StackSchema } from "./stackSchema.js";
 import { RouteSchema } from "./routeSchema.js";
 import { PlaybookSchema } from "./playbookSchema.js";
+import { WorkerSchema, isWriteTool, READ_ONLY_ROLES } from "./workerSchema.js";
 import type { Component } from "./componentSchema.js";
 import type { Edge } from "./edgeSchema.js";
+import type { Worker } from "./workerSchema.js";
 import type { Registry } from "./registryTypes.js";
 import { loadRegistry, type LoaderOptions } from "./registryLoader.js";
 import {
@@ -24,7 +26,7 @@ const CRITICAL_WRITE_COMPONENTS = new Set([
 ]);
 
 /** Registry subdirectories that hold YAML files (relative to the registry dir). */
-const REGISTRY_YAML_DIRS = ["components", "edges", "stacks", "routes", "playbooks"];
+const REGISTRY_YAML_DIRS = ["components", "edges", "stacks", "routes", "playbooks", "workers"];
 
 export type LayerCompletion = {
   L0: number;
@@ -113,6 +115,43 @@ function lintTestedEdgesRequireRefs(edges: Edge[]): ValidationError[] {
         field: "test_refs",
         message: "tested: true requires non-empty test_refs[]",
       });
+    }
+  }
+  return errors;
+}
+
+/**
+ * Worker contract lint (MAR-166). Enforces the structural invariants that make
+ * a worker a SAFE specialist rather than a free-for-all agent:
+ *  - a tool cannot be both allowed AND forbidden,
+ *  - a read-only role (planner / reviewer / tester) must not list a write tool
+ *    among its allowed_tools,
+ *  - a worker that cannot hand off and is not a terminal role is a dead end.
+ * (handoff_to id existence is checked in validateCrossReferences.)
+ */
+export function lintWorkerContracts(workers: Worker[]): ValidationError[] {
+  const errors: ValidationError[] = [];
+  for (const w of workers) {
+    const allowed = new Set(w.allowed_tools);
+    for (const t of w.forbidden_tools) {
+      if (allowed.has(t)) {
+        errors.push({
+          entity: `worker:${w.id}`,
+          field: "allowed_tools",
+          message: `Tool "${t}" is in both allowed_tools and forbidden_tools`,
+        });
+      }
+    }
+    if (READ_ONLY_ROLES.has(w.role)) {
+      for (const t of w.allowed_tools) {
+        if (isWriteTool(t)) {
+          errors.push({
+            entity: `worker:${w.id}`,
+            field: "allowed_tools",
+            message: `Read-only role "${w.role}" must not allow write tool "${t}"`,
+          });
+        }
+      }
     }
   }
   return errors;
@@ -293,6 +332,7 @@ export function lintRegistry(opts: LoaderOptions = {}): RegistryLintResult {
     ...lintUnknownYamlFields(join(registryDir, "stacks"), StackSchema, "stack"),
     ...lintUnknownYamlFields(join(registryDir, "routes"), RouteSchema, "route"),
     ...lintUnknownYamlFields(join(registryDir, "playbooks"), PlaybookSchema, "playbook"),
+    ...lintUnknownYamlFields(join(registryDir, "workers"), WorkerSchema, "worker"),
   );
 
   const registry = loadRegistry({ ...opts, strict: true, includeBeta: true, includeCandidates: true });
@@ -307,6 +347,7 @@ export function lintRegistry(opts: LoaderOptions = {}): RegistryLintResult {
     ...validateCrossReferences(registry),
     ...lintTestedEdgesRequireRefs(registry.edges),
     ...lintComponentRefs(registry),
+    ...lintWorkerContracts(registry.workers),
     ...lintPublishedComponents(allComponents),
     ...lintValidatedComponents(allComponents),
     ...lintCriticalWriteComponents(allComponents),

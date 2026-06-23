@@ -39,6 +39,10 @@ import {
 } from "../graph/routeOrdering.js";
 import { ALWAYS_REQUIRES_GATE } from "../graph/safetyAugmenter.js";
 import { findOverlappingPlaybooks } from "../graph/playbookOverlap.js";
+import {
+  composeWorkerPipeline,
+  type WorkerPipeline,
+} from "../graph/workerPipeline.js";
 import { buildReviewContext } from "./reviewWorkflowDesign.js";
 import { ALL_RULES } from "../review/rules/index.js";
 import {
@@ -221,6 +225,13 @@ export type PlanWorkflowOutput = {
    */
   approval_gate_advisory: ApprovalGateAdvisory | null;
   evals_to_add: string[];
+  /**
+   * Advisory multi-worker BUILD pipeline (MAR-166): the specialist workers
+   * (planner → coder → reviewer → tester) recommended to implement this plan in
+   * the user's own runtime, with their handoff contracts. Deterministic and the
+   * same build team for every plan; empty when the registry has no workers.
+   */
+  worker_pipeline: WorkerPipeline;
   next_steps: string[];
 };
 
@@ -404,6 +415,7 @@ function buildPlanMarkdown(
   credentials: CredentialAdvisory,
   untestedEdges: UntestedEdge[],
   approvalAdvisory: ApprovalGateAdvisory | null,
+  workerPipeline: WorkerPipeline,
 ): string {
   const lines: string[] = [];
 
@@ -496,6 +508,35 @@ function buildPlanMarkdown(
       `${untestedEdges.slice(0, 8).map((e) => `\`${e.id}\` (${e.severity})`).join(", ")}${untestedEdges.length > 8 ? " …" : ""}`,
       ``,
     );
+  }
+
+  // MAR-166: advisory build team for implementing this plan in your runtime.
+  if (workerPipeline.workers.length > 0) {
+    lines.push(
+      `### Build team (worker pipeline)`,
+      ``,
+      `> Specialist workers with safe contracts to BUILD this plan — handed off ` +
+        `in order. OrchestrateMCP recommends the team; you run it in your own runtime.`,
+      ``,
+    );
+    const chain = workerPipeline.workers.map((w) => `\`${w.worker_id}\``).join(" → ");
+    lines.push(`**Pipeline:** ${chain}`, ``);
+    for (const w of workerPipeline.workers) {
+      const tier = w.model_tier === "none" ? "deterministic" : `${w.model_tier} tier`;
+      lines.push(
+        `${w.step}. **${w.title}** (\`${w.role}\`, ${tier}) — ` +
+          `consumes: ${w.inputs.join("; ") || "—"} → produces: ${w.outputs.join("; ") || "—"}`,
+      );
+    }
+    if (workerPipeline.feedback_loops.length > 0) {
+      lines.push(
+        ``,
+        `**Fix loops:** ${workerPipeline.feedback_loops
+          .map((h) => `\`${h.from}\` → \`${h.to}\``)
+          .join(", ")}`,
+      );
+    }
+    lines.push(``);
   }
 
   return lines.join("\n");
@@ -645,6 +686,11 @@ export function planWorkflow(
     ? "candidate"
     : composed.route_status;
 
+  // ── MAR-166: advisory build pipeline (planner → coder → reviewer → tester) ──
+  // Same deterministic build team for every plan; the registry supplies the
+  // workers and their handoff contracts.
+  const worker_pipeline = composeWorkerPipeline(registry.workers ?? []);
+
   // ── Step 6: fused markdown ──
   // MAR-101: every depth leads with the same scannable status front-matter so
   // route_status / safety / blocking / approval / untested-edge count are
@@ -679,6 +725,7 @@ export function planWorkflow(
           credential_advisory,
           untested_edges,
           approval_gate_advisory,
+          worker_pipeline,
         );
   const summary_markdown = `${statusHeader}\n\n${body}`;
 
@@ -702,6 +749,7 @@ export function planWorkflow(
     enforced_approval_gates,
     approval_gate_advisory,
     evals_to_add: composed.evals_to_add,
+    worker_pipeline,
     next_steps:
       planSource === "playbook"
         ? [
