@@ -111,6 +111,44 @@ describe("MAR-163 — plan_workflow output schema", () => {
   });
 });
 
+describe("MAR-169 — validate_playbook_candidate output schema", () => {
+  const CANDIDATE_YAML = `id: snap_candidate
+version: "0.1.0"
+status: draft
+title: Snap Candidate
+summary: A candidate used for the output-schema snapshot.
+workflow_type: data
+golden_path_route_id: ""
+components: [data_scraper, data_normalizer, deduplication, schema_validation, state_store]
+edges: [data_scraper__produces__data_normalizer]
+stack_id: default_orchestratekit_stack
+risk_level: medium
+deterministic_steps: [data_scraper]
+failure_modes: [a, b, c, d, e]
+evals: [a, b, c, d, e]
+sources:
+  - title: t
+    source_type: internal_note
+`;
+
+  it("ok branch conforms + golden snapshot", async () => {
+    const sc = await structured("validate_playbook_candidate", {
+      playbook_yaml: CANDIDATE_YAML,
+    });
+    expect(sc.status).toBe("ok");
+    expect(sc.qualifies_for).toBe("beta");
+    expect(normalize(sc)).toMatchSnapshot();
+  });
+
+  it("invalid_yaml branch conforms + golden snapshot", async () => {
+    const sc = await structured("validate_playbook_candidate", {
+      playbook_yaml: "::: not : yaml : [",
+    });
+    expect(sc.status).toBe("invalid_yaml");
+    expect(normalize(sc)).toMatchSnapshot();
+  });
+});
+
 describe("MAR-163 — explain_component output schema", () => {
   it("ok branch conforms + golden snapshot", async () => {
     const sc = await structured("explain_component", {

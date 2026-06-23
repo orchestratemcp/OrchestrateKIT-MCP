@@ -1688,3 +1688,105 @@ exports[`MAR-163 — review_workflow_design output schema > conforms + golden sn
   ],
 }
 `;
+
+exports[`MAR-169 — validate_playbook_candidate output schema > invalid_yaml branch conforms + golden snapshot 1`] = `
+{
+  "blocking": [
+    "[text]",
+  ],
+  "dod": [],
+  "evidence_required": [],
+  "invalid_edges": [],
+  "missing_components": [],
+  "next_recommended_tools": [
+    "get_playbook",
+  ],
+  "playbook_id": null,
+  "qualifies_for": null,
+  "status": "invalid_yaml",
+  "summary_markdown": "[text]",
+}
+`;
+
+exports[`MAR-169 — validate_playbook_candidate output schema > ok branch conforms + golden snapshot 1`] = `
+{
+  "blocking": [],
+  "dod": [
+    {
+      "detail": "5 components",
+      "id": 1,
+      "label": "≥5 components",
+      "ok": true,
+    },
+    {
+      "detail": "5 failure_modes",
+      "id": 2,
+      "label": "≥5 failure modes",
+      "ok": true,
+    },
+    {
+      "detail": "5 evals",
+      "id": 3,
+      "label": "≥5 evals",
+      "ok": true,
+    },
+    {
+      "detail": "confirm in the Lab — stateless advisor cannot see sessions",
+      "id": 4,
+      "label": "≥2-3 real Lab sessions",
+      "ok": "unverifiable",
+    },
+    {
+      "detail": "confirm in the Lab / benchmarks — not present in the YAML",
+      "id": 5,
+      "label": "≥1 benchmark prompt",
+      "ok": "unverifiable",
+    },
+    {
+      "detail": "all present",
+      "id": 6,
+      "label": "all components exist",
+      "ok": true,
+    },
+    {
+      "detail": "all present",
+      "id": 7,
+      "label": "all edges exist",
+      "ok": true,
+    },
+    {
+      "detail": "risk=medium, approval policy explicit",
+      "id": 8,
+      "label": "risk level + approval policy explicit",
+      "ok": true,
+    },
+    {
+      "detail": "0 llm / 1 deterministic",
+      "id": 9,
+      "label": "LLM-driven vs deterministic steps separated",
+      "ok": true,
+    },
+    {
+      "detail": "1 source(s)",
+      "id": 10,
+      "label": "sources / internal evidence present",
+      "ok": true,
+    },
+  ],
+  "evidence_required": [
+    "[text]",
+    "[text]",
+  ],
+  "invalid_edges": [],
+  "missing_components": [],
+  "next_recommended_tools": [
+    "get_playbook",
+    "get_route",
+    "explain_component",
+  ],
+  "playbook_id": "snap_candidate",
+  "qualifies_for": "beta",
+  "status": "ok",
+  "summary_markdown": "[text]",
+}
+`;
