@@ -15,6 +15,7 @@
     "test": "vitest run",
     "registry:lint": "tsx scripts/registry-lint.ts",
     "probe": "tsx scripts/node-probes.ts",
+    "demo": "tsx scripts/smoke-demo.ts",
     "smoke": "vitest run tests/smoke",
     "verify": "pnpm typecheck && pnpm registry:lint && pnpm test"
   },
