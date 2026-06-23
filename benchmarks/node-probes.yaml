@@ -222,6 +222,20 @@ probes:
     must_have: [reviewer_notification]
     forbidden: [calendar_lookup, calendar_write]
 
+  # ── MAR-128: playbook routing must COVER an explicit primary-domain match ────
+  # "send it to a reviewer to approve" matches reviewer_notification (output).
+  # This goal overlaps content_approval_pipeline at precision 0.78 (recall 1.0),
+  # so playbook-first routing used to LEAD with the playbook and DROP
+  # reviewer_notification — the delivered design no longer notified a reviewer.
+  # The coverage guard appends the matched primary-domain component to the
+  # playbook route, so reviewer_notification appears whether or not it routes via
+  # a playbook (the playbook lead is preserved — no forbidden_playbook here).
+  - id: blog_reviewer_notify_keeps_reviewer_notification
+    goal: "Write blog copy from the brief, send it to a reviewer to approve, and publish to the blog."
+    via: plan
+    must_have: [reviewer_notification]
+    forbidden: []
+
   # ── MAR-134: saga_compensation + threshold_router ────────────────────────────
   - id: saga_compensation_loop_rollback
     goal: "Send bulk API updates to 500 customers; if any step fails, roll back all completed updates."
