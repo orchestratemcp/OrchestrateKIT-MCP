@@ -64,6 +64,16 @@ export const PlanWorkflowOutputShape = z
       .passthrough()
       .nullable()
       .optional(),
+    // earned-by-evidence autonomy level on every plan (MAR-168)
+    automation_clearance: z
+      .object({
+        level: z.enum(["L0", "L1", "L2", "L3", "L4"]),
+        autonomous_allowed: z.boolean(),
+        reason: z.string(),
+        required_controls: z.array(z.string()),
+      })
+      .passthrough()
+      .optional(),
     // present on a needs_goal nudge (MAR-162)
     status: z.literal("needs_goal").optional(),
     reason: z.string().optional(),
