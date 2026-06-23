@@ -10,6 +10,7 @@ import type { Edge } from "./edgeSchema.js";
 import type { Stack } from "./stackSchema.js";
 import type { Route } from "./routeSchema.js";
 import type { Playbook } from "./playbookSchema.js";
+import type { Worker } from "./workerSchema.js";
 
 /** One entity plus its source-file mtime as an ISO string (JSON-serialisable). */
 export type BundleEntry<T> = { mtime: string; data: T };
@@ -26,4 +27,11 @@ export type RegistryBundle = {
   stacks: BundleEntry<Stack>[];
   routes: BundleEntry<Route>[];
   playbooks: BundleEntry<Playbook>[];
+  /**
+   * Optional (MAR-166) so the committed bundle placeholder typechecks WITHOUT
+   * regeneration — this repo keeps generated-bundle churn out of git and lets
+   * `deploy:worker` (which runs `gen:registry`) bake in the current registry
+   * data, workers included. loadRegistryBundled defaults a missing field to [].
+   */
+  workers?: BundleEntry<Worker>[];
 };

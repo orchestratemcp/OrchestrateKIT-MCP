@@ -19,6 +19,26 @@ function plan(goal: string) {
   return planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
 }
 
+describe("planWorkflow — worker build pipeline (MAR-166)", () => {
+  it("attaches the planner → coder → reviewer → tester build team to a plan", () => {
+    const r = plan("scan a codebase, plan changes, edit code, run tests and write a PR summary");
+    expect(r.worker_pipeline.workers.map((w) => w.worker_id)).toEqual([
+      "planner",
+      "coder",
+      "reviewer",
+      "tester",
+    ]);
+    expect(r.worker_pipeline.handoffs.map((h) => `${h.from}->${h.to}`)).toContain(
+      "planner->coder",
+    );
+  });
+
+  it("renders a Build team section in the standard markdown", () => {
+    const r = plan("read emails, detect leads, research the company and draft a reply");
+    expect(r.summary_markdown).toContain("Build team (worker pipeline)");
+  });
+});
+
 describe("planWorkflow — playbook routing (MAR-98 split)", () => {
   it("routes a codebase goal to the codebase playbook", () => {
     const r = plan("scan a codebase, plan changes, edit code, run tests and write a PR summary");

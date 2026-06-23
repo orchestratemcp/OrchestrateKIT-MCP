@@ -37,6 +37,7 @@ export function validateCrossReferences(registry: Registry): ValidationError[] {
   const edgeIds = new Set(registry.edges.map((e) => e.id));
   const stackIds = new Set(registry.stacks.map((s) => s.id));
   const routeIds = new Set(registry.routes.map((r) => r.id));
+  const workerIds = new Set(registry.workers.map((w) => w.id));
 
   for (const edge of registry.edges) {
     if (!componentIds.has(edge.from)) {
@@ -106,6 +107,18 @@ export function validateCrossReferences(registry: Registry): ValidationError[] {
           entity: `playbook:${pb.id}`,
           field: "edges",
           message: `Unknown edge id "${eid}"`,
+        });
+      }
+    }
+  }
+
+  for (const w of registry.workers) {
+    for (const target of w.handoff_to) {
+      if (!workerIds.has(target)) {
+        errors.push({
+          entity: `worker:${w.id}`,
+          field: "handoff_to",
+          message: `Unknown worker id "${target}"`,
         });
       }
     }

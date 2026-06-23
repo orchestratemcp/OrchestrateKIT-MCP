@@ -16,6 +16,7 @@ import type { Edge } from "./edgeSchema.js";
 import type { Stack } from "./stackSchema.js";
 import type { Route } from "./routeSchema.js";
 import type { Playbook } from "./playbookSchema.js";
+import type { Worker } from "./workerSchema.js";
 import type { Registry, RegistryStatus } from "./registryTypes.js";
 import {
   validateNoDuplicateIds,
@@ -55,6 +56,7 @@ export type RawEntries = {
   stacks: RawEntry<Stack>[];
   routes: RawEntry<Route>[];
   playbooks: RawEntry<Playbook>[];
+  workers: RawEntry<Worker>[];
 };
 
 const DEFAULT_ALLOWED = new Set(["published", "validated"]);
@@ -91,6 +93,9 @@ export function assembleRegistry(
   const playbooks = raw.playbooks
     .map((r) => r.data)
     .filter((p) => isAllowedStatus(p.status, opts));
+  const workers = raw.workers
+    .map((r) => r.data)
+    .filter((w) => isAllowedStatus(w.status, opts));
 
   const componentMtimes = new Map<string, Date>(
     raw.components
@@ -103,8 +108,9 @@ export function assembleRegistry(
   validateNoDuplicateIds(stacks, "stack");
   validateNoDuplicateIds(routes, "route");
   validateNoDuplicateIds(playbooks, "playbook");
+  validateNoDuplicateIds(workers, "worker");
 
-  const registry: Registry = { components, edges, stacks, routes, playbooks };
+  const registry: Registry = { components, edges, stacks, routes, playbooks, workers };
   const validationWarnings = validateCrossReferences(registry);
 
   if (strict && validationWarnings.length > 0) {
@@ -139,6 +145,7 @@ export function computeRegistryStatus(registry: LoadedRegistry): RegistryStatus 
     stack_count: registry.stacks.length,
     route_count: registry.routes.length,
     playbook_count: registry.playbooks.length,
+    worker_count: registry.workers.length,
     untested_edge_pct,
     stale_component_count,
   };

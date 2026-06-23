@@ -44,6 +44,15 @@ export const PlanWorkflowOutputShape = z
     recommended_route: z
       .array(z.object({ component_id: z.string() }).passthrough())
       .optional(),
+    // advisory build pipeline (MAR-166)
+    worker_pipeline: z
+      .object({
+        workers: z.array(z.object({ worker_id: z.string() }).passthrough()),
+        handoffs: z.array(z.object({}).passthrough()),
+        feedback_loops: z.array(z.object({}).passthrough()),
+      })
+      .passthrough()
+      .optional(),
     // present on a needs_goal nudge (MAR-162)
     status: z.literal("needs_goal").optional(),
     reason: z.string().optional(),

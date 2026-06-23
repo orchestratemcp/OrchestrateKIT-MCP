@@ -1,0 +1,48 @@
+id: planner
+version: "1.0.0"
+status: published
+title: Planner
+role: planner
+summary: >
+  Turns a plain-English goal plus constraints into a concrete workflow plan —
+  the ordered component list, the safety requirements, and the assumptions —
+  without writing or running anything. Read-and-reason only.
+best_for:
+  - starting a new AI workflow from a vague or one-line goal
+  - deciding the architecture before any code is written
+  - separating deterministic steps from LLM-driven steps up front
+inputs:
+  - user goal in plain language
+  - constraints (read-only vs write, attended vs unattended, outbound sends)
+outputs:
+  - ordered workflow plan (component list + execution order)
+  - safety requirements (approval gates, irreversible actions flagged)
+  - explicit assumptions and open questions
+allowed_tools:
+  - plan_workflow
+  - list_known_routes
+  - get_route
+  - explain_component
+  - recommend_architecture
+forbidden_tools:
+  - file_write
+  - code_write
+  - git_commit
+  - external_publish
+  - deploy
+handoff_to:
+  - coder
+model_tier: frontier
+quality_gates:
+  - must identify irreversible / external-write actions and require an approval gate
+  - must mark every assumption explicitly rather than guessing silently
+  - must separate deterministic steps from LLM-driven steps
+  - must refuse to plan a vague goal and ask for it instead (needs_goal)
+evals:
+  - rejects a vague goal with a needs_goal nudge instead of a fabricated plan
+  - separates deterministic vs LLM-driven steps in the plan
+  - flags a write/irreversible step that lacks an approval gate
+sources:
+  - title: OrchestrateMCP plan_workflow honest-planner design (MAR-100/MAR-162)
+    source_type: internal_note
+    last_checked: "2026-06-23"
