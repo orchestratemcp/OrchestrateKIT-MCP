@@ -117,6 +117,19 @@ export const RecommendArchitectureOutputShape = z
   })
   .passthrough();
 
+/** validate_playbook_candidate — ok / invalid_yaml / schema_invalid (MAR-169). */
+export const ValidatePlaybookCandidateOutputShape = z
+  .object({
+    status: z.enum(["ok", "invalid_yaml", "schema_invalid"]),
+    playbook_id: z.string().nullable(),
+    qualifies_for: z.enum(["draft", "candidate", "beta"]).nullable(),
+    blocking: z.array(z.string()),
+    evidence_required: z.array(z.string()),
+    summary_markdown: z.string(),
+    next_recommended_tools: z.array(z.string()),
+  })
+  .passthrough();
+
 /** review_workflow_design — single shape. */
 export const ReviewWorkflowDesignOutputShape = z
   .object({

@@ -2,7 +2,7 @@
 
 An evidence-backed **workflow-design advisor** for AI agents. Connect it to ChatGPT, Claude (web), Cursor, or Claude Desktop and it plans safer, more grounded AI workflows — grounded in a registry of tested components, edges, and golden-path playbooks. Read-only, stateless, holds no secrets.
 
-**Status:** registry of 47 components, 78 edges, 1 stack, 5 routes, 5 playbooks; 16 tools; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`).
+**Status:** registry of 47 components, 78 edges, 4 workers, 1 stack, 6 routes, 6 playbooks; 17 tools; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`).
 
 ---
 
@@ -31,7 +31,7 @@ When a user describes a workflow goal, the MCP can:
 
 ## What works right now
 
-- MCP server runs on stdio (Cursor, Claude Desktop) and over Streamable HTTP / a Cloudflare Worker (ChatGPT, claude.ai) — 16 registered tools.
+- MCP server runs on stdio (Cursor, Claude Desktop) and over Streamable HTTP / a Cloudflare Worker (ChatGPT, claude.ai) — 17 registered tools.
 - `health_check` returns `{ name, version, registry: { component_count, edge_count, stack_count, route_count, playbook_count, untested_edge_pct } }`.
 - Registry loaded from YAML: 47 components, 78 edges, 1 stack, 5 routes, 5 playbooks.
 - `pnpm verify` (typecheck + lint + tests) passes from a clean clone and install.
@@ -138,7 +138,7 @@ orchestratekit-mcp/
     server.ts               Entry point — wires MCP server to stdio transport
     config.ts               Server name and version constants
     tools/
-      index.ts              Tool registration (16 tools: health_check + 15 graph/advisor tools)
+      index.ts              Tool registration (17 tools: health_check + 16 graph/advisor tools)
       composeWorkflowRoute.ts
       listGraphComponents.ts / getGraphComponent.ts
       listGraphEdges.ts / getGraphEdge.ts
