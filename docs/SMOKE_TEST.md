@@ -5,8 +5,8 @@ are the CI gates (deterministic, no network, no LLM); the fourth is a readable
 demo so you can *see* the planner working.
 
 ```bash
-pnpm verify   # typecheck + registry lint + full test suite  (816 tests)
-pnpm probe    # single-capability matcher/composer assertions (42 probes, 0 xfail)
+pnpm verify   # typecheck + registry lint + full test suite  (965 tests)
+pnpm probe    # single-capability matcher/composer assertions (69 probes, 1 xfail)
 pnpm build    # compile to dist/ (the stdio + HTTP servers)
 pnpm demo     # human-readable end-to-end demo (see below)
 ```
