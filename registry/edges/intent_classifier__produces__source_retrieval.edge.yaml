@@ -7,3 +7,7 @@ reason: The classified intent refines the retrieval query beyond the raw goal, i
 severity: medium
 notes: Use intent label to select the appropriate source index or source type (web, docs, internal) before retrieval.
 conditions: []
+tested: true
+test_refs:
+  - "probe:user_goal_intake_pipeline"
+  - "probe:intent_classifier_to_source_retrieval"

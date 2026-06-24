@@ -172,7 +172,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     ],
   },
   "avoid_when_violations": [],
-  "confidence_label": "medium",
+  "confidence_label": "high",
   "credential_advisory": {
     "components_requiring_credentials": [],
     "secret_manager_recommendation": null,
@@ -331,7 +331,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "step": 8,
     },
   ],
-  "route_score": 69,
+  "route_score": 81,
   "route_status": "validated",
   "safety_review": {
     "approval_gates_required": [],
@@ -346,20 +346,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     "summary": "[text]",
   },
   "summary_markdown": "[text]",
-  "untested_edges": [
-    {
-      "id": "code_editing__produces__pr_summary",
-      "severity": "medium",
-    },
-    {
-      "id": "plan_generation__tested__test_runner",
-      "severity": "medium",
-    },
-    {
-      "id": "test_runner__before__pr_summary",
-      "severity": "medium",
-    },
-  ],
+  "untested_edges": [],
   "worker_pipeline": {
     "feedback_loops": [
       {
@@ -558,7 +545,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     "required_controls": [
       "audit log — present",
       "rollback / compensation — MISSING, add saga_compensation",
-      "test coverage — 2 untested edge(s) in route",
+      "test coverage — all in-route edges tested",
       "bounded permissions (least-privilege scopes)",
       "dry-run / preview before any live action",
       "idempotency (safe to retry)",
@@ -793,7 +780,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "step": 12,
     },
   ],
-  "route_score": 53,
+  "route_score": 60,
   "route_status": "candidate",
   "safety_review": {
     "approval_gates_required": [],
@@ -812,16 +799,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     "summary": "[text]",
   },
   "summary_markdown": "[text]",
-  "untested_edges": [
-    {
-      "id": "citation_checker__compatible__source_freshness_check",
-      "severity": "low",
-    },
-    {
-      "id": "source_retrieval__tested__research_synthesis",
-      "severity": "medium",
-    },
-  ],
+  "untested_edges": [],
   "worker_pipeline": {
     "feedback_loops": [
       {
@@ -1033,7 +1011,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     ],
   },
   "avoid_when_violations": [],
-  "confidence_label": "medium",
+  "confidence_label": "high",
   "credential_advisory": {
     "components_requiring_credentials": [],
     "secret_manager_recommendation": null,
@@ -1192,7 +1170,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "step": 8,
     },
   ],
-  "route_score": 69,
+  "route_score": 81,
   "route_status": "validated",
   "safety_review": {
     "approval_gates_required": [],
@@ -1207,20 +1185,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     "summary": "[text]",
   },
   "summary_markdown": "[text]",
-  "untested_edges": [
-    {
-      "id": "code_editing__produces__pr_summary",
-      "severity": "medium",
-    },
-    {
-      "id": "plan_generation__tested__test_runner",
-      "severity": "medium",
-    },
-    {
-      "id": "test_runner__before__pr_summary",
-      "severity": "medium",
-    },
-  ],
+  "untested_edges": [],
   "worker_pipeline": {
     "feedback_loops": [
       {
@@ -1576,7 +1541,7 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
   "assumptions": [
     "Added audit_log because the route includes external actions.",
   ],
-  "confidence": 0.62,
+  "confidence": 0.71,
   "matched_playbook_ids": [
     "email_calendar_assistant",
   ],
@@ -1588,8 +1553,6 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
   ],
   "next_steps": [
     "[text]",
-    "[text]",
-    "[text]",
     "Address the do-not-build guidance above before starting implementation.",
     "Write eval fixtures for the suggested evals — start with the first 2-3.",
     "Use \`get_stack_recommendation\` for detailed stack technology choices.",
@@ -1597,11 +1560,8 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
   ],
   "recommendation_markdown": "[text]",
   "route_id": "email_calendar_route_v1",
-  "status": "candidate_route",
-  "untested_edges": [
-    "email_read__produces__intent_classifier",
-    "user_goal_intake__produces__intent_classifier",
-  ],
+  "status": "ok",
+  "untested_edges": [],
   "warnings": [
     "[text]",
     "[text]",

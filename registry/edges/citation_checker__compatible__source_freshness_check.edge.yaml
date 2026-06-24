@@ -7,3 +7,6 @@ reason: Citation checking and freshness checking are complementary eval steps. B
 severity: low
 notes: Run both checks before delivering synthesis output. A valid citation from a stale source is still a problem.
 conditions: []
+tested: true
+test_refs:
+  - "probe:source_retrieval_to_research_synthesis"

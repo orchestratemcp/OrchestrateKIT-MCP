@@ -5,9 +5,9 @@
 import type { RegistryBundle } from "./registryBundleTypes.js";
 
 export const BUNDLE: RegistryBundle = {
-  "generated_at": "2026-06-24T09:55:55.830Z",
-  "fingerprint": "0f3637733e87bbd1",
-  "newest_mtime": "2026-06-24T09:49:57.025Z",
+  "generated_at": "2026-06-24T17:25:53.634Z",
+  "fingerprint": "4835045302b98df7",
+  "newest_mtime": "2026-06-24T17:25:27.411Z",
   "components": [
     {
       "mtime": "2026-06-16T15:00:28.355Z",
@@ -2793,7 +2793,7 @@ export const BUNDLE: RegistryBundle = {
   ],
   "edges": [
     {
-      "mtime": "2026-06-16T15:00:50.437Z",
+      "mtime": "2026-06-24T17:24:47.752Z",
       "data": {
         "id": "airtable_lookup__produces__data_normalizer",
         "from": "airtable_lookup",
@@ -2807,8 +2807,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:airtable_to_normalizer"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -2952,7 +2954,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T14:33:27.341Z",
+      "mtime": "2026-06-24T17:24:51.998Z",
       "data": {
         "id": "audit_log__recommended__webhook_trigger",
         "from": "audit_log",
@@ -2966,8 +2968,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:webhook_with_audit_log"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3019,7 +3023,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.644Z",
+      "mtime": "2026-06-24T17:25:09.965Z",
       "data": {
         "id": "citation_checker__compatible__source_freshness_check",
         "from": "citation_checker",
@@ -3033,8 +3037,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:source_retrieval_to_research_synthesis"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3109,7 +3115,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.660Z",
+      "mtime": "2026-06-24T17:25:11.127Z",
       "data": {
         "id": "code_editing__produces__pr_summary",
         "from": "code_editing",
@@ -3123,8 +3129,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:full_code_agent_pipeline"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3153,7 +3161,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.668Z",
+      "mtime": "2026-06-24T17:25:12.805Z",
       "data": {
         "id": "copy_generation__produces__design_brief_generation",
         "from": "copy_generation",
@@ -3169,8 +3177,10 @@ export const BUNDLE: RegistryBundle = {
         ],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:copy_to_design_brief"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3413,7 +3423,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.701Z",
+      "mtime": "2026-06-24T17:25:14.333Z",
       "data": {
         "id": "email_draft__compatible__calendar_lookup",
         "from": "email_draft",
@@ -3429,8 +3439,10 @@ export const BUNDLE: RegistryBundle = {
         ],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:email_draft_with_calendar_lookup"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3459,7 +3471,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.711Z",
+      "mtime": "2026-06-24T17:24:45.556Z",
       "data": {
         "id": "email_read__produces__intent_classifier",
         "from": "email_read",
@@ -3473,8 +3485,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:support_email_triage_classifier"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3549,7 +3563,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:40:38.486Z",
+      "mtime": "2026-06-24T17:25:02.427Z",
       "data": {
         "id": "intent_classifier__produces__crm_note_write",
         "from": "intent_classifier",
@@ -3563,8 +3577,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:support_email_triage_classifier"
+        ],
         "failure_modes": [
           "misclassification causes irrelevant contacts to receive CRM activity records"
         ],
@@ -3572,7 +3588,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.720Z",
+      "mtime": "2026-06-24T17:25:15.377Z",
       "data": {
         "id": "intent_classifier__produces__source_retrieval",
         "from": "intent_classifier",
@@ -3586,14 +3602,17 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:user_goal_intake_pipeline",
+          "probe:intent_classifier_to_source_retrieval"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.724Z",
+      "mtime": "2026-06-24T17:25:16.505Z",
       "data": {
         "id": "job_queue__compatible__retry_policy",
         "from": "job_queue",
@@ -3607,8 +3626,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:job_queue_with_retry_policy"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3639,7 +3660,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T15:30:58.640Z",
+      "mtime": "2026-06-24T17:24:46.336Z",
       "data": {
         "id": "loop_controller__recommended__fan_out_collector",
         "from": "loop_controller",
@@ -3655,14 +3676,16 @@ export const BUNDLE: RegistryBundle = {
         ],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:loop_fanout_saga_rollback"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T15:59:05.719Z",
+      "mtime": "2026-06-24T17:24:45.637Z",
       "data": {
         "id": "loop_controller__safer_with__saga_compensation",
         "from": "loop_controller",
@@ -3678,14 +3701,16 @@ export const BUNDLE: RegistryBundle = {
         ],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:loop_fanout_saga_rollback"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T14:46:57.368Z",
+      "mtime": "2026-06-24T17:24:48.608Z",
       "data": {
         "id": "multi_variant_generator__produces__external_publish",
         "from": "multi_variant_generator",
@@ -3699,8 +3724,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:multi_variant_to_publish"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3752,7 +3779,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.737Z",
+      "mtime": "2026-06-24T17:24:54.324Z",
       "data": {
         "id": "page_monitor__produces__data_normalizer",
         "from": "page_monitor",
@@ -3766,14 +3793,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:page_monitor_to_data_pipeline"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.743Z",
+      "mtime": "2026-06-24T17:24:53.483Z",
       "data": {
         "id": "page_monitor__produces__source_freshness_check",
         "from": "page_monitor",
@@ -3787,8 +3816,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:page_monitor_to_data_pipeline"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3863,7 +3894,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.756Z",
+      "mtime": "2026-06-24T17:25:17.270Z",
       "data": {
         "id": "plan_generation__tested__test_runner",
         "from": "plan_generation",
@@ -3877,8 +3908,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:full_code_agent_pipeline"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3938,7 +3971,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:40:47.682Z",
+      "mtime": "2026-06-24T17:25:01.416Z",
       "data": {
         "id": "research_synthesis__produces__content_idea_intake",
         "from": "research_synthesis",
@@ -3952,8 +3985,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:research_to_content_ideas"
+        ],
         "failure_modes": [
           "research synthesis used as content brief without citation review — hallucinations propagate into published content"
         ],
@@ -4030,7 +4065,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.786Z",
+      "mtime": "2026-06-24T17:25:18.413Z",
       "data": {
         "id": "retry_policy__recommended__email_read",
         "from": "retry_policy",
@@ -4044,14 +4079,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:retry_policy_for_email_read"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.791Z",
+      "mtime": "2026-06-24T17:25:19.934Z",
       "data": {
         "id": "retry_policy__recommended__external_publish",
         "from": "retry_policy",
@@ -4067,14 +4104,16 @@ export const BUNDLE: RegistryBundle = {
         ],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:retry_policy_for_publish"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T14:46:56.482Z",
+      "mtime": "2026-06-24T17:24:49.800Z",
       "data": {
         "id": "review_draft_composer__produces__human_approval_gate",
         "from": "review_draft_composer",
@@ -4088,14 +4127,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:review_draft_full_pipeline"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T15:30:52.668Z",
+      "mtime": "2026-06-24T17:24:46.982Z",
       "data": {
         "id": "review_draft_composer__produces__reviewer_notification",
         "from": "review_draft_composer",
@@ -4109,8 +4150,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:review_draft_full_pipeline"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -4139,7 +4182,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T14:46:55.505Z",
+      "mtime": "2026-06-24T17:24:50.427Z",
       "data": {
         "id": "scheduled_trigger__compatible__page_monitor",
         "from": "scheduled_trigger",
@@ -4153,14 +4196,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:scheduled_page_monitor"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T14:46:54.404Z",
+      "mtime": "2026-06-24T17:24:51.181Z",
       "data": {
         "id": "scheduled_trigger__produces__state_store",
         "from": "scheduled_trigger",
@@ -4174,8 +4219,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:scheduled_trigger_with_state"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -4204,7 +4251,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.799Z",
+      "mtime": "2026-06-24T17:25:21.088Z",
       "data": {
         "id": "schema_validation__compatible__deduplication",
         "from": "schema_validation",
@@ -4218,8 +4265,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:etl_deduplication_schema_validation"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -4294,7 +4343,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.811Z",
+      "mtime": "2026-06-24T17:25:22.221Z",
       "data": {
         "id": "source_retrieval__tested__research_synthesis",
         "from": "source_retrieval",
@@ -4308,14 +4357,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:source_retrieval_to_research_synthesis"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.815Z",
+      "mtime": "2026-06-24T17:25:23.007Z",
       "data": {
         "id": "state_store__compatible__retry_policy",
         "from": "state_store",
@@ -4329,14 +4380,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:state_store_with_retry_policy"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.819Z",
+      "mtime": "2026-06-24T17:25:24.512Z",
       "data": {
         "id": "state_store__recommended__job_queue",
         "from": "state_store",
@@ -4352,14 +4405,16 @@ export const BUNDLE: RegistryBundle = {
         ],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:state_store_job_queue"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.824Z",
+      "mtime": "2026-06-24T17:25:25.693Z",
       "data": {
         "id": "state_store__recommended__research_synthesis",
         "from": "state_store",
@@ -4375,8 +4430,10 @@ export const BUNDLE: RegistryBundle = {
         ],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:state_store_research_synthesis"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -4428,7 +4485,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.829Z",
+      "mtime": "2026-06-24T17:24:52.831Z",
       "data": {
         "id": "test_runner__before__pr_summary",
         "from": "test_runner",
@@ -4442,14 +4499,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:full_code_agent_pipeline"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T15:59:16.343Z",
+      "mtime": "2026-06-24T17:24:45.589Z",
       "data": {
         "id": "threshold_router__recommended__audit_log",
         "from": "threshold_router",
@@ -4463,14 +4522,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:threshold_router_with_audit_log"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.835Z",
+      "mtime": "2026-06-24T17:25:26.841Z",
       "data": {
         "id": "user_goal_intake__produces__intent_classifier",
         "from": "user_goal_intake",
@@ -4484,14 +4545,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:user_goal_intake_pipeline"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.840Z",
+      "mtime": "2026-06-24T17:25:27.411Z",
       "data": {
         "id": "user_goal_intake__produces__source_retrieval",
         "from": "user_goal_intake",
@@ -4505,8 +4568,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:user_goal_intake_pipeline"
+        ],
         "failure_modes": [],
         "sources": []
       }

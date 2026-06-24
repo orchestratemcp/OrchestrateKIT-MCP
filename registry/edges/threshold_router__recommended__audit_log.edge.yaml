@@ -8,4 +8,6 @@ severity: low
 control_flow_note: Log the score, configured thresholds, and chosen branch label on each routing event.
 notes: Especially important when threshold_router drives approval decisions (approve vs. review vs. reject) — the audit trail is the evidence that the decision was score-driven and not ad hoc.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:threshold_router_with_audit_log"

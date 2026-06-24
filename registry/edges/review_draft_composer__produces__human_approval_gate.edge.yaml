@@ -7,4 +7,6 @@ reason: A composed draft is staging content for human review — the approval ga
 severity: high
 notes: The gate receives the draft object and blocks downstream publish/send until the reviewer approves or rejects. On rejection, route back to review_draft_composer with revision notes.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:review_draft_full_pipeline"

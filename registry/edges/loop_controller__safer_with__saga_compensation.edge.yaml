@@ -9,4 +9,6 @@ control_flow_note: Only add saga_compensation when loop iterations have irrevers
 notes: This edge is conditional on iteration side effects. For pure data-transformation loops with no external writes, saga_compensation adds unnecessary complexity.
 conditions:
   - each loop iteration performs at least one irreversible external write
-tested: false
+tested: true
+test_refs:
+  - "probe:loop_fanout_saga_rollback"

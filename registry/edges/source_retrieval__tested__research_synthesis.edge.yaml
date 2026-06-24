@@ -7,3 +7,6 @@ reason: This pair has been evaluated end-to-end in the research_agent_citations 
 severity: medium
 notes: Use at least 10 diverse test queries with known expected sources when evaluating this pair.
 conditions: []
+tested: true
+test_refs:
+  - "probe:source_retrieval_to_research_synthesis"

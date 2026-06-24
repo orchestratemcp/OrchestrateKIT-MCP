@@ -5,6 +5,9 @@ relation: produces_input_for
 status: published
 reason: Approved copy is the primary input for the design brief. Visual direction must align with the final copy, not an earlier draft.
 severity: medium
-notes: Only generate the design brief after copy is approved or at minimum reviewed — visual mismatch is costly to redo.
+notes: Only generate the design brief after copy is approved or at minimum reviewed ï¿½ visual mismatch is costly to redo.
 conditions:
   - copy variant is approved or at minimum reviewed
+tested: true
+test_refs:
+  - "probe:copy_to_design_brief"

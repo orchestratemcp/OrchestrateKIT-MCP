@@ -371,7 +371,7 @@ describe("composeRoute — output structure", () => {
     const result = compose(
       "read emails, detect leads, research the sender, write a CRM note and draft a follow-up with approval",
     );
-    expect(result.untested_edges.length).toBeGreaterThan(0);
+    // MAR-207: all edges now tested; guard validates structure for future additions
     for (const e of result.untested_edges) {
       expect(typeof e.id).toBe("string");
       expect(e.id.length).toBeGreaterThan(0);

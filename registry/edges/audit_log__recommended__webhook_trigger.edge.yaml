@@ -7,4 +7,6 @@ reason: Webhook events are the origin of reactive automations — logging each r
 severity: medium
 notes: Log event_id (for dedup audit), event_type, source IP/service, processing status, and any schema validation errors. Avoid logging the full payload if it contains PII or payment data unless your data policy permits it.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:webhook_with_audit_log"

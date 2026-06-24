@@ -7,4 +7,6 @@ reason: A scheduled trigger is the natural upstream driver for a page monitor â€
 severity: low
 notes: When both are present, scheduled_trigger is the entrypoint and page_monitor handles the fetch/hash logic. Do not add a second scheduling layer inside page_monitor.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:scheduled_page_monitor"

@@ -8,3 +8,6 @@ severity: medium
 notes: Store ranked source list and synthesis checkpoint. Allows resumption from the last completed step rather than full restart.
 conditions:
   - workflow has more than one retrieval or synthesis step
+tested: true
+test_refs:
+  - "probe:state_store_research_synthesis"

@@ -7,3 +7,6 @@ reason: Structured goal object from intake is the input for intent classificatio
 severity: medium
 notes: Ensure intake normalises whitespace and strips markdown before passing to classifier.
 conditions: []
+tested: true
+test_refs:
+  - "probe:user_goal_intake_pipeline"

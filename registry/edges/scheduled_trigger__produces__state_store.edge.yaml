@@ -7,4 +7,6 @@ reason: A scheduled trigger must persist its last-run timestamp and run_id so th
 severity: medium
 notes: Store at minimum last_run_at and last_run_id. Without this, a scheduler outage causes silent duplicate execution on resume.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:scheduled_trigger_with_state"
