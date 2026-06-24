@@ -7,4 +7,6 @@ reason: GitHub webhook payloads can arrive with unexpected or malformed fields i
 severity: high
 notes: Always verify the HMAC-SHA256 signature BEFORE schema validation. Reject unsigned payloads at the transport layer, not in the workflow.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:github_trigger_pr_review"

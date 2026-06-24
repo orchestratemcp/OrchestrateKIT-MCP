@@ -5,9 +5,9 @@
 import type { RegistryBundle } from "./registryBundleTypes.js";
 
 export const BUNDLE: RegistryBundle = {
-  "generated_at": "2026-06-18T08:58:02.077Z",
-  "fingerprint": "bbc5b545135ade65",
-  "newest_mtime": "2026-06-16T16:00:59.412Z",
+  "generated_at": "2026-06-24T09:55:55.830Z",
+  "fingerprint": "0f3637733e87bbd1",
+  "newest_mtime": "2026-06-24T09:49:57.025Z",
   "components": [
     {
       "mtime": "2026-06-16T15:00:28.355Z",
@@ -68,7 +68,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T14:44:16.837Z",
+      "mtime": "2026-06-22T08:35:59.697Z",
       "data": {
         "id": "audit_log",
         "name": "Audit Log",
@@ -186,7 +186,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.030Z",
+      "mtime": "2026-06-22T08:35:59.697Z",
       "data": {
         "id": "calendar_lookup",
         "name": "Calendar Lookup",
@@ -242,7 +242,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.031Z",
+      "mtime": "2026-06-22T08:35:59.698Z",
       "data": {
         "id": "calendar_write",
         "name": "Calendar Write",
@@ -305,7 +305,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.032Z",
+      "mtime": "2026-06-22T08:35:59.698Z",
       "data": {
         "id": "citation_checker",
         "name": "Citation Checker",
@@ -362,7 +362,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.034Z",
+      "mtime": "2026-06-22T08:35:59.699Z",
       "data": {
         "id": "codebase_scan",
         "name": "Codebase Scan",
@@ -420,7 +420,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.033Z",
+      "mtime": "2026-06-22T08:35:59.699Z",
       "data": {
         "id": "code_editing",
         "name": "Code Editing",
@@ -482,7 +482,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.034Z",
+      "mtime": "2026-06-22T08:35:59.700Z",
       "data": {
         "id": "content_idea_intake",
         "name": "Content Idea Intake",
@@ -534,7 +534,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.035Z",
+      "mtime": "2026-06-22T08:35:59.700Z",
       "data": {
         "id": "copy_generation",
         "name": "Copy Generation",
@@ -656,7 +656,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.036Z",
+      "mtime": "2026-06-22T08:35:59.701Z",
       "data": {
         "id": "data_normalizer",
         "name": "Data Normalizer",
@@ -713,7 +713,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.037Z",
+      "mtime": "2026-06-22T08:35:59.702Z",
       "data": {
         "id": "data_scraper",
         "name": "Data Scraper",
@@ -775,7 +775,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.038Z",
+      "mtime": "2026-06-22T08:35:59.702Z",
       "data": {
         "id": "deduplication",
         "name": "Deduplication",
@@ -828,7 +828,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.038Z",
+      "mtime": "2026-06-22T08:35:59.703Z",
       "data": {
         "id": "design_brief_generation",
         "name": "Design Brief Generation",
@@ -884,7 +884,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.039Z",
+      "mtime": "2026-06-22T08:35:59.703Z",
       "data": {
         "id": "email_draft",
         "name": "Email Draft",
@@ -941,7 +941,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.040Z",
+      "mtime": "2026-06-22T08:35:59.704Z",
       "data": {
         "id": "email_read",
         "name": "Email Read",
@@ -999,7 +999,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.041Z",
+      "mtime": "2026-06-22T08:35:59.704Z",
       "data": {
         "id": "external_publish",
         "name": "External Publish",
@@ -1184,7 +1184,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.041Z",
+      "mtime": "2026-06-22T08:35:59.705Z",
       "data": {
         "id": "human_approval_gate",
         "name": "Human Approval Gate",
@@ -1248,7 +1248,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.043Z",
+      "mtime": "2026-06-22T08:35:59.705Z",
       "data": {
         "id": "intent_classifier",
         "name": "Intent Classifier",
@@ -1302,7 +1302,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.044Z",
+      "mtime": "2026-06-22T08:35:59.706Z",
       "data": {
         "id": "job_queue",
         "name": "Job Queue",
@@ -1483,7 +1483,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.045Z",
+      "mtime": "2026-06-22T08:35:59.707Z",
       "data": {
         "id": "optional_email_send",
         "name": "Optional Email Send",
@@ -1662,7 +1662,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.046Z",
+      "mtime": "2026-06-22T08:35:59.707Z",
       "data": {
         "id": "plan_generation",
         "name": "Plan Generation",
@@ -1719,7 +1719,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.047Z",
+      "mtime": "2026-06-22T08:35:59.708Z",
       "data": {
         "id": "pr_summary",
         "name": "PR Summary",
@@ -1776,7 +1776,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.048Z",
+      "mtime": "2026-06-22T08:35:59.708Z",
       "data": {
         "id": "research_synthesis",
         "name": "Research Synthesis",
@@ -1839,7 +1839,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-15T13:41:45.827Z",
+      "mtime": "2026-06-22T08:35:59.709Z",
       "data": {
         "id": "retry_policy",
         "name": "Retry Policy",
@@ -2148,7 +2148,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-15T13:41:45.828Z",
+      "mtime": "2026-06-22T08:35:59.709Z",
       "data": {
         "id": "schema_validation",
         "name": "Schema Validation",
@@ -2263,7 +2263,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.051Z",
+      "mtime": "2026-06-22T08:35:59.711Z",
       "data": {
         "id": "source_freshness_check",
         "name": "Source Freshness Check",
@@ -2315,7 +2315,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.051Z",
+      "mtime": "2026-06-22T08:35:59.712Z",
       "data": {
         "id": "source_ranking",
         "name": "Source Ranking",
@@ -2369,7 +2369,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.052Z",
+      "mtime": "2026-06-22T08:35:59.713Z",
       "data": {
         "id": "source_retrieval",
         "name": "Source Retrieval",
@@ -2428,7 +2428,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T14:44:15.652Z",
+      "mtime": "2026-06-22T08:35:59.713Z",
       "data": {
         "id": "state_store",
         "name": "State Store",
@@ -2550,7 +2550,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.053Z",
+      "mtime": "2026-06-22T08:35:59.714Z",
       "data": {
         "id": "test_runner",
         "name": "Test Runner",
@@ -2674,7 +2674,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.054Z",
+      "mtime": "2026-06-22T08:35:59.715Z",
       "data": {
         "id": "user_goal_intake",
         "name": "User Goal Intake",
@@ -2814,7 +2814,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T15:01:00.388Z",
+      "mtime": "2026-06-22T21:03:49.897Z",
       "data": {
         "id": "airtable_lookup__safer_with__auth_failure_handler",
         "from": "airtable_lookup",
@@ -2828,8 +2828,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: airtable_lookup__safer_with__auth_failure_handler"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -2858,7 +2860,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.625Z",
+      "mtime": "2026-06-22T21:03:49.898Z",
       "data": {
         "id": "audit_log__recommended__calendar_write",
         "from": "audit_log",
@@ -2872,14 +2874,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__calendar_write"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.631Z",
+      "mtime": "2026-06-22T21:03:49.898Z",
       "data": {
         "id": "audit_log__recommended__external_publish",
         "from": "audit_log",
@@ -2893,14 +2897,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__external_publish"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.636Z",
+      "mtime": "2026-06-22T21:03:49.899Z",
       "data": {
         "id": "audit_log__recommended__optional_email_send",
         "from": "audit_log",
@@ -2914,14 +2920,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__optional_email_send"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T12:11:02.700Z",
+      "mtime": "2026-06-22T21:03:49.899Z",
       "data": {
         "id": "audit_log__recommended__slack_notification",
         "from": "audit_log",
@@ -2935,8 +2943,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__slack_notification"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -2986,7 +2996,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.239Z",
+      "mtime": "2026-06-22T21:03:49.900Z",
       "data": {
         "id": "calendar_write__safer_with__auth_failure_handler",
         "from": "calendar_write",
@@ -3000,8 +3010,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: calendar_write__safer_with__auth_failure_handler"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3051,7 +3063,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.652Z",
+      "mtime": "2026-06-22T21:03:49.901Z",
       "data": {
         "id": "codebase_scan__produces__plan_generation",
         "from": "codebase_scan",
@@ -3065,8 +3077,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: codebase_scan__produces__plan_generation"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3116,7 +3130,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.663Z",
+      "mtime": "2026-06-22T21:03:49.901Z",
       "data": {
         "id": "content_idea_intake__produces__copy_generation",
         "from": "content_idea_intake",
@@ -3130,8 +3144,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: content_idea_intake__produces__copy_generation"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3211,7 +3227,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.239Z",
+      "mtime": "2026-06-22T21:03:49.902Z",
       "data": {
         "id": "crm_note_write__safer_with__auth_failure_handler",
         "from": "crm_note_write",
@@ -3225,8 +3241,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: crm_note_write__safer_with__auth_failure_handler"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3372,7 +3390,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.696Z",
+      "mtime": "2026-06-22T21:03:49.902Z",
       "data": {
         "id": "design_brief_generation__safer_with__human_approval_gate",
         "from": "design_brief_generation",
@@ -3386,8 +3404,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: design_brief_generation__safer_with__human_approval_gate"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3416,7 +3436,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.705Z",
+      "mtime": "2026-06-22T21:03:49.902Z",
       "data": {
         "id": "email_draft__safer_with__human_approval_gate",
         "from": "email_draft",
@@ -3430,8 +3450,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: email_draft__safer_with__human_approval_gate"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3481,7 +3503,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.241Z",
+      "mtime": "2026-06-22T21:03:49.904Z",
       "data": {
         "id": "external_publish__safer_with__auth_failure_handler",
         "from": "external_publish",
@@ -3495,14 +3517,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: external_publish__safer_with__auth_failure_handler"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T15:30:47.513Z",
+      "mtime": "2026-06-24T09:49:53.829Z",
       "data": {
         "id": "github_trigger__requires__schema_validation",
         "from": "github_trigger",
@@ -3516,8 +3540,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:github_trigger_pr_review"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3703,7 +3729,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-12T21:53:54.241Z",
+      "mtime": "2026-06-22T21:03:49.904Z",
       "data": {
         "id": "optional_email_send__safer_with__auth_failure_handler",
         "from": "optional_email_send",
@@ -3717,8 +3743,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: optional_email_send__safer_with__auth_failure_handler"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3766,7 +3794,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.747Z",
+      "mtime": "2026-06-22T21:03:49.905Z",
       "data": {
         "id": "page_monitor__requires__state_store",
         "from": "page_monitor",
@@ -3780,14 +3808,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: page_monitor__requires__state_store"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T15:00:45.628Z",
+      "mtime": "2026-06-22T21:03:49.905Z",
       "data": {
         "id": "pdf_extraction__produces__data_normalizer",
         "from": "pdf_extraction",
@@ -3801,8 +3831,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: pdf_extraction__produces__data_normalizer"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3852,7 +3884,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.761Z",
+      "mtime": "2026-06-22T21:03:49.906Z",
       "data": {
         "id": "pr_summary__safer_with__human_approval_gate",
         "from": "pr_summary",
@@ -3868,14 +3900,16 @@ export const BUNDLE: RegistryBundle = {
         ],
         "severity": "low",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: pr_summary__safer_with__human_approval_gate"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-12T21:53:53.778Z",
+      "mtime": "2026-06-24T09:49:57.025Z",
       "data": {
         "id": "research_synthesis__avoid__external_publish",
         "from": "research_synthesis",
@@ -3895,8 +3929,10 @@ export const BUNDLE: RegistryBundle = {
           "citation_checker",
           "human_approval_gate"
         ],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:research_synthesis_with_citations"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -3948,7 +3984,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.777Z",
+      "mtime": "2026-06-22T21:03:49.906Z",
       "data": {
         "id": "research_synthesis__requires__source_freshness_check",
         "from": "research_synthesis",
@@ -3962,8 +3998,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: research_synthesis__requires__source_freshness_check"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -4078,7 +4116,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T15:58:58.648Z",
+      "mtime": "2026-06-22T21:03:49.907Z",
       "data": {
         "id": "saga_compensation__requires__audit_log",
         "from": "saga_compensation",
@@ -4092,8 +4130,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: saga_compensation__requires__audit_log"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -4185,7 +4225,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T12:10:58.897Z",
+      "mtime": "2026-06-22T21:03:49.907Z",
       "data": {
         "id": "slack_notification__safer_with__auth_failure_handler",
         "from": "slack_notification",
@@ -4199,14 +4239,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: slack_notification__safer_with__auth_failure_handler"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-10T22:06:20.803Z",
+      "mtime": "2026-06-22T21:03:49.908Z",
       "data": {
         "id": "source_ranking__produces__research_synthesis",
         "from": "source_ranking",
@@ -4220,8 +4262,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: source_ranking__produces__research_synthesis"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -4338,7 +4382,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T15:00:55.730Z",
+      "mtime": "2026-06-24T09:49:55.047Z",
       "data": {
         "id": "stripe_data_read__produces__data_normalizer",
         "from": "stripe_data_read",
@@ -4352,14 +4396,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "medium",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:stripe_data_read_churn"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T15:01:05.642Z",
+      "mtime": "2026-06-22T21:03:49.908Z",
       "data": {
         "id": "stripe_data_read__safer_with__auth_failure_handler",
         "from": "stripe_data_read",
@@ -4373,8 +4419,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: stripe_data_read__safer_with__auth_failure_handler"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -4464,7 +4512,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T14:33:15.421Z",
+      "mtime": "2026-06-24T09:49:56.220Z",
       "data": {
         "id": "webhook_trigger__requires__schema_validation",
         "from": "webhook_trigger",
@@ -4478,14 +4526,16 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "probe:webhook_trigger_stripe_payment"
+        ],
         "failure_modes": [],
         "sources": []
       }
     },
     {
-      "mtime": "2026-06-16T14:33:21.280Z",
+      "mtime": "2026-06-22T21:03:49.909Z",
       "data": {
         "id": "webhook_trigger__safer_with__auth_failure_handler",
         "from": "webhook_trigger",
@@ -4499,8 +4549,10 @@ export const BUNDLE: RegistryBundle = {
         "conditions": [],
         "severity": "high",
         "bypass_when_all_present": [],
-        "tested": false,
-        "test_refs": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: webhook_trigger__safer_with__auth_failure_handler"
+        ],
         "failure_modes": [],
         "sources": []
       }
@@ -4618,7 +4670,7 @@ export const BUNDLE: RegistryBundle = {
   ],
   "routes": [
     {
-      "mtime": "2026-06-09T07:02:02.205Z",
+      "mtime": "2026-06-22T08:35:59.715Z",
       "data": {
         "id": "codebase_agent_route_v1",
         "name": "Codebase Agent Workflow",
@@ -4670,7 +4722,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-09T07:02:02.202Z",
+      "mtime": "2026-06-22T08:35:59.716Z",
       "data": {
         "id": "content_approval_route_v1",
         "name": "Content Approval Pipeline",
@@ -4720,7 +4772,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-16T14:34:36.710Z",
+      "mtime": "2026-06-22T08:35:59.717Z",
       "data": {
         "id": "data_extraction_route_v1",
         "name": "Data Extraction and Enrichment",
@@ -4772,7 +4824,74 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-09T07:02:02.204Z",
+      "mtime": "2026-06-23T11:46:31.454Z",
+      "data": {
+        "id": "dynamic_worker_loop_route_v1",
+        "name": "Dynamic Worker Loop",
+        "status": "published",
+        "summary": "Bounded iterative agent loop — trigger → validate → planner sets the task → a coder/tester/independent-reviewer cycle repeats until approval or escalation → final human gate → audit. The golden path for the dynamic_worker_loop playbook. Advisory only; OrchestrateMCP never runs the loop.\n",
+        "goal_patterns": [
+          "loop until the reviewer approves",
+          "iterate on the task until tests pass",
+          "keep refining until done",
+          "agent that retries with feedback"
+        ],
+        "components": [
+          "webhook_trigger",
+          "schema_validation",
+          "loop_controller",
+          "saga_compensation",
+          "state_store",
+          "retry_policy",
+          "human_approval_gate",
+          "audit_log"
+        ],
+        "edges": [
+          "webhook_trigger__requires__schema_validation",
+          "loop_controller__safer_with__saga_compensation",
+          "audit_log__compatible__state_store",
+          "state_store__compatible__retry_policy",
+          "audit_log__recommended__webhook_trigger"
+        ],
+        "known_playbooks_reused": [
+          "dynamic_worker_loop"
+        ],
+        "untested_edges": [
+          "loop_controller__safer_with__saga_compensation"
+        ],
+        "risk_level": "high",
+        "confidence": 0.6,
+        "required_evals": [
+          "loop terminates within max_iterations on a converging task",
+          "loop escalates to a human when the reviewer never approves",
+          "no external write occurs before the final human gate"
+        ],
+        "warnings": [
+          "The loop MUST be bounded by max_iterations — never run it unbounded",
+          "The reviewer must be a different worker than the planner and coder",
+          "No external write / deploy / send / publish until the final human gate"
+        ],
+        "failure_modes": [
+          "Loop never terminates because stop_condition is never satisfiable",
+          "An external side effect fires mid-loop and cannot be rolled back",
+          "State is not checkpointed, so a crash restarts the loop from scratch"
+        ],
+        "evals": [
+          "loop body completes one iteration and checkpoints state before the next",
+          "audit_log records each iteration number and reviewer verdict"
+        ],
+        "notes": "The loop is expressed as a loop_controller with a termination contract, not a cyclic graph edge — the registry stays DAG-only. See the dynamic_worker_loop playbook for the full loop_contract and worker_sequence.\n",
+        "sources": [
+          {
+            "title": "OrchestrateMCP advisory-only worker-loop design (MAR-167)",
+            "source_type": "internal_note",
+            "last_checked": "2026-06-23"
+          }
+        ]
+      }
+    },
+    {
+      "mtime": "2026-06-22T08:35:59.717Z",
       "data": {
         "id": "email_calendar_route_v1",
         "name": "Email and Calendar Assistant",
@@ -4823,7 +4942,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-09T07:02:02.200Z",
+      "mtime": "2026-06-22T08:35:59.718Z",
       "data": {
         "id": "research_route_v1",
         "name": "Research Agent with Citations",
@@ -5185,6 +5304,125 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-23T11:46:31.454Z",
+      "data": {
+        "id": "dynamic_worker_loop",
+        "version": "1.0.0",
+        "status": "published",
+        "title": "Dynamic Worker Loop (bounded, reviewer-independent)",
+        "summary": "A bounded iterative agent loop — a planner sets the task, then a coder → tester → independent reviewer cycle repeats until the reviewer approves or an escalation condition routes to a human. Every iteration is state-checkpointed and audit-logged, and no external write/deploy/send happens until a final human gate. OrchestrateMCP helps DESIGN this safely; it never runs the loop.\n",
+        "workflow_type": "agentic-loop",
+        "golden_path_route_id": "dynamic_worker_loop_route_v1",
+        "components": [
+          "webhook_trigger",
+          "schema_validation",
+          "loop_controller",
+          "saga_compensation",
+          "state_store",
+          "retry_policy",
+          "human_approval_gate",
+          "audit_log"
+        ],
+        "edges": [
+          "webhook_trigger__requires__schema_validation",
+          "loop_controller__safer_with__saga_compensation",
+          "audit_log__compatible__state_store",
+          "state_store__compatible__retry_policy",
+          "audit_log__recommended__webhook_trigger"
+        ],
+        "stack_id": "default_orchestratekit_stack",
+        "risk_level": "high",
+        "best_for": [
+          "an iterative build/refine task where a coder and reviewer loop until approved",
+          "a triggered agent that retries with feedback until a quality bar is met",
+          "long-running tasks that must checkpoint state and resume safely"
+        ],
+        "avoid_when": [
+          "one-shot tasks with no refine/retry cycle (the loop is pure overhead)",
+          "workflows that need fully unbounded autonomy (this is deliberately bounded)",
+          "any design that would write/deploy/send mid-loop without a final human gate"
+        ],
+        "recommended_architecture": {
+          "pattern": "Trigger → planner (once) → bounded loop[ coder → tester → independent reviewer ] → final human gate → audit. The loop is expressed as a loop_controller with a termination contract, NOT a cyclic graph edge — the registry stays DAG-only and the loop bound lives in the contract.\n",
+          "why": "A hard max_iterations plus an escalation condition guarantees termination; an independent reviewer prevents the coder from grading its own work; gating all external writes until the end keeps every iteration reversible.\n"
+        },
+        "llm_driven_steps": [
+          "planner reasoning (task decomposition)",
+          "coder implementation per iteration",
+          "reviewer judgement per iteration"
+        ],
+        "deterministic_steps": [
+          "webhook_trigger",
+          "schema_validation",
+          "loop_controller",
+          "state_store",
+          "retry_policy",
+          "audit_log"
+        ],
+        "permissions": {},
+        "guardrails": [
+          "The loop MUST have a hard max_iterations — never run unbounded",
+          "The reviewer MUST be a different worker than the planner and coder",
+          "No external write / deploy / send / publish until the final human gate",
+          "Persist loop state every iteration so the loop can resume, not restart",
+          "Audit-log every iteration with the iteration number and reviewer verdict",
+          "On the escalation condition, hand off to a human rather than looping again"
+        ],
+        "failure_modes": [
+          "Loop never terminates because stop_condition is never satisfiable",
+          "Coder reviews its own work because the reviewer is not independent",
+          "An external side effect fires mid-loop and cannot be rolled back",
+          "State is not checkpointed, so a crash restarts the whole loop from scratch",
+          "Repeated identical failure burns all iterations without escalating to a human",
+          "max_iterations is set so high the loop is effectively unbounded"
+        ],
+        "evals": [
+          "loop terminates within max_iterations on a task that should converge",
+          "loop escalates to a human when the reviewer never approves",
+          "no external write occurs before the final human gate in any iteration",
+          "the reviewer worker id differs from the planner and coder worker ids",
+          "every iteration produces an audit_log entry with its iteration number"
+        ],
+        "implementation_steps": [
+          "Step 1: Trigger the loop from webhook_trigger; validate the payload with schema_validation before entering the loop",
+          "Step 2: Run the planner ONCE to produce the task spec and component plan",
+          "Step 3: Enter loop_controller with max_iterations from the loop_contract",
+          "Step 4: Each iteration: coder implements → tester runs the suite → independent reviewer verdicts; checkpoint to state_store and write an audit_log entry",
+          "Step 5: Stop when stop_condition holds; on escalation_condition, break and route to a human",
+          "Step 6: Only AFTER the loop, pass through human_approval_gate before any external write/deploy/send; wrap reversible steps with saga_compensation"
+        ],
+        "worker_sequence": [
+          "planner",
+          "reviewer",
+          "coder",
+          "tester",
+          "reviewer"
+        ],
+        "loop_contract": {
+          "max_iterations": 5,
+          "stop_condition": "reviewer verdict == approved AND tester results all pass",
+          "escalation_condition": "max_iterations reached OR the same test fails on two consecutive iterations → break out of the loop and route to a human\n",
+          "state_required": true,
+          "audit_required": true,
+          "human_gate_required_for": [
+            "external write",
+            "deploy",
+            "send",
+            "publish"
+          ],
+          "reviewer_independent": true,
+          "no_write_until_final_gate": true
+        },
+        "sources": [
+          {
+            "title": "OrchestrateMCP worker registry + advisory-only loop design (MAR-166/MAR-167)",
+            "source_type": "internal_note",
+            "last_checked": "2026-06-23"
+          }
+        ]
+      }
+    },
+    {
       "mtime": "2026-06-09T22:04:55.142Z",
       "data": {
         "id": "email_calendar_assistant",
@@ -5387,6 +5625,244 @@ export const BUNDLE: RegistryBundle = {
             "url": "https://sdk.vercel.ai/docs/ai-sdk-core/tools-and-tool-calling",
             "source_type": "official_docs",
             "last_checked": "2026-06-01"
+          }
+        ]
+      }
+    }
+  ],
+  "workers": [
+    {
+      "mtime": "2026-06-23T11:46:31.456Z",
+      "data": {
+        "id": "coder",
+        "version": "1.0.0",
+        "status": "published",
+        "title": "Coder",
+        "role": "coder",
+        "summary": "Implements the planned workflow — and only the planned workflow. Writes code scoped to the plan's component list, keeps the build green, and never adds an external write the plan did not authorise. Builds but does not ship.\n",
+        "best_for": [
+          "implementing a workflow plan handed off by the planner",
+          "scoped, single-task changes that keep the build compiling",
+          "wiring components and edges named in the plan"
+        ],
+        "inputs": [
+          "workflow plan (component list + execution order)",
+          "safety requirements from the planner"
+        ],
+        "outputs": [
+          "implementation / code diff scoped to the plan",
+          "build notes (what was wired, what was left as a stub)"
+        ],
+        "allowed_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "run_build",
+          "file_read"
+        ],
+        "forbidden_tools": [
+          "deploy",
+          "external_publish",
+          "git_push_main"
+        ],
+        "handoff_to": [
+          "reviewer"
+        ],
+        "model_tier": "standard",
+        "quality_gates": [
+          "must implement only the components named in the plan",
+          "must not add external writes or side effects the plan did not authorise",
+          "must keep the change scoped to one task",
+          "must leave a build that compiles"
+        ],
+        "evals": [
+          "does not introduce an un-planned external write",
+          "the produced code builds clean",
+          "the diff stays within the task scope (no drive-by edits)"
+        ],
+        "sources": [
+          {
+            "title": "OrchestrateMCP advisory-only boundary (build runs in the user's runtime)",
+            "source_type": "internal_note",
+            "last_checked": "2026-06-23"
+          }
+        ]
+      }
+    },
+    {
+      "mtime": "2026-06-23T11:46:31.458Z",
+      "data": {
+        "id": "planner",
+        "version": "1.0.0",
+        "status": "published",
+        "title": "Planner",
+        "role": "planner",
+        "summary": "Turns a plain-English goal plus constraints into a concrete workflow plan — the ordered component list, the safety requirements, and the assumptions — without writing or running anything. Read-and-reason only.\n",
+        "best_for": [
+          "starting a new AI workflow from a vague or one-line goal",
+          "deciding the architecture before any code is written",
+          "separating deterministic steps from LLM-driven steps up front"
+        ],
+        "inputs": [
+          "user goal in plain language",
+          "constraints (read-only vs write, attended vs unattended, outbound sends)"
+        ],
+        "outputs": [
+          "ordered workflow plan (component list + execution order)",
+          "safety requirements (approval gates, irreversible actions flagged)",
+          "explicit assumptions and open questions"
+        ],
+        "allowed_tools": [
+          "plan_workflow",
+          "list_known_routes",
+          "get_route",
+          "explain_component",
+          "recommend_architecture"
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "external_publish",
+          "deploy"
+        ],
+        "handoff_to": [
+          "coder"
+        ],
+        "model_tier": "frontier",
+        "quality_gates": [
+          "must identify irreversible / external-write actions and require an approval gate",
+          "must mark every assumption explicitly rather than guessing silently",
+          "must separate deterministic steps from LLM-driven steps",
+          "must refuse to plan a vague goal and ask for it instead (needs_goal)"
+        ],
+        "evals": [
+          "rejects a vague goal with a needs_goal nudge instead of a fabricated plan",
+          "separates deterministic vs LLM-driven steps in the plan",
+          "flags a write/irreversible step that lacks an approval gate"
+        ],
+        "sources": [
+          {
+            "title": "OrchestrateMCP plan_workflow honest-planner design (MAR-100/MAR-162)",
+            "source_type": "internal_note",
+            "last_checked": "2026-06-23"
+          }
+        ]
+      }
+    },
+    {
+      "mtime": "2026-06-23T11:46:31.459Z",
+      "data": {
+        "id": "reviewer",
+        "version": "1.0.0",
+        "status": "published",
+        "title": "Reviewer",
+        "role": "reviewer",
+        "summary": "Inspects the coder's diff against the plan and reports findings — it never edits the tree. Flags any write or irreversible step missing an approval gate, and checks the diff matches the plan's component list. Read-only.\n",
+        "best_for": [
+          "reviewing a code diff against the workflow plan that produced it",
+          "catching unauthorised writes or missing approval gates before tests run",
+          "confirming the implementation matches the planned component list"
+        ],
+        "inputs": [
+          "code diff from the coder",
+          "workflow plan (component list + safety requirements)"
+        ],
+        "outputs": [
+          "review findings (issues, severities)",
+          "verdict — approved or changes-requested"
+        ],
+        "allowed_tools": [
+          "file_read",
+          "code_read",
+          "run_lint",
+          "review_workflow_design",
+          "record_session_feedback"
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "git_commit",
+          "deploy",
+          "external_publish"
+        ],
+        "handoff_to": [
+          "tester",
+          "coder"
+        ],
+        "model_tier": "standard",
+        "quality_gates": [
+          "must not modify code — only report findings",
+          "must flag any write / irreversible step that lacks an approval gate",
+          "must check the diff matches the plan's component list"
+        ],
+        "evals": [
+          "catches an unauthorised write present in a diff",
+          "does not mutate the working tree during review",
+          "the approved/changes-requested verdict matches the plan-vs-diff delta"
+        ],
+        "sources": [
+          {
+            "title": "OrchestrateMCP review rule set (deterministic safety findings)",
+            "source_type": "internal_note",
+            "last_checked": "2026-06-23"
+          }
+        ]
+      }
+    },
+    {
+      "mtime": "2026-06-23T11:46:31.460Z",
+      "data": {
+        "id": "tester",
+        "version": "1.0.0",
+        "status": "published",
+        "title": "Tester",
+        "role": "tester",
+        "summary": "Runs the real test suite against the implementation and reports pass/fail honestly — never edits source to make a test pass, never fabricates results. On a failure it hands back to the coder with the raw output. Read + run only.\n",
+        "best_for": [
+          "validating an implementation against acceptance criteria",
+          "running probes and the test suite as the /test step of the lifecycle",
+          "closing the fix loop back to the coder on a real failure"
+        ],
+        "inputs": [
+          "implementation from the coder (post-review)",
+          "acceptance criteria / probes to run"
+        ],
+        "outputs": [
+          "test results (pass/fail per check)",
+          "raw failure output for any failing test"
+        ],
+        "allowed_tools": [
+          "run_tests",
+          "run_build",
+          "file_read",
+          "record_session_feedback"
+        ],
+        "forbidden_tools": [
+          "file_write",
+          "code_write",
+          "deploy",
+          "external_publish"
+        ],
+        "handoff_to": [
+          "coder"
+        ],
+        "model_tier": "small",
+        "quality_gates": [
+          "must run the real test suite — never fabricate or assume results",
+          "must report failures verbatim with their output",
+          "must not edit source to make a failing test pass"
+        ],
+        "evals": [
+          "reports a genuinely failing test as fail",
+          "does not edit source to turn a red test green",
+          "surfaces the raw failure output rather than a summary guess"
+        ],
+        "sources": [
+          {
+            "title": "OrchestrateMCP node-probe + pnpm test gate (deterministic, no fabricated evidence)",
+            "source_type": "internal_note",
+            "last_checked": "2026-06-23"
           }
         ]
       }
