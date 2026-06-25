@@ -5,8 +5,8 @@ are the CI gates (deterministic, no network, no LLM); the fourth is a readable
 demo so you can *see* the planner working.
 
 ```bash
-pnpm verify   # typecheck + registry lint + full test suite  (816 tests)
-pnpm probe    # single-capability matcher/composer assertions (42 probes, 0 xfail)
+pnpm verify   # typecheck + registry lint + full test suite  (965 tests)
+pnpm probe    # single-capability matcher/composer assertions (69 probes, 1 xfail)
 pnpm build    # compile to dist/ (the stdio + HTTP servers)
 pnpm demo     # human-readable end-to-end demo (see below)
 ```
@@ -22,7 +22,7 @@ ChatGPT / Claude / Cursor uses. You should see:
 | Section | Proves | Issue |
 |---|---|---|
 | Tool discovery | 17 tools registered; 6 declare an output schema | MAR-163 |
-| `health_check` | 47 components · 78 edges · 6 playbooks · 4 workers; **42/78 (≈54%) edges validated** | MAR-164 |
+| `health_check` | 47 components · 78 edges · 6 playbooks · 4 workers; **78/78 (100%) edges validated** | MAR-164 |
 | `plan_workflow` (real plan) | a composed route + the status-header block + `structuredContent` returned | MAR-101 / MAR-163 |
 | `plan_workflow` (guard) | echoed preamble → `status: needs_goal` instead of a fabricated plan | MAR-162 |
 | `plan_workflow` (negation) | "drafts only, … no email" → **no email steps leak** into the route | MAR-161 |

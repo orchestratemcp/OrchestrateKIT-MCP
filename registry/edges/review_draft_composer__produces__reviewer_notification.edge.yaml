@@ -7,4 +7,6 @@ reason: After a draft is composed and staged, the natural next step is to alert 
 severity: medium
 notes: reviewer_notification is NOT a substitute for human_approval_gate — it alerts a reviewer that their attention is needed, but the gate is still required to block downstream publish until approval is received.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:review_draft_full_pipeline"

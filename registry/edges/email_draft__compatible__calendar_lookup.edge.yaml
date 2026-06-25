@@ -8,3 +8,6 @@ severity: low
 notes: Run calendar_lookup before drafting if the email is scheduling-related. Pass suggested slots as context to the draft LLM prompt.
 conditions:
   - email workflow includes scheduling intent
+tested: true
+test_refs:
+  - "probe:email_draft_with_calendar_lookup"

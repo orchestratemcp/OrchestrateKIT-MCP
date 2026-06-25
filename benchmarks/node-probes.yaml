@@ -345,3 +345,225 @@ probes:
     goal: "Trigger an agent on a webhook that loops: a coder writes code and an independent reviewer keeps iterating until the tests pass and it is approved."
     must_have: [loop_controller]
     forbidden: [email_draft, crm_note_write]
+
+  # ── MAR-207 TEST-02: Edge-coverage campaign ─────────────────────────────────
+  # 21 probes cover 32 still-untested edges.
+  # Phase 0 free wins (already exercised by existing probes above — now flipped
+  # to tested:true in the edge YAML):
+  #   github_trigger→schema_validation   ← probe: github_trigger_pr_review
+  #   stripe_data_read→data_normalizer   ← probe: stripe_data_read_churn
+  #   webhook_trigger→schema_validation  ← probe: webhook_trigger_stripe_payment
+  #   research_synthesis⊘external_publish← probe: research_synthesis_with_citations
+
+  # ── Cluster A: Support email triage via intent classifier (2 edges) ──────────
+  # Edges: email_read→intent_classifier, intent_classifier→crm_note_write
+  # Note: intent_classifier→source_retrieval has its own probe below (Cluster A2)
+  # because source_retrieval does not fire in an email-triage goal context.
+  - id: support_email_triage_classifier
+    goal: "Read incoming support emails, classify each message by intent, and route high-priority issues to the CRM."
+    via: plan
+    must_have: [email_read, intent_classifier, crm_note_write]
+    forbidden: [design_brief_generation, calendar_lookup, calendar_write]
+
+  # ── Cluster A2: Intent classifier → source retrieval (1 edge, xfail) ────────
+  # Edge: intent_classifier→source_retrieval
+  # xfail: "customer support query" + "knowledge base articles" routes to
+  # threshold_router + design_brief_generation instead of source_retrieval.
+  # Two routing failures: (a) "articles" triggers design_brief_generation content
+  # creation path; (b) "classify" + "query" over-matches threshold_router.
+  # The edge IS covered as a side-effect by probe/user_goal_intake_pipeline
+  # (must_have includes both intent_classifier and source_retrieval in a research
+  # context). This xfail documents the customer-support routing gap — file a
+  # matcher issue when the customer-support context misrouting is addressed.
+  - id: intent_classifier_to_source_retrieval
+    goal: "Classify a customer support query by intent and retrieve relevant knowledge base articles to suggest an answer."
+    via: plan
+    must_have: [intent_classifier, source_retrieval]
+    forbidden: [design_brief_generation]
+    xfail: true
+    finding: MAR-207
+
+  # ── Cluster B: user_goal_intake edges (2 edges) ──────────────────────────────
+  # Edges: user_goal_intake→intent_classifier, user_goal_intake→source_retrieval
+  # XPASS on first run: augmenter injects user_goal_intake because intent_classifier
+  # declares requires:[user_goal_intake]. Both edges confirmed routed.
+  - id: user_goal_intake_pipeline
+    goal: "Accept an incoming research request from the user, classify its intent, and retrieve relevant source documents."
+    via: plan
+    must_have: [user_goal_intake, intent_classifier, source_retrieval]
+
+  # ── Cluster C: Source retrieval → research synthesis + citation freshness (2 edges) ─
+  # Edges: source_retrieval→research_synthesis (tested_with),
+  #        citation_checker↔source_freshness_check (compatible_with)
+  - id: source_retrieval_to_research_synthesis
+    goal: "Retrieve sources on climate policy, synthesise the findings with citation and freshness checks."
+    via: plan
+    must_have: [source_retrieval, research_synthesis, citation_checker, source_freshness_check]
+    forbidden: [external_publish, crm_note_write, design_brief_generation]
+
+  # ── Cluster D: Research synthesis → content idea intake (1 edge) ────────────
+  # Edge: research_synthesis→content_idea_intake
+  # XPASS on first run: content_idea_intake IS routed from "content ideas" phrasing.
+  - id: research_to_content_ideas
+    goal: "Synthesise a competitive landscape analysis and generate a list of content ideas for the editorial calendar."
+    via: plan
+    must_have: [research_synthesis, content_idea_intake]
+
+  # ── Cluster E: Full code-agent pipeline (3 edges) ────────────────────────────
+  # Edges: plan_generation→test_runner (tested_with),
+  #        code_editing→pr_summary (produces_input_for),
+  #        test_runner→pr_summary (must_run_before)
+  - id: full_code_agent_pipeline
+    goal: "Generate an implementation plan for the login refactor, write the code changes, run the test suite to verify them, and produce a PR summary for the team."
+    via: plan
+    must_have: [plan_generation, code_editing, test_runner, pr_summary]
+    forbidden: [research_synthesis, design_brief_generation]
+
+  # ── Cluster F: Copy generation → design brief (1 edge) ───────────────────────
+  # Edge: copy_generation→design_brief_generation
+  # Note: augmenter adds external_publish to content pipelines — not forbidden here.
+  - id: copy_to_design_brief
+    goal: "Write marketing copy for the product launch and then generate a detailed creative design brief for the design team."
+    via: plan
+    must_have: [copy_generation, design_brief_generation]
+    forbidden: [research_synthesis, crm_note_write]
+
+  # ── Cluster G: Email draft compatible with calendar lookup (1 edge) ───────────
+  # Edge: email_draft↔calendar_lookup
+  - id: email_draft_with_calendar_lookup
+    goal: "Check my calendar availability and draft a meeting invitation email to the client for next week."
+    must_have: [email_draft, calendar_lookup]
+    forbidden: [research_synthesis, design_brief_generation, crm_note_write]
+
+  # ── Cluster H: Multi-variant generator → external publish (1 edge) ───────────
+  # Edge: multi_variant_generator→external_publish
+  - id: multi_variant_to_publish
+    goal: "Generate three campaign announcement variants, pick the best one after approval, and publish it to our social channels."
+    via: plan
+    must_have: [multi_variant_generator, external_publish, human_approval_gate]
+    forbidden: [calendar_lookup, calendar_write, crm_note_write]
+
+  # ── Cluster I: Review draft → approval gate + reviewer notification (2 edges) ─
+  # Edges: review_draft_composer→human_approval_gate,
+  #        review_draft_composer→reviewer_notification
+  # Note: "research data" routes through research_synthesis instead of
+  # review_draft_composer; goal must explicitly name "editorial review" to fire it.
+  - id: review_draft_full_pipeline
+    goal: "Write a first draft of the campaign press release, stage it for editorial review and human approval, and notify the review team when it is ready to sign off."
+    via: plan
+    must_have: [review_draft_composer, human_approval_gate, reviewer_notification]
+    forbidden: [calendar_lookup, calendar_write]
+
+  # ── Cluster J: Page monitor → data normalizer + source freshness (2 edges) ───
+  # Edges: page_monitor→data_normalizer, page_monitor→source_freshness_check
+  - id: page_monitor_to_data_pipeline
+    goal: "Monitor competitor pricing pages daily, extract and normalize the price data, and check data freshness before flagging changes."
+    must_have: [page_monitor, data_normalizer, source_freshness_check]
+    forbidden: [calendar_lookup, calendar_write, email_draft]
+
+  # ── Cluster K: Scheduled trigger + state store (1 edge) ─────────────────────
+  # Edge: scheduled_trigger→state_store (produces_input_for)
+  # Note: page_monitor does NOT fire alongside scheduled_trigger when the goal
+  # says "scan competitor pages" — it routes loop_controller instead.
+  # scheduled_trigger↔page_monitor has its own probe below (Cluster K2).
+  - id: scheduled_trigger_with_state
+    goal: "Run a nightly scheduled pipeline that saves a progress checkpoint to state after each batch, so the workflow can resume from the last checkpoint if interrupted."
+    via: plan
+    must_have: [scheduled_trigger, state_store]
+    forbidden: [calendar_lookup, calendar_write, email_draft]
+
+  # ── Cluster K2: Scheduled trigger compatible with page monitor (1 edge) ──────
+  # Edge: scheduled_trigger↔page_monitor (compatible_with)
+  - id: scheduled_page_monitor
+    goal: "Watch a set of competitor product pages for price changes on a nightly schedule and send me an alert when any price drops."
+    via: plan
+    must_have: [scheduled_trigger, page_monitor]
+    forbidden: [calendar_lookup, calendar_write, email_draft]
+
+  # ── Cluster L: ETL with schema validation + deduplication (1 edge) ───────────
+  # Edge: schema_validation↔deduplication (compatible_with)
+  - id: etl_deduplication_schema_validation
+    goal: "Scrape product catalogue data, normalize the records, deduplicate them, and validate the schema before loading into the warehouse."
+    must_have: [data_scraper, data_normalizer, deduplication, schema_validation]
+    forbidden: [external_publish, research_synthesis, design_brief_generation]
+
+  # ── Cluster M: Airtable → data normalizer (1 edge) ───────────────────────────
+  # Edge: airtable_lookup→data_normalizer (produces_input_for)
+  - id: airtable_to_normalizer
+    goal: "Pull customer records from the Airtable base, normalize the field names and date formats, and load the cleaned data into the analytics warehouse."
+    via: plan
+    must_have: [airtable_lookup, data_normalizer]
+    forbidden: [calendar_lookup, calendar_write]
+
+  # ── Cluster N: Retry policy for email read (1 edge) ──────────────────────────
+  # Edge: retry_policy→email_read (recommended_for)
+  - id: retry_policy_for_email_read
+    goal: "Fetch emails from the inbox with automatic retry and exponential backoff so no message is lost during transient API failures."
+    must_have: [email_read, retry_policy]
+    forbidden: [design_brief_generation, research_synthesis, external_publish]
+
+  # ── Cluster O: Retry policy for external publish (1 edge) ────────────────────
+  # Edge: retry_policy→external_publish (recommended_for)
+  - id: retry_policy_for_publish
+    goal: "Publish the approved blog post to the website with automatic retry and exponential backoff on transient failures."
+    via: plan
+    must_have: [external_publish, retry_policy]
+    forbidden: [calendar_lookup, calendar_write]
+
+  # ── Cluster P: Job queue compatible with retry policy (1 edge) ───────────────
+  # Edge: job_queue↔retry_policy (compatible_with)
+  - id: job_queue_with_retry_policy
+    goal: "Process a batch of customer notification jobs through a background job queue with automatic retry on failure for each job."
+    via: plan
+    must_have: [job_queue, retry_policy]
+    forbidden: [calendar_lookup, calendar_write]
+
+  # ── Cluster Q: State store compatible with retry policy (1 edge) ─────────────
+  # Edge: state_store↔retry_policy (compatible_with)
+  - id: state_store_with_retry_policy
+    goal: "Run a multi-step data processing pipeline, save a checkpoint to state after each step, and retry failed steps from the last saved checkpoint."
+    via: plan
+    must_have: [state_store, retry_policy]
+    forbidden: [calendar_lookup, calendar_write]
+
+  # ── Cluster R: State store recommended for research synthesis (1 edge) ────────
+  # Edge: state_store→research_synthesis (recommended_for)
+  # XPASS on first run: "save intermediate results" / "resume if interrupted"
+  # phrasing naturally routes state_store alongside research_synthesis.
+  - id: state_store_research_synthesis
+    goal: "Run a multi-step research synthesis that saves intermediate source and citation results to state so the workflow can resume if interrupted."
+    via: plan
+    must_have: [research_synthesis, state_store]
+
+  # ── Cluster S: State store recommended for job queue (1 edge) ────────────────
+  # Edge: state_store→job_queue (recommended_for)
+  # XPASS on first run: "batch" + "background job" + "state storage" co-activates both.
+  - id: state_store_job_queue
+    goal: "Process a large batch of data transformation jobs, enqueue each item as a background job, and track overall batch progress in state storage."
+    via: plan
+    must_have: [state_store, job_queue]
+
+  # ── Cluster T: Loop controller + fan-out collector + saga compensation (2 edges) ─
+  # Edges: loop_controller→fan_out_collector (recommended_for),
+  #        loop_controller→saga_compensation (safer_with)
+  - id: loop_fanout_saga_rollback
+    goal: "Fan out a batch of payroll documents to parallel processors and roll back all completed updates with a saga compensation step if any processor fails."
+    via: plan
+    must_have: [loop_controller, fan_out_collector, saga_compensation, audit_log]
+    forbidden: [calendar_lookup, calendar_write, email_draft]
+
+  # ── Cluster U: Webhook trigger with audit log (1 edge) ───────────────────────
+  # Edge: audit_log→webhook_trigger (recommended_for)
+  - id: webhook_with_audit_log
+    goal: "Trigger a workflow from an incoming webhook, validate the payload, and keep a full audit log of every triggered action."
+    via: plan
+    must_have: [webhook_trigger, audit_log, schema_validation]
+    forbidden: [calendar_lookup, calendar_write, email_draft]
+
+  # ── Cluster V: Threshold router with audit log (1 edge) ──────────────────────
+  # Edge: threshold_router→audit_log (recommended_for)
+  - id: threshold_router_with_audit_log
+    goal: "Score incoming loan applications with a confidence model, route high-confidence approvals automatically and low-confidence ones to manual review, logging every routing decision."
+    via: plan
+    must_have: [threshold_router, audit_log]
+    forbidden: [calendar_lookup, calendar_write, email_draft]

@@ -11,8 +11,9 @@ notes: |
   Decision: bridge edge.
   Rationale: research_synthesis output ("synthesised answer with inline source references") satisfies content_idea_intake's input contract ("free-text brief or structured content request") without any transform step. Adding an adapter component would be premature abstraction for a semantic data handoff. The edge makes the cross-domain connection explicit, blockable, and auditable.
 conditions: []
-tested: false
-test_refs: []
+tested: true
+test_refs:
+  - "probe:research_to_content_ideas"
 failure_modes:
   - research synthesis used as content brief without citation review — hallucinations propagate into published content
 sources: []

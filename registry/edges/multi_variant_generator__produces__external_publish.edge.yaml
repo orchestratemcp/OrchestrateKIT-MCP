@@ -7,4 +7,6 @@ reason: Generated variants are typically published to an external A/B testing pl
 severity: medium
 notes: Only one variant should be published per test arm unless the platform manages multi-arm delivery. Always gate variant selection with human_approval_gate or a campaign-management tool.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:multi_variant_to_publish"

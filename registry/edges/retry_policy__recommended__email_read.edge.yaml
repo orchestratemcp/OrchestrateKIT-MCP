@@ -5,5 +5,8 @@ relation: recommended_for
 status: published
 reason: Email API calls are subject to transient errors and rate limits. A retry policy prevents partial inbox reads.
 severity: low
-notes: Use short backoff for email reads — they are typically fast to recover. Set max_attempts to 3 to avoid long delays on persistent failures.
+notes: Use short backoff for email reads ï¿½ they are typically fast to recover. Set max_attempts to 3 to avoid long delays on persistent failures.
 conditions: []
+tested: true
+test_refs:
+  - "probe:retry_policy_for_email_read"

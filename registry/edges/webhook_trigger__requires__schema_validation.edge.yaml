@@ -7,4 +7,6 @@ reason: Webhook payloads arrive from external services with no shape guarantee. 
 severity: high
 notes: Validate immediately after signature check. Use a strict schema pinned to the source API version; add a version header check so schema drift is caught immediately.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:webhook_trigger_stripe_payment"

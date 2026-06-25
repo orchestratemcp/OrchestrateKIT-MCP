@@ -12,3 +12,6 @@ conditions:
 bypass_when_all_present:
   - citation_checker
   - human_approval_gate
+tested: true
+test_refs:
+  - "probe:research_synthesis_with_citations"

@@ -7,3 +7,6 @@ reason: Both can run on the same data pipeline. Prefer deduplication before vali
 severity: low
 notes: If validation is cheap, running it both before and after deduplication is a useful quality gate.
 conditions: []
+tested: true
+test_refs:
+  - "probe:etl_deduplication_schema_validation"

@@ -7,4 +7,6 @@ reason: Airtable field names use free-text labels that diverge across bases and 
 severity: medium
 notes: Airtable formula fields can return mixed types depending on their inputs. Always normalise before schema validation.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:airtable_to_normalizer"

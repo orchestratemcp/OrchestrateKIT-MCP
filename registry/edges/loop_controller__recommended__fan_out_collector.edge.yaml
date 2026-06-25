@@ -8,4 +8,6 @@ severity: low
 notes: For strictly sequential loops (one item at a time) fan_out_collector is not needed. Only add it when iterations genuinely run in parallel.
 conditions:
   - loop is configured for parallel iteration
-tested: false
+tested: true
+test_refs:
+  - "probe:loop_fanout_saga_rollback"

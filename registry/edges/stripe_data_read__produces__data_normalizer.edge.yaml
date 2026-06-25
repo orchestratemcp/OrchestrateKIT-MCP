@@ -7,4 +7,6 @@ reason: Stripe API responses use snake_case Stripe-specific field names (e.g. cu
 severity: medium
 notes: Stripe amounts are in smallest currency unit (cents). Always normalise to decimal before display or calculation. Never expose raw Stripe customer IDs in audit logs without anonymisation.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:stripe_data_read_churn"

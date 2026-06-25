@@ -7,4 +7,6 @@ reason: Email subject and body are the primary signal for intent classification 
 severity: medium
 notes: Strip quoted reply chains before passing to classifier to avoid intent pollution from historical context.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:support_email_triage_classifier"

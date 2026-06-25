@@ -7,3 +7,6 @@ reason: The edited diff is the primary input for the PR description. PR summary 
 severity: medium
 notes: Include the plan context alongside the diff so the PR summary explains why changes were made, not just what changed.
 conditions: []
+tested: true
+test_refs:
+  - "probe:full_code_agent_pipeline"

@@ -8,3 +8,6 @@ severity: medium
 notes: Wrap only idempotent publish calls with retry. If the platform does not guarantee idempotency, use a deduplication key to prevent duplicate publishes.
 conditions:
   - publish API is idempotent or workflow uses deduplication key
+tested: true
+test_refs:
+  - "probe:retry_policy_for_publish"

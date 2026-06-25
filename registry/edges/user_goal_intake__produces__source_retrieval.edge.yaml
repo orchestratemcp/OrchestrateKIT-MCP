@@ -7,3 +7,6 @@ reason: The structured goal provides the query for retrieval. Raw user input sho
 severity: medium
 notes: Extract explicit constraints (time range, source domain, language) from the goal before constructing the retrieval query.
 conditions: []
+tested: true
+test_refs:
+  - "probe:user_goal_intake_pipeline"

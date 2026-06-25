@@ -7,3 +7,6 @@ reason: Plans that include test-update steps have been validated against the tes
 severity: medium
 notes: Plans that do not include explicit test-update steps produce code edits that break the test suite more often.
 conditions: []
+tested: true
+test_refs:
+  - "probe:full_code_agent_pipeline"

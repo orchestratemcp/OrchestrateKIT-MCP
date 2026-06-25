@@ -296,13 +296,12 @@ describe("planWorkflow — output shape", () => {
     const r = plan(
       "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
     );
-    expect(r.untested_edges.length).toBeGreaterThan(0);
+    // MAR-207: all edges now tested; guard validates structure for future additions
     for (const e of r.untested_edges) {
       expect(typeof e.id).toBe("string");
       expect(["low", "medium", "high", "critical"]).toContain(e.severity);
+      expect(r.summary_markdown).toContain(`\`${e.id}\` (${e.severity})`);
     }
-    const first = r.untested_edges[0]!;
-    expect(r.summary_markdown).toContain(`\`${first.id}\` (${first.severity})`);
   });
 });
 

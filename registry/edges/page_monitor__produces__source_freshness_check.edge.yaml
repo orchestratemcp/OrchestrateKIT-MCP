@@ -7,4 +7,6 @@ reason: page_monitor timestamps each change event; source_freshness_check can us
 severity: low
 notes: Optional but recommended — prevents re-processing very old change events that arrive late due to polling delay.
 conditions: []
-tested: false
+tested: true
+test_refs:
+  - "probe:page_monitor_to_data_pipeline"
