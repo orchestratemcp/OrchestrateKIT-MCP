@@ -61,6 +61,14 @@ export function componentActionClass(c: Component): 0 | 1 | 2 | 3 | 4 {
     c.permissions.write.length > 0 &&
     (c.category === "integration" || c.category === "output");
   if (writesExternal) return 3;
+  // High-risk orchestration components that coordinate external writes should
+  // be L3, not L1. The canonical case is saga_compensation: it triggers
+  // external undo calls (API deletes, refunds, record reversals) that are
+  // irreversible if compensation itself fails. The `orchestration` category
+  // doesn't match the integration/output check above, but risk_level:"high"
+  // is the registry's explicit signal that this component's blast radius
+  // extends outside the system boundary.
+  if (c.risk_level === "high" && c.permissions.write.length > 0) return 3;
   // internal write: a state component, or anything declaring a write that is
   // not an external integration (reversible/internal).
   if (c.category === "state" || c.permissions.write.length > 0) return 1;

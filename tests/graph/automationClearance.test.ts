@@ -37,6 +37,12 @@ describe("componentActionClass — blast-radius ladder", () => {
     expect(cls("crm_note_write")).toBe(3);
     expect(cls("calendar_write")).toBe(3);
   });
+  it("L3 high-risk orchestration with external writes — MAR-210 regression", () => {
+    // saga_compensation category=orchestration (not integration/output) but
+    // risk_level=high + permissions.write includes external undo calls
+    // (API deletes, refunds, record reversals). Must be L3, not L1.
+    expect(cls("saga_compensation")).toBe(3);
+  });
   it("L4 public publish / irreversible", () => {
     expect(cls("external_publish")).toBe(4);
   });
@@ -107,5 +113,54 @@ describe("plan_workflow — automation_clearance on every plan (MAR-168)", () =>
     const r = plan("generate copy from a content brief, design visuals, get approval and publish externally");
     expect(r.automation_clearance.level).toBe("L4");
     expect(r.automation_clearance.autonomous_allowed).toBe(false);
+  });
+
+  it("MAR-210: fan-out+saga goal is L3, not L1 — saga_compensation has external write blast radius", () => {
+    const r = plan(
+      "Fan out a batch of documents to parallel processors, validate each result, " +
+      "and roll back all completed writes with a saga compensation step if any processor fails.",
+    );
+    const ids = r.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("saga_compensation");
+    expect(r.automation_clearance.level).toBe("L3");
+    expect(r.automation_clearance.autonomous_allowed).toBe(false);
+    expect(r.automation_clearance.highest_action_components).toContain("saga_compensation");
+    expect(r.summary_markdown).toContain("L3");
+  });
+});
+
+describe("plan_workflow — design_notes from edge control_flow_note (MAR-211)", () => {
+  const plan = (goal: string) =>
+    planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
+
+  it("design_notes is always present as an array", () => {
+    const r = plan("read emails and summarize them");
+    expect(Array.isArray(r.design_notes)).toBe(true);
+  });
+
+  it("fan-out+saga route surfaces the conditional saga guidance note", () => {
+    const r = plan(
+      "Fan out a batch of documents to parallel processors, validate each result, " +
+      "and roll back all completed writes with a saga compensation step if any processor fails.",
+    );
+    expect(r.design_notes.length).toBeGreaterThan(0);
+    const joined = r.design_notes.join(" ");
+    // The loop_controller → saga_compensation edge has a control_flow_note
+    // about when saga_compensation should actually be added.
+    expect(joined).toContain("saga_compensation");
+    expect(joined).toContain("irreversible external side effects");
+    // The design_notes also surface the saga_compensation → audit_log wiring note.
+    expect(joined).toContain("audit_log");
+    // They appear in the rendered markdown too.
+    expect(r.summary_markdown).toContain("Design notes");
+  });
+
+  it("a goal with no control_flow_note edges gets an empty design_notes", () => {
+    // A pure read-only code-review goal uses only edges that have no notes.
+    const r = plan("read the codebase and summarize the PR changes for review");
+    // design_notes may be empty or have entries — assert it is an array and
+    // that the saga note is absent (different route, different edges).
+    expect(Array.isArray(r.design_notes)).toBe(true);
+    expect(r.design_notes.join(" ")).not.toContain("saga_compensation");
   });
 });

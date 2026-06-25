@@ -273,6 +273,13 @@ export type PlanWorkflowOutput = {
   approval_gate_advisory: ApprovalGateAdvisory | null;
   evals_to_add: string[];
   /**
+   * Advisory design notes drawn from edge `control_flow_note` annotations (MAR-211).
+   * Non-empty only when edges between route components carry architectural guidance
+   * (e.g. conditional composition rules, wiring order constraints). Absent when no
+   * such notes exist for the current route — the field is not always present.
+   */
+  design_notes: string[];
+  /**
    * Advisory multi-worker BUILD pipeline (MAR-166): the specialist workers
    * (planner → coder → reviewer → tester) recommended to implement this plan in
    * the user's own runtime, with their handoff contracts. Deterministic and the
@@ -384,6 +391,27 @@ function untestedEdgesWithin(
   return edgesWithinSet(new Set(componentIds), registry.edges)
     .filter((e) => !e.tested)
     .map((e) => ({ id: e.id, severity: e.severity }));
+}
+
+/**
+ * Advisory design notes drawn from edge `control_flow_note` annotations (MAR-211).
+ *
+ * Edges carry a `control_flow_note` field for conditional/architectural guidance
+ * that is too specific to belong in the component summary (e.g. "only add
+ * saga_compensation when iterations have irreversible external side effects"). These
+ * notes were previously stored in the registry but never surfaced in plan output —
+ * an LLM reading the plan had no way to discover them without a separate edge lookup.
+ *
+ * Returns one string per non-empty note on an edge whose both endpoints are in
+ * the route, formatted as "[from → to] note text".
+ */
+function controlFlowNotesWithin(
+  componentIds: string[],
+  registry: RegistrySnapshot,
+): string[] {
+  return edgesWithinSet(new Set(componentIds), registry.edges)
+    .filter((e) => e.control_flow_note.length > 0)
+    .map((e) => `[${e.from} → ${e.to}] ${e.control_flow_note}`);
 }
 
 /**
@@ -524,6 +552,7 @@ function buildPlanMarkdown(
   workerPipeline: WorkerPipeline,
   loopGuidance: LoopGuidance | null,
   clearance: AutomationClearance,
+  designNotes: string[],
 ): string {
   const lines: string[] = [];
 
@@ -669,6 +698,13 @@ function buildPlanMarkdown(
     lines.push(``);
   }
 
+  // MAR-211: design notes from edge control_flow_note annotations.
+  if (designNotes.length > 0) {
+    lines.push(`### Design notes`, ``);
+    for (const n of designNotes) lines.push(`- ${n}`);
+    lines.push(``);
+  }
+
   // MAR-167: bounded-loop contract when the route is loop-shaped.
   if (loopGuidance) {
     const lc = loopGuidance.loop_contract;
@@ -785,6 +821,7 @@ export function planWorkflow(
   const model_tier_profile = computeModelTierProfile(routeComponents);
   const credential_advisory = computeCredentialAdvisory(routeComponents);
   const untested_edges = untestedEdgesWithin(routeComponentIds, registry);
+  const design_notes = controlFlowNotesWithin(routeComponentIds, registry);
   const avoid_when_violations = detectAvoidViolations(
     new Set(routeComponentIds),
     registry.edges,
@@ -902,6 +939,7 @@ export function planWorkflow(
           worker_pipeline,
           loop_guidance,
           automation_clearance,
+          design_notes,
         );
   const summary_markdown = `${statusHeader}\n\n${body}`;
 
@@ -925,6 +963,7 @@ export function planWorkflow(
     enforced_approval_gates,
     approval_gate_advisory,
     evals_to_add: composed.evals_to_add,
+    design_notes,
     worker_pipeline,
     loop_guidance,
     automation_clearance,

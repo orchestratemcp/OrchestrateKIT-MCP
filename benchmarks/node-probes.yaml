@@ -552,6 +552,18 @@ probes:
     must_have: [loop_controller, fan_out_collector, saga_compensation, audit_log]
     forbidden: [calendar_lookup, calendar_write, email_draft]
 
+  # ── MAR-210: automation_clearance L3 regression (locked via unit test) ──────
+  # saga_compensation (category=orchestration, risk_level=high) was classified as
+  # L1 ("internal reversible write") because the external-write check only covered
+  # integration/output categories. Fix: risk_level=high + writes → L3.
+  # The L3 assertion lives in tests/graph/automationClearance.test.ts (MAR-210).
+  # This probe just locks the component composition for the MAR-208 test goal.
+  - id: fanout_saga_clearance_regression
+    goal: "Fan out a batch of documents to parallel processors, validate each result, and roll back all completed writes with a saga compensation step if any processor fails."
+    via: plan
+    must_have: [saga_compensation, fan_out_collector, loop_controller, audit_log]
+    forbidden: [calendar_lookup, calendar_write, email_draft]
+
   # ── Cluster U: Webhook trigger with audit log (1 edge) ───────────────────────
   # Edge: audit_log→webhook_trigger (recommended_for)
   - id: webhook_with_audit_log
