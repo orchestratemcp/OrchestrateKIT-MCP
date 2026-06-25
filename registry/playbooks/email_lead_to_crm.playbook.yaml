@@ -1,0 +1,124 @@
+id: email_lead_to_crm
+version: 0.1.0
+status: candidate
+title: Email Lead to CRM with Follow-up
+summary: >
+  Blueprint for a sales-email agent that reads inbound emails, identifies company
+  leads (filtering free-mail domains), researches the sender's company, writes a
+  CRM note, and drafts a personalised follow-up — all gated behind human approval
+  before any external write. Promoted from 3 OrchestrateLab sessions (avg 4.3/5).
+  Requires saga compensation because CRM write and email send must stay in sync.
+workflow_type: crm-sales
+risk_level: high
+golden_path_route_id: ''
+stack_id: default_orchestratekit_stack
+
+components:
+  - email_read
+  - schema_validation
+  - source_retrieval
+  - source_ranking
+  - research_synthesis
+  - citation_checker
+  - source_freshness_check
+  - email_draft
+  - human_approval_gate
+  - crm_note_write
+  - optional_email_send
+  - audit_log
+
+edges:
+  - email_read__produces__intent_classifier
+  - intent_classifier__produces__crm_note_write
+  - email_draft__safer_with__human_approval_gate
+  - crm_note_write__requires__human_approval_gate
+  - optional_email_send__requires__human_approval_gate
+  - source_retrieval__tested__research_synthesis
+  - audit_log__recommended__optional_email_send
+
+best_for:
+  - inbound sales email qualification — filter company leads from personal email
+  - automated company research before a CRM note and outreach draft
+  - attended sales workflow where a human approves each follow-up before it sends
+
+avoid_when:
+  - bulk outreach or marketing send sequences
+  - fully autonomous sending without any human review gate
+  - b2c workflows where the sender pool is predominantly personal email addresses
+
+recommended_architecture:
+  pattern: Read → validate lead → research → draft → approve → write + send (with saga rollback)
+  why: >
+    The CRM write and email send are both irreversible and must stay in sync.
+    If the email send fails after the CRM note is already written, you end up
+    with a CRM record for an email that was never delivered. A saga compensation
+    step that deletes the CRM note on send failure is required; do not skip it.
+
+llm_driven_steps:
+  - source_ranking
+  - research_synthesis
+  - email_draft
+  - crm_note_write
+
+deterministic_steps:
+  - email_read
+  - schema_validation
+  - source_retrieval
+  - citation_checker
+  - source_freshness_check
+  - human_approval_gate
+  - optional_email_send
+  - audit_log
+
+guardrails:
+  - Never write to CRM or send email without explicit human approval
+  - Implement saga compensation — if email send fails, roll back (delete) the CRM note
+  - schema_validation must run before research — do not spend research budget on free-mail senders
+  - source_freshness_check must reject sources older than 90 days before research_synthesis runs
+  - citation_checker must verify every claim before the research summary reaches email_draft
+  - Approval UI must show the full draft, recipient, and the research summary used to generate it
+  - Treat every external action as irreversible — email send and CRM write have no reliable undo
+
+failure_modes:
+  - CRM note written but email send fails — record exists for an email never delivered (fix with saga)
+  - Free-mail sender passes schema_validation — wastes research budget on non-leads
+  - Research synthesis hallucinates company details — citation_checker reduces but does not eliminate this
+  - Stale company data (acquisition, pivot) produces an embarrassing or incorrect follow-up
+  - Human approval notification not delivered — workflow stalls without a timeout handler
+  - Duplicate CRM note on retry if crm_note_write is not idempotent
+
+evals:
+  - lead detection accuracy — precision/recall on 50 inbound emails (company vs personal)
+  - research summary quality — human annotation on 10 company research outputs
+  - citation verification coverage — all claims have a reachable, matching URL
+  - source freshness gate — no source older than 90 days passes to synthesis
+  - saga rollback correctness — CRM note deleted when simulated send fails
+  - approval gate enforcement — no write executed when approval is absent
+  - audit log completeness — every crm_note_write and optional_email_send has a record
+
+implementation_steps:
+  - "Step 1: Implement email_read with Gmail API or IMAP. Extract sender domain for schema_validation."
+  - "Step 2: Implement schema_validation to gate on company domains — reject free-mail (gmail.com, outlook.com, yahoo.com). This is where lead detection happens; no LLM needed."
+  - "Step 3: Implement source_retrieval with a search API (Perplexity or Brave Search) using the sender domain as the query."
+  - "Step 4: Implement source_ranking with a small model (Haiku-class) to score sources by relevance and authority before passing to synthesis."
+  - "Step 5: Implement source_freshness_check — reject any source older than 90 days before synthesis runs."
+  - "Step 6: Implement citation_checker — after research_synthesis, fetch each cited URL and verify the claim is supported. Reject hallucinated citations."
+  - "Step 7: Implement research_synthesis with a frontier model (Opus/Sonnet-class). Ground every claim in a verified source."
+  - "Step 8: Implement email_draft with a standard model. Pass the research summary + original email + tone instructions."
+  - "Step 9: Surface draft + research summary to human_approval_gate. Show recipient, full draft, and the company summary used to write it."
+  - "Step 10: On approval — wrap crm_note_write and optional_email_send in a saga: write CRM note first, then send email. If send fails, call the CRM note delete endpoint (compensation). Log both outcomes to audit_log."
+  - "Step 11: Write audit_log entry after every crm_note_write and optional_email_send with actor, timestamp, noteId, and send status."
+
+sources:
+  - title: Gmail API documentation
+    url: https://developers.google.com/gmail/api/guides
+    source_type: official_docs
+    last_checked: "2026-06-25"
+  - title: HubSpot CRM API — Notes
+    url: https://developers.hubspot.com/docs/api/crm/notes
+    source_type: official_docs
+    last_checked: "2026-06-25"
+  - title: Perplexity API documentation
+    url: https://docs.perplexity.ai
+    source_type: official_docs
+    last_checked: "2026-06-25"
