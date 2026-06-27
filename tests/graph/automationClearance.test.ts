@@ -264,3 +264,80 @@ describe("plan_workflow — provenance model (MAR-206)", () => {
     }
   });
 });
+
+describe("plan_workflow — what_you_need + suggested_next_actions (MAR-208)", () => {
+  const plan = (goal: string, build_target?: "cowork" | "cursor" | "chatgpt_gpt" | "code") =>
+    planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], build_target }, registry);
+
+  it("what_you_need is present on every plan as an array", () => {
+    const r = plan("read emails and summarize them");
+    expect(Array.isArray(r.what_you_need)).toBe(true);
+  });
+
+  it("email+CRM route surfaces email and CRM integration needs", () => {
+    const r = plan("read emails, detect leads and write a note to the CRM for each lead");
+    const ids = r.what_you_need.map((n) => n.component_id);
+    expect(ids).toContain("email_read");
+    expect(ids).toContain("crm_note_write");
+  });
+
+  it("each what_you_need entry has label, product_examples, and scopes", () => {
+    const r = plan("read emails, detect leads and write a note to the CRM for each lead");
+    for (const need of r.what_you_need) {
+      expect(need.label.length).toBeGreaterThan(0);
+      expect(need.product_examples.length).toBeGreaterThan(0);
+      expect(Array.isArray(need.scopes)).toBe(true);
+    }
+  });
+
+  it("read-only code review route has empty what_you_need (no external wiring)", () => {
+    const r = plan("read the codebase and summarize the PR changes for review");
+    // codebase_scan, pr_summary etc. have no external credentials — list may be empty
+    const externalIds = r.what_you_need.map((n) => n.component_id);
+    expect(externalIds).not.toContain("crm_note_write");
+    expect(externalIds).not.toContain("calendar_write");
+  });
+
+  it("suggested_next_actions is present on every plan as a non-empty array", () => {
+    const r = plan("read emails and draft a CRM note for each lead");
+    expect(Array.isArray(r.suggested_next_actions)).toBe(true);
+    expect(r.suggested_next_actions.length).toBeGreaterThan(0);
+  });
+
+  it("without build_target, suggested_next_actions offers all three options [a] [b] [c]", () => {
+    const r = plan("read emails and write a CRM note");
+    const joined = r.suggested_next_actions.join(" ");
+    expect(joined).toContain("[a]");
+    expect(joined).toContain("[b]");
+    expect(joined).toContain("[c]");
+  });
+
+  it("build_target=cowork leads with CoWork system prompt action", () => {
+    const r = plan("read emails and write a CRM note", "cowork");
+    expect(r.suggested_next_actions[0]).toContain("CoWork system prompt");
+  });
+
+  it("build_target=cursor leads with export_build_brief action", () => {
+    const r = plan("read emails and write a CRM note", "cursor");
+    expect(r.suggested_next_actions[0]).toContain("export_build_brief");
+  });
+
+  it("build_target=chatgpt_gpt leads with GPT system prompt action", () => {
+    const r = plan("read emails and write a CRM note", "chatgpt_gpt");
+    expect(r.suggested_next_actions[0]).toContain("ChatGPT");
+  });
+
+  it("suggested_next_actions always ends with review_workflow_design reminder", () => {
+    for (const target of ["cowork", "cursor", "chatgpt_gpt", "code", undefined] as const) {
+      const r = plan("read emails and write a CRM note", target);
+      const last = r.suggested_next_actions[r.suggested_next_actions.length - 1];
+      expect(last).toContain("review_workflow_design");
+    }
+  });
+
+  it("provenance tags what_you_need as computed and suggested_next_actions as advisory", () => {
+    const r = plan("read emails and write a CRM note");
+    expect(r.provenance.field_tags.what_you_need).toBe("computed");
+    expect(r.provenance.field_tags.suggested_next_actions).toBe("advisory");
+  });
+});

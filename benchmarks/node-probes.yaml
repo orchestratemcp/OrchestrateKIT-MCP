@@ -587,3 +587,10 @@ probes:
     via: plan
     must_have: [threshold_router, audit_log]
     forbidden: [calendar_lookup, calendar_write, email_draft]
+
+  # ── MAR-208: what_you_need + suggested_next_actions (client-target awareness) ─
+  - id: mar208_what_you_need_crm_route
+    goal: "Read inbound sales emails, identify company leads, log a CRM note, and draft a personalised follow-up email."
+    via: plan
+    must_have: [email_read, crm_note_write]
+    forbidden: [calendar_lookup, external_publish]
