@@ -1,0 +1,12 @@
+id: loop_controller__produces__state_store
+from: loop_controller
+to: state_store
+relation: produces_input_for
+status: published
+reason: Loop iteration state (current index, collected results, exit condition status) must be persisted after each iteration so that a crash at iteration 50/100 can resume from iteration 51 rather than restarting from zero.
+severity: high
+notes: Write iteration state at the end of each iteration, not at the start. Include the last successfully processed item ID so resume skips it correctly. Use the workflow run_id + loop_id as the state key to avoid collisions when multiple loops run in the same workflow.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: loop_controller__produces__state_store"

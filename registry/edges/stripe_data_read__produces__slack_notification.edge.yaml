@@ -1,0 +1,13 @@
+id: stripe_data_read__produces__slack_notification
+from: stripe_data_read
+to: slack_notification
+relation: produces_input_for
+status: published
+reason: Stripe billing data (MRR, churn events, failed charges, subscription upgrades/downgrades) is a common source for Slack revenue alerts. The Stripe record set provides the structured payload that gets formatted into a channel notification.
+severity: medium
+notes: Anonymise or redact customer names and payment details before posting to Slack — billing data often contains PII. Use a dedicated private channel for revenue alerts rather than a shared engineering channel.
+conditions:
+  - Stripe data is summarised or anonymised before posting
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: stripe_data_read__produces__slack_notification"

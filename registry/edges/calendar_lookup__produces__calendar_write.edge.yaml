@@ -1,0 +1,12 @@
+id: calendar_lookup__produces__calendar_write
+from: calendar_lookup
+to: calendar_write
+relation: produces_input_for
+status: published
+reason: calendar_lookup returns available slots and existing event context that calendar_write uses to create or update an event without double-booking. Writing without a prior lookup risks scheduling conflicts.
+severity: high
+notes: Pass the full free/busy result and the suggested slot to calendar_write so the approval UI can show what the new event avoids. Stale lookup results (>5 min old) should trigger a re-lookup before the write.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: calendar_lookup__produces__calendar_write"

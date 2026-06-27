@@ -1,0 +1,12 @@
+id: github_trigger__produces__slack_notification
+from: github_trigger
+to: slack_notification
+relation: produces_input_for
+status: published
+reason: GitHub events (push, pull_request, release) produce structured payloads that are formatted and posted to a Slack channel for team visibility. This is one of the most common CI/CD notification patterns.
+severity: medium
+notes: Gate on human_approval_gate or automate only for low-risk informational events (push to non-main branch, PR opened). Never automate for release events without approval — a misformatted release announcement is costly to correct.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: github_trigger__produces__slack_notification"

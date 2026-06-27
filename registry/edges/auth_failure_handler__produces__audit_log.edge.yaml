@@ -1,0 +1,12 @@
+id: auth_failure_handler__produces__audit_log
+from: auth_failure_handler
+to: audit_log
+relation: produces_input_for
+status: published
+reason: Every credential failure (expired token, revoked scope, wrong key) should be logged with the affected service, the failure type, and the resolution outcome. Without an audit trail, repeated auth failures go unnoticed until a pipeline silently stops working.
+severity: high
+notes: "Log at minimum: service name, failure type (401 vs 403), scope that was missing, recovery outcome (refreshed | halted | alerted), and timestamp. Do not log the credential value itself."
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: auth_failure_handler__produces__audit_log"

@@ -1,0 +1,12 @@
+id: audit_log__recommended__crm_note_write
+from: audit_log
+to: crm_note_write
+relation: recommended_for
+status: published
+reason: CRM note writes are externally visible and modify the contact's activity history. An audit log entry provides the only reliable post-hoc evidence of what was written, to which contact, who approved it, and when.
+severity: high
+notes: Log the full note content, the resolved contact ID, the approval actor, and the workflow run_id. A CRM note written from a hallucinated or ambiguous contact resolution is impossible to investigate without this trail.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__crm_note_write"

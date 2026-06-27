@@ -1,0 +1,13 @@
+id: copy_generation__produces__multi_variant_generator
+from: copy_generation
+to: multi_variant_generator
+relation: produces_input_for
+status: published
+reason: An approved copy variant serves as the seed content for multi_variant_generator, which produces A/B test variants by diversifying tone, length, and CTA. Using copy_generation output as the base ensures variants are grounded in approved brand voice.
+severity: low
+notes: Only route to multi_variant_generator when A/B testing is required. For single-copy workflows, skip this step entirely — adding variants without a testing plan produces output that is never used.
+conditions:
+  - workflow requires A/B or multivariate testing of the output
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: copy_generation__produces__multi_variant_generator"

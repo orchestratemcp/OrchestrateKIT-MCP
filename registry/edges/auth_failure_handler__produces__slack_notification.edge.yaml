@@ -1,0 +1,13 @@
+id: auth_failure_handler__produces__slack_notification
+from: auth_failure_handler
+to: slack_notification
+relation: produces_input_for
+status: published
+reason: When credential recovery is exhausted (token cannot be refreshed, scope is permanently revoked), the auth_failure_handler should alert an operator via Slack so the pipeline does not silently halt without anyone knowing.
+severity: medium
+notes: Alert only on unrecoverable failures — do not post on every token refresh attempt or you will create notification fatigue. Include the failing service name and missing scope in the alert body so the operator knows exactly what to re-authorise.
+conditions:
+  - recovery attempts are exhausted or failure is a permanent scope error
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: auth_failure_handler__produces__slack_notification"

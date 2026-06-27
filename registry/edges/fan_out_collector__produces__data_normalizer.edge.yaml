@@ -1,0 +1,13 @@
+id: fan_out_collector__produces__data_normalizer
+from: fan_out_collector
+to: data_normalizer
+relation: produces_input_for
+status: published
+reason: When parallel branches each produce raw records (scraped pages, API responses, extracted documents), the merged result set from fan_out_collector needs normalisation before downstream processing. Results from different branches often use inconsistent field schemas.
+severity: medium
+notes: Only wire this edge when branches produce raw data records. If branches produce already-normalised records or non-record outputs (scores, decisions), this step is unnecessary.
+conditions:
+  - parallel branches each produce raw data records with potentially inconsistent schemas
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: fan_out_collector__produces__data_normalizer"

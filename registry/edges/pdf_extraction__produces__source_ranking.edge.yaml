@@ -1,0 +1,12 @@
+id: pdf_extraction__produces__source_ranking
+from: pdf_extraction
+to: source_ranking
+relation: produces_input_for
+status: published
+reason: Extracted PDF content (text blocks, tables, metadata) becomes a candidate source document that source_ranking scores alongside web-retrieved documents. PDFs are common in research workflows (reports, whitepapers, academic papers) and must enter the ranking pipeline to be usable in synthesis.
+severity: medium
+notes: Attach document metadata (author, date, page count, source URL) to each extracted record so source_ranking can score on recency and authority. PDFs without a published_at date will score poorly on freshness — set a reasonable default based on file mtime.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: pdf_extraction__produces__source_ranking"

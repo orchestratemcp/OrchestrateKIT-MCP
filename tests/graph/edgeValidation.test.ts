@@ -327,3 +327,145 @@ describe("edge: research_synthesis__requires__source_freshness_check", () => {
     expect(ids).toContain("source_freshness_check");
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAR-213 — Graph densification: 20 new edges (78 → 98)
+// Same patterns as above: ORDER_EDGES for produces_input_for sequencing,
+// AUDIT_EDGES for recommended_for → audit_log injection.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** recommended_for → audit_log: CRM writes are externally visible and must be audited. */
+describe("edge: audit_log__recommended__crm_note_write", () => {
+  it("augmentWithSafety adds audit_log when crm_note_write is present", () => {
+    const result = augmentWithSafety(pick(["crm_note_write"]), edges, components);
+    expect(result.components.map((c) => c.id)).toContain("audit_log");
+    expect(result.added_audit).toBe(true);
+  });
+});
+
+/** produces_input_for: execution ordering for the 19 new sequencing edges. */
+const MAR213_ORDER_EDGES: Array<[string, string, string, string[]]> = [
+  [
+    "email_read__produces__email_draft",
+    "email_read",
+    "email_draft",
+    ["email_draft", "email_read", "optional_email_send"],
+  ],
+  [
+    "email_draft__produces__optional_email_send",
+    "email_draft",
+    "optional_email_send",
+    ["optional_email_send", "email_draft", "human_approval_gate"],
+  ],
+  [
+    "email_read__produces__calendar_lookup",
+    "email_read",
+    "calendar_lookup",
+    ["calendar_lookup", "email_read", "calendar_write"],
+  ],
+  [
+    "calendar_lookup__produces__calendar_write",
+    "calendar_lookup",
+    "calendar_write",
+    ["calendar_write", "calendar_lookup", "human_approval_gate"],
+  ],
+  [
+    "github_trigger__produces__reviewer_notification",
+    "github_trigger",
+    "reviewer_notification",
+    ["reviewer_notification", "github_trigger", "schema_validation"],
+  ],
+  [
+    "github_trigger__produces__slack_notification",
+    "github_trigger",
+    "slack_notification",
+    ["slack_notification", "github_trigger", "schema_validation", "human_approval_gate"],
+  ],
+  [
+    "scheduled_trigger__produces__data_scraper",
+    "scheduled_trigger",
+    "data_scraper",
+    ["data_scraper", "scheduled_trigger", "data_normalizer"],
+  ],
+  [
+    "scheduled_trigger__produces__job_queue",
+    "scheduled_trigger",
+    "job_queue",
+    ["job_queue", "scheduled_trigger"],
+  ],
+  [
+    "stripe_data_read__produces__slack_notification",
+    "stripe_data_read",
+    "slack_notification",
+    ["slack_notification", "stripe_data_read", "human_approval_gate"],
+  ],
+  [
+    "auth_failure_handler__produces__audit_log",
+    "auth_failure_handler",
+    "audit_log",
+    ["audit_log", "auth_failure_handler"],
+  ],
+  [
+    "auth_failure_handler__produces__slack_notification",
+    "auth_failure_handler",
+    "slack_notification",
+    ["slack_notification", "auth_failure_handler", "audit_log", "human_approval_gate"],
+  ],
+  [
+    "threshold_router__produces__human_approval_gate",
+    "threshold_router",
+    "human_approval_gate",
+    ["human_approval_gate", "threshold_router"],
+  ],
+  [
+    "fan_out_collector__produces__state_store",
+    "fan_out_collector",
+    "state_store",
+    ["state_store", "fan_out_collector"],
+  ],
+  [
+    "fan_out_collector__produces__data_normalizer",
+    "fan_out_collector",
+    "data_normalizer",
+    ["data_normalizer", "fan_out_collector"],
+  ],
+  [
+    "loop_controller__produces__state_store",
+    "loop_controller",
+    "state_store",
+    ["state_store", "loop_controller"],
+  ],
+  [
+    "page_monitor__produces__slack_notification",
+    "page_monitor",
+    "slack_notification",
+    ["slack_notification", "page_monitor", "state_store", "human_approval_gate"],
+  ],
+  [
+    "pdf_extraction__produces__source_ranking",
+    "pdf_extraction",
+    "source_ranking",
+    ["source_ranking", "pdf_extraction", "data_normalizer"],
+  ],
+  [
+    "copy_generation__produces__multi_variant_generator",
+    "copy_generation",
+    "multi_variant_generator",
+    ["multi_variant_generator", "copy_generation", "content_idea_intake"],
+  ],
+  [
+    "intent_classifier__produces__email_draft",
+    "intent_classifier",
+    "email_draft",
+    ["email_draft", "intent_classifier", "user_goal_intake"],
+  ],
+];
+
+for (const [edgeId, from, to, set] of MAR213_ORDER_EDGES) {
+  describe(`edge: ${edgeId}`, () => {
+    it(`computeExecutionOrder places ${from} before ${to}`, () => {
+      const ids = computeExecutionOrder(pick(set), edges).map((c) => c.id);
+      expect(ids.indexOf(from)).toBeLessThan(ids.indexOf(to));
+    });
+  });
+}

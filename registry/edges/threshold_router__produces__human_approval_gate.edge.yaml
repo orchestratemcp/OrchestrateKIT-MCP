@@ -1,0 +1,13 @@
+id: threshold_router__produces__human_approval_gate
+from: threshold_router
+to: human_approval_gate
+relation: produces_input_for
+status: published
+reason: When a confidence score falls in the "review" band (between high and low thresholds), the threshold_router routes to human_approval_gate rather than auto-approving or auto-rejecting. The routing decision and score are the input the gate surfaces to the approver.
+severity: high
+notes: Always pass the score, the threshold configuration, and the reason for routing to review — the approver needs this context to make an informed decision. A gate that shows only the payload and not the score that triggered review is not useful.
+conditions:
+  - score falls in the ambiguous "review" band between configured thresholds
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: threshold_router__produces__human_approval_gate"

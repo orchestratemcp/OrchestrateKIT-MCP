@@ -1,0 +1,12 @@
+id: scheduled_trigger__produces__data_scraper
+from: scheduled_trigger
+to: data_scraper
+relation: produces_input_for
+status: published
+reason: A scheduled trigger fires the scraping pipeline on a defined interval (nightly, weekly). The trigger's run_id and timestamp are passed to data_scraper so each run can be correlated in the audit log and duplicate runs detected.
+severity: medium
+notes: Include the run_id from the trigger in each scrape job so partial failures can be resumed from the last successful URL rather than restarting the full batch. Use state_store to persist the last successful run_id.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: scheduled_trigger__produces__data_scraper"

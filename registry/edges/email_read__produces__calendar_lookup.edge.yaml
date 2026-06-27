@@ -1,0 +1,13 @@
+id: email_read__produces__calendar_lookup
+from: email_read
+to: calendar_lookup
+relation: produces_input_for
+status: published
+reason: When an email contains scheduling intent (meeting requests, availability questions, invitations), the parsed email provides the attendees, preferred time ranges, and timezone context that calendar_lookup needs to find available slots.
+severity: medium
+notes: Only trigger this path when intent_classifier confirms a scheduling intent — routing all emails through calendar_lookup wastes API quota.
+conditions:
+  - email contains scheduling, meeting, or availability intent
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: email_read__produces__calendar_lookup"

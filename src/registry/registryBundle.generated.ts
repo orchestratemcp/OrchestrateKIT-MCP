@@ -5,9 +5,9 @@
 import type { RegistryBundle } from "./registryBundleTypes.js";
 
 export const BUNDLE: RegistryBundle = {
-  "generated_at": "2026-06-25T08:40:09.854Z",
-  "fingerprint": "b6d21f4f70e612ca",
-  "newest_mtime": "2026-06-25T08:39:56.242Z",
+  "generated_at": "2026-06-27T09:40:34.765Z",
+  "fingerprint": "63665bdcce889439",
+  "newest_mtime": "2026-06-27T09:40:29.102Z",
   "components": [
     {
       "mtime": "2026-06-16T15:00:28.355Z",
@@ -2793,7 +2793,7 @@ export const BUNDLE: RegistryBundle = {
   ],
   "edges": [
     {
-      "mtime": "2026-06-24T17:24:47.752Z",
+      "mtime": "2026-06-25T08:56:57.583Z",
       "data": {
         "id": "airtable_lookup__produces__data_normalizer",
         "from": "airtable_lookup",
@@ -2885,6 +2885,29 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-27T09:38:19.644Z",
+      "data": {
+        "id": "audit_log__recommended__crm_note_write",
+        "from": "audit_log",
+        "to": "crm_note_write",
+        "relation": "recommended_for",
+        "status": "published",
+        "reason": "CRM note writes are externally visible and modify the contact's activity history. An audit log entry provides the only reliable post-hoc evidence of what was written, to which contact, who approved it, and when.",
+        "condition": "",
+        "notes": "Log the full note content, the resolved contact ID, the approval actor, and the workflow run_id. A CRM note written from a hallucinated or ambiguous contact resolution is impossible to investigate without this trail.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__crm_note_write"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
       "mtime": "2026-06-22T21:03:49.898Z",
       "data": {
         "id": "audit_log__recommended__external_publish",
@@ -2954,7 +2977,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:51.998Z",
+      "mtime": "2026-06-25T08:56:57.584Z",
       "data": {
         "id": "audit_log__recommended__webhook_trigger",
         "from": "audit_log",
@@ -2971,6 +2994,77 @@ export const BUNDLE: RegistryBundle = {
         "tested": true,
         "test_refs": [
           "probe:webhook_with_audit_log"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:40:29.102Z",
+      "data": {
+        "id": "auth_failure_handler__produces__audit_log",
+        "from": "auth_failure_handler",
+        "to": "audit_log",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Every credential failure (expired token, revoked scope, wrong key) should be logged with the affected service, the failure type, and the resolution outcome. Without an audit trail, repeated auth failures go unnoticed until a pipeline silently stops working.",
+        "condition": "",
+        "notes": "Log at minimum: service name, failure type (401 vs 403), scope that was missing, recovery outcome (refreshed | halted | alerted), and timestamp. Do not log the credential value itself.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: auth_failure_handler__produces__audit_log"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:38:27.631Z",
+      "data": {
+        "id": "auth_failure_handler__produces__slack_notification",
+        "from": "auth_failure_handler",
+        "to": "slack_notification",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "When credential recovery is exhausted (token cannot be refreshed, scope is permanently revoked), the auth_failure_handler should alert an operator via Slack so the pipeline does not silently halt without anyone knowing.",
+        "condition": "",
+        "notes": "Alert only on unrecoverable failures — do not post on every token refresh attempt or you will create notification fatigue. Include the failing service name and missing scope in the alert body so the operator knows exactly what to re-authorise.",
+        "control_flow_note": "",
+        "conditions": [
+          "recovery attempts are exhausted or failure is a permanent scope error"
+        ],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: auth_failure_handler__produces__slack_notification"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:37:48.951Z",
+      "data": {
+        "id": "calendar_lookup__produces__calendar_write",
+        "from": "calendar_lookup",
+        "to": "calendar_write",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "calendar_lookup returns available slots and existing event context that calendar_write uses to create or update an event without double-booking. Writing without a prior lookup risks scheduling conflicts.",
+        "condition": "",
+        "notes": "Pass the full free/busy result and the suggested slot to calendar_write so the approval UI can show what the new event avoids. Stale lookup results (>5 min old) should trigger a re-lookup before the write.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: calendar_lookup__produces__calendar_write"
         ],
         "failure_modes": [],
         "sources": []
@@ -3023,7 +3117,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:09.965Z",
+      "mtime": "2026-06-25T08:56:57.585Z",
       "data": {
         "id": "citation_checker__compatible__source_freshness_check",
         "from": "citation_checker",
@@ -3115,7 +3209,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:11.127Z",
+      "mtime": "2026-06-25T08:56:57.586Z",
       "data": {
         "id": "code_editing__produces__pr_summary",
         "from": "code_editing",
@@ -3161,7 +3255,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:12.805Z",
+      "mtime": "2026-06-25T08:56:57.587Z",
       "data": {
         "id": "copy_generation__produces__design_brief_generation",
         "from": "copy_generation",
@@ -3180,6 +3274,31 @@ export const BUNDLE: RegistryBundle = {
         "tested": true,
         "test_refs": [
           "probe:copy_to_design_brief"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:39:01.380Z",
+      "data": {
+        "id": "copy_generation__produces__multi_variant_generator",
+        "from": "copy_generation",
+        "to": "multi_variant_generator",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "An approved copy variant serves as the seed content for multi_variant_generator, which produces A/B test variants by diversifying tone, length, and CTA. Using copy_generation output as the base ensures variants are grounded in approved brand voice.",
+        "condition": "",
+        "notes": "Only route to multi_variant_generator when A/B testing is required. For single-copy workflows, skip this step entirely — adding variants without a testing plan produces output that is never used.",
+        "control_flow_note": "",
+        "conditions": [
+          "workflow requires A/B or multivariate testing of the output"
+        ],
+        "severity": "low",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: copy_generation__produces__multi_variant_generator"
         ],
         "failure_modes": [],
         "sources": []
@@ -3423,7 +3542,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:14.333Z",
+      "mtime": "2026-06-25T08:56:57.588Z",
       "data": {
         "id": "email_draft__compatible__calendar_lookup",
         "from": "email_draft",
@@ -3442,6 +3561,29 @@ export const BUNDLE: RegistryBundle = {
         "tested": true,
         "test_refs": [
           "probe:email_draft_with_calendar_lookup"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:37:42.415Z",
+      "data": {
+        "id": "email_draft__produces__optional_email_send",
+        "from": "email_draft",
+        "to": "optional_email_send",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "The composed draft (subject, body, recipients) is the direct input to the send step. optional_email_send cannot send without a draft object to transmit.",
+        "condition": "",
+        "notes": "Always route through human_approval_gate between draft and send — the draft is the payload the approver reviews. Never pass the draft directly to optional_email_send without an intermediate approval step.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: email_draft__produces__optional_email_send"
         ],
         "failure_modes": [],
         "sources": []
@@ -3471,7 +3613,55 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:45.556Z",
+      "mtime": "2026-06-27T09:37:45.819Z",
+      "data": {
+        "id": "email_read__produces__calendar_lookup",
+        "from": "email_read",
+        "to": "calendar_lookup",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "When an email contains scheduling intent (meeting requests, availability questions, invitations), the parsed email provides the attendees, preferred time ranges, and timezone context that calendar_lookup needs to find available slots.",
+        "condition": "",
+        "notes": "Only trigger this path when intent_classifier confirms a scheduling intent — routing all emails through calendar_lookup wastes API quota.",
+        "control_flow_note": "",
+        "conditions": [
+          "email contains scheduling, meeting, or availability intent"
+        ],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: email_read__produces__calendar_lookup"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:37:39.765Z",
+      "data": {
+        "id": "email_read__produces__email_draft",
+        "from": "email_read",
+        "to": "email_draft",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "The parsed email (sender, subject, body, thread_id) is the primary input for composing a reply draft. Without the read email as context, the draft has no grounding.",
+        "condition": "",
+        "notes": "Pass the full parsed email object including thread history so the draft LLM can maintain conversational continuity. Strip quoted reply chains selectively — include them as context but not as content to reproduce.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: email_read__produces__email_draft"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-25T08:56:57.589Z",
       "data": {
         "id": "email_read__produces__intent_classifier",
         "from": "email_read",
@@ -3540,7 +3730,103 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T09:49:53.829Z",
+      "mtime": "2026-06-27T09:38:42.377Z",
+      "data": {
+        "id": "fan_out_collector__produces__data_normalizer",
+        "from": "fan_out_collector",
+        "to": "data_normalizer",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "When parallel branches each produce raw records (scraped pages, API responses, extracted documents), the merged result set from fan_out_collector needs normalisation before downstream processing. Results from different branches often use inconsistent field schemas.",
+        "condition": "",
+        "notes": "Only wire this edge when branches produce raw data records. If branches produce already-normalised records or non-record outputs (scores, decisions), this step is unnecessary.",
+        "control_flow_note": "",
+        "conditions": [
+          "parallel branches each produce raw data records with potentially inconsistent schemas"
+        ],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: fan_out_collector__produces__data_normalizer"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:38:38.430Z",
+      "data": {
+        "id": "fan_out_collector__produces__state_store",
+        "from": "fan_out_collector",
+        "to": "state_store",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Merged results from parallel branches should be persisted to state_store before downstream processing. Without persistence, a failure in the next step loses all collected parallel work and forces a full re-run of every branch.",
+        "condition": "",
+        "notes": "Write the merged result set and per-branch status to state_store immediately after collection. Key by the workflow run_id and the fan-out batch_id so partial failures can be resumed from the merge point rather than the start.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: fan_out_collector__produces__state_store"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:37:58.013Z",
+      "data": {
+        "id": "github_trigger__produces__reviewer_notification",
+        "from": "github_trigger",
+        "to": "reviewer_notification",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "A GitHub pull_request or review_request event provides the reviewer identity, artifact URL, and diff context that reviewer_notification needs to alert the designated reviewer. This is the primary CI/CD pattern for automated review requests.",
+        "condition": "",
+        "notes": "Filter to pull_request.opened and pull_request.review_requested event types only. Include the PR title, diff summary, and review checklist in the notification payload so the reviewer has full context without opening GitHub.",
+        "control_flow_note": "",
+        "conditions": [
+          "event type is pull_request.opened or pull_request.review_requested"
+        ],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: github_trigger__produces__reviewer_notification"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:38:01.391Z",
+      "data": {
+        "id": "github_trigger__produces__slack_notification",
+        "from": "github_trigger",
+        "to": "slack_notification",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "GitHub events (push, pull_request, release) produce structured payloads that are formatted and posted to a Slack channel for team visibility. This is one of the most common CI/CD notification patterns.",
+        "condition": "",
+        "notes": "Gate on human_approval_gate or automate only for low-risk informational events (push to non-main branch, PR opened). Never automate for release events without approval — a misformatted release announcement is costly to correct.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: github_trigger__produces__slack_notification"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-25T08:56:57.589Z",
       "data": {
         "id": "github_trigger__requires__schema_validation",
         "from": "github_trigger",
@@ -3563,7 +3849,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:02.427Z",
+      "mtime": "2026-06-25T08:56:57.590Z",
       "data": {
         "id": "intent_classifier__produces__crm_note_write",
         "from": "intent_classifier",
@@ -3588,7 +3874,30 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:15.377Z",
+      "mtime": "2026-06-27T09:39:06.379Z",
+      "data": {
+        "id": "intent_classifier__produces__email_draft",
+        "from": "intent_classifier",
+        "to": "email_draft",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "The classified intent (label, confidence, suggested response type) drives which email draft template and tone email_draft should use. Without intent context, the draft LLM has no basis for choosing between a formal reply, a meeting proposal, a support response, or a sales follow-up.",
+        "condition": "",
+        "notes": "Pass the full intent object (label, confidence, extracted entities) as a system-level context hint to the draft step — do not only pass the label string. Low-confidence classifications should include a note in the draft context so the human reviewer knows the classification may be wrong.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: intent_classifier__produces__email_draft"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-25T08:56:57.591Z",
       "data": {
         "id": "intent_classifier__produces__source_retrieval",
         "from": "intent_classifier",
@@ -3612,7 +3921,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:16.505Z",
+      "mtime": "2026-06-25T08:56:57.592Z",
       "data": {
         "id": "job_queue__compatible__retry_policy",
         "from": "job_queue",
@@ -3660,7 +3969,30 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:46.336Z",
+      "mtime": "2026-06-27T09:38:46.180Z",
+      "data": {
+        "id": "loop_controller__produces__state_store",
+        "from": "loop_controller",
+        "to": "state_store",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Loop iteration state (current index, collected results, exit condition status) must be persisted after each iteration so that a crash at iteration 50/100 can resume from iteration 51 rather than restarting from zero.",
+        "condition": "",
+        "notes": "Write iteration state at the end of each iteration, not at the start. Include the last successfully processed item ID so resume skips it correctly. Use the workflow run_id + loop_id as the state key to avoid collisions when multiple loops run in the same workflow.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: loop_controller__produces__state_store"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-25T08:56:57.592Z",
       "data": {
         "id": "loop_controller__recommended__fan_out_collector",
         "from": "loop_controller",
@@ -3685,7 +4017,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:45.637Z",
+      "mtime": "2026-06-25T08:56:57.594Z",
       "data": {
         "id": "loop_controller__safer_with__saga_compensation",
         "from": "loop_controller",
@@ -3710,7 +4042,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:48.608Z",
+      "mtime": "2026-06-25T08:56:57.595Z",
       "data": {
         "id": "multi_variant_generator__produces__external_publish",
         "from": "multi_variant_generator",
@@ -3779,7 +4111,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:54.324Z",
+      "mtime": "2026-06-25T08:56:57.595Z",
       "data": {
         "id": "page_monitor__produces__data_normalizer",
         "from": "page_monitor",
@@ -3802,7 +4134,30 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:53.483Z",
+      "mtime": "2026-06-27T09:38:49.889Z",
+      "data": {
+        "id": "page_monitor__produces__slack_notification",
+        "from": "page_monitor",
+        "to": "slack_notification",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "A page change event from page_monitor (diff, new content, URL, timestamp) is formatted and posted to a Slack channel as an alert. This is the primary pattern for competitive monitoring and content-change alerting workflows.",
+        "condition": "",
+        "notes": "Include the structured diff and a link to the changed page in the Slack message. Gate on human_approval_gate only when the notification itself needs approval — for pure change alerts, direct posting with audit_log is sufficient but requires the approval gate per slack_notification policy.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: page_monitor__produces__slack_notification"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-25T08:56:57.597Z",
       "data": {
         "id": "page_monitor__produces__source_freshness_check",
         "from": "page_monitor",
@@ -3871,6 +4226,29 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-27T09:38:56.879Z",
+      "data": {
+        "id": "pdf_extraction__produces__source_ranking",
+        "from": "pdf_extraction",
+        "to": "source_ranking",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Extracted PDF content (text blocks, tables, metadata) becomes a candidate source document that source_ranking scores alongside web-retrieved documents. PDFs are common in research workflows (reports, whitepapers, academic papers) and must enter the ranking pipeline to be usable in synthesis.",
+        "condition": "",
+        "notes": "Attach document metadata (author, date, page count, source URL) to each extracted record so source_ranking can score on recency and authority. PDFs without a published_at date will score poorly on freshness — set a reasonable default based on file mtime.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: pdf_extraction__produces__source_ranking"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
       "mtime": "2026-06-12T21:53:53.777Z",
       "data": {
         "id": "plan_generation__produces__code_editing",
@@ -3894,7 +4272,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:17.270Z",
+      "mtime": "2026-06-25T08:56:57.598Z",
       "data": {
         "id": "plan_generation__tested__test_runner",
         "from": "plan_generation",
@@ -3942,7 +4320,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T09:49:57.025Z",
+      "mtime": "2026-06-25T08:56:57.598Z",
       "data": {
         "id": "research_synthesis__avoid__external_publish",
         "from": "research_synthesis",
@@ -3971,7 +4349,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:01.416Z",
+      "mtime": "2026-06-25T08:56:57.599Z",
       "data": {
         "id": "research_synthesis__produces__content_idea_intake",
         "from": "research_synthesis",
@@ -4065,7 +4443,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:18.413Z",
+      "mtime": "2026-06-25T08:56:57.600Z",
       "data": {
         "id": "retry_policy__recommended__email_read",
         "from": "retry_policy",
@@ -4088,7 +4466,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:19.934Z",
+      "mtime": "2026-06-25T08:56:57.600Z",
       "data": {
         "id": "retry_policy__recommended__external_publish",
         "from": "retry_policy",
@@ -4113,7 +4491,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:49.800Z",
+      "mtime": "2026-06-25T08:56:57.601Z",
       "data": {
         "id": "review_draft_composer__produces__human_approval_gate",
         "from": "review_draft_composer",
@@ -4136,7 +4514,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:46.982Z",
+      "mtime": "2026-06-25T08:56:57.602Z",
       "data": {
         "id": "review_draft_composer__produces__reviewer_notification",
         "from": "review_draft_composer",
@@ -4182,7 +4560,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:50.427Z",
+      "mtime": "2026-06-25T08:56:57.603Z",
       "data": {
         "id": "scheduled_trigger__compatible__page_monitor",
         "from": "scheduled_trigger",
@@ -4205,7 +4583,53 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:51.181Z",
+      "mtime": "2026-06-27T09:38:05.598Z",
+      "data": {
+        "id": "scheduled_trigger__produces__data_scraper",
+        "from": "scheduled_trigger",
+        "to": "data_scraper",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "A scheduled trigger fires the scraping pipeline on a defined interval (nightly, weekly). The trigger's run_id and timestamp are passed to data_scraper so each run can be correlated in the audit log and duplicate runs detected.",
+        "condition": "",
+        "notes": "Include the run_id from the trigger in each scrape job so partial failures can be resumed from the last successful URL rather than restarting the full batch. Use state_store to persist the last successful run_id.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: scheduled_trigger__produces__data_scraper"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:38:09.159Z",
+      "data": {
+        "id": "scheduled_trigger__produces__job_queue",
+        "from": "scheduled_trigger",
+        "to": "job_queue",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Scheduled triggers commonly fan out to a job queue rather than running work inline. The trigger's run_id seeds the queue so all child jobs are correlated to the originating schedule run and can be monitored as a batch.",
+        "condition": "",
+        "notes": "Use the trigger's run_id as the queue batch key. Implement an overlapping-run guard — if the previous batch is still processing when the next trigger fires, skip or queue-and-log rather than stacking unbounded batches.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: scheduled_trigger__produces__job_queue"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-25T08:56:57.603Z",
       "data": {
         "id": "scheduled_trigger__produces__state_store",
         "from": "scheduled_trigger",
@@ -4251,7 +4675,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:21.088Z",
+      "mtime": "2026-06-25T08:56:57.604Z",
       "data": {
         "id": "schema_validation__compatible__deduplication",
         "from": "schema_validation",
@@ -4343,7 +4767,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:22.221Z",
+      "mtime": "2026-06-25T08:56:57.605Z",
       "data": {
         "id": "source_retrieval__tested__research_synthesis",
         "from": "source_retrieval",
@@ -4366,7 +4790,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:23.007Z",
+      "mtime": "2026-06-25T08:56:57.606Z",
       "data": {
         "id": "state_store__compatible__retry_policy",
         "from": "state_store",
@@ -4389,7 +4813,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:24.512Z",
+      "mtime": "2026-06-25T08:56:57.606Z",
       "data": {
         "id": "state_store__recommended__job_queue",
         "from": "state_store",
@@ -4414,7 +4838,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:25.693Z",
+      "mtime": "2026-06-25T08:56:57.608Z",
       "data": {
         "id": "state_store__recommended__research_synthesis",
         "from": "state_store",
@@ -4439,7 +4863,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T09:49:55.047Z",
+      "mtime": "2026-06-25T08:56:57.608Z",
       "data": {
         "id": "stripe_data_read__produces__data_normalizer",
         "from": "stripe_data_read",
@@ -4456,6 +4880,31 @@ export const BUNDLE: RegistryBundle = {
         "tested": true,
         "test_refs": [
           "probe:stripe_data_read_churn"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-27T09:38:15.820Z",
+      "data": {
+        "id": "stripe_data_read__produces__slack_notification",
+        "from": "stripe_data_read",
+        "to": "slack_notification",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Stripe billing data (MRR, churn events, failed charges, subscription upgrades/downgrades) is a common source for Slack revenue alerts. The Stripe record set provides the structured payload that gets formatted into a channel notification.",
+        "condition": "",
+        "notes": "Anonymise or redact customer names and payment details before posting to Slack — billing data often contains PII. Use a dedicated private channel for revenue alerts rather than a shared engineering channel.",
+        "control_flow_note": "",
+        "conditions": [
+          "Stripe data is summarised or anonymised before posting"
+        ],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: stripe_data_read__produces__slack_notification"
         ],
         "failure_modes": [],
         "sources": []
@@ -4485,7 +4934,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:52.831Z",
+      "mtime": "2026-06-25T08:56:57.609Z",
       "data": {
         "id": "test_runner__before__pr_summary",
         "from": "test_runner",
@@ -4508,7 +4957,32 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:24:45.589Z",
+      "mtime": "2026-06-27T09:38:32.032Z",
+      "data": {
+        "id": "threshold_router__produces__human_approval_gate",
+        "from": "threshold_router",
+        "to": "human_approval_gate",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "When a confidence score falls in the \"review\" band (between high and low thresholds), the threshold_router routes to human_approval_gate rather than auto-approving or auto-rejecting. The routing decision and score are the input the gate surfaces to the approver.",
+        "condition": "",
+        "notes": "Always pass the score, the threshold configuration, and the reason for routing to review — the approver needs this context to make an informed decision. A gate that shows only the payload and not the score that triggered review is not useful.",
+        "control_flow_note": "",
+        "conditions": [
+          "score falls in the ambiguous \"review\" band between configured thresholds"
+        ],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: threshold_router__produces__human_approval_gate"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-25T08:56:57.610Z",
       "data": {
         "id": "threshold_router__recommended__audit_log",
         "from": "threshold_router",
@@ -4531,7 +5005,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:26.841Z",
+      "mtime": "2026-06-25T08:56:57.610Z",
       "data": {
         "id": "user_goal_intake__produces__intent_classifier",
         "from": "user_goal_intake",
@@ -4554,7 +5028,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T17:25:27.411Z",
+      "mtime": "2026-06-25T08:56:57.611Z",
       "data": {
         "id": "user_goal_intake__produces__source_retrieval",
         "from": "user_goal_intake",
@@ -4577,7 +5051,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-24T09:49:56.220Z",
+      "mtime": "2026-06-25T08:56:57.612Z",
       "data": {
         "id": "webhook_trigger__requires__schema_validation",
         "from": "webhook_trigger",
@@ -5594,7 +6068,7 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
-      "mtime": "2026-06-25T08:39:56.242Z",
+      "mtime": "2026-06-25T08:56:57.612Z",
       "data": {
         "id": "email_lead_to_crm",
         "version": "0.1.0",

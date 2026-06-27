@@ -1,0 +1,12 @@
+id: email_read__produces__email_draft
+from: email_read
+to: email_draft
+relation: produces_input_for
+status: published
+reason: The parsed email (sender, subject, body, thread_id) is the primary input for composing a reply draft. Without the read email as context, the draft has no grounding.
+severity: high
+notes: Pass the full parsed email object including thread history so the draft LLM can maintain conversational continuity. Strip quoted reply chains selectively — include them as context but not as content to reproduce.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: email_read__produces__email_draft"

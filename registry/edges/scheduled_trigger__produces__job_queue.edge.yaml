@@ -1,0 +1,12 @@
+id: scheduled_trigger__produces__job_queue
+from: scheduled_trigger
+to: job_queue
+relation: produces_input_for
+status: published
+reason: Scheduled triggers commonly fan out to a job queue rather than running work inline. The trigger's run_id seeds the queue so all child jobs are correlated to the originating schedule run and can be monitored as a batch.
+severity: medium
+notes: Use the trigger's run_id as the queue batch key. Implement an overlapping-run guard — if the previous batch is still processing when the next trigger fires, skip or queue-and-log rather than stacking unbounded batches.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: scheduled_trigger__produces__job_queue"

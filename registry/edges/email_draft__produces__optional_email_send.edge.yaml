@@ -1,0 +1,12 @@
+id: email_draft__produces__optional_email_send
+from: email_draft
+to: optional_email_send
+relation: produces_input_for
+status: published
+reason: The composed draft (subject, body, recipients) is the direct input to the send step. optional_email_send cannot send without a draft object to transmit.
+severity: high
+notes: Always route through human_approval_gate between draft and send — the draft is the payload the approver reviews. Never pass the draft directly to optional_email_send without an intermediate approval step.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: email_draft__produces__optional_email_send"

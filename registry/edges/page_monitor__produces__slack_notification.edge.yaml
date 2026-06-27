@@ -1,0 +1,12 @@
+id: page_monitor__produces__slack_notification
+from: page_monitor
+to: slack_notification
+relation: produces_input_for
+status: published
+reason: A page change event from page_monitor (diff, new content, URL, timestamp) is formatted and posted to a Slack channel as an alert. This is the primary pattern for competitive monitoring and content-change alerting workflows.
+severity: medium
+notes: Include the structured diff and a link to the changed page in the Slack message. Gate on human_approval_gate only when the notification itself needs approval — for pure change alerts, direct posting with audit_log is sufficient but requires the approval gate per slack_notification policy.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: page_monitor__produces__slack_notification"

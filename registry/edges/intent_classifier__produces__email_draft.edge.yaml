@@ -1,0 +1,12 @@
+id: intent_classifier__produces__email_draft
+from: intent_classifier
+to: email_draft
+relation: produces_input_for
+status: published
+reason: The classified intent (label, confidence, suggested response type) drives which email draft template and tone email_draft should use. Without intent context, the draft LLM has no basis for choosing between a formal reply, a meeting proposal, a support response, or a sales follow-up.
+severity: medium
+notes: Pass the full intent object (label, confidence, extracted entities) as a system-level context hint to the draft step — do not only pass the label string. Low-confidence classifications should include a note in the draft context so the human reviewer knows the classification may be wrong.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: intent_classifier__produces__email_draft"

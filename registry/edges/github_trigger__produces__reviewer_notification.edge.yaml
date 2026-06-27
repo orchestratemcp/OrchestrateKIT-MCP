@@ -1,0 +1,13 @@
+id: github_trigger__produces__reviewer_notification
+from: github_trigger
+to: reviewer_notification
+relation: produces_input_for
+status: published
+reason: A GitHub pull_request or review_request event provides the reviewer identity, artifact URL, and diff context that reviewer_notification needs to alert the designated reviewer. This is the primary CI/CD pattern for automated review requests.
+severity: medium
+notes: Filter to pull_request.opened and pull_request.review_requested event types only. Include the PR title, diff summary, and review checklist in the notification payload so the reviewer has full context without opening GitHub.
+conditions:
+  - event type is pull_request.opened or pull_request.review_requested
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: github_trigger__produces__reviewer_notification"

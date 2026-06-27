@@ -1,0 +1,12 @@
+id: fan_out_collector__produces__state_store
+from: fan_out_collector
+to: state_store
+relation: produces_input_for
+status: published
+reason: Merged results from parallel branches should be persisted to state_store before downstream processing. Without persistence, a failure in the next step loses all collected parallel work and forces a full re-run of every branch.
+severity: medium
+notes: Write the merged result set and per-branch status to state_store immediately after collection. Key by the workflow run_id and the fan-out batch_id so partial failures can be resumed from the merge point rather than the start.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: fan_out_collector__produces__state_store"
