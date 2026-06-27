@@ -588,6 +588,37 @@ probes:
     must_have: [threshold_router, audit_log]
     forbidden: [calendar_lookup, calendar_write, email_draft]
 
+  # ── MAR-214: "for each" must NOT fire loop_controller on fan-out/variant goals ─
+  # The hint "for each" was too broad — it matched bounded fan-out contexts
+  # ("for each variant", "for each item in the list") where the user wants parallel
+  # dispatch, not a true iterative while-loop. loop_controller is still reachable
+  # via "loop" / "iterate" / "iteration" hints which only appear in true loop phrasing.
+  # This goal also tests external_publish (Canva) is correctly selected.
+  - id: canva_social_for_each_no_loop_controller
+    goal: "Design Canva graphics for each variant of our social media campaign and post them to Instagram and LinkedIn for approval."
+    via: plan
+    must_have: [external_publish]
+    forbidden: [loop_controller]
+
+  # ── MAR-215: "data" keyword must NOT pull data_scraper into API-read goals ───
+  # "data" is too generic — "pull Stripe payment data" doesn't imply web scraping.
+  # data_scraper is still reachable via scrape / crawl / extract hints.
+  - id: stripe_payment_data_no_scraper
+    goal: "Pull the previous day's Stripe payment data, identify failed charges, and post a summary to the finance Slack channel."
+    via: plan
+    must_have: [stripe_data_read, slack_notification]
+    forbidden: [data_scraper]
+
+  # ── MAR-215: page_monitor must NOT bleed into code-review / code-scan goals ──
+  # page_monitor is a web-URL polling component. It should never appear in a
+  # GitHub PR / code-scanning context. Adding it to HINT_ONLY_COMPONENTS means
+  # it only fires on explicit monitoring hints (monitor / poll / watch).
+  - id: github_pr_scan_no_page_monitor
+    goal: "Automatically scan the changed files in a GitHub pull request for security issues and post a review comment."
+    via: plan
+    must_have: [github_trigger]
+    forbidden: [page_monitor]
+
   # ── MAR-208: what_you_need + suggested_next_actions (client-target awareness) ─
   - id: mar208_what_you_need_crm_route
     goal: "Read inbound sales emails, identify company leads, log a CRM note, and draft a personalised follow-up email."
