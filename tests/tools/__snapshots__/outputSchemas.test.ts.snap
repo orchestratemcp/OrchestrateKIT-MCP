@@ -876,58 +876,129 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
   "untested_edges": [],
   "what_you_need": [
     {
+      "auth_model": "API key (Authorization: Bearer)",
       "component_id": "source_retrieval",
+      "gotchas": [
+        "[text]",
+        "[text]",
+        "[text]",
+      ],
       "label": "Search / research API",
+      "mcp_server": {
+        "availability": "none",
+        "note": "[text]",
+        "transport": "none",
+      },
       "product_examples": [
         "Perplexity",
-        "Brave Search",
         "Exa",
+        "Brave Search",
       ],
+      "required_scopes": [],
       "scopes": [
         "external URLs or local file paths",
       ],
     },
     {
+      "auth_model": "OAuth2 (user-delegated)",
       "component_id": "email_read",
+      "gotchas": [
+        "Rate limit: 250 quota units / second per user — batch list + fetch calls",
+        "Refresh tokens expire after 6 months of non-use; build a token-rotation flow",
+        "[text]",
+      ],
       "label": "Email provider — read inbox",
+      "mcp_server": {
+        "availability": "official",
+        "note": "[text]",
+        "package": "@modelcontextprotocol/server-gmail",
+        "transport": "stdio",
+      },
       "product_examples": [
         "Gmail",
         "Outlook",
         "IMAP",
+      ],
+      "required_scopes": [
+        "https://www.googleapis.com/auth/gmail.readonly",
       ],
       "scopes": [
         "mailbox read scope",
       ],
     },
     {
+      "auth_model": "OAuth2 (user-delegated)",
       "component_id": "email_draft",
+      "gotchas": [
+        "[text]",
+        "[text]",
+      ],
       "label": "Email provider — draft / send",
+      "mcp_server": {
+        "availability": "official",
+        "package": "@modelcontextprotocol/server-gmail",
+        "transport": "stdio",
+      },
       "product_examples": [
         "Gmail",
         "Outlook",
         "SMTP",
       ],
+      "required_scopes": [
+        "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/gmail.send",
+      ],
       "scopes": [],
     },
     {
+      "auth_model": "Private App token (HubSpot) / OAuth2 (Salesforce)",
       "component_id": "crm_note_write",
+      "gotchas": [
+        "[text]",
+        "[text]",
+        "HubSpot rate limit: 100 API requests / 10 seconds per token",
+      ],
       "label": "CRM — write contacts / notes",
+      "mcp_server": {
+        "availability": "community",
+        "note": "[text]",
+        "transport": "stdio",
+      },
       "product_examples": [
         "HubSpot",
         "Salesforce",
         "Notion",
+      ],
+      "required_scopes": [
+        "crm.objects.contacts.read",
+        "crm.objects.contacts.write",
+        "crm.objects.notes.write",
       ],
       "scopes": [
         "CRM contact or lead record",
       ],
     },
     {
+      "auth_model": "API key (Authorization: Bearer)",
       "component_id": "optional_email_send",
-      "label": "Email sender",
+      "gotchas": [
+        "[text]",
+        "SendGrid free tier: 100 emails / day; Resend free tier: 3 000 emails / month",
+        "Store the API key in a secret manager, never in source code",
+      ],
+      "label": "Email sender (transactional)",
+      "mcp_server": {
+        "availability": "none",
+        "note": "No MCP server; use the REST API directly (SendGrid v3 or Resend SDK)",
+        "transport": "none",
+      },
       "product_examples": [
         "SendGrid",
         "Resend",
         "Gmail SMTP",
+      ],
+      "required_scopes": [
+        "Mail Send (SendGrid)",
       ],
       "scopes": [
         "external email send",

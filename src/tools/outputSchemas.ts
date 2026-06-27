@@ -76,7 +76,7 @@ export const PlanWorkflowOutputShape = z
       .optional(),
     // design notes from edge control_flow_note annotations + structural advisories (MAR-211/212)
     design_notes: z.array(z.string()).optional(),
-    // concrete integration needs derived from route components (MAR-208)
+    // concrete integration needs derived from route components (MAR-208 / MAR-124)
     what_you_need: z
       .array(
         z
@@ -85,6 +85,19 @@ export const PlanWorkflowOutputShape = z
             label: z.string(),
             product_examples: z.array(z.string()),
             scopes: z.array(z.string()),
+            // MAR-124 CTX-02: enriched catalog fields
+            auth_model: z.string().optional(),
+            mcp_server: z
+              .object({
+                availability: z.enum(["official", "community", "none"]),
+                package: z.string().optional(),
+                transport: z.enum(["stdio", "sse", "http", "none"]),
+                note: z.string().optional(),
+              })
+              .passthrough()
+              .optional(),
+            required_scopes: z.array(z.string()).optional(),
+            gotchas: z.array(z.string()).optional(),
           })
           .passthrough(),
       )

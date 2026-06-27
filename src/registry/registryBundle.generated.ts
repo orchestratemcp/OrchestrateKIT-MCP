@@ -5,7 +5,7 @@
 import type { RegistryBundle } from "./registryBundleTypes.js";
 
 export const BUNDLE: RegistryBundle = {
-  "generated_at": "2026-06-27T09:40:34.765Z",
+  "generated_at": "2026-06-27T09:58:59.885Z",
   "fingerprint": "63665bdcce889439",
   "newest_mtime": "2026-06-27T09:40:29.102Z",
   "components": [

@@ -5,7 +5,7 @@
 import type { DocsIndexEntry } from "./schema.js";
 
 export const DOCS_BUNDLE: { generated_at: string; entries: DocsIndexEntry[] } = {
-  "generated_at": "2026-06-27T09:40:34.773Z",
+  "generated_at": "2026-06-27T09:58:59.897Z",
   "entries": [
     {
       "id": "anthropic-mcp-spec",

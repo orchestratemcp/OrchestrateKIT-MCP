@@ -65,12 +65,33 @@ export type PlanSource = "playbook" | "composed";
 
 export type BuildTarget = "cowork" | "cursor" | "chatgpt_gpt" | "code";
 
-/** One concrete integration need derived from a route component (MAR-208). */
+/** MCP server availability metadata for a concrete product (MAR-124). */
+export type McpServerInfo = {
+  /** Whether an official (Anthropic/product-vendor) or community MCP server exists. */
+  availability: "official" | "community" | "none";
+  /** npm package or hosted endpoint — present when availability is not "none". */
+  package?: string;
+  /** Wire transport for the MCP server. "none" when no server exists. */
+  transport: "stdio" | "sse" | "http" | "none";
+  /** Short caveat or setup note for this MCP server. */
+  note?: string;
+};
+
+/** One concrete integration need derived from a route component (MAR-208 / MAR-124). */
 export type IntegrationNeed = {
   component_id: string;
   label: string;
   product_examples: string[];
+  /** Component-level permission scopes from the registry YAML. */
   scopes: string[];
+  /** Auth model for the primary product (e.g. "OAuth2 (user-delegated)", "API key"). */
+  auth_model: string;
+  /** MCP server availability for the primary product. */
+  mcp_server: McpServerInfo;
+  /** Least-privilege OAuth / API scopes for the primary product. */
+  required_scopes: string[];
+  /** Common gotchas for this integration (rate limits, token expiry, etc.). */
+  gotchas: string[];
 };
 
 export type PlanWorkflowInput = ComposeInput & {
@@ -506,36 +527,318 @@ function controlFlowNotesWithin(
     .map((e) => `[${e.from} → ${e.to}] ${e.control_flow_note}`);
 }
 
-// ────────────────────────── MAR-208: integration needs + next actions ──────────
+// ────────────────────────── MAR-208 / MAR-124: integration catalog ──────────
 
-/**
- * Maps component IDs to human-readable integration labels and concrete product
- * examples. Covers every component that requires external credentials or wiring.
- * Used by buildWhatYouNeed() to produce the `what_you_need` list.
- */
-const INTEGRATION_LABELS: Record<string, { label: string; products: string[] }> = {
-  email_read:           { label: "Email provider — read inbox",               products: ["Gmail", "Outlook", "IMAP"] },
-  email_draft:          { label: "Email provider — draft / send",              products: ["Gmail", "Outlook", "SMTP"] },
-  optional_email_send:  { label: "Email sender",                               products: ["SendGrid", "Resend", "Gmail SMTP"] },
-  calendar_lookup:      { label: "Calendar — read events",                     products: ["Google Calendar", "Outlook Calendar"] },
-  calendar_write:       { label: "Calendar — create / update events",          products: ["Google Calendar", "Outlook Calendar"] },
-  crm_note_write:       { label: "CRM — write contacts / notes",               products: ["HubSpot", "Salesforce", "Notion"] },
-  slack_notification:   { label: "Slack — send messages",                      products: ["Slack"] },
-  reviewer_notification:{ label: "Notification channel",                       products: ["Slack", "email", "webhook"] },
-  stripe_data_read:     { label: "Stripe — read payments / subscriptions",     products: ["Stripe"] },
-  external_publish:     { label: "Publishing platform — post content",         products: ["WordPress", "Buffer", "social API"] },
-  page_monitor:         { label: "Web monitor / scraper",                      products: ["Firecrawl", "Playwright", "Puppeteer"] },
-  data_scraper:         { label: "Web scraper",                                products: ["Firecrawl", "BeautifulSoup", "Playwright"] },
-  github_trigger:       { label: "GitHub — webhooks / events",                 products: ["GitHub"] },
-  webhook_trigger:      { label: "Webhook endpoint",                           products: ["your server", "Vercel Function", "AWS Lambda"] },
-  airtable_lookup:      { label: "Airtable — read base",                       products: ["Airtable"] },
-  source_retrieval:     { label: "Search / research API",                      products: ["Perplexity", "Brave Search", "Exa"] },
+type CatalogEntry = {
+  label: string;
+  product_examples: string[];
+  auth_model: string;
+  mcp_server: McpServerInfo;
+  required_scopes: string[];
+  gotchas: string[];
 };
 
 /**
- * MAR-208: derive the concrete "products you'll wire up" list from the route.
- * Scans component IDs against the integration label map and enriches each entry
- * with the component's declared permission scopes from the registry.
+ * External app + MCP server catalog (MAR-124 CTX-02).
+ *
+ * Keyed by component ID. Each entry records the primary product's auth model,
+ * MCP server availability, least-privilege scopes, and common gotchas so
+ * plan_workflow can surface concrete wiring guidance in `what_you_need`.
+ *
+ * Coverage: Gmail, Google Calendar, Slack, HubSpot, GitHub, Canva, Airtable,
+ * Stripe (no MCP), Firecrawl, Perplexity/Exa, webhooks.
+ */
+const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
+  email_read: {
+    label: "Email provider — read inbox",
+    product_examples: ["Gmail", "Outlook", "IMAP"],
+    auth_model: "OAuth2 (user-delegated)",
+    mcp_server: {
+      availability: "official",
+      package: "@modelcontextprotocol/server-gmail",
+      transport: "stdio",
+      note: "Google OAuth consent screen verification required for production; skip with a test user during dev",
+    },
+    required_scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
+    gotchas: [
+      "Rate limit: 250 quota units / second per user — batch list + fetch calls",
+      "Refresh tokens expire after 6 months of non-use; build a token-rotation flow",
+      "Gmail API returns a thread list, not individual messages — call messages.get per ID",
+    ],
+  },
+
+  email_draft: {
+    label: "Email provider — draft / send",
+    product_examples: ["Gmail", "Outlook", "SMTP"],
+    auth_model: "OAuth2 (user-delegated)",
+    mcp_server: {
+      availability: "official",
+      package: "@modelcontextprotocol/server-gmail",
+      transport: "stdio",
+    },
+    required_scopes: [
+      "https://www.googleapis.com/auth/gmail.compose",
+      "https://www.googleapis.com/auth/gmail.send",
+    ],
+    gotchas: [
+      "gmail.send scope is required even when sending a draft — compose alone is not enough",
+      "Send-as restrictions apply if the user has multiple identities; validate the From address",
+    ],
+  },
+
+  optional_email_send: {
+    label: "Email sender (transactional)",
+    product_examples: ["SendGrid", "Resend", "Gmail SMTP"],
+    auth_model: "API key (Authorization: Bearer)",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "No MCP server; use the REST API directly (SendGrid v3 or Resend SDK)",
+    },
+    required_scopes: ["Mail Send (SendGrid)"],
+    gotchas: [
+      "Verify sender domain (SPF, DKIM) before production — unverified domains land in spam",
+      "SendGrid free tier: 100 emails / day; Resend free tier: 3 000 emails / month",
+      "Store the API key in a secret manager, never in source code",
+    ],
+  },
+
+  calendar_lookup: {
+    label: "Calendar — read events",
+    product_examples: ["Google Calendar", "Outlook Calendar"],
+    auth_model: "OAuth2 (user-delegated)",
+    mcp_server: {
+      availability: "community",
+      transport: "stdio",
+      note: "No official MCP server; use a community package such as mcp-google-calendar",
+    },
+    required_scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+    gotchas: [
+      "API returns UTC; convert to the user's timezone for display",
+      "Free / busy query is cheaper than listing all events — prefer it for availability checks",
+    ],
+  },
+
+  calendar_write: {
+    label: "Calendar — create / update events",
+    product_examples: ["Google Calendar", "Outlook Calendar"],
+    auth_model: "OAuth2 (user-delegated)",
+    mcp_server: {
+      availability: "community",
+      transport: "stdio",
+      note: "No official MCP server; use a community package such as mcp-google-calendar",
+    },
+    required_scopes: ["https://www.googleapis.com/auth/calendar.events"],
+    gotchas: [
+      "Creating an event with attendees sends email invitations automatically — add sendUpdates=none to suppress",
+      "Always specify timeZone in the event body; omitting it defaults to the calendar's timezone, which may differ from the user's",
+    ],
+  },
+
+  crm_note_write: {
+    label: "CRM — write contacts / notes",
+    product_examples: ["HubSpot", "Salesforce", "Notion"],
+    auth_model: "Private App token (HubSpot) / OAuth2 (Salesforce)",
+    mcp_server: {
+      availability: "community",
+      transport: "stdio",
+      note: "No official HubSpot or Salesforce MCP; community implementations available on npm",
+    },
+    required_scopes: [
+      "crm.objects.contacts.read",
+      "crm.objects.contacts.write",
+      "crm.objects.notes.write",
+    ],
+    gotchas: [
+      "Upsert contacts by email to avoid duplicates — HubSpot does not deduplicate by default",
+      "Notes must be associated to a Contact, Deal, or Company via the associations API after creation",
+      "HubSpot rate limit: 100 API requests / 10 seconds per token",
+    ],
+  },
+
+  slack_notification: {
+    label: "Slack — send messages",
+    product_examples: ["Slack"],
+    auth_model: "OAuth2 (bot token — create a Slack App and install to workspace)",
+    mcp_server: {
+      availability: "official",
+      package: "@modelcontextprotocol/server-slack",
+      transport: "stdio",
+    },
+    required_scopes: ["chat:write", "channels:read"],
+    gotchas: [
+      "Use the channel ID (e.g. C12345678), not the name — names can change without the ID changing",
+      "Bot must be invited to private channels before it can post; joining is not automatic",
+      "Rate limit: Tier 3 — ~1 message / second per channel for most apps",
+    ],
+  },
+
+  reviewer_notification: {
+    label: "Notification channel (review request)",
+    product_examples: ["Slack", "email", "webhook"],
+    auth_model: "OAuth2 (bot token) or API key depending on channel",
+    mcp_server: {
+      availability: "official",
+      package: "@modelcontextprotocol/server-slack",
+      transport: "stdio",
+      note: "Official MCP covers Slack; use email/webhook adapter for other channels",
+    },
+    required_scopes: ["chat:write", "users:read"],
+    gotchas: [
+      "Include a deep link back to the item under review — reviewers need context without hunting",
+      "Set a deadline in the notification; open-ended review requests are often ignored",
+    ],
+  },
+
+  stripe_data_read: {
+    label: "Stripe — read payments / subscriptions",
+    product_examples: ["Stripe"],
+    auth_model: "Restricted API key (read-only, scoped to required resources)",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "No official Stripe MCP server as of mid-2025; use the Stripe SDK or REST API directly",
+    },
+    required_scopes: ["charges:read", "customers:read", "subscriptions:read"],
+    gotchas: [
+      "Never use the secret key (sk_live_…) in an agent — create a Restricted Key with only the scopes needed",
+      "Test mode keys (sk_test_…) and live mode keys are separate; confirm the environment before wiring",
+      "Webhook events (not polling) are the correct pattern for real-time payment notifications",
+    ],
+  },
+
+  external_publish: {
+    label: "Publishing platform — post content",
+    product_examples: ["Canva", "Buffer", "WordPress"],
+    auth_model: "OAuth2 (Canva Connect API / Buffer OAuth2) or API key (WordPress REST API)",
+    mcp_server: {
+      availability: "official",
+      transport: "http",
+      note: "Canva provides an official hosted MCP server — register your app at developer.canva.com to get the endpoint URL",
+    },
+    required_scopes: [
+      "design:content:read",
+      "design:content:write",
+      "asset:read",
+      "asset:write",
+      "brandtemplate:content:read",
+    ],
+    gotchas: [
+      "Canva MCP requires app registration at developer.canva.com; OAuth consent screen approval takes 1-3 business days",
+      "Brand Kit access needs brandtemplate:* scopes — request them at registration time",
+      "Canva export (PNG/PDF) triggers an async job; poll the export URL until status === 'succeeded'",
+      "Buffer rate limit: 10 posts / hour on free plan; upgrade for production social scheduling",
+    ],
+  },
+
+  page_monitor: {
+    label: "Web monitor / scraper",
+    product_examples: ["Firecrawl", "Playwright", "Puppeteer"],
+    auth_model: "API key (X-API-Key header)",
+    mcp_server: {
+      availability: "official",
+      package: "npx @firecrawl/mcp",
+      transport: "stdio",
+    },
+    required_scopes: [],
+    gotchas: [
+      "JavaScript-heavy pages may need the waitFor option to let the DOM fully render before scraping",
+      "Check robots.txt and Terms of Service for the target site before production use",
+      "Firecrawl free tier: 500 pages / month — upgrade before putting in production",
+    ],
+  },
+
+  data_scraper: {
+    label: "Web scraper",
+    product_examples: ["Firecrawl", "Playwright", "BeautifulSoup"],
+    auth_model: "API key (X-API-Key header)",
+    mcp_server: {
+      availability: "official",
+      package: "npx @firecrawl/mcp",
+      transport: "stdio",
+    },
+    required_scopes: [],
+    gotchas: [
+      "Use /crawl for multi-page sites and /scrape for single pages — they have different rate-limit buckets",
+      "Anti-bot measures (Cloudflare, Akamai) block headless browsers; use Firecrawl's stealth mode for resilience",
+    ],
+  },
+
+  github_trigger: {
+    label: "GitHub — webhooks / events",
+    product_examples: ["GitHub"],
+    auth_model: "Fine-grained Personal Access Token (PAT) or GitHub OAuth App",
+    mcp_server: {
+      availability: "official",
+      package: "@modelcontextprotocol/server-github",
+      transport: "stdio",
+    },
+    required_scopes: ["Repository: Contents (read)", "Repository: Pull requests (read/write)", "Repository: Metadata (read)"],
+    gotchas: [
+      "Webhooks require a publicly reachable HTTPS URL — use a tunnel (ngrok / smee.io) during local dev",
+      "Fine-grained PATs expire (max 1 year by org policy); set a calendar reminder to rotate before expiry",
+      "Always validate the webhook X-Hub-Signature-256 header to prevent spoofed events",
+      "Rate limit: 5 000 requests / hour per authenticated token",
+    ],
+  },
+
+  webhook_trigger: {
+    label: "Webhook endpoint (inbound)",
+    product_examples: ["your server", "Vercel Function", "AWS Lambda"],
+    auth_model: "Shared secret (HMAC-SHA256 signature validation)",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "Self-hosted endpoint — no MCP server; handle via your existing HTTP runtime",
+    },
+    required_scopes: [],
+    gotchas: [
+      "Always validate the webhook signature before processing — reject unsigned or malformed payloads",
+      "Respond HTTP 200 immediately and process the event asynchronously to avoid sender timeouts",
+      "Implement idempotency: webhook senders retry on failure, so duplicate events are expected",
+    ],
+  },
+
+  airtable_lookup: {
+    label: "Airtable — read base",
+    product_examples: ["Airtable"],
+    auth_model: "Personal Access Token (PAT) — OAuth2 available for marketplace apps",
+    mcp_server: {
+      availability: "community",
+      transport: "stdio",
+      note: "No official Airtable MCP; community packages available — check npm for mcp-airtable",
+    },
+    required_scopes: ["data.records:read", "schema.bases:read"],
+    gotchas: [
+      "Records API returns max 100 records per page — use the offset token to paginate large tables",
+      "Formula fields are computed server-side; filtering by them on large tables is slow — add a native field index",
+      "Rate limit: 5 requests / second per base — add exponential back-off for bulk reads",
+    ],
+  },
+
+  source_retrieval: {
+    label: "Search / research API",
+    product_examples: ["Perplexity", "Exa", "Brave Search"],
+    auth_model: "API key (Authorization: Bearer)",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "No official MCP for Perplexity or Exa as of mid-2025; use their REST SDKs directly",
+    },
+    required_scopes: [],
+    gotchas: [
+      "Perplexity results include cited sources — validate source quality for factual claims before downstream use",
+      "Exa offers neural and keyword search modes; keyword is faster, neural is higher recall for research tasks",
+      "Search APIs have per-query cost; cache results and avoid re-querying the same topic within a session",
+    ],
+  },
+};
+
+/**
+ * MAR-208 / MAR-124: derive the concrete "products you'll wire up" list from
+ * the route. Looks up each component against the integration catalog and returns
+ * enriched entries (auth model, MCP availability, scopes, gotchas) so a builder
+ * knows up front what they need to connect and how.
  */
 function buildWhatYouNeed(
   componentIds: string[],
@@ -543,12 +846,21 @@ function buildWhatYouNeed(
 ): IntegrationNeed[] {
   const byId = new Map(registry.components.map((c) => [c.id, c]));
   return componentIds
-    .filter((id) => INTEGRATION_LABELS[id] !== undefined)
+    .filter((id) => INTEGRATION_CATALOG[id] !== undefined)
     .map((id) => {
-      const meta = INTEGRATION_LABELS[id];
+      const entry = INTEGRATION_CATALOG[id];
       const c = byId.get(id);
       const scopes = c ? [...c.permissions.read, ...c.permissions.write] : [];
-      return { component_id: id, label: meta.label, product_examples: meta.products, scopes };
+      return {
+        component_id: id,
+        label: entry.label,
+        product_examples: entry.product_examples,
+        scopes,
+        auth_model: entry.auth_model,
+        mcp_server: entry.mcp_server,
+        required_scopes: entry.required_scopes,
+        gotchas: entry.gotchas,
+      };
     });
 }
 
@@ -921,13 +1233,19 @@ function buildPlanMarkdown(
     lines.push(``);
   }
 
-  // MAR-208: "What you'll need" — concrete integrations to wire up.
+  // MAR-208 / MAR-124: "What you'll need" — concrete integrations to wire up.
   if (whatYouNeed.length > 0) {
     lines.push(`### What you'll need`, ``);
     for (const n of whatYouNeed) {
-      const examples = n.product_examples.join(" / ");
-      const scopeStr = n.scopes.length > 0 ? ` (scopes: ${n.scopes.join(", ")})` : "";
-      lines.push(`- **\`${n.component_id}\`** → ${n.label} — e.g. ${examples}${scopeStr}`);
+      const examples = n.product_examples.slice(0, 2).join(" / ");
+      const authStr = n.auth_model ? ` | auth: ${n.auth_model}` : "";
+      const mcpStr = n.mcp_server
+        ? ` | MCP: ${n.mcp_server.availability}${n.mcp_server.package ? ` (\`${n.mcp_server.package}\`)` : ""}`
+        : "";
+      const scopeStr = n.required_scopes.length > 0
+        ? ` | scopes: ${n.required_scopes.slice(0, 2).join(", ")}`
+        : n.scopes.length > 0 ? ` | scopes: ${n.scopes.slice(0, 2).join(", ")}` : "";
+      lines.push(`- **\`${n.component_id}\`** → ${n.label} — e.g. ${examples}${authStr}${mcpStr}${scopeStr}`);
     }
     lines.push(``);
   }
