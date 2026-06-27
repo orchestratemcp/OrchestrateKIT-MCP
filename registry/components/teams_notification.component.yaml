@@ -1,0 +1,46 @@
+id: teams_notification
+name: Microsoft Teams Notification
+status: published
+category: integration
+summary: Sends a structured message or adaptive card to a Microsoft Teams channel or chat via an incoming webhook or the Graph API. Requires human approval before posting; never posts autonomously. Used as the reply and alert egress for Teams-resident agents.
+capabilities:
+  - send_teams_message
+  - post_adaptive_card
+  - post_to_channel_or_chat
+  - require_human_approval_before_send
+inputs:
+  - approved message or adaptive-card payload, Teams incoming webhook URL or Graph API token, channel or chat ID
+outputs:
+  - post confirmation with message ID
+risk_level: high
+side_effects:
+  - posts irreversible message to an external Microsoft Teams tenant
+permissions:
+  read: []
+  write:
+    - external Teams channel post
+  approval_required_for:
+    - every post action
+requires:
+  - human_approval_gate
+recommended_with:
+  - audit_log
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - posted to wrong channel due to a misconfigured webhook URL
+  - duplicate post on retry after a transient API error
+  - adaptive-card schema rejected by the Teams client and renders blank
+  - Graph API token expiry causes a silent failure with no fallback
+evals:
+  - idempotency test — duplicate trigger does not cause duplicate post
+  - rejection test — post blocked when approval is missing
+  - auth failure test — expired Graph token routes to auth_failure_handler gracefully
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

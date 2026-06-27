@@ -1,0 +1,12 @@
+id: chat_trigger__produces__intent_classifier
+from: chat_trigger
+to: intent_classifier
+relation: produces_input_for
+status: published
+reason: An inbound chat message is free-form natural language. Classifying intent first lets the agent route the message to the right handler (question, command, escalation) instead of acting on raw text, which is the main defense against prompt-injection steering the workflow.
+severity: medium
+notes: Classify the authorized sender's message AFTER the chat_trigger authorization check, never before — an unauthorized message should never reach the classifier.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: chat_trigger__produces__intent_classifier"

@@ -673,6 +673,78 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
     ],
   },
 
+  discord_notification: {
+    label: "Discord — send messages",
+    product_examples: ["Discord"],
+    auth_model: "Bot token (create an application + bot at discord.com/developers) or a channel webhook URL",
+    mcp_server: {
+      availability: "community",
+      package: "@modelcontextprotocol/server-discord (community) or a webhook adapter",
+      transport: "stdio",
+      note: "No official Anthropic/Discord MCP as of mid-2026; community servers exist, or post directly via the bot REST API / channel webhook",
+    },
+    required_scopes: ["bot", "Send Messages", "Read Message History"],
+    gotchas: [
+      "Use the numeric channel ID (enable Developer Mode → right-click channel → Copy ID), not the channel name",
+      "The bot must be invited to the server with the bot scope AND granted Send Messages in the target channel — neither is automatic",
+      "A leaked channel webhook URL lets anyone post; treat it like a secret and rotate if exposed",
+      "Rate limit: ~5 requests / 2 seconds per channel; 429 responses return a retry_after you must honour",
+    ],
+  },
+
+  teams_notification: {
+    label: "Microsoft Teams — send messages",
+    product_examples: ["Microsoft Teams"],
+    auth_model: "Incoming webhook URL (per channel) or OAuth2 app token via Microsoft Graph",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "No Teams MCP server as of mid-2026; post via an Incoming Webhook connector or the Microsoft Graph API directly",
+    },
+    required_scopes: ["ChannelMessage.Send (Graph)"],
+    gotchas: [
+      "Incoming Webhooks are being replaced by Workflows (Power Automate) connectors — confirm which your tenant allows before wiring",
+      "Adaptive Card JSON must match the schema Teams accepts or the message renders blank with no error",
+      "Graph API posting needs admin consent for application permissions in many tenants — budget for an IT approval step",
+    ],
+  },
+
+  telegram_notification: {
+    label: "Telegram — send messages",
+    product_examples: ["Telegram"],
+    auth_model: "Bot API token (create a bot via @BotFather)",
+    mcp_server: {
+      availability: "community",
+      package: "community Telegram MCP servers, or the Bot API directly",
+      transport: "stdio",
+      note: "No official MCP; the Telegram Bot API is simple to call directly with the token from @BotFather",
+    },
+    required_scopes: ["sendMessage"],
+    gotchas: [
+      "A user must message the bot first (or the bot must be added to the group) before it can send to that chat — you cannot DM a cold user",
+      "chat_id is numeric and differs for users, groups, and channels; resolve it from an incoming update, do not guess",
+      "The bot token in the URL path is a full credential — never log request URLs",
+    ],
+  },
+
+  chat_trigger: {
+    label: "Chat platform — receive messages (inbound)",
+    product_examples: ["Slack", "Discord", "Microsoft Teams", "Telegram"],
+    auth_model: "Platform bot token + a request-signing secret (Slack signing secret / Discord interaction public key / Telegram secret_token)",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "Inbound chat events arrive via the platform's Events/Webhook/Interactions API to YOUR endpoint — MCP servers cover outbound posting, not the inbound listener; run a small webhook receiver (Slack Events API / Discord Interactions / Telegram webhook)",
+    },
+    required_scopes: ["app_mentions:read", "channels:history", "commands"],
+    gotchas: [
+      "AUTHORIZATION IS THE KEY RISK: verify WHO sent the message (allowed user/role/channel) before running any action — an open bot lets anyone in the channel trigger privileged work",
+      "Verify the request signature on every inbound event (Slack signing secret / Discord Ed25519 / Telegram secret_token) and reject anything unsigned",
+      "Treat the message body as untrusted input — classify intent before acting; do not let message text expand the agent's allowed tools (prompt injection)",
+      "Deduplicate on the platform message/event id — platforms retry delivery and will double-trigger without it",
+    ],
+  },
+
   reviewer_notification: {
     label: "Notification channel (review request)",
     product_examples: ["Slack", "email", "webhook"],

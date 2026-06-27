@@ -625,3 +625,28 @@ probes:
     via: plan
     must_have: [email_read, crm_note_write]
     forbidden: [calendar_lookup, external_publish]
+
+  # ── MAR-120: chat / conversational domain ───────────────────────────────────
+  # An inbound conversational bot must route chat_trigger (inbound) + the matching
+  # platform egress, and must NEVER pull a sibling platform (no cross-platform bleed).
+  - id: discord_bot_chat_trigger
+    goal: "Build a Discord bot that answers questions in our support channel and posts the reply."
+    must_have: [chat_trigger, discord_notification, human_approval_gate]
+    forbidden: [slack_notification, teams_notification, telegram_notification]
+
+  - id: telegram_bot_chat_trigger
+    goal: "Create a Telegram bot that responds to messages from our community group."
+    must_have: [chat_trigger, telegram_notification]
+    forbidden: [slack_notification, discord_notification, teams_notification]
+
+  # A one-way alert is NOT a conversational bot — it routes the egress only, never
+  # chat_trigger, and never a sibling platform.
+  - id: discord_oneway_alert_no_chat_trigger
+    goal: "Send a Discord alert to our ops channel when the nightly backup job fails."
+    must_have: [discord_notification]
+    forbidden: [chat_trigger, slack_notification, teams_notification, telegram_notification]
+
+  - id: teams_oneway_alert_no_chat_trigger
+    goal: "Post a message to our Microsoft Teams channel when a deployment completes."
+    must_have: [teams_notification]
+    forbidden: [chat_trigger, slack_notification, discord_notification, telegram_notification]

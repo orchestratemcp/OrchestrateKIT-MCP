@@ -30,6 +30,7 @@ export type Domain =
   | "crm_sales"
   | "monitoring"
   | "notification"
+  | "chat"
   | "generic_orchestration";
 
 /**
@@ -79,6 +80,11 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   page_monitor: ["monitoring"],
   // notification
   slack_notification: ["notification"],
+  discord_notification: ["notification"],
+  teams_notification: ["notification"],
+  telegram_notification: ["notification"],
+  // chat — inbound conversational entrypoint (HINT_ONLY; see below)
+  chat_trigger: ["chat"],
   // generic_orchestration — always eligible (trigger + infra components)
   scheduled_trigger: ["generic_orchestration"],
   webhook_trigger: ["generic_orchestration"],
@@ -227,6 +233,34 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
     "notification",
     "teams",
     "discord",
+    "telegram",
+  ],
+  // chat (MAR-120): a bot that LIVES in a chat platform and responds to people —
+  // the inbound/conversational side, distinct from one-way `notification` alerts.
+  // Deliberately phrase-based: the bare platform tokens (slack/discord/teams) stay
+  // in `notification` so a one-way "alert me on Slack" goal does NOT become a chat
+  // goal. Only explicit conversational phrasing establishes the chat domain, and
+  // the only chat-domain component (chat_trigger) is HINT_ONLY, so establishing
+  // the domain alone never injects anything — a chat hint must also fire.
+  chat: [
+    "chatbot",
+    "chat bot",
+    "slack bot",
+    "discord bot",
+    "teams bot",
+    "telegram bot",
+    "slash command",
+    "responds to messages",
+    "respond to messages",
+    "responds to dms",
+    "respond to dms",
+    "answers questions in",
+    "answer questions in",
+    "when someone messages",
+    "when a user messages",
+    "when mentioned",
+    "conversational agent",
+    "support bot",
   ],
 };
 
@@ -602,6 +636,33 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   calendar: ["calendar_lookup", "calendar_write"],
   meeting: ["calendar_lookup", "calendar_write"],
   slack: ["slack_notification"],
+  // MAR-120: platform notification egresses. Each is HINT_ONLY + lives in the
+  // `notification` domain, so it only fires on its own platform token within a
+  // notification/chat goal — never cross-matches a sibling platform.
+  discord: ["discord_notification"],
+  teams: ["teams_notification"],
+  telegram: ["telegram_notification"],
+  // MAR-120: chat_trigger (inbound). HINT_ONLY + `chat` domain — these phrases both
+  // establish the chat domain (DOMAIN_KEYWORDS.chat) and fire the hint, so a real
+  // conversational bot goal reaches chat_trigger while a one-way alert never does.
+  chatbot: ["chat_trigger"],
+  "chat bot": ["chat_trigger"],
+  "slack bot": ["chat_trigger"],
+  "discord bot": ["chat_trigger"],
+  "teams bot": ["chat_trigger"],
+  "telegram bot": ["chat_trigger"],
+  "slash command": ["chat_trigger"],
+  "responds to messages": ["chat_trigger"],
+  "respond to messages": ["chat_trigger"],
+  "responds to dms": ["chat_trigger"],
+  "respond to dms": ["chat_trigger"],
+  "answers questions in": ["chat_trigger"],
+  "answer questions in": ["chat_trigger"],
+  "when someone messages": ["chat_trigger"],
+  "when a user messages": ["chat_trigger"],
+  "when mentioned": ["chat_trigger"],
+  "conversational agent": ["chat_trigger"],
+  "support bot": ["chat_trigger"],
   research: ["source_retrieval", "source_ranking", "research_synthesis"],
   search: ["source_retrieval", "source_ranking"],
   retrieve: ["source_retrieval"],
@@ -863,6 +924,25 @@ const HINT_ONLY_COMPONENTS = new Set([
   // contexts. Restrict to explicit scraping hints (scrape / crawl / extract) so
   // it only fires when the user explicitly names a scraping access pattern.
   "data_scraper",
+  // MAR-120: chat_trigger is the inbound conversational entrypoint. Its id/summary
+  // tokens ("chat", "message", "trigger") are generic and would inject it into
+  // unrelated messaging/notification goals. It is a precise concept with dedicated
+  // KEYWORD_HINTS (chatbot / "slack bot" / "slash command" / "responds to messages"
+  // / "when mentioned" …), so restrict it to hint-only selection.
+  "chat_trigger",
+  // MAR-120: the platform notification egresses share the "notification" id segment
+  // and their summaries contain generic words (channel / message / post / notify), so
+  // the fuzzy id/summary/capability passes cross-match them on ANY notification goal
+  // (the MAR-145 trigger lesson). slack_notification is included too: its capabilities
+  // ("notify_channel") and summary ("posts… to a Slack channel") scored it onto
+  // unrelated notification goals via generic tokens like "channel"/"posts" — e.g. a
+  // Discord-bot goal mentioning "channel" pulled Slack. Every egress is now hint-only
+  // and reachable solely via its explicit platform hint (slack / discord / teams /
+  // telegram). All slack probes name "Slack" literally, so the hint still fires.
+  "slack_notification",
+  "discord_notification",
+  "teams_notification",
+  "telegram_notification",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */

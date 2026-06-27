@@ -1,0 +1,12 @@
+id: chat_trigger__produces__discord_notification
+from: chat_trigger
+to: discord_notification
+relation: produces_input_for
+status: published
+reason: A chat-resident agent replies on the same platform it was triggered from. The chat event (channel/thread id, sender) provides the addressing the reply egress needs to post back into the right conversation.
+severity: medium
+notes: Reply into the originating thread, not the top of the channel, so the conversation stays coherent. The reply is still an external write — it remains gated by discord_notification's human_approval_gate policy.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: chat_trigger__produces__discord_notification"

@@ -1,0 +1,12 @@
+id: chat_trigger__safer_with__auth_failure_handler
+from: chat_trigger
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: Receiving chat events relies on a bot token or signing secret that can expire or be revoked. A credential-failure path lets the listener refresh-and-retry or halt with a named error instead of silently going deaf to inbound messages.
+severity: medium
+notes: A revoked token on the inbound side fails closed (no events received) rather than open, but it is still a silent outage — surface it as a named auth failure so the operator notices the bot stopped responding.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: chat_trigger__safer_with__auth_failure_handler"

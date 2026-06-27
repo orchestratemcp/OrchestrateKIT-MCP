@@ -1,0 +1,119 @@
+id: chat_triggered_assistant
+version: 0.1.0
+status: candidate
+title: Chat-Triggered Assistant (Slack / Discord / Teams / Telegram)
+summary: >
+  Blueprint for an agent that lives in a chat platform and responds to people — a
+  bot triggered by an inbound message, mention, or slash command that classifies
+  the request, does the work, and replies in-thread. The defining concern is
+  AUTHORIZATION: unlike a scheduled or webhook trigger, a chat trigger is invoked
+  by a human, so the agent must verify WHO is allowed to invoke it before any
+  action runs, and treat the message body as untrusted input. The reply is an
+  external write and stays behind human approval until the route is validated.
+  Candidate blueprint (not yet promoted from logged sessions).
+workflow_type: chat
+risk_level: high
+golden_path_route_id: ''
+stack_id: default_orchestratekit_stack
+
+components:
+  - chat_trigger
+  - schema_validation
+  - intent_classifier
+  - state_store
+  - human_approval_gate
+  - discord_notification
+  - auth_failure_handler
+  - audit_log
+
+edges:
+  - chat_trigger__produces__intent_classifier
+  - chat_trigger__produces__discord_notification
+  - chat_trigger__safer_with__auth_failure_handler
+  - audit_log__recommended__chat_trigger
+  - discord_notification__safer_with__auth_failure_handler
+  - audit_log__recommended__discord_notification
+
+best_for:
+  - a support or ops bot that answers questions in a Slack/Discord/Teams channel
+  - a slash-command agent that runs a bounded task on request and reports back
+  - any chat-resident agent where only specific users or roles may trigger actions
+
+avoid_when:
+  - a one-way alert or notification with no inbound message (use the platform egress alone)
+  - an open public bot that anyone can trigger into privileged or irreversible actions
+  - fully autonomous posting with no approval gate before the route is validated
+
+recommended_architecture:
+  pattern: Inbound message → authorize sender → validate → classify intent → do work → approve → reply → audit
+  why: >
+    A chat trigger is the only entrypoint a stranger can invoke directly. The
+    authorization check (allowed user / role / channel) and request-signature
+    verification must happen FIRST, before the message ever reaches intent
+    classification — an unauthorized message should never start work. Intent
+    classification then turns untrusted free text into a bounded action set,
+    which is the main defense against prompt-injection steering the agent. The
+    reply is an irreversible external post, so it stays behind human approval
+    until logged sessions justify dropping the gate.
+
+llm_driven_steps:
+  - intent_classifier
+
+deterministic_steps:
+  - chat_trigger
+  - schema_validation
+  - state_store
+  - human_approval_gate
+  - discord_notification
+  - auth_failure_handler
+  - audit_log
+
+guardrails:
+  - Verify the sender is on the allowed user/role/channel list BEFORE any downstream step runs
+  - Verify the request signature on every inbound event (Slack signing secret / Discord Ed25519 / Telegram secret_token) and reject anything unsigned
+  - Classify intent before acting — never let the raw message body expand the agent's allowed tools (prompt injection)
+  - Deduplicate on the platform message/event id — platforms retry delivery and will double-trigger without it
+  - Persist conversation state keyed by channel/thread id with a retention/TTL policy; chat history can contain PII
+  - The reply is an external write — keep human_approval_gate until the route earns validated status from logged sessions
+  - Log who triggered which action, from which channel, and when — the audit trail is the only record of who asked
+
+failure_modes:
+  - Unauthorized sender triggers a privileged action because the authorization check was skipped or misconfigured
+  - Prompt-injection in the message body steers the agent into an unintended action
+  - Duplicate delivery without an idempotency key causes a double reply
+  - Bot token expiry silently stops inbound events — the bot goes deaf with no error surfaced
+  - Reply posted to the wrong channel/thread because the originating context was lost
+  - Conversation state grows unbounded with PII because no retention policy was set
+
+evals:
+  - authorization enforcement — unauthorized sender is rejected before any action (precision/recall on an allow/deny set)
+  - signature verification — unsigned or wrongly-signed events are rejected
+  - injection resistance — an instruction embedded in the message body does not expand the agent's allowed actions
+  - idempotency — a duplicated inbound event produces exactly one reply
+  - approval enforcement — no reply is posted when approval is absent
+  - audit completeness — every triggered action has a record of sender, channel, and timestamp
+
+implementation_steps:
+  - "Step 1: Stand up the inbound listener for your platform (Slack Events API / Discord Interactions / Telegram webhook). This is YOUR endpoint — MCP servers cover outbound posting, not the inbound side."
+  - "Step 2: On every event, verify the request signature (Slack signing secret / Discord Ed25519 public key / Telegram secret_token) and reject anything unsigned. Deduplicate on the message/event id."
+  - "Step 3: Authorize the sender against an allowed user/role/channel list. Reject (and audit) anyone not on it BEFORE any further step. This is the highest-risk control."
+  - "Step 4: Run schema_validation on the structured event, then intent_classifier (small/standard model) to map the untrusted message to a bounded action."
+  - "Step 5: Load/persist conversation state from state_store keyed by channel+thread id so multi-turn context survives between messages. Set a retention/TTL policy."
+  - "Step 6: Do the bounded work for the classified intent. Keep the agent's tool set fixed — the message must not be able to widen it."
+  - "Step 7: Surface the proposed reply to human_approval_gate (until the route is validated). On approval, post via the platform egress (discord_notification / slack_notification / teams_notification / telegram_notification) into the originating thread."
+  - "Step 8: Route credential failures (expired/revoked bot token) to auth_failure_handler so a dead listener surfaces a named error instead of going silently offline."
+  - "Step 9: Write an audit_log entry for every triggered action — sender id, authorization result, channel/thread, intent, and outcome."
+
+sources:
+  - title: Slack Events API — request verification
+    url: https://api.slack.com/authentication/verifying-requests-from-slack
+    source_type: official_docs
+    last_checked: "2026-06-27"
+  - title: Discord — Receiving and responding to interactions (security)
+    url: https://discord.com/developers/docs/interactions/receiving-and-responding
+    source_type: official_docs
+    last_checked: "2026-06-27"
+  - title: Telegram Bot API
+    url: https://core.telegram.org/bots/api
+    source_type: official_docs
+    last_checked: "2026-06-27"

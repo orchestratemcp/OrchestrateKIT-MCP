@@ -1,0 +1,12 @@
+id: audit_log__recommended__telegram_notification
+from: audit_log
+to: telegram_notification
+relation: recommended_for
+status: published
+reason: Telegram posts are irreversible. An audit log entry provides post-hoc evidence of what was sent, to which chat, and when — essential for compliance and debugging misfired notifications.
+severity: high
+notes: Log chat ID, message content hash, approval actor, and timestamp. Avoid logging full message bodies containing PII unless your data policy requires it.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__telegram_notification"

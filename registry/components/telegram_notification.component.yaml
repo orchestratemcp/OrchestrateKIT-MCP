@@ -1,0 +1,46 @@
+id: telegram_notification
+name: Telegram Notification
+status: published
+category: integration
+summary: Sends a structured message to a Telegram chat, group, or channel via the Bot API. Requires human approval before posting; never posts autonomously. Used as the reply and alert egress for Telegram-resident agents.
+capabilities:
+  - send_telegram_message
+  - post_to_chat_or_channel
+  - reply_to_message
+  - require_human_approval_before_send
+inputs:
+  - approved message payload, Telegram Bot API token, chat ID
+outputs:
+  - post confirmation with message ID and chat ID
+risk_level: high
+side_effects:
+  - posts irreversible message to an external Telegram chat
+permissions:
+  read: []
+  write:
+    - external Telegram chat post
+  approval_required_for:
+    - every post action
+requires:
+  - human_approval_gate
+recommended_with:
+  - audit_log
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - posted to wrong chat due to a misconfigured chat ID
+  - duplicate post on retry after a transient API error
+  - bot token leak allows anyone to post as the bot
+  - bot blocked by the user or removed from the group causes a silent failure
+evals:
+  - idempotency test — duplicate trigger does not cause duplicate post
+  - rejection test — post blocked when approval is missing
+  - auth failure test — revoked bot token routes to auth_failure_handler gracefully
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none
