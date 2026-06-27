@@ -564,6 +564,14 @@ probes:
     must_have: [saga_compensation, fan_out_collector, loop_controller, audit_log]
     forbidden: [calendar_lookup, calendar_write, email_draft]
 
+  # ── MAR-209 regression: fan-out must NOT get worker-build-loop guidance ──────
+  # loop_guidance must be null (fan_out_collector present); MAR-212 design note present.
+  - id: fanout_no_loop_guidance_regression
+    goal: "Fan out a batch of documents to parallel processors, validate each, and roll back with saga compensation if any processor fails — no human in the loop."
+    via: plan
+    must_have: [fan_out_collector, loop_controller, saga_compensation]
+    forbidden: [calendar_lookup, calendar_write, email_draft]
+
   # ── Cluster U: Webhook trigger with audit log (1 edge) ───────────────────────
   # Edge: audit_log→webhook_trigger (recommended_for)
   - id: webhook_with_audit_log

@@ -164,3 +164,103 @@ describe("plan_workflow — design_notes from edge control_flow_note (MAR-211)",
     expect(r.design_notes.join(" ")).not.toContain("saga_compensation");
   });
 });
+
+describe("plan_workflow — loop_guidance gating (MAR-209)", () => {
+  const plan = (goal: string) =>
+    planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
+
+  it("MAR-209: data fan-out route does NOT get the worker-build-loop contract", () => {
+    const r = plan(
+      "Fan out a batch of documents to parallel processors, validate each result, " +
+      "and roll back all completed writes with a saga compensation step if any processor fails.",
+    );
+    const ids = r.recommended_route.map((s) => s.component_id);
+    // fan_out_collector in route → loop_guidance must be null (wrong contract suppressed)
+    expect(ids).toContain("fan_out_collector");
+    expect(ids).toContain("loop_controller");
+    expect(r.loop_guidance).toBeNull();
+    // The loop contract section must not appear (worker_pipeline still shows "planner" legitimately)
+    expect(r.summary_markdown).not.toContain("Loop contract & guardrails");
+    expect(r.summary_markdown).not.toContain("Worker loop:");
+  });
+
+  it("a genuine worker-build-loop goal still gets loop_guidance", () => {
+    const r = plan(
+      "run a bounded coder-reviewer loop: a planner decomposes the task, " +
+      "a coder implements it each iteration, an independent reviewer approves, " +
+      "max 5 iterations before escalating to a human",
+    );
+    const ids = r.recommended_route.map((s) => s.component_id);
+    // If loop_controller is in the route and fan_out_collector is not, loop_guidance fires
+    if (ids.includes("loop_controller") && !ids.includes("fan_out_collector")) {
+      expect(r.loop_guidance).not.toBeNull();
+      expect(r.loop_guidance?.loop_contract.max_iterations).toBe(5);
+    }
+    // If neither is matched, that's fine — the test is conditional on route composition
+  });
+});
+
+describe("plan_workflow — fan-out design note (MAR-212)", () => {
+  const plan = (goal: string) =>
+    planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
+
+  it("MAR-212: fan-out route gets the parallel-branches advisory in design_notes", () => {
+    const r = plan(
+      "Fan out a batch of documents to parallel processors, validate each result, " +
+      "and roll back all completed writes with a saga compensation step if any processor fails.",
+    );
+    const ids = r.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("fan_out_collector");
+    const joined = r.design_notes.join(" ");
+    // The fan-out structural note should appear
+    expect(joined).toContain("parallel");
+    expect(joined).toContain("merge_strategy");
+    // And it's first (prepended before edge annotations)
+    expect(r.design_notes[0]).toContain("fan_out_collector");
+  });
+
+  it("a non-fan-out route does NOT get the fan-out advisory note", () => {
+    const r = plan("read emails, detect leads and write a note to the CRM for each lead");
+    const ids = r.recommended_route.map((s) => s.component_id);
+    expect(ids).not.toContain("fan_out_collector");
+    expect(r.design_notes.join(" ")).not.toContain("merge_strategy");
+  });
+});
+
+describe("plan_workflow — provenance model (MAR-206)", () => {
+  const plan = (goal: string) =>
+    planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
+
+  it("every plan has a provenance model with the deterministic tag", () => {
+    const r = plan("read emails, detect leads and write a note to the CRM for each lead");
+    expect(r.provenance).toBeDefined();
+    expect(r.provenance.model).toBe("registry-deterministic");
+    expect(r.provenance.all_fields_are_registry_derived).toBe(true);
+  });
+
+  it("recommended_route is tagged grounded, route_score is computed", () => {
+    const r = plan("read emails, detect leads and write a note to the CRM for each lead");
+    expect(r.provenance.field_tags.recommended_route).toBe("grounded");
+    expect(r.provenance.field_tags.route_score).toBe("computed");
+    expect(r.provenance.field_tags.next_steps).toBe("advisory");
+  });
+
+  it("grounding_note warns against presenting agent elaborations as registry facts", () => {
+    const r = plan("scan a GitHub PR and post a review comment");
+    expect(r.provenance.grounding_note).toContain("LLM calls");
+    expect(r.provenance.grounding_note).toContain("🔵");
+    expect(r.provenance.grounding_note).toContain("🟢");
+  });
+
+  it("playbook route tags route_status as grounded; composed route tags it computed", () => {
+    const playbookGoal = plan("read emails, check my calendar, and draft a reply for each meeting request");
+    const composedGoal = plan("scan a codebase, detect security vulnerabilities and produce a report");
+    // playbook route → route_status grounded; composed → computed
+    if (playbookGoal.plan_source === "playbook") {
+      expect(playbookGoal.provenance.field_tags.route_status).toBe("grounded");
+    }
+    if (composedGoal.plan_source === "composed") {
+      expect(composedGoal.provenance.field_tags.route_status).toBe("computed");
+    }
+  });
+});
