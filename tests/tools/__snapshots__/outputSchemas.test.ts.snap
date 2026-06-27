@@ -263,7 +263,9 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "route_status": "grounded",
       "safety_review": "computed",
       "stack": "grounded",
+      "suggested_next_actions": "advisory",
       "untested_edges": "grounded",
+      "what_you_need": "computed",
       "worker_pipeline": "grounded",
     },
     "grounding_note": "[text]",
@@ -373,8 +375,15 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     "name": "Default OrchestrateKit Stack",
     "summary": "[text]",
   },
+  "suggested_next_actions": [
+    "[text]",
+    "[text]",
+    "[c] Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON",
+    "[text]",
+  ],
   "summary_markdown": "[text]",
   "untested_edges": [],
+  "what_you_need": [],
   "worker_pipeline": {
     "feedback_loops": [
       {
@@ -696,7 +705,9 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "route_status": "computed",
       "safety_review": "computed",
       "stack": "grounded",
+      "suggested_next_actions": "advisory",
       "untested_edges": "grounded",
+      "what_you_need": "computed",
       "worker_pipeline": "grounded",
     },
     "grounding_note": "[text]",
@@ -854,8 +865,75 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     "name": "Default OrchestrateKit Stack",
     "summary": "[text]",
   },
+  "suggested_next_actions": [
+    "[text]",
+    "[text]",
+    "[c] Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON",
+    "Wire up the integrations: Perplexity, Gmail, Gmail + 2 more (see what_you_need)",
+    "[text]",
+  ],
   "summary_markdown": "[text]",
   "untested_edges": [],
+  "what_you_need": [
+    {
+      "component_id": "source_retrieval",
+      "label": "Search / research API",
+      "product_examples": [
+        "Perplexity",
+        "Brave Search",
+        "Exa",
+      ],
+      "scopes": [
+        "external URLs or local file paths",
+      ],
+    },
+    {
+      "component_id": "email_read",
+      "label": "Email provider — read inbox",
+      "product_examples": [
+        "Gmail",
+        "Outlook",
+        "IMAP",
+      ],
+      "scopes": [
+        "mailbox read scope",
+      ],
+    },
+    {
+      "component_id": "email_draft",
+      "label": "Email provider — draft / send",
+      "product_examples": [
+        "Gmail",
+        "Outlook",
+        "SMTP",
+      ],
+      "scopes": [],
+    },
+    {
+      "component_id": "crm_note_write",
+      "label": "CRM — write contacts / notes",
+      "product_examples": [
+        "HubSpot",
+        "Salesforce",
+        "Notion",
+      ],
+      "scopes": [
+        "CRM contact or lead record",
+      ],
+    },
+    {
+      "component_id": "optional_email_send",
+      "label": "Email sender",
+      "product_examples": [
+        "SendGrid",
+        "Resend",
+        "Gmail SMTP",
+      ],
+      "scopes": [
+        "external email send",
+      ],
+    },
+  ],
   "worker_pipeline": {
     "feedback_loops": [
       {
@@ -1158,7 +1236,9 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "route_status": "grounded",
       "safety_review": "computed",
       "stack": "grounded",
+      "suggested_next_actions": "advisory",
       "untested_edges": "grounded",
+      "what_you_need": "computed",
       "worker_pipeline": "grounded",
     },
     "grounding_note": "[text]",
@@ -1268,8 +1348,15 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     "name": "Default OrchestrateKit Stack",
     "summary": "[text]",
   },
+  "suggested_next_actions": [
+    "[text]",
+    "[text]",
+    "[c] Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON",
+    "[text]",
+  ],
   "summary_markdown": "[text]",
   "untested_edges": [],
+  "what_you_need": [],
   "worker_pipeline": {
     "feedback_loops": [
       {

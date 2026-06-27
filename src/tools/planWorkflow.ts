@@ -63,7 +63,20 @@ import { PlanWorkflowOutputShape } from "./outputSchemas.js";
 
 export type PlanSource = "playbook" | "composed";
 
-export type PlanWorkflowInput = ComposeInput;
+export type BuildTarget = "cowork" | "cursor" | "chatgpt_gpt" | "code";
+
+/** One concrete integration need derived from a route component (MAR-208). */
+export type IntegrationNeed = {
+  component_id: string;
+  label: string;
+  product_examples: string[];
+  scopes: string[];
+};
+
+export type PlanWorkflowInput = ComposeInput & {
+  /** Who will BUILD from this plan? Drives suggested_next_actions (MAR-208). */
+  build_target?: BuildTarget;
+};
 
 /**
  * plan_workflow's own playbook-routing thresholds (MAR-100, retuned in MAR-130).
@@ -304,6 +317,19 @@ export type PlanWorkflowOutput = {
    */
   design_notes: string[];
   /**
+   * Concrete integrations the route's components require (MAR-208).
+   * Reframes credential_advisory as a plain-language "products you'll wire up" list
+   * so a builder knows up front what they need to connect (Gmail, HubSpot, Slack…).
+   * Empty when the route has no external dependencies.
+   */
+  what_you_need: IntegrationNeed[];
+  /**
+   * Deterministic, target-aware next steps (MAR-208).
+   * Tells the reading agent what to do NEXT so the session doesn't dead-end.
+   * Adapts to build_target if provided; offers all options if omitted.
+   */
+  suggested_next_actions: string[];
+  /**
    * Advisory multi-worker BUILD pipeline (MAR-166): the specialist workers
    * (planner → coder → reviewer → tester) recommended to implement this plan in
    * the user's own runtime, with their handoff contracts. Deterministic and the
@@ -480,6 +506,103 @@ function controlFlowNotesWithin(
     .map((e) => `[${e.from} → ${e.to}] ${e.control_flow_note}`);
 }
 
+// ────────────────────────── MAR-208: integration needs + next actions ──────────
+
+/**
+ * Maps component IDs to human-readable integration labels and concrete product
+ * examples. Covers every component that requires external credentials or wiring.
+ * Used by buildWhatYouNeed() to produce the `what_you_need` list.
+ */
+const INTEGRATION_LABELS: Record<string, { label: string; products: string[] }> = {
+  email_read:           { label: "Email provider — read inbox",               products: ["Gmail", "Outlook", "IMAP"] },
+  email_draft:          { label: "Email provider — draft / send",              products: ["Gmail", "Outlook", "SMTP"] },
+  optional_email_send:  { label: "Email sender",                               products: ["SendGrid", "Resend", "Gmail SMTP"] },
+  calendar_lookup:      { label: "Calendar — read events",                     products: ["Google Calendar", "Outlook Calendar"] },
+  calendar_write:       { label: "Calendar — create / update events",          products: ["Google Calendar", "Outlook Calendar"] },
+  crm_note_write:       { label: "CRM — write contacts / notes",               products: ["HubSpot", "Salesforce", "Notion"] },
+  slack_notification:   { label: "Slack — send messages",                      products: ["Slack"] },
+  reviewer_notification:{ label: "Notification channel",                       products: ["Slack", "email", "webhook"] },
+  stripe_data_read:     { label: "Stripe — read payments / subscriptions",     products: ["Stripe"] },
+  external_publish:     { label: "Publishing platform — post content",         products: ["WordPress", "Buffer", "social API"] },
+  page_monitor:         { label: "Web monitor / scraper",                      products: ["Firecrawl", "Playwright", "Puppeteer"] },
+  data_scraper:         { label: "Web scraper",                                products: ["Firecrawl", "BeautifulSoup", "Playwright"] },
+  github_trigger:       { label: "GitHub — webhooks / events",                 products: ["GitHub"] },
+  webhook_trigger:      { label: "Webhook endpoint",                           products: ["your server", "Vercel Function", "AWS Lambda"] },
+  airtable_lookup:      { label: "Airtable — read base",                       products: ["Airtable"] },
+  source_retrieval:     { label: "Search / research API",                      products: ["Perplexity", "Brave Search", "Exa"] },
+};
+
+/**
+ * MAR-208: derive the concrete "products you'll wire up" list from the route.
+ * Scans component IDs against the integration label map and enriches each entry
+ * with the component's declared permission scopes from the registry.
+ */
+function buildWhatYouNeed(
+  componentIds: string[],
+  registry: RegistrySnapshot,
+): IntegrationNeed[] {
+  const byId = new Map(registry.components.map((c) => [c.id, c]));
+  return componentIds
+    .filter((id) => INTEGRATION_LABELS[id] !== undefined)
+    .map((id) => {
+      const meta = INTEGRATION_LABELS[id];
+      const c = byId.get(id);
+      const scopes = c ? [...c.permissions.read, ...c.permissions.write] : [];
+      return { component_id: id, label: meta.label, product_examples: meta.products, scopes };
+    });
+}
+
+/**
+ * MAR-208: deterministic, target-aware next steps so the session doesn't dead-end.
+ *
+ * When build_target is provided, leads with the most relevant action for that
+ * environment. Without a target, offers all three options (CoWork / code / GPT)
+ * so the reading agent can prompt the user to choose.
+ */
+function buildSuggestedNextActions(
+  planSource: PlanSource,
+  playbook: PlanPlaybook | null,
+  buildTarget: BuildTarget | undefined,
+  whatYouNeed: IntegrationNeed[],
+): string[] {
+  const COWORK = "Ask me to generate the CoWork system prompt for this plan — paste it into a Claude Project to configure an assistant";
+  const CURSOR  = "Call `export_build_brief({ handoff_targets: ['prompt'] })` for the full Cursor / Claude Code build spec";
+  const GPT     = "Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON";
+  const REVIEW  = "Call `review_workflow_design(...)` after building to validate your implementation against the plan";
+
+  const actions: string[] = [];
+
+  switch (buildTarget) {
+    case "cowork":
+      actions.push(COWORK);
+      actions.push("Ask me which Claude tools to connect for each step in the plan");
+      break;
+    case "cursor":
+    case "code":
+      actions.push(CURSOR);
+      actions.push("Ask me for the inter-step data contracts (what each step receives and returns)");
+      break;
+    case "chatgpt_gpt":
+      actions.push(GPT);
+      actions.push("Add the hosted MCP URL to your GPT Actions (see orchestratemcp.dev for the connection URL)");
+      break;
+    default:
+      // No target — offer all three so the agent can prompt the user to choose
+      actions.push(`[a] ${COWORK}`);
+      actions.push(`[b] ${CURSOR}`);
+      actions.push(`[c] ${GPT}`);
+  }
+
+  if (whatYouNeed.length > 0) {
+    const top = whatYouNeed.slice(0, 3).map((n) => n.product_examples[0]).join(", ");
+    const extra = whatYouNeed.length > 3 ? ` + ${whatYouNeed.length - 3} more (see what_you_need)` : "";
+    actions.push(`Wire up the integrations: ${top}${extra}`);
+  }
+
+  actions.push(REVIEW);
+  return actions;
+}
+
 /**
  * MAR-101: scannable front-matter status block prepended to every
  * `summary_markdown`, regardless of `output_depth`. It surfaces the four facts
@@ -619,6 +742,8 @@ function buildPlanMarkdown(
   loopGuidance: LoopGuidance | null,
   clearance: AutomationClearance,
   designNotes: string[],
+  whatYouNeed: IntegrationNeed[],
+  suggestedNextActions: string[],
 ): string {
   const lines: string[] = [];
 
@@ -796,6 +921,24 @@ function buildPlanMarkdown(
     lines.push(``);
   }
 
+  // MAR-208: "What you'll need" — concrete integrations to wire up.
+  if (whatYouNeed.length > 0) {
+    lines.push(`### What you'll need`, ``);
+    for (const n of whatYouNeed) {
+      const examples = n.product_examples.join(" / ");
+      const scopeStr = n.scopes.length > 0 ? ` (scopes: ${n.scopes.join(", ")})` : "";
+      lines.push(`- **\`${n.component_id}\`** → ${n.label} — e.g. ${examples}${scopeStr}`);
+    }
+    lines.push(``);
+  }
+
+  // MAR-208: "Suggested next actions" — target-aware, prevents dead-ending.
+  if (suggestedNextActions.length > 0) {
+    lines.push(`### Suggested next actions`, ``);
+    for (const a of suggestedNextActions) lines.push(`- ${a}`);
+    lines.push(``);
+  }
+
   // MAR-206: provenance footer — makes the grounded/advisory distinction visible
   // in the human-readable plan so a reading agent doesn't launder its own
   // elaborations as registry facts.
@@ -847,6 +990,8 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       worker_pipeline: "grounded",
       loop_guidance: "grounded",
       design_notes: "grounded",     // edge control_flow_note + component pattern
+      what_you_need: "computed",    // derived from component permission scopes
+      suggested_next_actions: "advisory",
       next_steps: "advisory",
     },
     grounding_note:
@@ -1028,6 +1173,15 @@ export function planWorkflow(
     untested_edges,
   );
 
+  // ── MAR-208: what you'll need + target-aware next actions ──
+  const what_you_need = buildWhatYouNeed(routeComponentIds, registry);
+  const suggested_next_actions = buildSuggestedNextActions(
+    planSource,
+    playbook,
+    input.build_target,
+    what_you_need,
+  );
+
   // ── Step 6: fused markdown ──
   // MAR-101: every depth leads with the same scannable status front-matter so
   // route_status / safety / blocking / approval / untested-edge count are
@@ -1067,6 +1221,8 @@ export function planWorkflow(
           loop_guidance,
           automation_clearance,
           design_notes,
+          what_you_need,
+          suggested_next_actions,
         );
   const summary_markdown = `${statusHeader}\n\n${body}`;
 
@@ -1091,6 +1247,8 @@ export function planWorkflow(
     approval_gate_advisory,
     evals_to_add: composed.evals_to_add,
     design_notes,
+    what_you_need,
+    suggested_next_actions,
     worker_pipeline,
     loop_guidance,
     automation_clearance,
@@ -1254,6 +1412,14 @@ const InputShape = {
   ),
   output_depth: z.enum(["brief", "standard", "deep"]).default("standard").describe(
     "brief = route only. standard = route + safety + tiers. deep = includes all evals.",
+  ),
+  build_target: z.enum(["cowork", "cursor", "chatgpt_gpt", "code"]).optional().describe(
+    "Who will BUILD from this plan? " +
+    "cowork = Claude Project / CoWork (configure an assistant, no code); " +
+    "cursor = Cursor / Claude Code / VS Code (write implementation code); " +
+    "chatgpt_gpt = ChatGPT Custom GPT (system prompt + Actions); " +
+    "code = raw code (Codex or similar). " +
+    "Drives suggested_next_actions and what_you_need. Omit to get all options.",
   ),
 };
 

@@ -76,6 +76,21 @@ export const PlanWorkflowOutputShape = z
       .optional(),
     // design notes from edge control_flow_note annotations + structural advisories (MAR-211/212)
     design_notes: z.array(z.string()).optional(),
+    // concrete integration needs derived from route components (MAR-208)
+    what_you_need: z
+      .array(
+        z
+          .object({
+            component_id: z.string(),
+            label: z.string(),
+            product_examples: z.array(z.string()),
+            scopes: z.array(z.string()),
+          })
+          .passthrough(),
+      )
+      .optional(),
+    // target-aware next steps — prevents post-plan dead-ending (MAR-208)
+    suggested_next_actions: z.array(z.string()).optional(),
     // provenance model — grounded / computed / advisory tags per field (MAR-206)
     provenance: z
       .object({
