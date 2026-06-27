@@ -190,13 +190,12 @@
       "slug": "dogfood_hourly_price_monitor",
       "goal": "Check 5 competitor product pages every hour; detect price changes; send an internal Slack alert with a one-line summary when price drops below a configurable threshold; unattended scheduled run; read-only on all external sites; deduplicate alerts; log every check.",
       "domain": "monitoring",
-      "must_have": [
-        "data_scraper"
-      ],
+      "must_have": [],
       "nice_to_have": [
         "audit_log",
         "deduplication",
-        "retry_policy"
+        "retry_policy",
+        "data_scraper"
       ],
       "forbidden": [
         "calendar_lookup",

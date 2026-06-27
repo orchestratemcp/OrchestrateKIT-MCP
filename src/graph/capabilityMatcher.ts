@@ -658,8 +658,17 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   "github event": ["github_trigger"],
   loop: ["loop_controller"],
   iterate: ["loop_controller"],
+  iterates: ["loop_controller"],
+  // "iterating" does not contain "iterate" as a substring (i-t-e-r-a-t-e vs
+  // i-t-e-r-a-t-i-n-g differ at position 7), so it needs its own hint entry.
+  iterating: ["loop_controller"],
   iteration: ["loop_controller"],
-  "for each": ["loop_controller"],
+  // MAR-214: "for each" removed — it fired loop_controller on fan-out / variant
+  // goals ("for each variant", "for each item in the list") where the intent is
+  // parallel batch dispatch, not bounded iterative retry. loop_controller is still
+  // reachable via the specific hints above ("loop", "iterate", "iterating",
+  // "iteration") which describe true while-loop / retry-loop / sequential phrasing,
+  // not generic list traversal. Fan-out goals use "parallel" / "fan out" instead.
   parallel: ["fan_out_collector"],
   "fan out": ["fan_out_collector"],
   "fan-out": ["fan_out_collector"],
@@ -703,6 +712,13 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   // workflows are ERP/AP/accounting, not Stripe. The hint injected stripe_data_read
   // into every invoice goal (the ChatGPT session flagged it as irrelevant).
   // stripe_data_read stays reachable via stripe/billing/subscription.
+  // MAR-215: "data" removed from the keyword-hint map for data_scraper.
+  // "data" is one of the most generic words in any goal — "pull Stripe payment
+  // data", "read the sensor data", "fetch API data" — and none of those want a
+  // web scraper. data_scraper remains reachable via the specific hints below
+  // (scrape / crawl / extract) which name the actual access pattern.
+  // data_normalizer remains reachable via normalize / normalise / its own fuzzy
+  // capability pass once the data_etl domain is established.
   extract: ["data_scraper", "data_normalizer", "pdf_extraction"],
   normalize: ["data_normalizer"],
   normalise: ["data_normalizer"],
@@ -731,7 +747,6 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   retry: ["retry_policy"],
   state: ["state_store"],
   persist: ["state_store"],
-  data: ["data_scraper", "data_normalizer"],
 };
 
 /** Score penalty applied to the `to` component of a co-occurring avoid_when edge. */
@@ -833,6 +848,21 @@ const HINT_ONLY_COMPONENTS = new Set([
   // `invoice` hint was removed. Restrict to explicit Stripe hints
   // (stripe / billing / subscription) so a generic invoice workflow never gets it.
   "stripe_data_read",
+  // MAR-215: page_monitor's capabilities include "hash_based_change_detection"
+  // and its id contains "monitor" — tokens that score positively on code-review
+  // / code-scanning goals ("scan the changed files", "monitor test results").
+  // page_monitor is a web-URL polling component and has no business in software-
+  // engineering contexts. Restrict to explicit monitoring hints (monitor / poll /
+  // watch) so it only fires when the user is actually asking to watch a web page.
+  "page_monitor",
+  // MAR-215: data_scraper's id contains the segment "data", which appears in
+  // virtually every data-pipeline / API-read goal ("pull Stripe payment data",
+  // "fetch sensor data"). The id-segment pass (+2) fires even after removing
+  // the `data` keyword hint, because tokenSet includes stopwords. data_scraper is
+  // a WEB-SCRAPING tool — it has no business in structured-API-read or code-scan
+  // contexts. Restrict to explicit scraping hints (scrape / crawl / extract) so
+  // it only fires when the user explicitly names a scraping access pattern.
+  "data_scraper",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */
