@@ -228,6 +228,30 @@ export function hasUnattendedWaiver(goal: string): boolean {
   return UNATTENDED_WAIVER_SIGNALS.some((s) => g.includes(s));
 }
 
+/**
+ * MAR-206: provenance tags for the three categories of plan_workflow output.
+ *
+ * OrchestrateMCP never calls an LLM — every field in plan_workflow output is
+ * deterministically computed from the registry (component/edge/playbook/route
+ * YAMLs). Provenance tags exist to help a READING AGENT (Claude, ChatGPT) avoid
+ * hallucinating "elaborations" of registry facts and presenting them as if they
+ * were also registry-derived.
+ *
+ *   grounded = direct registry field value (component id, edge relation, route status)
+ *   computed  = deterministic function of registry data (topo-sort, score, clearance)
+ *   advisory  = registry-seeded guidance phrased for a human / agent audience
+ *
+ * All three are checkable against the registry; none are LLM-generated.
+ */
+export type ProvenanceTag = "grounded" | "computed" | "advisory";
+
+export type ProvenanceModel = {
+  model: "registry-deterministic";
+  all_fields_are_registry_derived: true;
+  field_tags: Record<string, ProvenanceTag>;
+  grounding_note: string;
+};
+
 export type PlanWorkflowOutput = {
   plan_source: PlanSource;
   goal: string;
@@ -303,6 +327,18 @@ export type PlanWorkflowOutput = {
    */
   automation_clearance: AutomationClearance;
   next_steps: string[];
+  /**
+   * MAR-206: provenance model — which parts of this output are registry-derived
+   * facts vs synthesised advisory text. Every field in this plan is computed
+   * deterministically from the registry (component YAML, edge YAML, playbook YAML,
+   * route YAML) with no LLM calls. The tags below document the exact source for
+   * each field so a reading agent can verify claims independently.
+   *
+   * grounded  = value read directly from a registry YAML field
+   * computed  = derived by deterministic logic over registry data (scores, ordering)
+   * advisory  = registry-seeded but expressed as plain-language guidance
+   */
+  provenance: ProvenanceModel;
 };
 
 export type LoopGuidance = {
@@ -317,12 +353,19 @@ export type LoopGuidance = {
  * the canonical bounded-loop contract from the dynamic_worker_loop playbook.
  * Sourced from the registry so the contract has a single source of truth, and
  * deliberately decoupled from playbook ROUTING so it never affects precision.
+ *
+ * MAR-209: only fires for WORKER BUILD LOOP routes (planner→coder→tester→reviewer).
+ * When `fan_out_collector` is also present, the route is a DATA FAN-OUT pattern —
+ * loop_controller drives parallel item processing and fan_out_collector merges results.
+ * The dynamic_worker_loop contract describes software-development iteration and is
+ * actively misleading for batch document / data processing goals.
  */
 export function buildLoopGuidance(
   routeComponentIds: string[],
   registry: RegistrySnapshot,
 ): LoopGuidance | null {
   if (!routeComponentIds.includes("loop_controller")) return null;
+  if (routeComponentIds.includes("fan_out_collector")) return null; // MAR-209
   const pb = registry.playbooks.find((p) => p.loop_contract);
   if (!pb || !pb.loop_contract) return null;
   return {
@@ -331,6 +374,29 @@ export function buildLoopGuidance(
     loop_contract: pb.loop_contract,
     guardrail_checklist: pb.guardrails,
   };
+}
+
+/**
+ * MAR-212: advisory note for routes containing `fan_out_collector`.
+ *
+ * The sequential DAG step list shows fan_out_collector as one component (the
+ * merge/collect point) but hides the N parallel dispatch branches that run
+ * simultaneously before the collector merges results. A developer reading the
+ * plan could mistake this for a sequential pipeline.
+ *
+ * Returns a design note explaining the hidden parallelism so the builder sizes
+ * concurrency budget and handles partial-failure merge strategies correctly.
+ * Prepended to design_notes so it appears before edge-level annotations.
+ */
+function fanOutDesignNote(componentIds: string[]): string | null {
+  if (!componentIds.includes("fan_out_collector")) return null;
+  return (
+    "[fan_out_collector] The step list shows the merge point only — N parallel " +
+    "dispatch branches (one per input item) run simultaneously and are not shown " +
+    "in the DAG. Size your concurrency budget before deploying: unbounded lists " +
+    "exhaust API rate limits. Choose a merge_strategy (all_success | any_success | " +
+    "best_of) and set a per-branch timeout."
+  );
 }
 
 // ───────────────────────────── core ─────────────────────────────
@@ -730,7 +796,65 @@ function buildPlanMarkdown(
     lines.push(``);
   }
 
+  // MAR-206: provenance footer — makes the grounded/advisory distinction visible
+  // in the human-readable plan so a reading agent doesn't launder its own
+  // elaborations as registry facts.
+  lines.push(
+    `---`,
+    ``,
+    `> **Provenance:** All component IDs, edge relations, route status, safety findings, ` +
+      `and clearance levels above are 🟢 **registry-grounded** — deterministically computed ` +
+      `from the component/edge YAML files with no LLM calls. Purpose descriptions come from ` +
+      `\`component.summary\` fields in the registry. Any elaboration you add as an agent is ` +
+      `🔵 **suggested** — do not present it as a registry fact.`,
+    ``,
+  );
+
   return lines.join("\n");
+}
+
+// ─────────────────────────── MAR-206: provenance model ───────────────────────
+
+/**
+ * Build the provenance model for a plan_workflow result. All fields are tagged
+ * with how they are derived from the registry — grounded / computed / advisory.
+ * This model is appended to every plan so a reading agent (Claude, ChatGPT) can
+ * verify each claim independently and avoid presenting its own elaborations as
+ * registry-derived facts.
+ */
+function buildProvenance(planSource: PlanSource): ProvenanceModel {
+  return {
+    model: "registry-deterministic",
+    all_fields_are_registry_derived: true,
+    field_tags: {
+      // direct registry values
+      recommended_route: "grounded",
+      planning_order: "grounded",
+      execution_order: "computed",  // topo-sort of registry edges
+      model_tier_profile: "grounded",
+      playbook: "grounded",
+      route_status: planSource === "playbook" ? "grounded" : "computed",
+      route_score: "computed",
+      confidence_label: "computed",
+      stack: "grounded",
+      safety_review: "computed",
+      credential_advisory: "computed",
+      untested_edges: "grounded",
+      avoid_when_violations: "computed",
+      enforced_approval_gates: "computed",
+      approval_gate_advisory: "advisory",
+      automation_clearance: "computed",
+      worker_pipeline: "grounded",
+      loop_guidance: "grounded",
+      design_notes: "grounded",     // edge control_flow_note + component pattern
+      next_steps: "advisory",
+    },
+    grounding_note:
+      "OrchestrateMCP makes no LLM calls. Every field above is computed " +
+      "deterministically from component/edge/playbook/route YAML files in the registry. " +
+      "The reading agent MUST NOT present its own elaborations as if they were " +
+      "registry-derived — those are 🔵 suggested; registry fields are 🟢 grounded.",
+  };
 }
 
 export function planWorkflow(
@@ -821,7 +945,10 @@ export function planWorkflow(
   const model_tier_profile = computeModelTierProfile(routeComponents);
   const credential_advisory = computeCredentialAdvisory(routeComponents);
   const untested_edges = untestedEdgesWithin(routeComponentIds, registry);
-  const design_notes = controlFlowNotesWithin(routeComponentIds, registry);
+  const fanOutNote = fanOutDesignNote(routeComponentIds); // MAR-212
+  const design_notes = fanOutNote
+    ? [fanOutNote, ...controlFlowNotesWithin(routeComponentIds, registry)]
+    : controlFlowNotesWithin(routeComponentIds, registry);
   const avoid_when_violations = detectAvoidViolations(
     new Set(routeComponentIds),
     registry.edges,
@@ -975,6 +1102,7 @@ export function planWorkflow(
             "get_graph_component",
           ]
         : ["list_known_routes", "compose_workflow_route", "get_graph_component"],
+    provenance: buildProvenance(planSource),
   };
 }
 

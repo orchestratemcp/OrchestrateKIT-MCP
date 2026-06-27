@@ -74,6 +74,18 @@ export const PlanWorkflowOutputShape = z
       })
       .passthrough()
       .optional(),
+    // design notes from edge control_flow_note annotations + structural advisories (MAR-211/212)
+    design_notes: z.array(z.string()).optional(),
+    // provenance model — grounded / computed / advisory tags per field (MAR-206)
+    provenance: z
+      .object({
+        model: z.literal("registry-deterministic"),
+        all_fields_are_registry_derived: z.literal(true),
+        field_tags: z.record(z.enum(["grounded", "computed", "advisory"])),
+        grounding_note: z.string(),
+      })
+      .passthrough()
+      .optional(),
     // present on a needs_goal nudge (MAR-162)
     status: z.literal("needs_goal").optional(),
     reason: z.string().optional(),

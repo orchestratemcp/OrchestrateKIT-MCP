@@ -1,0 +1,222 @@
+import { describe, it, expect } from "vitest";
+import { exportBuildBrief } from "../../src/tools/exportBuildBrief.js";
+import { loadRegistry } from "../../src/registry/registryLoader.js";
+import { planWorkflow } from "../../src/tools/planWorkflow.js";
+
+const registry = loadRegistry();
+
+/** Run plan_workflow and pipe result straight into export_build_brief. */
+function planAndBrief(
+  goal: string,
+  handoff_targets: ("prompt" | "linear" | "obsidian")[] = ["prompt"],
+) {
+  const plan = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
+  return exportBuildBrief({
+    goal: plan.goal,
+    plan_source: plan.plan_source,
+    route_status: plan.route_status,
+    recommended_route: plan.recommended_route,
+    safety_review: plan.safety_review,
+    automation_clearance: plan.automation_clearance,
+    enforced_approval_gates: plan.enforced_approval_gates,
+    untested_edges: plan.untested_edges,
+    avoid_when_violations: plan.avoid_when_violations,
+    evals_to_add: plan.evals_to_add,
+    design_notes: plan.design_notes,
+    worker_pipeline: plan.worker_pipeline,
+    loop_guidance: plan.loop_guidance,
+    approval_gate_advisory: plan.approval_gate_advisory,
+    handoff_targets,
+  });
+}
+
+describe("export_build_brief — structure (MAR-205)", () => {
+  it("returns all 9 sections + brief_markdown + provenance_tag", () => {
+    const b = planAndBrief("read emails, detect leads and write a note to the CRM for each lead");
+    expect(b.brief_markdown).toBeTruthy();
+    expect(b.provenance_tag).toBe("registry-grounded");
+    expect(b.sections.s0_constraints).toBeTruthy();
+    expect(b.sections.s1_summary).toBeTruthy();
+    expect(b.sections.s2_route).toBeTruthy();
+    expect(b.sections.s3_worker_contracts).toBeTruthy();
+    expect(b.sections.s5_safety).toBeTruthy();
+    expect(b.sections.s6_do_not_add).toBeTruthy();
+    expect(b.sections.s7_review_loopback).toBeTruthy();
+    expect(b.sections.s8_definition_of_done).toBeTruthy();
+  });
+
+  it("brief_markdown is provenance-tagged at the top", () => {
+    const b = planAndBrief("scan a GitHub PR and post a review comment read-only");
+    expect(b.brief_markdown).toContain("🟢");
+    expect(b.brief_markdown).toContain("🔵");
+    expect(b.brief_markdown).toContain("registry-grounded");
+  });
+
+  it("grounding_note mentions no LLM calls", () => {
+    const b = planAndBrief("read emails, detect leads and write a note to the CRM for each lead");
+    expect(b.grounding_note).toContain("no LLM calls");
+    expect(b.grounding_note).toContain("🟢");
+  });
+});
+
+describe("export_build_brief — §0 constraints (MAR-205)", () => {
+  it("detects explicit read-only constraint", () => {
+    const b = planAndBrief("scan a GitHub PR, read-only, never write anything");
+    expect(b.sections.s0_constraints).toContain("read-only");
+  });
+
+  it("detects unattended constraint", () => {
+    const b = planAndBrief(
+      "fan out documents to processors and roll back if any fail, fully automated, no human in the loop",
+    );
+    expect(b.sections.s0_constraints).toContain("unattended");
+  });
+
+  it("states 'no constraint detected' when goal has none", () => {
+    const b = planAndBrief("read emails and draft a CRM note for each lead");
+    expect(b.sections.s0_constraints).toContain("No explicit");
+  });
+});
+
+describe("export_build_brief — §2 route is grounded (MAR-205 + MAR-206)", () => {
+  it("s2_route contains component IDs from the plan", () => {
+    const plan = planWorkflow(
+      { goal: "read emails, detect leads and write a note to the CRM for each lead", must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    const brief = exportBuildBrief({
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates,
+      untested_edges: plan.untested_edges,
+      avoid_when_violations: plan.avoid_when_violations,
+      evals_to_add: plan.evals_to_add,
+      design_notes: plan.design_notes,
+      worker_pipeline: plan.worker_pipeline,
+      loop_guidance: plan.loop_guidance,
+      approval_gate_advisory: plan.approval_gate_advisory,
+      handoff_targets: ["prompt"],
+    });
+    for (const step of plan.recommended_route) {
+      expect(brief.sections.s2_route).toContain(step.component_id);
+    }
+  });
+
+  it("s2_route labels are 🟢 grounded in the header", () => {
+    const b = planAndBrief("read emails and draft a CRM note for each lead");
+    expect(b.sections.s2_route).toContain("🟢");
+  });
+
+  it("design_notes from MAR-211/212 appear in s2_route when present", () => {
+    const b = planAndBrief(
+      "fan out a batch of documents to parallel processors and roll back with saga compensation",
+    );
+    // design_notes include the fan-out note (MAR-212) — should surface in s2
+    if (b.sections.s2_route.includes("Design notes")) {
+      expect(b.sections.s2_route).toContain("parallel");
+    }
+  });
+});
+
+describe("export_build_brief — §4 loop contract (MAR-205)", () => {
+  it("s4_loop_contract is null for non-loop routes", () => {
+    const b = planAndBrief("read emails, detect leads and write a CRM note");
+    expect(b.sections.s4_loop_contract).toBeNull();
+  });
+
+  it("fan-out route does NOT get the worker-build-loop contract (MAR-209 integration)", () => {
+    const b = planAndBrief(
+      "fan out a batch of documents to parallel processors, validate each, " +
+      "roll back with saga compensation if any fails",
+    );
+    // Because loop_guidance is null for fan-out routes (MAR-209), s4 should be null
+    expect(b.sections.s4_loop_contract).toBeNull();
+  });
+});
+
+describe("export_build_brief — §5 safety (MAR-205)", () => {
+  it("L3 CRM route has clearance level in §5 and DoD gate in §8", () => {
+    const b = planAndBrief("read emails, detect leads and write a note to the CRM for each lead");
+    expect(b.sections.s5_safety).toContain("L3");
+    expect(b.sections.s8_definition_of_done).toContain("L3");
+  });
+
+  it("untested edges appear as risk questions in §5", () => {
+    // Force an untested edge by passing one manually
+    const plan = planWorkflow(
+      { goal: "read emails and write a CRM note", must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    const brief = exportBuildBrief({
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates,
+      untested_edges: [{ id: "email_read__produces__crm_note_write", severity: "high" }],
+      avoid_when_violations: plan.avoid_when_violations,
+      evals_to_add: plan.evals_to_add,
+      design_notes: plan.design_notes,
+      worker_pipeline: plan.worker_pipeline,
+      loop_guidance: plan.loop_guidance,
+      approval_gate_advisory: plan.approval_gate_advisory,
+      handoff_targets: ["prompt"],
+    });
+    expect(brief.sections.s5_safety).toContain("email_read__produces__crm_note_write");
+    expect(brief.sections.s5_safety).toContain("HIGH");
+    expect(brief.sections.s8_definition_of_done).toContain("high-severity");
+  });
+});
+
+describe("export_build_brief — §8 definition of done (MAR-205)", () => {
+  it("validated playbook route checks route box", () => {
+    const b = planAndBrief("read emails, check my calendar and draft a reply for each meeting request");
+    if (b.sections.s1_summary.includes("validated")) {
+      expect(b.sections.s8_definition_of_done).toContain("[x] Route is validated");
+    }
+  });
+
+  it("always includes the five operational gates", () => {
+    const b = planAndBrief("read emails and draft a CRM note");
+    const dod = b.sections.s8_definition_of_done;
+    expect(dod).toContain("least-privilege");
+    expect(dod).toContain("Dry-run");
+    expect(dod).toContain("Idempotency");
+    expect(dod).toContain("Kill switch");
+    expect(dod).toContain("Audit log");
+  });
+});
+
+describe("export_build_brief — handoff targets (MAR-205)", () => {
+  it("prompt handoff is present when requested", () => {
+    const b = planAndBrief("read emails and draft a CRM note", ["prompt"]);
+    expect(b.handoffs.prompt).toBeTruthy();
+    expect(b.handoffs.linear).toBeUndefined();
+    expect(b.handoffs.obsidian).toBeUndefined();
+  });
+
+  it("linear handoff is present when requested", () => {
+    const b = planAndBrief("read emails and draft a CRM note", ["linear"]);
+    expect(b.handoffs.linear).toContain("## Build brief");
+    expect(b.handoffs.linear).toContain("Generated by OrchestrateMCP");
+  });
+
+  it("obsidian handoff has YAML frontmatter", () => {
+    const b = planAndBrief("read emails and draft a CRM note", ["obsidian"]);
+    expect(b.handoffs.obsidian).toContain("tags: [orchestratekit");
+    expect(b.handoffs.obsidian).toContain("plan_source:");
+  });
+
+  it("multiple targets can be requested at once", () => {
+    const b = planAndBrief("read emails and draft a CRM note", ["prompt", "linear", "obsidian"]);
+    expect(b.handoffs.prompt).toBeTruthy();
+    expect(b.handoffs.linear).toBeTruthy();
+    expect(b.handoffs.obsidian).toBeTruthy();
+  });
+});
