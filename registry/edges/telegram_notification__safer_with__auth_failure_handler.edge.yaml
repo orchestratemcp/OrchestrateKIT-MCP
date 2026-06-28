@@ -1,0 +1,12 @@
+id: telegram_notification__safer_with__auth_failure_handler
+from: telegram_notification
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: Telegram posting relies on a Bot API token that can be revoked or rotated. A credential-failure path lets the notification refresh-and-retry or halt with a named error instead of silently dropping the message.
+severity: high
+notes: Do not retry a post that may already have succeeded — deduplicate using the message ID returned on a successful post.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: telegram_notification__safer_with__auth_failure_handler"

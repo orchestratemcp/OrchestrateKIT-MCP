@@ -469,3 +469,86 @@ for (const [edgeId, from, to, set] of MAR213_ORDER_EDGES) {
     });
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAR-120 — Chat / conversational domain: chat_trigger + Discord/Teams/Telegram
+// notification egresses. Same validation patterns as above.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** safer_with → auth_failure_handler: the augmenter injects the handler. */
+const MAR120_AUTH_HANDLER_EDGES: Array<[string, string]> = [
+  ["chat_trigger__safer_with__auth_failure_handler", "chat_trigger"],
+  ["discord_notification__safer_with__auth_failure_handler", "discord_notification"],
+  ["teams_notification__safer_with__auth_failure_handler", "teams_notification"],
+  ["telegram_notification__safer_with__auth_failure_handler", "telegram_notification"],
+];
+
+for (const [edgeId, from] of MAR120_AUTH_HANDLER_EDGES) {
+  describe(`edge: ${edgeId}`, () => {
+    it(`augmentWithSafety injects auth_failure_handler when ${from} is present`, () => {
+      const result = augmentWithSafety(pick([from]), edges, components);
+      expect(result.components.map((c) => c.id)).toContain("auth_failure_handler");
+      expect(result.added_auth_handler).toBe(true);
+    });
+  });
+}
+
+/** recommended_for → audit_log: each platform post pulls an audit trail. */
+const MAR120_AUDIT_EDGES: Array<[string, string]> = [
+  ["audit_log__recommended__discord_notification", "discord_notification"],
+  ["audit_log__recommended__teams_notification", "teams_notification"],
+  ["audit_log__recommended__telegram_notification", "telegram_notification"],
+];
+
+for (const [edgeId, from] of MAR120_AUDIT_EDGES) {
+  describe(`edge: ${edgeId}`, () => {
+    it(`augmentWithSafety adds audit_log when ${from} is present`, () => {
+      const result = augmentWithSafety(pick([from]), edges, components);
+      expect(result.components.map((c) => c.id)).toContain("audit_log");
+      expect(result.added_audit).toBe(true);
+    });
+  });
+}
+
+/** produces_input_for: execution ordering for the chat flow edges. */
+const MAR120_ORDER_EDGES: Array<[string, string, string, string[]]> = [
+  [
+    "chat_trigger__produces__intent_classifier",
+    "chat_trigger",
+    "intent_classifier",
+    ["intent_classifier", "chat_trigger"],
+  ],
+  [
+    "chat_trigger__produces__discord_notification",
+    "chat_trigger",
+    "discord_notification",
+    ["discord_notification", "chat_trigger", "human_approval_gate"],
+  ],
+];
+
+for (const [edgeId, from, to, set] of MAR120_ORDER_EDGES) {
+  describe(`edge: ${edgeId}`, () => {
+    it(`computeExecutionOrder places ${from} before ${to}`, () => {
+      const ids = computeExecutionOrder(pick(set), edges).map((c) => c.id);
+      expect(ids.indexOf(from)).toBeLessThan(ids.indexOf(to));
+    });
+  });
+}
+
+/** recommended_for → chat_trigger: a chat-triggered agent acts on a sender's behalf,
+ *  so a full chat-bot route carries both chat_trigger and an audit trail. */
+describe("edge: audit_log__recommended__chat_trigger", () => {
+  it("composeRoute for a Discord-bot goal contains chat_trigger and audit_log", () => {
+    const result = composeRoute(
+      {
+        goal: "Build a Discord bot that answers support questions in the channel and posts the reply.",
+        must_have_capabilities: [],
+        must_avoid: [],
+      },
+      registry,
+    );
+    const ids = result.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("chat_trigger");
+    expect(ids).toContain("audit_log");
+  });
+});

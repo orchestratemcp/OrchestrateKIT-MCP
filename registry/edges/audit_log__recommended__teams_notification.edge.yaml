@@ -1,0 +1,12 @@
+id: audit_log__recommended__teams_notification
+from: audit_log
+to: teams_notification
+relation: recommended_for
+status: published
+reason: Teams posts are irreversible. An audit log entry provides post-hoc evidence of what was sent, to which channel, and when — essential for compliance and debugging misfired notifications.
+severity: high
+notes: Log channel ID, message content hash, approval actor, and timestamp. Avoid logging full message bodies containing PII unless your data policy requires it.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__teams_notification"

@@ -1,0 +1,46 @@
+id: discord_notification
+name: Discord Notification
+status: published
+category: integration
+summary: Sends a structured message to a Discord channel, thread, or user via a bot token or webhook. Requires human approval before posting; never posts autonomously. Used as the reply and alert egress for Discord-resident agents.
+capabilities:
+  - send_discord_message
+  - post_to_channel_or_thread
+  - reply_in_thread
+  - require_human_approval_before_send
+inputs:
+  - approved message payload, Discord bot token or channel webhook URL, channel or thread ID
+outputs:
+  - post confirmation with message ID and channel ID
+risk_level: high
+side_effects:
+  - posts irreversible message to an external Discord server
+permissions:
+  read: []
+  write:
+    - external Discord channel post
+  approval_required_for:
+    - every post action
+requires:
+  - human_approval_gate
+recommended_with:
+  - audit_log
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - posted to wrong channel due to misconfigured channel ID
+  - duplicate post on retry after a transient API error
+  - webhook URL leak allows anyone to post to the channel
+  - bot lacks the Send Messages permission in the target channel and fails silently
+evals:
+  - idempotency test — duplicate trigger does not cause duplicate post
+  - rejection test — post blocked when approval is missing
+  - auth failure test — revoked bot token routes to auth_failure_handler gracefully
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

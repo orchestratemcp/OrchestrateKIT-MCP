@@ -50,6 +50,9 @@ const L4_COMPONENTS = new Set<string>(["external_publish"]);
  */
 const NOTIFICATION_COMPONENTS = new Set<string>([
   "slack_notification",
+  "discord_notification",
+  "teams_notification",
+  "telegram_notification",
   "reviewer_notification",
 ]);
 

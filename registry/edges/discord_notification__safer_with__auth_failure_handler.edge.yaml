@@ -1,0 +1,12 @@
+id: discord_notification__safer_with__auth_failure_handler
+from: discord_notification
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: Discord posting relies on a bot token or channel webhook that can be revoked or rotated. A credential-failure path lets the notification refresh-and-retry or halt with a named error instead of silently dropping the message.
+severity: high
+notes: Do not retry a post that may already have succeeded — deduplicate using the message ID returned on a successful post.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: discord_notification__safer_with__auth_failure_handler"

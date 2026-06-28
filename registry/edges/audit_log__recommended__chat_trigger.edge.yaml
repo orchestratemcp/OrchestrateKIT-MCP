@@ -1,0 +1,12 @@
+id: audit_log__recommended__chat_trigger
+from: audit_log
+to: chat_trigger
+relation: recommended_for
+status: published
+reason: A chat-triggered agent acts on behalf of whoever messaged it. An audit entry recording who triggered which action, from which channel, and when is essential for accountability — it is the only record of who asked the agent to do something.
+severity: medium
+notes: Log the sender id, authorization result, command, and timestamp. This pairs with the chat_trigger authorization check — together they answer "who was allowed to do this, and did they?".
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__chat_trigger"

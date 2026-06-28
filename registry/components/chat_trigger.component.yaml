@@ -1,0 +1,52 @@
+id: chat_trigger
+name: Chat Trigger
+status: published
+category: input
+summary: Receives an inbound message, mention, or slash command from a chat platform (Slack, Discord, Microsoft Teams, Telegram) and emits a structured event that starts the workflow. Acts as the conversational entrypoint for chat-resident agents — bots that live in a channel or thread and respond to people. Carries an authorization concern that ordinary triggers do not — it must verify WHO is allowed to invoke the agent before any downstream action runs.
+capabilities:
+  - inbound_chat_message_reception
+  - mention_and_slash_command_handling
+  - sender_authorization_check
+  - thread_and_channel_context_capture
+  - structured_event_emission
+  - idempotent_delivery_via_message_id
+inputs:
+  - platform bot token or signing secret, allowed senders / roles / channels, expected command set, optional message-id dedup store
+outputs:
+  - structured chat event with platform, channel/thread id, sender id, authorization result, message text, and timestamp
+risk_level: low
+side_effects:
+  - validates the inbound request signature and the sender's authorization — rejects unsigned or unauthorized messages
+permissions:
+  read:
+    - chat platform signing secret (read-only, never logged)
+    - allowed-sender / role allowlist
+  write: []
+  approval_required_for: []
+requires:
+  - schema_validation
+recommended_with:
+  - auth_failure_handler
+  - audit_log
+  - state_store
+  - human_approval_gate
+avoid_with: []
+failure_modes:
+  - unauthorized sender triggers a privileged action because the authorization check was skipped or misconfigured
+  - signature validation fails due to a stale or rotated bot token
+  - duplicate delivery without a message-id idempotency key causes a double response
+  - thread context lost between turns when conversation state is not persisted
+  - prompt-injection in the inbound message steers the agent into an unintended action
+evals:
+  - authorized sender accepted, unauthorized sender rejected (unit)
+  - invalid signature rejected before any downstream step runs
+  - duplicate message_id deduplicated correctly
+  - injected instruction in message body does not escalate the agent's allowed actions
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none
