@@ -23,8 +23,8 @@ const InputShape = {
   local_or_hosted: z.enum(["local", "hosted", "either"]).default("either").describe(
     "Whether you are building a local tool or a hosted product. Affects stack recommendation.",
   ),
-  output_depth: z.enum(["brief", "standard", "deep"]).default("standard").describe(
-    "brief = short summary only. standard = full route with warnings. deep = includes all evals.",
+  output_depth: z.enum(["guided", "brief", "standard", "technical", "deep"]).default("standard").describe(
+    "guided/brief = short summary only. standard = full route with warnings. technical/deep = includes all evals.",
   ),
 };
 

@@ -19,6 +19,16 @@ function plan(goal: string) {
   return planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
 }
 
+// MAR-224: technical/deep render the full report (tiers, credentials, worker
+// pipeline, loop contract, provenance block). Tests asserting on those sections
+// must request that depth — the default is now the concise Layer-1 markdown.
+function planTech(goal: string) {
+  return planWorkflow(
+    { goal, must_have_capabilities: [], must_avoid: [], output_depth: "technical" },
+    registry,
+  );
+}
+
 describe("planWorkflow — worker build pipeline (MAR-166)", () => {
   it("attaches the planner → coder → reviewer → tester build team to a plan", () => {
     const r = plan("scan a codebase, plan changes, edit code, run tests and write a PR summary");
@@ -33,15 +43,15 @@ describe("planWorkflow — worker build pipeline (MAR-166)", () => {
     );
   });
 
-  it("renders a Build team section in the standard markdown", () => {
-    const r = plan("read emails, detect leads, research the company and draft a reply");
+  it("renders a Build team section in the technical markdown (MAR-224)", () => {
+    const r = planTech("read emails, detect leads, research the company and draft a reply");
     expect(r.summary_markdown).toContain("Build team (worker pipeline)");
   });
 });
 
 describe("planWorkflow — bounded loop contract (MAR-167)", () => {
   it("surfaces loop_guidance when the route is loop-shaped", () => {
-    const r = plan(
+    const r = planTech(
       "trigger an agent on a webhook that loops: a coder writes code, a tester runs " +
         "tests, and an independent reviewer keeps iterating until approved",
     );
@@ -209,7 +219,7 @@ describe("planWorkflow — model-tier profile (MAR-116)", () => {
 
 describe("planWorkflow — credential advisory (MAR-117)", () => {
   it("surfaces credential requirements + secret-manager rec for a publish plan", () => {
-    const r = plan("start from a content brief, generate copy, design visuals, approve and publish");
+    const r = planTech("start from a content brief, generate copy, design visuals, approve and publish");
     const comps = r.credential_advisory.components_requiring_credentials.map((c) => c.component_id);
     expect(comps).toContain("external_publish");
     expect(r.credential_advisory.secret_manager_recommendation).not.toBeNull();
@@ -234,8 +244,15 @@ describe("planWorkflow — output shape", () => {
     expect(r.stack).toBeDefined();
   });
 
-  it("summary_markdown leads with the playbook banner on the playbook path", () => {
+  it("summary_markdown names the validated playbook on the playbook path (Layer-1)", () => {
     const r = plan("start from a content brief, generate copy, design visuals, approve and publish");
+    // MAR-224: Layer-1 surfaces it as "Recommended: validated playbook `id`"
+    expect(r.summary_markdown).toContain("validated playbook");
+    expect(r.summary_markdown).toContain(r.playbook!.id);
+  });
+
+  it("technical depth leads with the full playbook banner", () => {
+    const r = planTech("start from a content brief, generate copy, design visuals, approve and publish");
     expect(r.summary_markdown).toContain("use validated playbook");
     expect(r.summary_markdown).toContain(r.playbook!.id);
   });
@@ -386,30 +403,33 @@ describe("planWorkflow — approval-gate field self-consistency (MAR-148)", () =
   });
 });
 
-// MAR-101: output_depth wired in plan_workflow
-describe("planWorkflow — output_depth (MAR-101)", () => {
+// MAR-224: layered output_depth (guided/brief Layer-1 default → standard → technical/deep)
+describe("planWorkflow — output_depth layering (MAR-224)", () => {
   const goal = "start from a content brief, generate copy, design visuals, approve and publish";
 
-  it("brief mode produces a shorter summary_markdown than standard", () => {
+  it("brief (default) is concise: shorter than standard, shorter than technical", () => {
     const brief = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
     const standard = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" }, registry);
+    const technical = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "technical" }, registry);
     expect(brief.summary_markdown.length).toBeLessThan(standard.summary_markdown.length);
+    expect(standard.summary_markdown.length).toBeLessThan(technical.summary_markdown.length);
   });
 
-  it("brief mode summary includes numbered steps", () => {
+  it("default (no output_depth) renders the guided Layer-1 shape — no full step list", () => {
+    const def = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
+    const guided = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "guided" }, registry);
+    expect(def.summary_markdown).toBe(guided.summary_markdown);
+    expect(def.summary_markdown).not.toContain("**Steps:**");
+    expect(def.summary_markdown).not.toContain("Model-tier profile");
+  });
+
+  it("brief shows the recommended route as a one-line chain, not numbered blocks", () => {
     const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
-    // each step is numbered "1." "2." etc.
-    const stepCount = r.recommended_route.length;
-    expect(r.summary_markdown).toContain(`${stepCount}.`);
+    expect(r.summary_markdown).toContain("**Recommended:**");
+    expect(r.summary_markdown).not.toContain("**Steps:**");
   });
 
-  it("brief mode summary includes safety status", () => {
-    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
-    const statusUpper = r.safety_review.status.toUpperCase();
-    expect(r.summary_markdown).toContain(statusUpper);
-  });
-
-  it("brief mode still returns the full recommended_route array", () => {
+  it("brief still returns the full recommended_route array in JSON", () => {
     const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
     expect(r.recommended_route.length).toBeGreaterThan(0);
     for (const s of r.recommended_route) {
@@ -418,15 +438,20 @@ describe("planWorkflow — output_depth (MAR-101)", () => {
     }
   });
 
-  it("brief mode on playbook path mentions the playbook", () => {
+  it("brief on playbook path mentions the playbook id", () => {
     const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
     expect(r.plan_source).toBe("playbook");
     expect(r.summary_markdown).toContain(r.playbook!.id);
   });
 
-  it("standard mode is default (no output_depth param)", () => {
-    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
-    // standard mode includes "Model-tier profile" section
+  it("standard adds the numbered step list but withholds the technical block", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" }, registry);
+    expect(r.summary_markdown).toContain("**Steps:**");
+    expect(r.summary_markdown).not.toContain("Model-tier profile");
+  });
+
+  it("technical includes the model-tier section", () => {
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "technical" }, registry);
     expect(r.summary_markdown).toContain("Model-tier profile");
   });
 });
