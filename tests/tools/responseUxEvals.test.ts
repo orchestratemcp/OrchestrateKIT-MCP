@@ -136,4 +136,26 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
       expect(r.suggested_next_actions.length, depth).toBeGreaterThan(0);
     }
   });
+
+  // RESPONSE-UX-02 (MAR-225): bounded clarifying questions when a constraint is missing
+  it("an under-specified goal includes bounded clarifying_questions (≤3) in JSON + markdown", () => {
+    const r = planWorkflow(
+      {
+        goal: "go through my inbox and handle the sales leads automatically",
+        must_have_capabilities: [],
+        must_avoid: [],
+        output_depth: "brief",
+      },
+      registry,
+    );
+    expect(r.clarifying_questions.length).toBeGreaterThan(0);
+    expect(r.clarifying_questions.length).toBeLessThanOrEqual(3);
+    expect(r.summary_markdown).toContain("Quick checks to pin down the plan");
+  });
+
+  it("a fully-specified goal has NO clarifying_questions (no nagging)", () => {
+    // HEAVY_GOAL states trigger-agnostic write + outbound + approval explicitly
+    expect(plan("brief").clarifying_questions).toEqual([]);
+    expect(plan("brief").summary_markdown).not.toContain("Quick checks to pin down the plan");
+  });
 });
