@@ -332,6 +332,16 @@ const WEAK_RESEARCH_KEYWORDS = ["summarize", "summarise"];
 const WEAK_EMAIL_CALENDAR_KEYWORDS = ["schedule", "scheduling"];
 
 /**
+ * MAR-219: email_calendar keywords that ALSO describe a chat bot's own behaviour.
+ * "reply"/"replies"/"draft" name what a conversational agent does with a message
+ * ("posts the reply", "drafts a response in-thread"), not a mailbox action. In a
+ * chat goal they must not establish email_calendar and pull email_read/email_draft/
+ * optional_email_send into the route. Excluded from the genuine-token recheck that
+ * keeps email_calendar alive when a chat goal really is about email (see below).
+ */
+const CHAT_OVERLAPPING_EMAIL_KEYWORDS = ["reply", "replies", "draft"];
+
+/**
  * Strong, unambiguous email/calendar tokens (MAR-161). Used to tell a real
  * mailbox/calendar goal from one where an email word appears only incidentally.
  * Deliberately EXCLUDES "draft" (a content draft just as often as an email
@@ -648,6 +658,24 @@ export function classifyGoalDomains(goal: string): Set<Domain> {
     if (!strongResearch.some((kw) => goalLower.includes(kw))) {
       domains.delete("research");
     }
+  }
+
+  // MAR-219: in a chat-bot goal, "reply"/"replies"/"draft" describe the bot's own
+  // message handling ("posts the reply", "drafts a response"), not a mailbox action.
+  // They establish email_calendar and pull email_draft/email_read/optional_email_send
+  // into a conversational route (the Discord-bot dogfood bleed). Drop email_calendar
+  // when the `chat` domain is present and the goal carries no GENUINE mailbox/calendar
+  // token — the chat-overlapping words alone never prove email intent here. Scoped to
+  // chat (mirrors the MAR-127 code_agent/research pattern): a real "reply to my inbox"
+  // chat goal keeps email_calendar via the genuine "inbox" token.
+  if (domains.has("chat") && domains.has("email_calendar")) {
+    const genuineEmailCalendar = DOMAIN_KEYWORDS.email_calendar.filter(
+      (kw) => !CHAT_OVERLAPPING_EMAIL_KEYWORDS.includes(kw),
+    );
+    const hasGenuine = genuineEmailCalendar.some(
+      (kw) => goalLower.includes(kw) && !isNegatedInContext(goalLower, kw),
+    );
+    if (!hasGenuine) domains.delete("email_calendar");
   }
 
   // MAR-131: "schedule"/"scheduling" almost never names a literal calendar

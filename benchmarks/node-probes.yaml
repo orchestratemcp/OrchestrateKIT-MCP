@@ -631,8 +631,19 @@ probes:
   # platform egress, and must NEVER pull a sibling platform (no cross-platform bleed).
   - id: discord_bot_chat_trigger
     goal: "Build a Discord bot that answers questions in our support channel and posts the reply."
+    # MAR-219: "posts the reply" must NOT pull email_draft — "reply" is the bot's
+    # chat reply, not an email. email_calendar is suppressed when chat is present
+    # and no genuine mailbox/calendar token appears.
     must_have: [chat_trigger, discord_notification, human_approval_gate]
-    forbidden: [slack_notification, teams_notification, telegram_notification]
+    forbidden: [slack_notification, teams_notification, telegram_notification, email_draft, email_read, optional_email_send]
+
+  # MAR-219: a chat goal that GENUINELY wants email keeps email_draft — the genuine
+  # "inbox"/"email" tokens hold email_calendar even though chat is present. Guards
+  # against the suppression over-firing and dropping a real mailbox-bot's email path.
+  - id: chat_bot_genuine_email_keeps_draft
+    goal: "A Slack bot that reads my inbox and drafts email replies for me to approve."
+    must_have: [chat_trigger, email_read, email_draft, human_approval_gate]
+    forbidden: [discord_notification, teams_notification, telegram_notification]
 
   - id: telegram_bot_chat_trigger
     goal: "Create a Telegram bot that responds to messages from our community group."
