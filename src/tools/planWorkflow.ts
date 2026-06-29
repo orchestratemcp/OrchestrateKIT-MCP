@@ -256,10 +256,85 @@ const UNATTENDED_WAIVER_SIGNALS = [
   "fully autonomous",
 ];
 
-/** True when the goal explicitly waives a human approval gate (MAR-132). */
+/**
+ * Waiver signals whose meaning flips under a preceding negation ("not
+ * unattended", "never fully automated"). The "no …" / "without …" signals are
+ * already opt-outs and are left as-is. (MAR-229)
+ */
+const NEGATABLE_WAIVER_SIGNALS = ["unattended", "fully automated", "fully autonomous"];
+
+/**
+ * Explicit "I DO want the human gate" phrases. When any is present (and not
+ * itself negated) the user is asking for an ENFORCED gate, so it outranks any
+ * waiver phrasing — never downgrade to advisory. (MAR-229)
+ *
+ * Deliberately collision-free: phrases that appear inside waiver phrasings
+ * ("no manual approval", "no human in the loop", "no approval required") are
+ * excluded so they can't mis-fire. `\battended\b` is handled separately so it
+ * matches "attended" but not "unattended".
+ */
+const APPROVAL_REQUIRED_SIGNALS = [
+  "must approve",
+  "must be approved",
+  "must review",
+  "must be reviewed",
+  "require approval",
+  "requires approval",
+  "needs approval",
+  "need approval",
+  "require human",
+  "requires human",
+  "human must",
+  "approve before",
+  "approval before",
+  "review before",
+];
+
+/**
+ * True when `phrase` occurs in `goal` with at least one occurrence NOT preceded
+ * by a negation word. `includeNo` adds "no"/"without" to the negation set (used
+ * for approval phrases like "no approval before"; the waiver path uses only the
+ * not/never family). (MAR-229)
+ */
+function occursUnnegated(goal: string, phrase: string, includeNo: boolean): boolean {
+  const neg = includeNo
+    ? /\b(not|never|no longer|isn't|is not|aren't|won't|wont|no|without)\b\W*$/
+    : /\b(not|never|no longer|isn't|is not|aren't|won't|wont)\b\W*$/;
+  let from = 0;
+  for (;;) {
+    const idx = goal.indexOf(phrase, from);
+    if (idx < 0) return false;
+    const before = goal.slice(Math.max(0, idx - 16), idx);
+    if (!neg.test(before)) return true; // a clean, non-negated occurrence
+    from = idx + phrase.length;
+  }
+}
+
+/** True when the goal explicitly REQUIRES a human approval gate (MAR-229). */
+export function hasExplicitApprovalRequirement(goal: string): boolean {
+  const g = goal.toLowerCase();
+  // \battended\b matches standalone "attended" but NOT "unattended" (the 'un'
+  // prefix removes the leading word boundary).
+  if (/\battended\b/.test(g)) return true;
+  return APPROVAL_REQUIRED_SIGNALS.some((s) => occursUnnegated(g, s, true));
+}
+
+/**
+ * True when the goal explicitly waives a human approval gate (MAR-132, hardened
+ * in MAR-229). An explicit approval REQUIREMENT outranks any waiver phrase, and
+ * negated waiver signals ("not unattended") do not count.
+ */
 export function hasUnattendedWaiver(goal: string): boolean {
   const g = goal.toLowerCase();
-  return UNATTENDED_WAIVER_SIGNALS.some((s) => g.includes(s));
+  if (hasExplicitApprovalRequirement(g)) return false;
+  return UNATTENDED_WAIVER_SIGNALS.some((s) => {
+    if (!g.includes(s)) return false;
+    // negatable signals ("not unattended") don't count when negated
+    if (NEGATABLE_WAIVER_SIGNALS.includes(s) && !occursUnnegated(g, s, false)) {
+      return false;
+    }
+    return true;
+  });
 }
 
 /**
