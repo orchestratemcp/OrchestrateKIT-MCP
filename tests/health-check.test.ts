@@ -54,13 +54,14 @@ describe("health_check tool", () => {
   });
 
   // MAR-114: count floor regression — must never drop below post-MAR-95 baseline
-  it("registry counts meet baseline (≥51 components, ≥108 edges after MAR-120 chat domain)", () => {
+  // MAR-217: raised to ≥55 components / ≥116 edges after knowledge domain (4 components, 8 edges)
+  it("registry counts meet baseline (≥55 components, ≥116 edges after MAR-217 knowledge domain)", () => {
     const r = buildHealthCheckResult().registry;
-    expect(r.component_count, "components (regression floor: 51 after MAR-120 chat domain)").toBeGreaterThanOrEqual(51);
-    expect(r.edge_count, "edges (regression floor: 108 after MAR-120 chat edges)").toBeGreaterThanOrEqual(108);
+    expect(r.component_count, "components (regression floor: 55 after MAR-217 knowledge domain)").toBeGreaterThanOrEqual(55);
+    expect(r.edge_count, "edges (regression floor: 116 after MAR-217 knowledge edges)").toBeGreaterThanOrEqual(116);
     expect(r.stack_count, "stacks").toBeGreaterThanOrEqual(1);
     expect(r.route_count, "routes").toBeGreaterThanOrEqual(5);
-    expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(5);
+    expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(6);
   });
 
   // MAR-114: build fingerprint and stale-dist detection

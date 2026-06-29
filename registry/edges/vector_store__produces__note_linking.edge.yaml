@@ -1,0 +1,12 @@
+id: vector_store__produces__note_linking
+from: vector_store
+to: note_linking
+relation: produces_input_for
+status: published
+reason: Nearest-neighbour relationships from the vector store are the natural seed for building backlinks between related notes.
+severity: low
+notes: Apply a similarity threshold before creating a link, otherwise every note links to every other and the graph carries no signal.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: vector_store__produces__note_linking"

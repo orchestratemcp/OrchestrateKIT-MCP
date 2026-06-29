@@ -552,3 +552,96 @@ describe("edge: audit_log__recommended__chat_trigger", () => {
     expect(ids).toContain("audit_log");
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAR-217 — Knowledge / second-brain domain: knowledge_ingestion, vector_store,
+// source_attribution, note_linking. Same validation patterns as the chat block.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** produces_input_for: execution ordering for the knowledge-flow edges. */
+const MAR217_ORDER_EDGES: Array<[string, string, string, string[]]> = [
+  [
+    "user_goal_intake__produces__knowledge_ingestion",
+    "user_goal_intake",
+    "knowledge_ingestion",
+    ["knowledge_ingestion", "user_goal_intake", "vector_store"],
+  ],
+  [
+    "knowledge_ingestion__produces__vector_store",
+    "knowledge_ingestion",
+    "vector_store",
+    ["vector_store", "knowledge_ingestion"],
+  ],
+  [
+    "knowledge_ingestion__produces__schema_validation",
+    "knowledge_ingestion",
+    "schema_validation",
+    ["schema_validation", "knowledge_ingestion", "vector_store"],
+  ],
+  [
+    "vector_store__produces__source_ranking",
+    "vector_store",
+    "source_ranking",
+    ["source_ranking", "vector_store", "research_synthesis"],
+  ],
+  [
+    "vector_store__produces__note_linking",
+    "vector_store",
+    "note_linking",
+    ["note_linking", "vector_store"],
+  ],
+];
+
+for (const [edgeId, from, to, set] of MAR217_ORDER_EDGES) {
+  describe(`edge: ${edgeId}`, () => {
+    it(`computeExecutionOrder places ${from} before ${to}`, () => {
+      const ids = computeExecutionOrder(pick(set), edges).map((c) => c.id);
+      expect(ids.indexOf(from)).toBeLessThan(ids.indexOf(to));
+    });
+  });
+}
+
+/** recommended_for → audit_log: ingesting an owned corpus pulls an audit trail. */
+describe("edge: audit_log__recommended__vector_store", () => {
+  it("augmentWithSafety adds audit_log when vector_store is present", () => {
+    const result = augmentWithSafety(pick(["vector_store"]), edges, components);
+    expect(result.components.map((c) => c.id)).toContain("audit_log");
+    expect(result.added_audit).toBe(true);
+  });
+});
+
+/** recommended: a second-brain synthesis goal scores source_attribution via keyword hints
+ *  ("grounded summary" → source_attribution + research_synthesis). */
+describe("edge: research_synthesis__requires__source_attribution", () => {
+  it("composeRoute for a second-brain synthesis goal pulls in source_attribution", () => {
+    const result = composeRoute(
+      {
+        goal: "Build a second brain over my notes that synthesizes a grounded summary from the relevant notes.",
+        must_have_capabilities: [],
+        must_avoid: [],
+      },
+      registry,
+    );
+    const ids = result.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("research_synthesis");
+    expect(ids).toContain("source_attribution");
+  });
+});
+
+/** recommended_for: a query route that grounds an answer carries both the
+ *  owned-corpus attribution and the external-citation checker. */
+describe("edge: source_attribution__recommended__citation_checker", () => {
+  it("composeRoute for a knowledge-query goal contains source_attribution and citation_checker", () => {
+    const result = composeRoute(
+      {
+        goal: "An agent that answers questions from my personal knowledge base, cites the source note for each answer, and shows which note each answer came from.",
+        must_have_capabilities: [],
+        must_avoid: [],
+      },
+      registry,
+    );
+    const ids = result.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("source_attribution");
+    expect(ids).toContain("citation_checker");
+  });
+});

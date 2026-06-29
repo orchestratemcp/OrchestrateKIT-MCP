@@ -54,6 +54,10 @@ const ALWAYS_RECOMMEND_AUDIT = new Set([
   // saga_compensation executes undo calls against external systems — the compensation
   // audit trail is the only record of what was reversed and whether it succeeded.
   "saga_compensation",
+  // MAR-217: ingesting an owned corpus persists potentially-private content into a
+  // vector index. The audit trail (what was indexed, when, from where) is the record
+  // of what entered the knowledge base — log doc ids/timestamps, not embedded text.
+  "vector_store",
 ]);
 
 /**

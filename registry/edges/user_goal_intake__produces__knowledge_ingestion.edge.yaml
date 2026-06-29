@@ -1,0 +1,12 @@
+id: user_goal_intake__produces__knowledge_ingestion
+from: user_goal_intake
+to: knowledge_ingestion
+relation: produces_input_for
+status: published
+reason: The user's goal scopes which corpus to ingest (which notes/folders, what to index) before ingestion runs.
+severity: medium
+notes: Capture the corpus scope and any exclusion globs from the goal so ingestion never reaches beyond what the user intended.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: user_goal_intake__produces__knowledge_ingestion"

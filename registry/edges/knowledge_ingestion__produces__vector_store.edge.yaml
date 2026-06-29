@@ -1,0 +1,12 @@
+id: knowledge_ingestion__produces__vector_store
+from: knowledge_ingestion
+to: vector_store
+relation: produces_input_for
+status: published
+reason: Normalised chunks are the direct input to the vector store, which embeds and persists them for later similarity search.
+severity: high
+notes: Pass source metadata (doc id, path, position) with each chunk so retrieval can attribute results back to the originating note.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: knowledge_ingestion__produces__vector_store"

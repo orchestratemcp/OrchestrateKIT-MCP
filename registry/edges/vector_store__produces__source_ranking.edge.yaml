@@ -1,0 +1,12 @@
+id: vector_store__produces__source_ranking
+from: vector_store
+to: source_ranking
+relation: produces_input_for
+status: published
+reason: Similarity-search neighbours from the vector store are the candidate set that source_ranking re-orders before grounding, applying a relevance floor.
+severity: high
+notes: Carry the similarity score through so ranking can combine it with recency/authority rather than trusting raw vector distance alone.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: vector_store__produces__source_ranking"

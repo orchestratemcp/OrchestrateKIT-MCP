@@ -1,0 +1,121 @@
+id: second_brain_assistant
+version: 0.1.0
+status: candidate
+title: Second Brain Assistant (Knowledge-Base Query + Attribution)
+summary: >
+  Blueprint for an agent that answers questions from an owned corpus of notes,
+  documents, or project history — the "personal knowledge base" pattern. The
+  defining concerns are SCOPE (the index must be built from owned content only,
+  never public web crawls) and ATTRIBUTION (every answer span must be tied to
+  a source note so the user can verify and trust the output). Candidate
+  blueprint: not yet promoted from logged sessions, but the component chain and
+  edges are tested (MAR-217).
+workflow_type: knowledge
+risk_level: low
+golden_path_route_id: second_brain_route_v1
+stack_id: default_orchestratekit_stack
+
+components:
+  - user_goal_intake
+  - knowledge_ingestion
+  - schema_validation
+  - vector_store
+  - source_ranking
+  - research_synthesis
+  - source_attribution
+  - note_linking
+  - audit_log
+
+edges:
+  - user_goal_intake__produces__knowledge_ingestion
+  - knowledge_ingestion__produces__vector_store
+  - knowledge_ingestion__produces__schema_validation
+  - vector_store__produces__source_ranking
+  - vector_store__produces__note_linking
+  - research_synthesis__requires__source_attribution
+  - source_attribution__recommended__citation_checker
+  - audit_log__recommended__vector_store
+
+best_for:
+  - a personal notes assistant (Obsidian / Notion / markdown vault) that answers questions from the vault
+  - a project-brain agent that synthesises decisions, context and history across a codebase or wiki
+  - a knowledge-management assistant that surfaces backlinks and related notes alongside the answer
+
+avoid_when:
+  - ingesting content from public URLs or third-party sites (use the research domain instead)
+  - storing credentials, API keys or personal data in the indexed corpus
+  - a fully public endpoint that any internet user can query (the corpus is private; scope access)
+
+recommended_architecture:
+  pattern: Goal intake → ingest + validate → embed → rank → synthesise → attribute → audit
+  why: >
+    The pipeline splits cleanly into an INGEST path (one-time or incremental, L1 clearance)
+    and a QUERY path (L0 read-only). The vector_store is the boundary between them: ingest
+    writes embeddings, queries only read. source_attribution is non-optional on the query
+    path — without it the model can confabulate from vague "context" rather than a named
+    note, and the user has no way to verify the answer. The audit log records what was
+    indexed and when (doc ids + timestamps, never embedded text) so a private corpus
+    remains auditable without re-exposing sensitive content.
+
+llm_driven_steps:
+  - research_synthesis
+  - source_attribution
+
+deterministic_steps:
+  - user_goal_intake
+  - knowledge_ingestion
+  - schema_validation
+  - vector_store
+  - source_ranking
+  - note_linking
+  - audit_log
+
+guardrails:
+  - Scope the vector index to the OWNED corpus only — never ingest public URLs or third-party content into the personal knowledge base
+  - Strip secrets, credentials and env values before chunking; do not embed raw .env or config files
+  - Enforce a minimum similarity score on retrieved chunks to avoid returning low-relevance neighbours that mislead the model
+  - Pin the embedding model version — model drift makes old and new vectors incomparable; re-embed the full corpus on upgrade
+  - The audit log records doc ids, timestamps and chunk counts — never the embedded text itself, which may contain PII
+  - "Source attribution is mandatory: every answer span must be tied to a source note; flag any span with no supporting source rather than silently surfacing an ungrounded claim"
+  - Keep the query endpoint private; the corpus is personal and may contain sensitive notes — do not expose it to anonymous internet callers
+
+failure_modes:
+  - Index contains embedded secrets because the ingest pipeline did not strip .env files or config before chunking
+  - "Hallucination: the model synthesises a plausible answer from distant neighbours whose similarity score is below the relevance threshold"
+  - Embedding model drift makes old chunks incomparable to new queries, degrading recall after a model upgrade
+  - Stale index is served after the source notes changed because there is no incremental re-ingest or invalidation strategy
+  - Source attribution is absent or generic (just "my notes"), leaving the user with no way to verify the answer
+  - The owned corpus grows to include third-party content (Pocket saves, web clips) that blurs the boundary with the public web
+
+evals:
+  - retrieval recall@k — does the relevant chunk appear in the top-k neighbours for a labelled query set?
+  - similarity-score compliance — are low-relevance neighbours suppressed at the configured threshold?
+  - attribution completeness — does every answer span map to a named source note?
+  - hallucination rate — human evaluation of ungrounded spans on a fixed test-question set
+  - re-embed consistency — after a model upgrade, do the same queries return the same top chunks?
+  - index cleanliness — no secrets found in embedded text (static scan of chunk content before upsert)
+
+implementation_steps:
+  - "Step 1: Decide INGEST scope — which files, folders or vault paths constitute 'owned content.' Set explicit inclusion rules so web clips and third-party files are never accidentally indexed."
+  - "Step 2: Run a pre-ingest secret scan (e.g. truffleHog / gitleaks) over the corpus. Redact or exclude files with credentials before chunking."
+  - "Step 3: knowledge_ingestion — load, chunk (e.g. 512-token overlapping windows) and normalise the corpus. schema_validation guards chunk shape before upsert."
+  - "Step 4: Embed chunks with a pinned embedding model (text-embedding-3-small is a good default). Upsert to vector_store (pgvector / Pinecone / Chroma / LanceDB). Record doc ids + timestamps in audit_log — not the text."
+  - "Step 5: On query, embed the user question with the same pinned model. Retrieve top-k neighbours from vector_store. Apply a minimum similarity score (e.g. 0.70 cosine) to suppress low-relevance chunks."
+  - "Step 6: source_ranking re-orders candidates by recency + relevance. research_synthesis (frontier model) synthesises a grounded answer from the ranked chunks."
+  - "Step 7: source_attribution maps each answer span to its source note. Flag any ungrounded span explicitly — do not surface it as a confident claim."
+  - "Step 8: Optionally run note_linking to surface backlinks and related notes alongside the answer, giving the user a navigation path to explore the topic further."
+  - "Step 9: Set up an incremental re-ingest trigger (webhook on file save, or nightly scheduled job) so the index stays fresh as notes change."
+
+sources:
+  - title: pgvector — open-source vector similarity search for Postgres
+    url: https://github.com/pgvector/pgvector
+    source_type: official_docs
+    last_checked: "2026-06-29"
+  - title: Pinecone — vector database for production ML
+    url: https://docs.pinecone.io/
+    source_type: official_docs
+    last_checked: "2026-06-29"
+  - title: LanceDB — serverless, embedded vector database
+    url: https://lancedb.github.io/lancedb/
+    source_type: official_docs
+    last_checked: "2026-06-29"

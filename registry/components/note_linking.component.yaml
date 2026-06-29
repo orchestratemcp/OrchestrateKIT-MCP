@@ -1,0 +1,42 @@
+id: note_linking
+name: Note Linking
+status: published
+category: processing
+summary: Builds bidirectional links (backlinks) between knowledge notes so related ideas connect into a navigable graph.
+capabilities:
+  - detect_related_notes
+  - build_backlinks
+  - emit_link_graph
+inputs:
+  - ingested or retrieved notes with ids and content
+outputs:
+  - link edges between notes (source id, target id, relation) for a backlink graph
+risk_level: low
+side_effects:
+  - writes link metadata back to the note store when persistence is enabled
+permissions:
+  read:
+    - note content and ids
+  write:
+    - link metadata on owned notes
+  approval_required_for: []
+requires: []
+recommended_with:
+  - vector_store
+  - state_store
+avoid_with: []
+failure_modes:
+  - over-linking creates a dense graph with no signal (everything links to everything)
+  - link direction inverted, breaking backlink navigation
+  - links to stale note ids after a note is deleted or renamed
+evals:
+  - link precision against a labelled related-notes set
+  - dangling-link rate after simulated note deletion
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: moderate
+compression_strategy: none

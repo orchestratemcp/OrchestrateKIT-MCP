@@ -888,6 +888,26 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
     ],
   },
 
+  // MAR-217: knowledge / second-brain components
+  vector_store: {
+    label: "Vector database — semantic index for owned corpus",
+    product_examples: ["pgvector (Supabase / Postgres)", "Pinecone", "Chroma", "LanceDB"],
+    auth_model: "API key or connection string (service-specific)",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "No standard MCP for vector stores as of mid-2025; use provider SDKs (supabase-js, @pinecone-database/pinecone, chromadb, lancedb) directly",
+    },
+    required_scopes: ["index:read", "index:write"],
+    gotchas: [
+      "SECURITY: notes may contain credentials, tokens, or PII — scope the index to the owned corpus, strip secrets before embedding, never index raw environment files",
+      "Embedding model drift makes old and new vectors incomparable: pin the embedding model version and re-embed when upgrading",
+      "Similarity search returns confident neighbours even when no good match exists — enforce a minimum similarity score to avoid hallucination-enabling low-quality results",
+      "pgvector on Supabase: enable the pgvector extension in the Supabase dashboard; use HNSW index (not IVFFlat) for production recall",
+      "Pinecone free tier has 1 index limit; serverless tier bills per read/write unit — monitor usage before indexing large corpora",
+    ],
+  },
+
   source_retrieval: {
     label: "Search / research API",
     product_examples: ["Perplexity", "Exa", "Brave Search"],

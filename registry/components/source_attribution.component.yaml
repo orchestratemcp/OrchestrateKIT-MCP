@@ -1,0 +1,41 @@
+id: source_attribution
+name: Source Attribution
+status: published
+category: eval
+summary: Maps each span of a grounded answer back to the retrieved knowledge chunk it came from and flags any span with no supporting source.
+capabilities:
+  - attribute_answer_to_chunks
+  - flag_unsupported_spans
+  - emit_provenance_map
+inputs:
+  - grounded answer text
+  - the retrieved chunks used to produce it (with source metadata)
+outputs:
+  - per-span provenance map (chunk id + source) plus a list of unsupported spans
+risk_level: low
+side_effects: []
+permissions:
+  read:
+    - answer text and retrieved chunk content
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - research_synthesis
+  - citation_checker
+avoid_with: []
+failure_modes:
+  - attributes a span to a coincidentally-similar chunk that did not inform it
+  - misses an unsupported span the model asserted from prior training, not the corpus
+  - over-flags paraphrase as unsupported when wording diverges from the source
+evals:
+  - attribution precision on labelled answer/chunk pairs
+  - unsupported-span recall on fixtures with planted ungrounded claims
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: moderate
+compression_strategy: none
