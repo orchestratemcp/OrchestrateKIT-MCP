@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SERVER_NAME, SERVER_VERSION } from "../config.js";
+import { SERVER_NAME, SERVER_VERSION, MIN_COMPONENTS, MIN_EDGES } from "../config.js";
 import { getRegistryStatus, getRegistryBuild } from "../registry/registryProvider.js";
 import type { RegistryBuild } from "../registry/buildInfoTypes.js";
 import { toErrorResult } from "../lib/errors.js";
@@ -42,25 +42,67 @@ export type HealthCheckResult = {
   version: string;
   registry: RegistrySummary;
   build: RegistryBuild;
+  /**
+   * MAR-220 release-trust gate: true when the running build is fresh and the
+   * registry meets the published count floor — i.e. safe to show off live. When
+   * false, `demo_blockers` lists exactly why.
+   */
+  safe_to_demo: boolean;
+  /** Human-readable reasons safe_to_demo is false. Empty when safe. */
+  demo_blockers: string[];
 };
+
+/**
+ * Aggregate the release-trust signals (MAR-220). Combines the count floor
+ * (MIN_COMPONENTS/MIN_EDGES), every-edge-tested, dist staleness (MAR-114),
+ * and process staleness (MAR-141) into a single safe-to-demo verdict.
+ */
+export function computeDemoBlockers(
+  registry: RegistrySummary,
+  build: RegistryBuild,
+): string[] {
+  const blockers: string[] = [];
+  if (registry.component_count < MIN_COMPONENTS) {
+    blockers.push(
+      `component_count ${registry.component_count} below floor ${MIN_COMPONENTS}`,
+    );
+  }
+  if (registry.edge_count < MIN_EDGES) {
+    blockers.push(`edge_count ${registry.edge_count} below floor ${MIN_EDGES}`);
+  }
+  if (registry.untested_edge_pct > 0) {
+    blockers.push(`${registry.untested_edge_pct}% of edges are untested`);
+  }
+  if (build.stale) {
+    blockers.push("build is stale vs source — run `pnpm build` / `pnpm deploy:worker`");
+  }
+  if (build.process_stale) {
+    blockers.push("running process is older than the build — restart + reconnect");
+  }
+  return blockers;
+}
 
 export function buildHealthCheckResult(): HealthCheckResult {
   const status = getRegistryStatus();
   const build = getRegistryBuild();
+  const registry: RegistrySummary = {
+    component_count: status.component_count,
+    edge_count: status.edge_count,
+    stack_count: status.stack_count,
+    route_count: status.route_count,
+    playbook_count: status.playbook_count,
+    worker_count: status.worker_count,
+    untested_edge_pct: status.untested_edge_pct,
+    stale_component_count: status.stale_component_count,
+  };
+  const demo_blockers = computeDemoBlockers(registry, build);
   return {
     name: SERVER_NAME,
     version: SERVER_VERSION,
-    registry: {
-      component_count: status.component_count,
-      edge_count: status.edge_count,
-      stack_count: status.stack_count,
-      route_count: status.route_count,
-      playbook_count: status.playbook_count,
-      worker_count: status.worker_count,
-      untested_edge_pct: status.untested_edge_pct,
-      stale_component_count: status.stale_component_count,
-    },
+    registry,
     build,
+    safe_to_demo: demo_blockers.length === 0,
+    demo_blockers,
   };
 }
 
@@ -88,7 +130,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Health Check",
       description:
-        "Returns the server name, version, a summary of loaded registry entities (components, edges, stacks, routes, playbooks), and a build fingerprint. The `build.stale` field is true when the dist/ registry is outdated vs the source — run `pnpm build` to fix. Use this to confirm the MCP server is running and the registry is fresh.",
+        "Returns the server name, version, a summary of loaded registry entities (components, edges, stacks, routes, playbooks), and a build fingerprint. The `build.stale` field is true when the dist/ registry is outdated vs the source — run `pnpm build` to fix. The `safe_to_demo` field is true only when the build is fresh and the registry meets the published count floor; `demo_blockers` lists any reasons it is not. Use this to confirm the MCP server is running and the registry is fresh.",
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => {

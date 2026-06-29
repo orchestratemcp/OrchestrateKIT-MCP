@@ -17,7 +17,8 @@
     "probe": "tsx scripts/node-probes.ts",
     "demo": "tsx scripts/smoke-demo.ts",
     "smoke": "vitest run tests/smoke",
-    "verify": "pnpm typecheck && pnpm registry:lint && pnpm test"
+    "release:check": "tsx scripts/check-release-trust.ts",
+    "verify": "pnpm gen:registry && pnpm typecheck && pnpm registry:lint && pnpm test && pnpm release:check"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

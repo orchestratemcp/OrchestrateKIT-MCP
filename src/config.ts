@@ -2,6 +2,14 @@ export const SERVER_NAME = "orchestratekit-mcp";
 export const SERVER_VERSION = "0.1.0";
 
 /**
+ * Release-trust count floors (MAR-220). `health_check.safe_to_demo` reports
+ * false — and the health-check regression test fails — if the live registry
+ * drops below these. Raised to 55/116 after the MAR-217 knowledge domain.
+ */
+export const MIN_COMPONENTS = 55;
+export const MIN_EDGES = 116;
+
+/**
  * MAR-99: server-level instructions sent to AI clients on connect.
  *
  * Guides the client on which tool to call first and how to use the suite.
