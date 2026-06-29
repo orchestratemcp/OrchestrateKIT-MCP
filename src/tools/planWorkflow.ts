@@ -352,6 +352,17 @@ export function hasUnattendedWaiver(goal: string): boolean {
  *
  * All three are checkable against the registry; none are LLM-generated.
  */
+/**
+ * MAR-225: one bounded, multiple-choice clarifying question. `options` always
+ * ends with a "Not sure yet" choice. The reading agent presents these to the
+ * user and folds the answers into a re-call's goal — the MCP is stateless.
+ */
+export type ClarifyingQuestion = {
+  id: "run_trigger" | "write_permission" | "outbound_send";
+  question: string;
+  options: string[];
+};
+
 export type ProvenanceTag = "grounded" | "computed" | "advisory";
 
 export type ProvenanceModel = {
@@ -425,6 +436,15 @@ export type PlanWorkflowOutput = {
    * Adapts to build_target if provided; offers all options if omitted.
    */
   suggested_next_actions: string[];
+  /**
+   * Bounded multiple-choice clarifying questions (MAR-225). Up to 3, returned
+   * ONLY when the goal omits an architecture-affecting constraint (run trigger /
+   * write-permission / outbound-send) that the route makes relevant. Each is
+   * multiple-choice with a "Not sure yet" option. Stateless: the MCP stores
+   * nothing — the client collects answers and folds them into a re-call's goal.
+   * Empty when the goal already states its constraints (no nagging).
+   */
+  clarifying_questions: ClarifyingQuestion[];
   /**
    * Advisory multi-worker BUILD pipeline (MAR-166): the specialist workers
    * (planner → coder → reviewer → tester) recommended to implement this plan in
@@ -1082,6 +1102,137 @@ function buildSuggestedNextActions(
   return actions;
 }
 
+// ─────────────────────────── MAR-225: clarifying questions ───────────────────
+
+/** Outbound external-send components (post/publish/message to people). */
+const OUTBOUND_SEND_COMPONENTS = new Set([
+  "external_publish",
+  "optional_email_send",
+  "slack_notification",
+  "discord_notification",
+  "teams_notification",
+  "telegram_notification",
+  "reviewer_notification",
+]);
+
+/** Goal phrases that STATE write intent (so we don't ask the write question). */
+const WRITE_INTENT_SIGNALS = [
+  "write", "update", "edit", "modif", "change", "post ", "send", "creat",
+  "delete", "remov", "publish", "save", "insert", "draft", "reply", "repli",
+  "notif", "alert", "commit", "merge", "deploy", "upsert", "sync",
+];
+const READONLY_SIGNALS = [
+  "read-only", "read only", "don't write", "do not write", "never write",
+  "no writes", "without writing", "only read", "just read", "report only",
+  "read and report", "read-and-report", "summari", "analyse only", "analyze only",
+];
+
+/** Goal phrases that STATE outbound intent / draft-only (skip the send question). */
+const OUTBOUND_SIGNALS = [
+  "send", "email", "e-mail", "post ", "publish", "notif", "alert", "slack",
+  "discord", "teams", "telegram", "message", "externally", "outbound", "tweet",
+];
+const DRAFT_INTENT_SIGNALS = [
+  "draft", "don't send", "do not send", "without sending", "for review",
+  "for my approval", "prepare", "internal only", "internal-only",
+  "for me to send", "i'll send", "i will send", "review before",
+];
+
+/** Goal phrases that imply the workflow should run automatically/recurringly. */
+const AUTOMATION_INTENT_SIGNALS = [
+  "automatic", "automate", "autonomous", "ongoing", "continuous", "recurring",
+  "every time", "whenever", "monitor", "watch for", "on a schedule", "scheduled",
+  "periodically", "unattended", "hands-off", "hands off", "keep it running",
+];
+/** Goal phrases that already NAME a concrete trigger (skip the trigger question). */
+const TRIGGER_SPECIFIED_SIGNALS = [
+  "hourly", "daily", "weekly", "nightly", "every hour", "every day",
+  "each morning", "each day", "cron", "webhook", "on push", "pull request",
+  "when an email", "when a new", "on receiving", "on receipt", "manually",
+  "on demand", "i run", "button", "in chat", "mention", "arrives", "is received",
+  "incoming",
+];
+
+function anySignal(goal: string, signals: string[]): boolean {
+  return signals.some((s) => goal.includes(s));
+}
+
+/**
+ * MAR-225: bounded multiple-choice clarifying questions. Returns at most 3,
+ * each only when the route makes the axis relevant AND the goal has NOT already
+ * stated that constraint — so it never nags a fully-specified goal. Stateless
+ * and vocabulary-neutral (never steers "magic" trigger words); each question is
+ * a real architecture fork that changes the route / safety / clearance.
+ */
+export function buildClarifyingQuestions(
+  goal: string,
+  routeComponentIds: string[],
+): ClarifyingQuestion[] {
+  const g = goal.toLowerCase();
+  const questions: ClarifyingQuestion[] = [];
+
+  // 1. Run trigger — they want automation but didn't say what fires it, and no
+  //    trigger component is in the route.
+  const hasTriggerComponent = routeComponentIds.some((id) => id.endsWith("_trigger"));
+  if (
+    anySignal(g, AUTOMATION_INTENT_SIGNALS) &&
+    !anySignal(g, TRIGGER_SPECIFIED_SIGNALS) &&
+    !hasTriggerComponent
+  ) {
+    questions.push({
+      id: "run_trigger",
+      question: "How should this workflow start each time?",
+      options: ["On a schedule", "On an event / webhook", "Manually, when I run it", "Not sure yet"],
+    });
+  }
+
+  // 2. Write-permission — the route makes changes but the goal never authorised
+  //    writes (no write verb) and didn't say read-only.
+  const hasWrite = routeComponentIds.some((id) => ALWAYS_REQUIRES_GATE.has(id));
+  if (
+    hasWrite &&
+    !anySignal(g, WRITE_INTENT_SIGNALS) &&
+    !anySignal(g, READONLY_SIGNALS)
+  ) {
+    questions.push({
+      id: "write_permission",
+      question: "Should it be able to make changes (write / update / create), or read-and-report only?",
+      options: ["Read & report only", "Write/update — with my approval", "Write/update automatically", "Not sure yet"],
+    });
+  }
+
+  // 3. Outbound-send — the route sends/posts externally but the goal never asked
+  //    for an external send and didn't say draft/internal-only.
+  const hasOutbound = routeComponentIds.some((id) => OUTBOUND_SEND_COMPONENTS.has(id));
+  if (
+    hasOutbound &&
+    !anySignal(g, OUTBOUND_SIGNALS) &&
+    !anySignal(g, DRAFT_INTENT_SIGNALS)
+  ) {
+    questions.push({
+      id: "outbound_send",
+      question: "May it send or post things externally, or only prepare drafts for you?",
+      options: ["Send / post externally — with approval", "Prepare drafts only — I'll send", "Keep everything internal", "Not sure yet"],
+    });
+  }
+
+  return questions.slice(0, 3);
+}
+
+/**
+ * MAR-225: compact, brevity-safe render of clarifying questions (bullets only;
+ * the call site supplies the heading). Each line is one question + its inline
+ * options, kept short so Layer-1 stays under the brevity bound.
+ */
+function renderClarifyingQuestions(questions: ClarifyingQuestion[]): string[] {
+  const lines: string[] = [];
+  for (const q of questions) {
+    lines.push(`- ${q.question} — ${q.options.join(" · ")}`);
+  }
+  if (lines.length > 0) lines.push(``);
+  return lines;
+}
+
 /**
  * MAR-101: scannable front-matter status block prepended to every
  * `summary_markdown`, regardless of `output_depth`. It surfaces the four facts
@@ -1184,6 +1335,7 @@ function buildGuidedPlanMarkdown(
   clearance: AutomationClearance,
   whatYouNeed: IntegrationNeed[],
   suggestedNextActions: string[],
+  clarifyingQuestions: ClarifyingQuestion[],
   /**
    * MAR-224: when true (`standard` depth) the recommended route is rendered as a
    * full numbered step list with per-step risk instead of the one-line chain —
@@ -1256,6 +1408,13 @@ function buildGuidedPlanMarkdown(
     : "human in the loop by default";
   lines.push(`**Autonomy:** ${clearance.level} — ${autoText}.`, ``);
 
+  // MAR-225: bounded clarifying questions (only when an architecture-affecting
+  // constraint is missing) — placed before the next-action menu.
+  if (clarifyingQuestions.length > 0) {
+    lines.push(`**Quick checks to pin down the plan** (pick one each, or "Not sure yet"):`);
+    lines.push(...renderClarifyingQuestions(clarifyingQuestions));
+  }
+
   // (5) next-action menu (RESPONSE-UX-03)
   if (suggestedNextActions.length > 0) {
     lines.push(`**Next — pick one:**`);
@@ -1289,6 +1448,7 @@ function buildPlanMarkdown(
   designNotes: string[],
   whatYouNeed: IntegrationNeed[],
   suggestedNextActions: string[],
+  clarifyingQuestions: ClarifyingQuestion[],
 ): string {
   const lines: string[] = [];
 
@@ -1483,6 +1643,12 @@ function buildPlanMarkdown(
     lines.push(``);
   }
 
+  // MAR-225: bounded clarifying questions (architecture-affecting only).
+  if (clarifyingQuestions.length > 0) {
+    lines.push(`### Quick checks to pin down the plan`, ``);
+    lines.push(...renderClarifyingQuestions(clarifyingQuestions));
+  }
+
   // MAR-208: "Suggested next actions" — target-aware, prevents dead-ending.
   if (suggestedNextActions.length > 0) {
     lines.push(`### Suggested next actions`, ``);
@@ -1543,6 +1709,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       design_notes: "grounded",     // edge control_flow_note + component pattern
       what_you_need: "computed",    // derived from component permission scopes
       suggested_next_actions: "advisory",
+      clarifying_questions: "advisory", // MAR-225: bounded constraint questions
       next_steps: "advisory",
     },
     grounding_note:
@@ -1733,6 +1900,9 @@ export function planWorkflow(
     what_you_need,
   );
 
+  // ── MAR-225: bounded clarifying questions for missing architecture constraints ──
+  const clarifying_questions = buildClarifyingQuestions(input.goal, routeComponentIds);
+
   // ── Step 6: fused markdown ──
   // MAR-101: every depth leads with the same scannable status front-matter so
   // route_status / safety / blocking / approval / untested-edge count are
@@ -1761,6 +1931,7 @@ export function planWorkflow(
       automation_clearance,
       what_you_need,
       suggested_next_actions,
+      clarifying_questions,
       outputDepth === "standard", // fullSteps: standard is the superset layer
     );
   } else {
@@ -1780,6 +1951,7 @@ export function planWorkflow(
       design_notes,
       what_you_need,
       suggested_next_actions,
+      clarifying_questions,
     );
   }
   const summary_markdown = `${statusHeader}\n\n${body}`;
@@ -1807,6 +1979,7 @@ export function planWorkflow(
     design_notes,
     what_you_need,
     suggested_next_actions,
+    clarifying_questions,
     worker_pipeline,
     loop_guidance,
     automation_clearance,

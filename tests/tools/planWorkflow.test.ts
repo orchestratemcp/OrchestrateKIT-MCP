@@ -12,6 +12,7 @@ import {
   buildNeedsGoalResult,
   hasUnattendedWaiver,
   hasExplicitApprovalRequirement,
+  buildClarifyingQuestions,
 } from "../../src/tools/planWorkflow.js";
 import { loadRegistry } from "../../src/registry/registryLoader.js";
 
@@ -417,6 +418,74 @@ describe("planWorkflow — MAR-229 explicit-approval is not a waiver", () => {
   it("does not false-flag 'no human in the loop' as an approval requirement", () => {
     expect(hasExplicitApprovalRequirement("runs unattended, no human in the loop")).toBe(false);
     expect(hasUnattendedWaiver("runs unattended, no human in the loop")).toBe(true);
+  });
+});
+
+// MAR-225: bounded multiple-choice clarifying questions for missing
+// architecture-affecting constraints (run trigger / write-permission / outbound).
+describe("planWorkflow — MAR-225 clarifying questions", () => {
+  it("buildClarifyingQuestions: vague goal + write+outbound route asks all 3, each with a 'Not sure yet' option", () => {
+    const qs = buildClarifyingQuestions(
+      "go through my inbox and handle the leads automatically",
+      ["email_read", "crm_note_write", "slack_notification"],
+    );
+    expect(qs.map((q) => q.id).sort()).toEqual(["outbound_send", "run_trigger", "write_permission"]);
+    expect(qs.length).toBeLessThanOrEqual(3);
+    for (const q of qs) {
+      expect(q.options.length).toBeGreaterThanOrEqual(2);
+      expect(q.options[q.options.length - 1].toLowerCase()).toContain("not sure");
+    }
+  });
+
+  it("buildClarifyingQuestions: a fully-specified goal asks nothing (no nagging)", () => {
+    const qs = buildClarifyingQuestions(
+      "on a daily schedule, update the CRM and post a summary to slack",
+      ["scheduled_trigger", "crm_note_write", "slack_notification"],
+    );
+    expect(qs).toEqual([]);
+  });
+
+  it("buildClarifyingQuestions: read-only statement suppresses the write question", () => {
+    const qs = buildClarifyingQuestions(
+      "read the records and give me a summary, read-only, no changes",
+      ["crm_note_write"],
+    );
+    expect(qs.map((q) => q.id)).not.toContain("write_permission");
+  });
+
+  it("buildClarifyingQuestions: a named trigger suppresses the trigger question", () => {
+    const qs = buildClarifyingQuestions(
+      "every hour, automatically check the page",
+      ["page_monitor"],
+    );
+    expect(qs.map((q) => q.id)).not.toContain("run_trigger");
+  });
+
+  it("a fully-specified goal yields empty clarifying_questions on the real plan", () => {
+    const r = plan(
+      "Read new leads from my email inbox, draft a reply, update the CRM, notify Slack — a human must approve before anything is sent externally.",
+    );
+    expect(r.clarifying_questions).toEqual([]);
+  });
+
+  it("an under-specified goal yields ≤3 questions and surfaces them in the markdown", () => {
+    const r = plan("go through my inbox and handle the sales leads automatically");
+    expect(r.clarifying_questions.length).toBeGreaterThan(0);
+    expect(r.clarifying_questions.length).toBeLessThanOrEqual(3);
+    // each question appears in the Layer-1 markdown
+    for (const q of r.clarifying_questions) {
+      expect(r.summary_markdown).toContain(q.question);
+    }
+    expect(r.summary_markdown).toContain("Quick checks to pin down the plan");
+  });
+
+  it("clarifying_questions is stateless structured data (id/question/options)", () => {
+    const r = plan("go through my inbox and handle the sales leads automatically");
+    for (const q of r.clarifying_questions) {
+      expect(typeof q.id).toBe("string");
+      expect(typeof q.question).toBe("string");
+      expect(Array.isArray(q.options)).toBe(true);
+    }
   });
 });
 

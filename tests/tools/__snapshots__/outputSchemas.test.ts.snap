@@ -172,6 +172,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     ],
   },
   "avoid_when_violations": [],
+  "clarifying_questions": [],
   "confidence_label": "high",
   "credential_advisory": {
     "components_requiring_credentials": [],
@@ -248,6 +249,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "approval_gate_advisory": "advisory",
       "automation_clearance": "computed",
       "avoid_when_violations": "computed",
+      "clarifying_questions": "advisory",
       "confidence_label": "computed",
       "credential_advisory": "computed",
       "design_notes": "grounded",
@@ -590,6 +592,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     ],
   },
   "avoid_when_violations": [],
+  "clarifying_questions": [],
   "confidence_label": "medium",
   "credential_advisory": {
     "components_requiring_credentials": [
@@ -690,6 +693,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "approval_gate_advisory": "advisory",
       "automation_clearance": "computed",
       "avoid_when_violations": "computed",
+      "clarifying_questions": "advisory",
       "confidence_label": "computed",
       "credential_advisory": "computed",
       "design_notes": "grounded",
@@ -1216,6 +1220,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     ],
   },
   "avoid_when_violations": [],
+  "clarifying_questions": [],
   "confidence_label": "high",
   "credential_advisory": {
     "components_requiring_credentials": [],
@@ -1292,6 +1297,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "approval_gate_advisory": "advisory",
       "automation_clearance": "computed",
       "avoid_when_violations": "computed",
+      "clarifying_questions": "advisory",
       "confidence_label": "computed",
       "credential_advisory": "computed",
       "design_notes": "grounded",

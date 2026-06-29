@@ -104,6 +104,18 @@ export const PlanWorkflowOutputShape = z
       .optional(),
     // target-aware next steps — prevents post-plan dead-ending (MAR-208)
     suggested_next_actions: z.array(z.string()).optional(),
+    // bounded multiple-choice clarifying questions (MAR-225)
+    clarifying_questions: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            question: z.string(),
+            options: z.array(z.string()),
+          })
+          .passthrough(),
+      )
+      .optional(),
     // provenance model — grounded / computed / advisory tags per field (MAR-206)
     provenance: z
       .object({
