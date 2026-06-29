@@ -10,6 +10,8 @@ import {
   planWorkflow,
   assessGoalInput,
   buildNeedsGoalResult,
+  hasUnattendedWaiver,
+  hasExplicitApprovalRequirement,
 } from "../../src/tools/planWorkflow.js";
 import { loadRegistry } from "../../src/registry/registryLoader.js";
 
@@ -359,6 +361,62 @@ describe("planWorkflow — MAR-132 unattended / no-gate handling", () => {
     expect(r.recommended_route.map((s) => s.component_id)).toContain("human_approval_gate");
     expect(r.enforced_approval_gates).toEqual(["human_approval_gate"]);
     expect(r.approval_gate_advisory).toBeNull();
+  });
+});
+
+// MAR-229: an explicit approval REQUIREMENT (or a negated "unattended") must NOT
+// be misread as a waiver — the gate must stay ENFORCED. Inverse of MAR-132.
+describe("planWorkflow — MAR-229 explicit-approval is not a waiver", () => {
+  it("the live repro: 'must approve … (attended, not unattended)' ENFORCES the gate", () => {
+    const r = plan(
+      "Read new leads from my email inbox, draft a reply, update the CRM, and post a notice " +
+        "to our Slack sales channel — but a human must approve before anything is sent or " +
+        "posted externally (attended, not unattended).",
+    );
+    const ids = r.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("human_approval_gate");
+    expect(r.enforced_approval_gates).toEqual(["human_approval_gate"]);
+    expect(r.approval_gate_advisory).toBeNull();
+  });
+
+  it("'never run unattended — a human must approve' ENFORCES the gate", () => {
+    const r = plan(
+      "post updates to our Slack channel; never run unattended — a human must approve every send",
+    );
+    expect(r.enforced_approval_gates).toEqual(["human_approval_gate"]);
+    expect(r.approval_gate_advisory).toBeNull();
+  });
+
+  it("over-fire guard: a genuine waiver still downgrades to advisory (MAR-132 preserved)", () => {
+    const r = plan(
+      "onboard a new hire: send a welcome email and create a calendar reminder; fully automated, no approval gate needed",
+    );
+    expect(r.enforced_approval_gates).toEqual([]);
+    expect(r.approval_gate_advisory).not.toBeNull();
+  });
+
+  it("hasUnattendedWaiver / hasExplicitApprovalRequirement classify the phrase table", () => {
+    // [goal, expectedWaiver, expectedExplicitApprovalRequirement]
+    const cases: [string, boolean, boolean][] = [
+      ["a human must approve before sending (attended, not unattended)", false, true],
+      ["never run unattended — a human must approve every send", false, true],
+      ["draft replies but require approval before sending", false, true],
+      // non-waiver via NEGATION only — no explicit requirement phrase
+      ["not fully automated — keep a human reviewing", false, false],
+      ["run this fully unattended, no human approval needed", true, false],
+      ["post to Slack automatically, no gate, fully automated", true, false],
+      ["leave it unattended overnight", true, false],
+      ["onboard a hire; fully automated, no approval gate needed", true, false],
+    ];
+    for (const [goal, expectedWaiver, expectedReq] of cases) {
+      expect(hasUnattendedWaiver(goal), `waiver: ${goal}`).toBe(expectedWaiver);
+      expect(hasExplicitApprovalRequirement(goal), `reqApproval: ${goal}`).toBe(expectedReq);
+    }
+  });
+
+  it("does not false-flag 'no human in the loop' as an approval requirement", () => {
+    expect(hasExplicitApprovalRequirement("runs unattended, no human in the loop")).toBe(false);
+    expect(hasUnattendedWaiver("runs unattended, no human in the loop")).toBe(true);
   });
 });
 
