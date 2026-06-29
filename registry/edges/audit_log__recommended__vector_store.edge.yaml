@@ -1,0 +1,12 @@
+id: audit_log__recommended__vector_store
+from: audit_log
+to: vector_store
+relation: recommended_for
+status: published
+reason: Ingesting an owned corpus is a write into a persistent index that may hold private content; keep an audit trail of what was indexed, when, and from where.
+severity: medium
+notes: Log document ids and ingestion timestamps, not the embedded content itself, to avoid duplicating sensitive text into the audit log.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__vector_store"

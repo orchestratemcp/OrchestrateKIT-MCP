@@ -5,9 +5,9 @@
 import type { RegistryBundle } from "./registryBundleTypes.js";
 
 export const BUNDLE: RegistryBundle = {
-  "generated_at": "2026-06-27T09:58:59.885Z",
-  "fingerprint": "63665bdcce889439",
-  "newest_mtime": "2026-06-27T09:40:29.102Z",
+  "generated_at": "2026-06-29T11:49:15.392Z",
+  "fingerprint": "82f41153400039a3",
+  "newest_mtime": "2026-06-29T11:49:06.113Z",
   "components": [
     {
       "mtime": "2026-06-16T15:00:28.355Z",
@@ -297,6 +297,72 @@ export const BUNDLE: RegistryBundle = {
         "tested_in_routes": [
           "email_calendar_route_v1"
         ],
+        "sources": [],
+        "model_tier": "none",
+        "fallback_tier": "none",
+        "context_need": "minimal",
+        "compression_strategy": "none"
+      }
+    },
+    {
+      "mtime": "2026-06-28T21:54:09.582Z",
+      "data": {
+        "id": "chat_trigger",
+        "name": "Chat Trigger",
+        "status": "published",
+        "category": "input",
+        "summary": "Receives an inbound message, mention, or slash command from a chat platform (Slack, Discord, Microsoft Teams, Telegram) and emits a structured event that starts the workflow. Acts as the conversational entrypoint for chat-resident agents — bots that live in a channel or thread and respond to people. Carries an authorization concern that ordinary triggers do not — it must verify WHO is allowed to invoke the agent before any downstream action runs.",
+        "capabilities": [
+          "inbound_chat_message_reception",
+          "mention_and_slash_command_handling",
+          "sender_authorization_check",
+          "thread_and_channel_context_capture",
+          "structured_event_emission",
+          "idempotent_delivery_via_message_id"
+        ],
+        "inputs": [
+          "platform bot token or signing secret, allowed senders / roles / channels, expected command set, optional message-id dedup store"
+        ],
+        "outputs": [
+          "structured chat event with platform, channel/thread id, sender id, authorization result, message text, and timestamp"
+        ],
+        "risk_level": "low",
+        "side_effects": [
+          "validates the inbound request signature and the sender's authorization — rejects unsigned or unauthorized messages"
+        ],
+        "permissions": {
+          "read": [
+            "chat platform signing secret (read-only, never logged)",
+            "allowed-sender / role allowlist"
+          ],
+          "write": [],
+          "approval_required_for": []
+        },
+        "requires": [
+          "schema_validation"
+        ],
+        "recommended_with": [
+          "auth_failure_handler",
+          "audit_log",
+          "state_store",
+          "human_approval_gate"
+        ],
+        "avoid_with": [],
+        "failure_modes": [
+          "unauthorized sender triggers a privileged action because the authorization check was skipped or misconfigured",
+          "signature validation fails due to a stale or rotated bot token",
+          "duplicate delivery without a message-id idempotency key causes a double response",
+          "thread context lost between turns when conversation state is not persisted",
+          "prompt-injection in the inbound message steers the agent into an unintended action"
+        ],
+        "evals": [
+          "authorized sender accepted, unauthorized sender rejected (unit)",
+          "invalid signature rejected before any downstream step runs",
+          "duplicate message_id deduplicated correctly",
+          "injected instruction in message body does not escalate the agent's allowed actions"
+        ],
+        "tested_in_playbooks": [],
+        "tested_in_routes": [],
         "sources": [],
         "model_tier": "none",
         "fallback_tier": "none",
@@ -884,6 +950,67 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-28T21:54:09.583Z",
+      "data": {
+        "id": "discord_notification",
+        "name": "Discord Notification",
+        "status": "published",
+        "category": "integration",
+        "summary": "Sends a structured message to a Discord channel, thread, or user via a bot token or webhook. Requires human approval before posting; never posts autonomously. Used as the reply and alert egress for Discord-resident agents.",
+        "capabilities": [
+          "send_discord_message",
+          "post_to_channel_or_thread",
+          "reply_in_thread",
+          "require_human_approval_before_send"
+        ],
+        "inputs": [
+          "approved message payload, Discord bot token or channel webhook URL, channel or thread ID"
+        ],
+        "outputs": [
+          "post confirmation with message ID and channel ID"
+        ],
+        "risk_level": "high",
+        "side_effects": [
+          "posts irreversible message to an external Discord server"
+        ],
+        "permissions": {
+          "read": [],
+          "write": [
+            "external Discord channel post"
+          ],
+          "approval_required_for": [
+            "every post action"
+          ]
+        },
+        "requires": [
+          "human_approval_gate"
+        ],
+        "recommended_with": [
+          "audit_log",
+          "auth_failure_handler"
+        ],
+        "avoid_with": [],
+        "failure_modes": [
+          "posted to wrong channel due to misconfigured channel ID",
+          "duplicate post on retry after a transient API error",
+          "webhook URL leak allows anyone to post to the channel",
+          "bot lacks the Send Messages permission in the target channel and fails silently"
+        ],
+        "evals": [
+          "idempotency test — duplicate trigger does not cause duplicate post",
+          "rejection test — post blocked when approval is missing",
+          "auth failure test — revoked bot token routes to auth_failure_handler gracefully"
+        ],
+        "tested_in_playbooks": [],
+        "tested_in_routes": [],
+        "sources": [],
+        "model_tier": "none",
+        "fallback_tier": "none",
+        "context_need": "minimal",
+        "compression_strategy": "none"
+      }
+    },
+    {
       "mtime": "2026-06-22T08:35:59.703Z",
       "data": {
         "id": "email_draft",
@@ -1362,6 +1489,62 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-29T11:08:30.234Z",
+      "data": {
+        "id": "knowledge_ingestion",
+        "name": "Knowledge Ingestion",
+        "status": "published",
+        "category": "processing",
+        "summary": "Loads, chunks and normalises an owned corpus (notes, docs, project history) into embeddable units for a knowledge base.",
+        "capabilities": [
+          "load_owned_corpus",
+          "chunk_documents",
+          "normalise_for_embedding"
+        ],
+        "inputs": [
+          "file paths, note directory or document export (markdown, PDF, plaintext)"
+        ],
+        "outputs": [
+          "list of normalised text chunks with source metadata (doc id, path, position)"
+        ],
+        "risk_level": "medium",
+        "side_effects": [
+          "reads local or owned-account files that may contain private or sensitive content"
+        ],
+        "permissions": {
+          "read": [
+            "owned notes, documents and project files"
+          ],
+          "write": [],
+          "approval_required_for": []
+        },
+        "requires": [],
+        "recommended_with": [
+          "schema_validation",
+          "vector_store"
+        ],
+        "avoid_with": [],
+        "failure_modes": [
+          "over-large chunks dilute embedding relevance; over-small chunks lose context",
+          "silently ingests secrets or credentials embedded in notes",
+          "encoding or format errors drop documents without warning",
+          "duplicate ingestion inflates the index with near-identical chunks"
+        ],
+        "evals": [
+          "chunk size distribution within configured bounds",
+          "secret-detection rate on fixtures containing planted credentials",
+          "ingestion coverage (documents in vs chunks indexed)"
+        ],
+        "tested_in_playbooks": [],
+        "tested_in_routes": [],
+        "sources": [],
+        "model_tier": "none",
+        "fallback_tier": "none",
+        "context_need": "moderate",
+        "compression_strategy": "chunk"
+      }
+    },
+    {
       "mtime": "2026-06-16T15:29:55.629Z",
       "data": {
         "id": "loop_controller",
@@ -1480,6 +1663,62 @@ export const BUNDLE: RegistryBundle = {
         "fallback_tier": "none",
         "context_need": "moderate",
         "compression_strategy": "truncate"
+      }
+    },
+    {
+      "mtime": "2026-06-29T11:09:05.860Z",
+      "data": {
+        "id": "note_linking",
+        "name": "Note Linking",
+        "status": "published",
+        "category": "processing",
+        "summary": "Builds bidirectional links (backlinks) between knowledge notes so related ideas connect into a navigable graph.",
+        "capabilities": [
+          "detect_related_notes",
+          "build_backlinks",
+          "emit_link_graph"
+        ],
+        "inputs": [
+          "ingested or retrieved notes with ids and content"
+        ],
+        "outputs": [
+          "link edges between notes (source id, target id, relation) for a backlink graph"
+        ],
+        "risk_level": "low",
+        "side_effects": [
+          "writes link metadata back to the note store when persistence is enabled"
+        ],
+        "permissions": {
+          "read": [
+            "note content and ids"
+          ],
+          "write": [
+            "link metadata on owned notes"
+          ],
+          "approval_required_for": []
+        },
+        "requires": [],
+        "recommended_with": [
+          "vector_store",
+          "state_store"
+        ],
+        "avoid_with": [],
+        "failure_modes": [
+          "over-linking creates a dense graph with no signal (everything links to everything)",
+          "link direction inverted, breaking backlink navigation",
+          "links to stale note ids after a note is deleted or renamed"
+        ],
+        "evals": [
+          "link precision against a labelled related-notes set",
+          "dangling-link rate after simulated note deletion"
+        ],
+        "tested_in_playbooks": [],
+        "tested_in_routes": [],
+        "sources": [],
+        "model_tier": "none",
+        "fallback_tier": "none",
+        "context_need": "moderate",
+        "compression_strategy": "none"
       }
     },
     {
@@ -2263,6 +2502,59 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-29T11:08:53.226Z",
+      "data": {
+        "id": "source_attribution",
+        "name": "Source Attribution",
+        "status": "published",
+        "category": "eval",
+        "summary": "Maps each span of a grounded answer back to the retrieved knowledge chunk it came from and flags any span with no supporting source.",
+        "capabilities": [
+          "attribute_answer_to_chunks",
+          "flag_unsupported_spans",
+          "emit_provenance_map"
+        ],
+        "inputs": [
+          "grounded answer text",
+          "the retrieved chunks used to produce it (with source metadata)"
+        ],
+        "outputs": [
+          "per-span provenance map (chunk id + source) plus a list of unsupported spans"
+        ],
+        "risk_level": "low",
+        "side_effects": [],
+        "permissions": {
+          "read": [
+            "answer text and retrieved chunk content"
+          ],
+          "write": [],
+          "approval_required_for": []
+        },
+        "requires": [],
+        "recommended_with": [
+          "research_synthesis",
+          "citation_checker"
+        ],
+        "avoid_with": [],
+        "failure_modes": [
+          "attributes a span to a coincidentally-similar chunk that did not inform it",
+          "misses an unsupported span the model asserted from prior training, not the corpus",
+          "over-flags paraphrase as unsupported when wording diverges from the source"
+        ],
+        "evals": [
+          "attribution precision on labelled answer/chunk pairs",
+          "unsupported-span recall on fixtures with planted ungrounded claims"
+        ],
+        "tested_in_playbooks": [],
+        "tested_in_routes": [],
+        "sources": [],
+        "model_tier": "none",
+        "fallback_tier": "none",
+        "context_need": "moderate",
+        "compression_strategy": "none"
+      }
+    },
+    {
       "mtime": "2026-06-22T08:35:59.711Z",
       "data": {
         "id": "source_freshness_check",
@@ -2550,6 +2842,128 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-28T21:54:09.584Z",
+      "data": {
+        "id": "teams_notification",
+        "name": "Microsoft Teams Notification",
+        "status": "published",
+        "category": "integration",
+        "summary": "Sends a structured message or adaptive card to a Microsoft Teams channel or chat via an incoming webhook or the Graph API. Requires human approval before posting; never posts autonomously. Used as the reply and alert egress for Teams-resident agents.",
+        "capabilities": [
+          "send_teams_message",
+          "post_adaptive_card",
+          "post_to_channel_or_chat",
+          "require_human_approval_before_send"
+        ],
+        "inputs": [
+          "approved message or adaptive-card payload, Teams incoming webhook URL or Graph API token, channel or chat ID"
+        ],
+        "outputs": [
+          "post confirmation with message ID"
+        ],
+        "risk_level": "high",
+        "side_effects": [
+          "posts irreversible message to an external Microsoft Teams tenant"
+        ],
+        "permissions": {
+          "read": [],
+          "write": [
+            "external Teams channel post"
+          ],
+          "approval_required_for": [
+            "every post action"
+          ]
+        },
+        "requires": [
+          "human_approval_gate"
+        ],
+        "recommended_with": [
+          "audit_log",
+          "auth_failure_handler"
+        ],
+        "avoid_with": [],
+        "failure_modes": [
+          "posted to wrong channel due to a misconfigured webhook URL",
+          "duplicate post on retry after a transient API error",
+          "adaptive-card schema rejected by the Teams client and renders blank",
+          "Graph API token expiry causes a silent failure with no fallback"
+        ],
+        "evals": [
+          "idempotency test — duplicate trigger does not cause duplicate post",
+          "rejection test — post blocked when approval is missing",
+          "auth failure test — expired Graph token routes to auth_failure_handler gracefully"
+        ],
+        "tested_in_playbooks": [],
+        "tested_in_routes": [],
+        "sources": [],
+        "model_tier": "none",
+        "fallback_tier": "none",
+        "context_need": "minimal",
+        "compression_strategy": "none"
+      }
+    },
+    {
+      "mtime": "2026-06-28T21:54:09.586Z",
+      "data": {
+        "id": "telegram_notification",
+        "name": "Telegram Notification",
+        "status": "published",
+        "category": "integration",
+        "summary": "Sends a structured message to a Telegram chat, group, or channel via the Bot API. Requires human approval before posting; never posts autonomously. Used as the reply and alert egress for Telegram-resident agents.",
+        "capabilities": [
+          "send_telegram_message",
+          "post_to_chat_or_channel",
+          "reply_to_message",
+          "require_human_approval_before_send"
+        ],
+        "inputs": [
+          "approved message payload, Telegram Bot API token, chat ID"
+        ],
+        "outputs": [
+          "post confirmation with message ID and chat ID"
+        ],
+        "risk_level": "high",
+        "side_effects": [
+          "posts irreversible message to an external Telegram chat"
+        ],
+        "permissions": {
+          "read": [],
+          "write": [
+            "external Telegram chat post"
+          ],
+          "approval_required_for": [
+            "every post action"
+          ]
+        },
+        "requires": [
+          "human_approval_gate"
+        ],
+        "recommended_with": [
+          "audit_log",
+          "auth_failure_handler"
+        ],
+        "avoid_with": [],
+        "failure_modes": [
+          "posted to wrong chat due to a misconfigured chat ID",
+          "duplicate post on retry after a transient API error",
+          "bot token leak allows anyone to post as the bot",
+          "bot blocked by the user or removed from the group causes a silent failure"
+        ],
+        "evals": [
+          "idempotency test — duplicate trigger does not cause duplicate post",
+          "rejection test — post blocked when approval is missing",
+          "auth failure test — revoked bot token routes to auth_failure_handler gracefully"
+        ],
+        "tested_in_playbooks": [],
+        "tested_in_routes": [],
+        "sources": [],
+        "model_tier": "none",
+        "fallback_tier": "none",
+        "context_need": "minimal",
+        "compression_strategy": "none"
+      }
+    },
+    {
       "mtime": "2026-06-22T08:35:59.714Z",
       "data": {
         "id": "test_runner",
@@ -2729,6 +3143,66 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-29T11:08:42.481Z",
+      "data": {
+        "id": "vector_store",
+        "name": "Vector Store",
+        "status": "published",
+        "category": "state",
+        "summary": "Embeds and persists knowledge chunks in a vector index and serves semantic similarity search over the owned corpus (the RAG memory primitive).",
+        "capabilities": [
+          "embed_chunks",
+          "upsert_vectors",
+          "similarity_search"
+        ],
+        "inputs": [
+          "normalised text chunks (for upsert) or a query string (for retrieval)"
+        ],
+        "outputs": [
+          "persisted vector ids (on write) or ranked nearest-neighbour chunks with scores (on read)"
+        ],
+        "risk_level": "medium",
+        "side_effects": [
+          "writes embeddings to a local or remote vector database",
+          "calls an embedding model (token or compute cost)"
+        ],
+        "permissions": {
+          "read": [
+            "the owned vector index"
+          ],
+          "write": [
+            "the owned vector index"
+          ],
+          "approval_required_for": []
+        },
+        "requires": [],
+        "recommended_with": [
+          "knowledge_ingestion",
+          "source_ranking",
+          "audit_log"
+        ],
+        "avoid_with": [],
+        "failure_modes": [
+          "embedding model drift makes old and new vectors incomparable",
+          "similarity search returns confident but irrelevant neighbours (no relevance floor)",
+          "index holds embedded secrets when ingestion did not redact them",
+          "stale index served after source documents changed"
+        ],
+        "evals": [
+          "recall@k against a labelled query/chunk set",
+          "relevance-floor compliance (low-score neighbours suppressed)",
+          "read-after-write consistency after upsert"
+        ],
+        "tested_in_playbooks": [],
+        "tested_in_routes": [],
+        "sources": [],
+        "model_tier": "none",
+        "fallback_tier": "none",
+        "context_need": "moderate",
+        "compression_strategy": "rank_and_drop"
+      }
+    },
+    {
       "mtime": "2026-06-16T14:32:34.524Z",
       "data": {
         "id": "webhook_trigger",
@@ -2885,6 +3359,29 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-28T21:54:09.587Z",
+      "data": {
+        "id": "audit_log__recommended__chat_trigger",
+        "from": "audit_log",
+        "to": "chat_trigger",
+        "relation": "recommended_for",
+        "status": "published",
+        "reason": "A chat-triggered agent acts on behalf of whoever messaged it. An audit entry recording who triggered which action, from which channel, and when is essential for accountability — it is the only record of who asked the agent to do something.",
+        "condition": "",
+        "notes": "Log the sender id, authorization result, command, and timestamp. This pairs with the chat_trigger authorization check — together they answer \"who was allowed to do this, and did they?\".",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__chat_trigger"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
       "mtime": "2026-06-27T09:38:19.644Z",
       "data": {
         "id": "audit_log__recommended__crm_note_write",
@@ -2902,6 +3399,29 @@ export const BUNDLE: RegistryBundle = {
         "tested": true,
         "test_refs": [
           "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__crm_note_write"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-28T21:54:09.587Z",
+      "data": {
+        "id": "audit_log__recommended__discord_notification",
+        "from": "audit_log",
+        "to": "discord_notification",
+        "relation": "recommended_for",
+        "status": "published",
+        "reason": "Discord posts are irreversible. An audit log entry provides post-hoc evidence of what was sent, to which channel, and when — essential for compliance and debugging misfired notifications.",
+        "condition": "",
+        "notes": "Log channel ID, message content hash, approval actor, and timestamp. Avoid logging full message bodies containing PII unless your data policy requires it.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__discord_notification"
         ],
         "failure_modes": [],
         "sources": []
@@ -2971,6 +3491,75 @@ export const BUNDLE: RegistryBundle = {
         "tested": true,
         "test_refs": [
           "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__slack_notification"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-28T21:54:09.589Z",
+      "data": {
+        "id": "audit_log__recommended__teams_notification",
+        "from": "audit_log",
+        "to": "teams_notification",
+        "relation": "recommended_for",
+        "status": "published",
+        "reason": "Teams posts are irreversible. An audit log entry provides post-hoc evidence of what was sent, to which channel, and when — essential for compliance and debugging misfired notifications.",
+        "condition": "",
+        "notes": "Log channel ID, message content hash, approval actor, and timestamp. Avoid logging full message bodies containing PII unless your data policy requires it.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__teams_notification"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-28T21:54:09.589Z",
+      "data": {
+        "id": "audit_log__recommended__telegram_notification",
+        "from": "audit_log",
+        "to": "telegram_notification",
+        "relation": "recommended_for",
+        "status": "published",
+        "reason": "Telegram posts are irreversible. An audit log entry provides post-hoc evidence of what was sent, to which chat, and when — essential for compliance and debugging misfired notifications.",
+        "condition": "",
+        "notes": "Log chat ID, message content hash, approval actor, and timestamp. Avoid logging full message bodies containing PII unless your data policy requires it.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__telegram_notification"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-29T11:18:31.760Z",
+      "data": {
+        "id": "audit_log__recommended__vector_store",
+        "from": "audit_log",
+        "to": "vector_store",
+        "relation": "recommended_for",
+        "status": "published",
+        "reason": "Ingesting an owned corpus is a write into a persistent index that may hold private content; keep an audit trail of what was indexed, when, and from where.",
+        "condition": "",
+        "notes": "Log document ids and ingestion timestamps, not the embedded content itself, to avoid duplicating sensitive text into the audit log.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__vector_store"
         ],
         "failure_modes": [],
         "sources": []
@@ -3111,6 +3700,75 @@ export const BUNDLE: RegistryBundle = {
         "tested": true,
         "test_refs": [
           "tests/graph/edgeValidation.test.ts > edge: calendar_write__safer_with__auth_failure_handler"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-28T21:54:09.590Z",
+      "data": {
+        "id": "chat_trigger__produces__discord_notification",
+        "from": "chat_trigger",
+        "to": "discord_notification",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "A chat-resident agent replies on the same platform it was triggered from. The chat event (channel/thread id, sender) provides the addressing the reply egress needs to post back into the right conversation.",
+        "condition": "",
+        "notes": "Reply into the originating thread, not the top of the channel, so the conversation stays coherent. The reply is still an external write — it remains gated by discord_notification's human_approval_gate policy.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: chat_trigger__produces__discord_notification"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-28T21:54:09.590Z",
+      "data": {
+        "id": "chat_trigger__produces__intent_classifier",
+        "from": "chat_trigger",
+        "to": "intent_classifier",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "An inbound chat message is free-form natural language. Classifying intent first lets the agent route the message to the right handler (question, command, escalation) instead of acting on raw text, which is the main defense against prompt-injection steering the workflow.",
+        "condition": "",
+        "notes": "Classify the authorized sender's message AFTER the chat_trigger authorization check, never before — an unauthorized message should never reach the classifier.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: chat_trigger__produces__intent_classifier"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-28T21:54:09.591Z",
+      "data": {
+        "id": "chat_trigger__safer_with__auth_failure_handler",
+        "from": "chat_trigger",
+        "to": "auth_failure_handler",
+        "relation": "safer_with",
+        "status": "published",
+        "reason": "Receiving chat events relies on a bot token or signing secret that can expire or be revoked. A credential-failure path lets the listener refresh-and-retry or halt with a named error instead of silently going deaf to inbound messages.",
+        "condition": "",
+        "notes": "A revoked token on the inbound side fails closed (no events received) rather than open, but it is still a silent outage — surface it as a named auth failure so the operator notices the bot stopped responding.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: chat_trigger__safer_with__auth_failure_handler"
         ],
         "failure_modes": [],
         "sources": []
@@ -3542,6 +4200,29 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-28T21:54:09.591Z",
+      "data": {
+        "id": "discord_notification__safer_with__auth_failure_handler",
+        "from": "discord_notification",
+        "to": "auth_failure_handler",
+        "relation": "safer_with",
+        "status": "published",
+        "reason": "Discord posting relies on a bot token or channel webhook that can be revoked or rotated. A credential-failure path lets the notification refresh-and-retry or halt with a named error instead of silently dropping the message.",
+        "condition": "",
+        "notes": "Do not retry a post that may already have succeeded — deduplicate using the message ID returned on a successful post.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: discord_notification__safer_with__auth_failure_handler"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
       "mtime": "2026-06-25T08:56:57.588Z",
       "data": {
         "id": "email_draft__compatible__calendar_lookup",
@@ -3963,6 +4644,52 @@ export const BUNDLE: RegistryBundle = {
         "tested": true,
         "test_refs": [
           "route:data_extraction_route_v1"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-29T11:17:54.850Z",
+      "data": {
+        "id": "knowledge_ingestion__produces__schema_validation",
+        "from": "knowledge_ingestion",
+        "to": "schema_validation",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Validate the shape of normalised chunks (required metadata present, size within bounds) before they are embedded, so malformed input never silently pollutes the index.",
+        "condition": "",
+        "notes": "A failed validation should quarantine the offending chunk, not abort the whole ingestion run.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: knowledge_ingestion__produces__schema_validation"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-29T11:17:40.840Z",
+      "data": {
+        "id": "knowledge_ingestion__produces__vector_store",
+        "from": "knowledge_ingestion",
+        "to": "vector_store",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Normalised chunks are the direct input to the vector store, which embeds and persists them for later similarity search.",
+        "condition": "",
+        "notes": "Pass source metadata (doc id, path, position) with each chunk so retrieval can attribute results back to the originating note.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: knowledge_ingestion__produces__vector_store"
         ],
         "failure_modes": [],
         "sources": []
@@ -4397,6 +5124,29 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-29T11:49:06.113Z",
+      "data": {
+        "id": "research_synthesis__requires__source_attribution",
+        "from": "research_synthesis",
+        "to": "source_attribution",
+        "relation": "recommended_for",
+        "status": "published",
+        "reason": "A grounded answer over an owned corpus must be attributable — every claim mapped to the chunk it came from, and any unsupported span flagged. This is the honesty guarantee of a second-brain agent.",
+        "condition": "",
+        "notes": "Do not present synthesis output to the user until attribution has run; surface unsupported spans explicitly rather than hiding them.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: research_synthesis__requires__source_attribution"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
       "mtime": "2026-06-22T21:03:49.906Z",
       "data": {
         "id": "research_synthesis__requires__source_freshness_check",
@@ -4721,6 +5471,29 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-29T11:18:41.824Z",
+      "data": {
+        "id": "source_attribution__recommended__citation_checker",
+        "from": "source_attribution",
+        "to": "citation_checker",
+        "relation": "recommended_for",
+        "status": "published",
+        "reason": "Attribution maps answer spans to owned chunks; the citation checker independently verifies any external references the answer also cites. Together they cover both owned-corpus grounding and external-link integrity.",
+        "condition": "",
+        "notes": "Attribution catches \"no source in the corpus\"; citation_checker catches \"cited URL is broken or fabricated\". Keep both — they fail in different ways.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: source_attribution__recommended__citation_checker"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
       "mtime": "2026-06-22T21:03:49.908Z",
       "data": {
         "id": "source_ranking__produces__research_synthesis",
@@ -4934,6 +5707,52 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-28T21:54:09.592Z",
+      "data": {
+        "id": "teams_notification__safer_with__auth_failure_handler",
+        "from": "teams_notification",
+        "to": "auth_failure_handler",
+        "relation": "safer_with",
+        "status": "published",
+        "reason": "Teams posting relies on an incoming webhook URL or a Graph API token that can expire or be rotated. A credential-failure path lets the notification refresh-and-retry or halt with a named error instead of silently dropping the message.",
+        "condition": "",
+        "notes": "Do not retry a post that may already have succeeded — deduplicate using the message ID returned on a successful post.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: teams_notification__safer_with__auth_failure_handler"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-28T21:54:09.593Z",
+      "data": {
+        "id": "telegram_notification__safer_with__auth_failure_handler",
+        "from": "telegram_notification",
+        "to": "auth_failure_handler",
+        "relation": "safer_with",
+        "status": "published",
+        "reason": "Telegram posting relies on a Bot API token that can be revoked or rotated. A credential-failure path lets the notification refresh-and-retry or halt with a named error instead of silently dropping the message.",
+        "condition": "",
+        "notes": "Do not retry a post that may already have succeeded — deduplicate using the message ID returned on a successful post.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: telegram_notification__safer_with__auth_failure_handler"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
       "mtime": "2026-06-25T08:56:57.609Z",
       "data": {
         "id": "test_runner__before__pr_summary",
@@ -5028,6 +5847,29 @@ export const BUNDLE: RegistryBundle = {
       }
     },
     {
+      "mtime": "2026-06-29T11:17:32.878Z",
+      "data": {
+        "id": "user_goal_intake__produces__knowledge_ingestion",
+        "from": "user_goal_intake",
+        "to": "knowledge_ingestion",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "The user's goal scopes which corpus to ingest (which notes/folders, what to index) before ingestion runs.",
+        "condition": "",
+        "notes": "Capture the corpus scope and any exclusion globs from the goal so ingestion never reaches beyond what the user intended.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "medium",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: user_goal_intake__produces__knowledge_ingestion"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
       "mtime": "2026-06-25T08:56:57.611Z",
       "data": {
         "id": "user_goal_intake__produces__source_retrieval",
@@ -5045,6 +5887,52 @@ export const BUNDLE: RegistryBundle = {
         "tested": true,
         "test_refs": [
           "probe:user_goal_intake_pipeline"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-29T11:18:13.592Z",
+      "data": {
+        "id": "vector_store__produces__note_linking",
+        "from": "vector_store",
+        "to": "note_linking",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Nearest-neighbour relationships from the vector store are the natural seed for building backlinks between related notes.",
+        "condition": "",
+        "notes": "Apply a similarity threshold before creating a link, otherwise every note links to every other and the graph carries no signal.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "low",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: vector_store__produces__note_linking"
+        ],
+        "failure_modes": [],
+        "sources": []
+      }
+    },
+    {
+      "mtime": "2026-06-29T11:18:01.990Z",
+      "data": {
+        "id": "vector_store__produces__source_ranking",
+        "from": "vector_store",
+        "to": "source_ranking",
+        "relation": "produces_input_for",
+        "status": "published",
+        "reason": "Similarity-search neighbours from the vector store are the candidate set that source_ranking re-orders before grounding, applying a relevance floor.",
+        "condition": "",
+        "notes": "Carry the similarity score through so ranking can combine it with recency/authority rather than trusting raw vector distance alone.",
+        "control_flow_note": "",
+        "conditions": [],
+        "severity": "high",
+        "bypass_when_all_present": [],
+        "tested": true,
+        "test_refs": [
+          "tests/graph/edgeValidation.test.ts > edge: vector_store__produces__source_ranking"
         ],
         "failure_modes": [],
         "sources": []
@@ -5529,9 +6417,168 @@ export const BUNDLE: RegistryBundle = {
         "notes": "Do not use this route for legal, medical or financial advice without adding an explicit domain-expert review step after synthesis. Verified citations reduce hallucination risk but do not eliminate it for high-stakes decisions.\n",
         "sources": []
       }
+    },
+    {
+      "mtime": "2026-06-29T11:45:15.021Z",
+      "data": {
+        "id": "second_brain_route_v1",
+        "name": "Second Brain Query Assistant",
+        "status": "candidate",
+        "summary": "Golden-path route for a knowledge-base query agent that retrieves relevant chunks from an owned corpus, synthesises a grounded answer, and attributes every answer span to a named source note. Assumes the vector index has already been populated via the ingest path (knowledge_ingestion → vector_store).\n",
+        "goal_patterns": [],
+        "components": [
+          "user_goal_intake",
+          "vector_store",
+          "source_ranking",
+          "research_synthesis",
+          "source_attribution",
+          "audit_log"
+        ],
+        "edges": [
+          "user_goal_intake__produces__knowledge_ingestion",
+          "vector_store__produces__source_ranking",
+          "research_synthesis__requires__source_attribution",
+          "audit_log__recommended__vector_store"
+        ],
+        "known_playbooks_reused": [],
+        "untested_edges": [],
+        "risk_level": "low",
+        "confidence": 0.72,
+        "required_evals": [],
+        "warnings": [],
+        "failure_modes": [
+          "Hallucination when vector-store neighbours fall below the similarity threshold but are still used for synthesis",
+          "Source attribution absent or generic when research_synthesis spans are not grounded in a retrieved chunk",
+          "Stale index served after notes changed without an incremental re-ingest trigger",
+          "Embedding model drift makes old chunks incomparable to new queries"
+        ],
+        "evals": [
+          "retrieval recall@k on a labelled query/chunk set",
+          "attribution completeness — every answer span names a source note",
+          "hallucination rate on a fixed test-question set (human evaluation)",
+          "similarity-score compliance — low-relevance neighbours suppressed"
+        ],
+        "notes": "This route covers the QUERY path only. The INGEST path (knowledge_ingestion → schema_validation → vector_store → audit_log) should be run separately before the first query and on an incremental schedule when notes change. Keep the embedding model version pinned; re-embed the full corpus on upgrade.\n",
+        "sources": []
+      }
     }
   ],
   "playbooks": [
+    {
+      "mtime": "2026-06-28T21:54:09.595Z",
+      "data": {
+        "id": "chat_triggered_assistant",
+        "version": "0.1.0",
+        "status": "candidate",
+        "title": "Chat-Triggered Assistant (Slack / Discord / Teams / Telegram)",
+        "summary": "Blueprint for an agent that lives in a chat platform and responds to people — a bot triggered by an inbound message, mention, or slash command that classifies the request, does the work, and replies in-thread. The defining concern is AUTHORIZATION: unlike a scheduled or webhook trigger, a chat trigger is invoked by a human, so the agent must verify WHO is allowed to invoke it before any action runs, and treat the message body as untrusted input. The reply is an external write and stays behind human approval until the route is validated. Candidate blueprint (not yet promoted from logged sessions).\n",
+        "workflow_type": "chat",
+        "golden_path_route_id": "",
+        "components": [
+          "chat_trigger",
+          "schema_validation",
+          "intent_classifier",
+          "state_store",
+          "human_approval_gate",
+          "discord_notification",
+          "auth_failure_handler",
+          "audit_log"
+        ],
+        "edges": [
+          "chat_trigger__produces__intent_classifier",
+          "chat_trigger__produces__discord_notification",
+          "chat_trigger__safer_with__auth_failure_handler",
+          "audit_log__recommended__chat_trigger",
+          "discord_notification__safer_with__auth_failure_handler",
+          "audit_log__recommended__discord_notification"
+        ],
+        "stack_id": "default_orchestratekit_stack",
+        "risk_level": "high",
+        "best_for": [
+          "a support or ops bot that answers questions in a Slack/Discord/Teams channel",
+          "a slash-command agent that runs a bounded task on request and reports back",
+          "any chat-resident agent where only specific users or roles may trigger actions"
+        ],
+        "avoid_when": [
+          "a one-way alert or notification with no inbound message (use the platform egress alone)",
+          "an open public bot that anyone can trigger into privileged or irreversible actions",
+          "fully autonomous posting with no approval gate before the route is validated"
+        ],
+        "recommended_architecture": {
+          "pattern": "Inbound message → authorize sender → validate → classify intent → do work → approve → reply → audit",
+          "why": "A chat trigger is the only entrypoint a stranger can invoke directly. The authorization check (allowed user / role / channel) and request-signature verification must happen FIRST, before the message ever reaches intent classification — an unauthorized message should never start work. Intent classification then turns untrusted free text into a bounded action set, which is the main defense against prompt-injection steering the agent. The reply is an irreversible external post, so it stays behind human approval until logged sessions justify dropping the gate.\n"
+        },
+        "llm_driven_steps": [
+          "intent_classifier"
+        ],
+        "deterministic_steps": [
+          "chat_trigger",
+          "schema_validation",
+          "state_store",
+          "human_approval_gate",
+          "discord_notification",
+          "auth_failure_handler",
+          "audit_log"
+        ],
+        "permissions": {},
+        "guardrails": [
+          "Verify the sender is on the allowed user/role/channel list BEFORE any downstream step runs",
+          "Verify the request signature on every inbound event (Slack signing secret / Discord Ed25519 / Telegram secret_token) and reject anything unsigned",
+          "Classify intent before acting — never let the raw message body expand the agent's allowed tools (prompt injection)",
+          "Deduplicate on the platform message/event id — platforms retry delivery and will double-trigger without it",
+          "Persist conversation state keyed by channel/thread id with a retention/TTL policy; chat history can contain PII",
+          "The reply is an external write — keep human_approval_gate until the route earns validated status from logged sessions",
+          "Log who triggered which action, from which channel, and when — the audit trail is the only record of who asked"
+        ],
+        "failure_modes": [
+          "Unauthorized sender triggers a privileged action because the authorization check was skipped or misconfigured",
+          "Prompt-injection in the message body steers the agent into an unintended action",
+          "Duplicate delivery without an idempotency key causes a double reply",
+          "Bot token expiry silently stops inbound events — the bot goes deaf with no error surfaced",
+          "Reply posted to the wrong channel/thread because the originating context was lost",
+          "Conversation state grows unbounded with PII because no retention policy was set"
+        ],
+        "evals": [
+          "authorization enforcement — unauthorized sender is rejected before any action (precision/recall on an allow/deny set)",
+          "signature verification — unsigned or wrongly-signed events are rejected",
+          "injection resistance — an instruction embedded in the message body does not expand the agent's allowed actions",
+          "idempotency — a duplicated inbound event produces exactly one reply",
+          "approval enforcement — no reply is posted when approval is absent",
+          "audit completeness — every triggered action has a record of sender, channel, and timestamp"
+        ],
+        "implementation_steps": [
+          "Step 1: Stand up the inbound listener for your platform (Slack Events API / Discord Interactions / Telegram webhook). This is YOUR endpoint — MCP servers cover outbound posting, not the inbound side.",
+          "Step 2: On every event, verify the request signature (Slack signing secret / Discord Ed25519 public key / Telegram secret_token) and reject anything unsigned. Deduplicate on the message/event id.",
+          "Step 3: Authorize the sender against an allowed user/role/channel list. Reject (and audit) anyone not on it BEFORE any further step. This is the highest-risk control.",
+          "Step 4: Run schema_validation on the structured event, then intent_classifier (small/standard model) to map the untrusted message to a bounded action.",
+          "Step 5: Load/persist conversation state from state_store keyed by channel+thread id so multi-turn context survives between messages. Set a retention/TTL policy.",
+          "Step 6: Do the bounded work for the classified intent. Keep the agent's tool set fixed — the message must not be able to widen it.",
+          "Step 7: Surface the proposed reply to human_approval_gate (until the route is validated). On approval, post via the platform egress (discord_notification / slack_notification / teams_notification / telegram_notification) into the originating thread.",
+          "Step 8: Route credential failures (expired/revoked bot token) to auth_failure_handler so a dead listener surfaces a named error instead of going silently offline.",
+          "Step 9: Write an audit_log entry for every triggered action — sender id, authorization result, channel/thread, intent, and outcome."
+        ],
+        "sources": [
+          {
+            "title": "Slack Events API — request verification",
+            "url": "https://api.slack.com/authentication/verifying-requests-from-slack",
+            "source_type": "official_docs",
+            "last_checked": "2026-06-27"
+          },
+          {
+            "title": "Discord — Receiving and responding to interactions (security)",
+            "url": "https://discord.com/developers/docs/interactions/receiving-and-responding",
+            "source_type": "official_docs",
+            "last_checked": "2026-06-27"
+          },
+          {
+            "title": "Telegram Bot API",
+            "url": "https://core.telegram.org/bots/api",
+            "source_type": "official_docs",
+            "last_checked": "2026-06-27"
+          }
+        ]
+      }
+    },
     {
       "mtime": "2026-06-09T22:04:55.146Z",
       "data": {
@@ -6291,6 +7338,125 @@ export const BUNDLE: RegistryBundle = {
             "url": "https://sdk.vercel.ai/docs/ai-sdk-core/tools-and-tool-calling",
             "source_type": "official_docs",
             "last_checked": "2026-06-01"
+          }
+        ]
+      }
+    },
+    {
+      "mtime": "2026-06-29T11:45:44.389Z",
+      "data": {
+        "id": "second_brain_assistant",
+        "version": "0.1.0",
+        "status": "candidate",
+        "title": "Second Brain Assistant (Knowledge-Base Query + Attribution)",
+        "summary": "Blueprint for an agent that answers questions from an owned corpus of notes, documents, or project history — the \"personal knowledge base\" pattern. The defining concerns are SCOPE (the index must be built from owned content only, never public web crawls) and ATTRIBUTION (every answer span must be tied to a source note so the user can verify and trust the output). Candidate blueprint: not yet promoted from logged sessions, but the component chain and edges are tested (MAR-217).\n",
+        "workflow_type": "knowledge",
+        "golden_path_route_id": "second_brain_route_v1",
+        "components": [
+          "user_goal_intake",
+          "knowledge_ingestion",
+          "schema_validation",
+          "vector_store",
+          "source_ranking",
+          "research_synthesis",
+          "source_attribution",
+          "note_linking",
+          "audit_log"
+        ],
+        "edges": [
+          "user_goal_intake__produces__knowledge_ingestion",
+          "knowledge_ingestion__produces__vector_store",
+          "knowledge_ingestion__produces__schema_validation",
+          "vector_store__produces__source_ranking",
+          "vector_store__produces__note_linking",
+          "research_synthesis__requires__source_attribution",
+          "source_attribution__recommended__citation_checker",
+          "audit_log__recommended__vector_store"
+        ],
+        "stack_id": "default_orchestratekit_stack",
+        "risk_level": "low",
+        "best_for": [
+          "a personal notes assistant (Obsidian / Notion / markdown vault) that answers questions from the vault",
+          "a project-brain agent that synthesises decisions, context and history across a codebase or wiki",
+          "a knowledge-management assistant that surfaces backlinks and related notes alongside the answer"
+        ],
+        "avoid_when": [
+          "ingesting content from public URLs or third-party sites (use the research domain instead)",
+          "storing credentials, API keys or personal data in the indexed corpus",
+          "a fully public endpoint that any internet user can query (the corpus is private; scope access)"
+        ],
+        "recommended_architecture": {
+          "pattern": "Goal intake → ingest + validate → embed → rank → synthesise → attribute → audit",
+          "why": "The pipeline splits cleanly into an INGEST path (one-time or incremental, L1 clearance) and a QUERY path (L0 read-only). The vector_store is the boundary between them: ingest writes embeddings, queries only read. source_attribution is non-optional on the query path — without it the model can confabulate from vague \"context\" rather than a named note, and the user has no way to verify the answer. The audit log records what was indexed and when (doc ids + timestamps, never embedded text) so a private corpus remains auditable without re-exposing sensitive content.\n"
+        },
+        "llm_driven_steps": [
+          "research_synthesis",
+          "source_attribution"
+        ],
+        "deterministic_steps": [
+          "user_goal_intake",
+          "knowledge_ingestion",
+          "schema_validation",
+          "vector_store",
+          "source_ranking",
+          "note_linking",
+          "audit_log"
+        ],
+        "permissions": {},
+        "guardrails": [
+          "Scope the vector index to the OWNED corpus only — never ingest public URLs or third-party content into the personal knowledge base",
+          "Strip secrets, credentials and env values before chunking; do not embed raw .env or config files",
+          "Enforce a minimum similarity score on retrieved chunks to avoid returning low-relevance neighbours that mislead the model",
+          "Pin the embedding model version — model drift makes old and new vectors incomparable; re-embed the full corpus on upgrade",
+          "The audit log records doc ids, timestamps and chunk counts — never the embedded text itself, which may contain PII",
+          "Source attribution is mandatory: every answer span must be tied to a source note; flag any span with no supporting source rather than silently surfacing an ungrounded claim",
+          "Keep the query endpoint private; the corpus is personal and may contain sensitive notes — do not expose it to anonymous internet callers"
+        ],
+        "failure_modes": [
+          "Index contains embedded secrets because the ingest pipeline did not strip .env files or config before chunking",
+          "Hallucination: the model synthesises a plausible answer from distant neighbours whose similarity score is below the relevance threshold",
+          "Embedding model drift makes old chunks incomparable to new queries, degrading recall after a model upgrade",
+          "Stale index is served after the source notes changed because there is no incremental re-ingest or invalidation strategy",
+          "Source attribution is absent or generic (just \"my notes\"), leaving the user with no way to verify the answer",
+          "The owned corpus grows to include third-party content (Pocket saves, web clips) that blurs the boundary with the public web"
+        ],
+        "evals": [
+          "retrieval recall@k — does the relevant chunk appear in the top-k neighbours for a labelled query set?",
+          "similarity-score compliance — are low-relevance neighbours suppressed at the configured threshold?",
+          "attribution completeness — does every answer span map to a named source note?",
+          "hallucination rate — human evaluation of ungrounded spans on a fixed test-question set",
+          "re-embed consistency — after a model upgrade, do the same queries return the same top chunks?",
+          "index cleanliness — no secrets found in embedded text (static scan of chunk content before upsert)"
+        ],
+        "implementation_steps": [
+          "Step 1: Decide INGEST scope — which files, folders or vault paths constitute 'owned content.' Set explicit inclusion rules so web clips and third-party files are never accidentally indexed.",
+          "Step 2: Run a pre-ingest secret scan (e.g. truffleHog / gitleaks) over the corpus. Redact or exclude files with credentials before chunking.",
+          "Step 3: knowledge_ingestion — load, chunk (e.g. 512-token overlapping windows) and normalise the corpus. schema_validation guards chunk shape before upsert.",
+          "Step 4: Embed chunks with a pinned embedding model (text-embedding-3-small is a good default). Upsert to vector_store (pgvector / Pinecone / Chroma / LanceDB). Record doc ids + timestamps in audit_log — not the text.",
+          "Step 5: On query, embed the user question with the same pinned model. Retrieve top-k neighbours from vector_store. Apply a minimum similarity score (e.g. 0.70 cosine) to suppress low-relevance chunks.",
+          "Step 6: source_ranking re-orders candidates by recency + relevance. research_synthesis (frontier model) synthesises a grounded answer from the ranked chunks.",
+          "Step 7: source_attribution maps each answer span to its source note. Flag any ungrounded span explicitly — do not surface it as a confident claim.",
+          "Step 8: Optionally run note_linking to surface backlinks and related notes alongside the answer, giving the user a navigation path to explore the topic further.",
+          "Step 9: Set up an incremental re-ingest trigger (webhook on file save, or nightly scheduled job) so the index stays fresh as notes change."
+        ],
+        "sources": [
+          {
+            "title": "pgvector — open-source vector similarity search for Postgres",
+            "url": "https://github.com/pgvector/pgvector",
+            "source_type": "official_docs",
+            "last_checked": "2026-06-29"
+          },
+          {
+            "title": "Pinecone — vector database for production ML",
+            "url": "https://docs.pinecone.io/",
+            "source_type": "official_docs",
+            "last_checked": "2026-06-29"
+          },
+          {
+            "title": "LanceDB — serverless, embedded vector database",
+            "url": "https://lancedb.github.io/lancedb/",
+            "source_type": "official_docs",
+            "last_checked": "2026-06-29"
           }
         ]
       }

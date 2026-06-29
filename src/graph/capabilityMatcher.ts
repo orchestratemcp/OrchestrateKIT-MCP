@@ -31,6 +31,7 @@ export type Domain =
   | "monitoring"
   | "notification"
   | "chat"
+  | "knowledge"
   | "generic_orchestration";
 
 /**
@@ -44,12 +45,13 @@ export type Domain =
  * on research, external_publish on ETL, design_brief_generation on email, …).
  */
 const COMPONENT_DOMAINS: Record<string, Domain[]> = {
-  // research
+  // research (synthesis/ranking/citation/freshness are shared with the knowledge
+  // domain — they ground answers over both external sources and an owned corpus)
   source_retrieval: ["research"],
-  source_ranking: ["research"],
-  source_freshness_check: ["research"],
-  citation_checker: ["research"],
-  research_synthesis: ["research"],
+  source_ranking: ["research", "knowledge"],
+  source_freshness_check: ["research", "knowledge"],
+  citation_checker: ["research", "knowledge"],
+  research_synthesis: ["research", "knowledge"],
   // content_publishing
   content_idea_intake: ["content_publishing"],
   copy_generation: ["content_publishing"],
@@ -85,6 +87,12 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   telegram_notification: ["notification"],
   // chat — inbound conversational entrypoint (HINT_ONLY; see below)
   chat_trigger: ["chat"],
+  // knowledge — second-brain / project-brain over an OWNED corpus (all HINT_ONLY;
+  // phrase-established domain so it never bleeds into ETL "ingest"/research goals)
+  knowledge_ingestion: ["knowledge"],
+  vector_store: ["knowledge"],
+  source_attribution: ["knowledge"],
+  note_linking: ["knowledge"],
   // generic_orchestration — always eligible (trigger + infra components)
   scheduled_trigger: ["generic_orchestration"],
   webhook_trigger: ["generic_orchestration"],
@@ -261,6 +269,43 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
     "when mentioned",
     "conversational agent",
     "support bot",
+  ],
+  // knowledge (MAR-217): a "second brain" / "project brain" over an OWNED corpus
+  // (your notes/docs), distinct from web `research` (external sources) and
+  // `data_etl` (records/pipelines — which owns the bare "ingest"/"extraction"
+  // tokens). Deliberately PHRASE-based: bare tokens like "rag" (substring of
+  // "storage"), "vault" (bank vault) or "wiki" would over-trigger, so the domain
+  // is established only by explicit second-brain phrasing, and every knowledge
+  // component is HINT_ONLY so establishing the domain alone injects nothing.
+  knowledge: [
+    "second brain",
+    "project brain",
+    "knowledge base",
+    "knowledge management",
+    "knowledge agent",
+    "knowledge graph",
+    "my notes",
+    "my docs",
+    "my documents",
+    "personal notes",
+    "personal knowledge",
+    "obsidian",
+    "zettelkasten",
+    "personal wiki",
+    "ask my",
+    "ask questions about my",
+    "questions about my notes",
+    "answer questions from my",
+    "answer questions about my",
+    "retrieval augmented",
+    "retrieval-augmented",
+    "rag over",
+    "rag pipeline",
+    "vector store",
+    "vector database",
+    "vector index",
+    "embeddings",
+    "semantic search",
   ],
 };
 
@@ -663,6 +708,44 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   "when mentioned": ["chat_trigger"],
   "conversational agent": ["chat_trigger"],
   "support bot": ["chat_trigger"],
+  // MAR-217: knowledge / second-brain hints. All gated by the `knowledge` domain
+  // (DOMAIN_KEYWORDS.knowledge), so they only fire on a genuine second-brain goal.
+  // Ingest phrases pull the ingestion + index pair; query phrases pull the
+  // retrieval + grounded-answer + attribution chain.
+  "second brain": ["knowledge_ingestion", "vector_store"],
+  "project brain": ["knowledge_ingestion", "vector_store"],
+  "knowledge base": ["knowledge_ingestion", "vector_store"],
+  "my notes": ["knowledge_ingestion", "vector_store"],
+  "my docs": ["knowledge_ingestion", "vector_store"],
+  "my documents": ["knowledge_ingestion", "vector_store"],
+  "personal knowledge": ["knowledge_ingestion", "vector_store"],
+  obsidian: ["knowledge_ingestion", "vector_store", "note_linking"],
+  zettelkasten: ["knowledge_ingestion", "note_linking"],
+  "retrieval augmented": ["vector_store", "research_synthesis"],
+  "retrieval-augmented": ["vector_store", "research_synthesis"],
+  "rag over": ["vector_store", "research_synthesis"],
+  "rag pipeline": ["vector_store", "research_synthesis"],
+  "vector store": ["vector_store"],
+  "vector database": ["vector_store"],
+  "vector index": ["vector_store"],
+  embeddings: ["vector_store"],
+  "semantic search": ["vector_store"],
+  "ask my": ["vector_store", "research_synthesis", "source_attribution"],
+  "ask questions about my": ["vector_store", "research_synthesis", "source_attribution"],
+  "answer questions from my": ["vector_store", "research_synthesis", "source_attribution"],
+  "answer questions about my": ["vector_store", "research_synthesis", "source_attribution"],
+  "questions about my notes": ["vector_store", "research_synthesis"],
+  backlink: ["note_linking"],
+  backlinks: ["note_linking"],
+  "linked notes": ["note_linking"],
+  "link my notes": ["note_linking"],
+  wikilink: ["note_linking"],
+  "knowledge graph": ["note_linking", "vector_store"],
+  attribution: ["source_attribution"],
+  "source attribution": ["source_attribution"],
+  "which note": ["source_attribution"],
+  "grounded answer": ["source_attribution", "research_synthesis"],
+  "grounded summary": ["source_attribution", "research_synthesis"],
   research: ["source_retrieval", "source_ranking", "research_synthesis"],
   search: ["source_retrieval", "source_ranking"],
   retrieve: ["source_retrieval"],
@@ -943,6 +1026,16 @@ const HINT_ONLY_COMPONENTS = new Set([
   "discord_notification",
   "teams_notification",
   "telegram_notification",
+  // MAR-217: knowledge / second-brain components. Their id/summary tokens are
+  // generic ("store", "index", "ingestion", "attribution", "linking") and would
+  // fuzzy-match unrelated state/eval/processing goals. Each is reachable only via
+  // its explicit knowledge KEYWORD_HINTS (second brain / my notes / vector store /
+  // embeddings / attribution / backlink …) within the phrase-established
+  // `knowledge` domain, so establishing the domain alone never injects them.
+  "knowledge_ingestion",
+  "vector_store",
+  "source_attribution",
+  "note_linking",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */

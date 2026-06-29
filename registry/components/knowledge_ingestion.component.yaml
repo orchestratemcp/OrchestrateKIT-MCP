@@ -1,0 +1,43 @@
+id: knowledge_ingestion
+name: Knowledge Ingestion
+status: published
+category: processing
+summary: Loads, chunks and normalises an owned corpus (notes, docs, project history) into embeddable units for a knowledge base.
+capabilities:
+  - load_owned_corpus
+  - chunk_documents
+  - normalise_for_embedding
+inputs:
+  - file paths, note directory or document export (markdown, PDF, plaintext)
+outputs:
+  - list of normalised text chunks with source metadata (doc id, path, position)
+risk_level: medium
+side_effects:
+  - reads local or owned-account files that may contain private or sensitive content
+permissions:
+  read:
+    - owned notes, documents and project files
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - schema_validation
+  - vector_store
+avoid_with: []
+failure_modes:
+  - over-large chunks dilute embedding relevance; over-small chunks lose context
+  - silently ingests secrets or credentials embedded in notes
+  - encoding or format errors drop documents without warning
+  - duplicate ingestion inflates the index with near-identical chunks
+evals:
+  - chunk size distribution within configured bounds
+  - secret-detection rate on fixtures containing planted credentials
+  - ingestion coverage (documents in vs chunks indexed)
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: moderate
+compression_strategy: chunk

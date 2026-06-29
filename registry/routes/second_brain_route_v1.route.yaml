@@ -1,0 +1,39 @@
+id: second_brain_route_v1
+name: Second Brain Query Assistant
+status: candidate
+summary: >
+  Golden-path route for a knowledge-base query agent that retrieves relevant
+  chunks from an owned corpus, synthesises a grounded answer, and attributes
+  every answer span to a named source note. Assumes the vector index has
+  already been populated via the ingest path (knowledge_ingestion → vector_store).
+components:
+  - user_goal_intake
+  - vector_store
+  - source_ranking
+  - research_synthesis
+  - source_attribution
+  - audit_log
+edges:
+  - user_goal_intake__produces__knowledge_ingestion
+  - vector_store__produces__source_ranking
+  - research_synthesis__requires__source_attribution
+  - audit_log__recommended__vector_store
+risk_level: low
+confidence: 0.72
+failure_modes:
+  - Hallucination when vector-store neighbours fall below the similarity threshold but are still used for synthesis
+  - Source attribution absent or generic when research_synthesis spans are not grounded in a retrieved chunk
+  - Stale index served after notes changed without an incremental re-ingest trigger
+  - Embedding model drift makes old chunks incomparable to new queries
+evals:
+  - retrieval recall@k on a labelled query/chunk set
+  - attribution completeness — every answer span names a source note
+  - hallucination rate on a fixed test-question set (human evaluation)
+  - similarity-score compliance — low-relevance neighbours suppressed
+notes: >
+  This route covers the QUERY path only. The INGEST path
+  (knowledge_ingestion → schema_validation → vector_store → audit_log) should
+  be run separately before the first query and on an incremental schedule when
+  notes change. Keep the embedding model version pinned; re-embed the full
+  corpus on upgrade.
+sources: []

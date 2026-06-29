@@ -1,0 +1,12 @@
+id: source_attribution__recommended__citation_checker
+from: source_attribution
+to: citation_checker
+relation: recommended_for
+status: published
+reason: Attribution maps answer spans to owned chunks; the citation checker independently verifies any external references the answer also cites. Together they cover both owned-corpus grounding and external-link integrity.
+severity: medium
+notes: Attribution catches "no source in the corpus"; citation_checker catches "cited URL is broken or fabricated". Keep both — they fail in different ways.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: source_attribution__recommended__citation_checker"

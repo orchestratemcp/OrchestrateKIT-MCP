@@ -1,0 +1,12 @@
+id: knowledge_ingestion__produces__schema_validation
+from: knowledge_ingestion
+to: schema_validation
+relation: produces_input_for
+status: published
+reason: Validate the shape of normalised chunks (required metadata present, size within bounds) before they are embedded, so malformed input never silently pollutes the index.
+severity: medium
+notes: A failed validation should quarantine the offending chunk, not abort the whole ingestion run.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: knowledge_ingestion__produces__schema_validation"

@@ -1,0 +1,46 @@
+id: vector_store
+name: Vector Store
+status: published
+category: state
+summary: Embeds and persists knowledge chunks in a vector index and serves semantic similarity search over the owned corpus (the RAG memory primitive).
+capabilities:
+  - embed_chunks
+  - upsert_vectors
+  - similarity_search
+inputs:
+  - normalised text chunks (for upsert) or a query string (for retrieval)
+outputs:
+  - persisted vector ids (on write) or ranked nearest-neighbour chunks with scores (on read)
+risk_level: medium
+side_effects:
+  - writes embeddings to a local or remote vector database
+  - calls an embedding model (token or compute cost)
+permissions:
+  read:
+    - the owned vector index
+  write:
+    - the owned vector index
+  approval_required_for: []
+requires: []
+recommended_with:
+  - knowledge_ingestion
+  - source_ranking
+  - audit_log
+avoid_with: []
+failure_modes:
+  - embedding model drift makes old and new vectors incomparable
+  - similarity search returns confident but irrelevant neighbours (no relevance floor)
+  - index holds embedded secrets when ingestion did not redact them
+  - stale index served after source documents changed
+evals:
+  - recall@k against a labelled query/chunk set
+  - relevance-floor compliance (low-score neighbours suppressed)
+  - read-after-write consistency after upsert
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: moderate
+compression_strategy: rank_and_drop

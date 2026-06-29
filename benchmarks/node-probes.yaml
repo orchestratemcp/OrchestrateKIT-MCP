@@ -650,3 +650,29 @@ probes:
     goal: "Post a message to our Microsoft Teams channel when a deployment completes."
     must_have: [teams_notification]
     forbidden: [chat_trigger, slack_notification, discord_notification, telegram_notification]
+
+  # ── knowledge / second-brain domain (MAR-217) ─────────────────────────────
+  # New domain `knowledge`: an agent over an OWNED corpus (notes/docs), distinct
+  # from web `research` (external sources) and `data_etl` (records/pipelines).
+  # Authored xfail-first (red before the knowledge components existed); now green.
+  - id: second_brain_ingest
+    goal: "Build a second brain agent that ingests my notes and documents into a knowledge base I can search."
+    must_have: [knowledge_ingestion, vector_store]
+    forbidden: [email_draft, calendar_lookup, calendar_write, page_monitor, data_scraper]
+
+  - id: second_brain_query_attribution
+    goal: "An agent that answers questions from my personal knowledge base and shows which note each answer came from."
+    must_have: [vector_store, source_attribution]
+    forbidden: [email_draft, calendar_lookup, external_publish, data_scraper]
+
+  # Bleed guards (pass throughout — a plain ETL or web-research goal must NOT pull
+  # any knowledge component). These lock the domain boundary both ways.
+  - id: etl_ingest_not_knowledge
+    goal: "Build an ETL pipeline that ingests records from an API, normalizes them, and validates the schema."
+    must_have: [data_normalizer, schema_validation]
+    forbidden: [knowledge_ingestion, vector_store, note_linking, source_attribution]
+
+  - id: web_research_not_knowledge
+    goal: "Research a topic across multiple web sources and synthesize a cited summary."
+    must_have: [research_synthesis, citation_checker]
+    forbidden: [knowledge_ingestion, vector_store, note_linking, source_attribution]

@@ -1,0 +1,12 @@
+id: research_synthesis__requires__source_attribution
+from: research_synthesis
+to: source_attribution
+relation: recommended_for
+status: published
+reason: A grounded answer over an owned corpus must be attributable — every claim mapped to the chunk it came from, and any unsupported span flagged. This is the honesty guarantee of a second-brain agent.
+severity: high
+notes: Do not present synthesis output to the user until attribution has run; surface unsupported spans explicitly rather than hiding them.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: research_synthesis__requires__source_attribution"
