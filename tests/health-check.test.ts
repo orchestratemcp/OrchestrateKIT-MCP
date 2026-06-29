@@ -1,11 +1,18 @@
 import { describe, it, expect } from "vitest";
 import {
   buildHealthCheckResult,
+  computeDemoBlockers,
   type HealthCheckResult,
   type RegistrySummary,
   type RegistryBuild,
 } from "../src/tools/index.js";
-import { SERVER_NAME, SERVER_VERSION, SERVER_INSTRUCTIONS } from "../src/config.js";
+import {
+  SERVER_NAME,
+  SERVER_VERSION,
+  SERVER_INSTRUCTIONS,
+  MIN_COMPONENTS,
+  MIN_EDGES,
+} from "../src/config.js";
 
 describe("health_check tool", () => {
   it("returns the correct server name", () => {
@@ -55,13 +62,75 @@ describe("health_check tool", () => {
 
   // MAR-114: count floor regression — must never drop below post-MAR-95 baseline
   // MAR-217: raised to ≥55 components / ≥116 edges after knowledge domain (4 components, 8 edges)
+  // MAR-220: floor centralised in config (MIN_COMPONENTS / MIN_EDGES)
   it("registry counts meet baseline (≥55 components, ≥116 edges after MAR-217 knowledge domain)", () => {
     const r = buildHealthCheckResult().registry;
-    expect(r.component_count, "components (regression floor: 55 after MAR-217 knowledge domain)").toBeGreaterThanOrEqual(55);
-    expect(r.edge_count, "edges (regression floor: 116 after MAR-217 knowledge edges)").toBeGreaterThanOrEqual(116);
+    expect(MIN_COMPONENTS).toBe(55);
+    expect(MIN_EDGES).toBe(116);
+    expect(r.component_count, "components (regression floor)").toBeGreaterThanOrEqual(MIN_COMPONENTS);
+    expect(r.edge_count, "edges (regression floor)").toBeGreaterThanOrEqual(MIN_EDGES);
     expect(r.stack_count, "stacks").toBeGreaterThanOrEqual(1);
     expect(r.route_count, "routes").toBeGreaterThanOrEqual(5);
     expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(6);
+  });
+
+  // MAR-220: release-trust safe_to_demo verdict
+  it("safe_to_demo is true with empty demo_blockers in a fresh dev build", () => {
+    const result = buildHealthCheckResult();
+    expect(Array.isArray(result.demo_blockers)).toBe(true);
+    expect(result.demo_blockers, JSON.stringify(result.demo_blockers)).toHaveLength(0);
+    expect(result.safe_to_demo).toBe(true);
+  });
+
+  it("computeDemoBlockers flags below-floor counts, untested edges, and stale builds", () => {
+    const lowRegistry: RegistrySummary = {
+      component_count: MIN_COMPONENTS - 1,
+      edge_count: MIN_EDGES - 1,
+      stack_count: 1,
+      route_count: 6,
+      playbook_count: 6,
+      worker_count: 4,
+      untested_edge_pct: 5,
+      stale_component_count: 0,
+    };
+    const staleBuild: RegistryBuild = {
+      fingerprint: "deadbeefdeadbeef",
+      newest_mtime: new Date().toISOString(),
+      built_at: new Date(0).toISOString(),
+      stale: true,
+      stale_files: ["registry/components/foo.component.yaml"],
+      process_started_at: new Date().toISOString(),
+      process_stale: true,
+    };
+    const blockers = computeDemoBlockers(lowRegistry, staleBuild);
+    expect(blockers.length).toBeGreaterThanOrEqual(5);
+    expect(blockers.join("\n")).toMatch(/component_count/);
+    expect(blockers.join("\n")).toMatch(/edge_count/);
+    expect(blockers.join("\n")).toMatch(/untested/);
+    expect(blockers.join("\n")).toMatch(/stale/);
+  });
+
+  it("computeDemoBlockers is empty for a healthy fresh build", () => {
+    const okRegistry: RegistrySummary = {
+      component_count: MIN_COMPONENTS,
+      edge_count: MIN_EDGES,
+      stack_count: 1,
+      route_count: 6,
+      playbook_count: 6,
+      worker_count: 4,
+      untested_edge_pct: 0,
+      stale_component_count: 0,
+    };
+    const freshBuild: RegistryBuild = {
+      fingerprint: "abc123abc123abc1",
+      newest_mtime: new Date().toISOString(),
+      built_at: null,
+      stale: false,
+      stale_files: [],
+      process_started_at: new Date().toISOString(),
+      process_stale: false,
+    };
+    expect(computeDemoBlockers(okRegistry, freshBuild)).toHaveLength(0);
   });
 
   // MAR-114: build fingerprint and stale-dist detection

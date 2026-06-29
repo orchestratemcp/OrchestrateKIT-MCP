@@ -20,6 +20,12 @@ export type RegistryBundle = {
   generated_at: string;
   /** Short sha256 fingerprint of the bundled content. */
   fingerprint: string;
+  /**
+   * Mtime-independent fingerprint of entity content only (MAR-220). Reproducible
+   * across git checkouts; the release-trust gate compares it against the source
+   * YAML to detect a stale bundle. Optional so older bundles still typecheck.
+   */
+  content_fingerprint?: string;
   /** ISO timestamp of the newest source file at generation time. */
   newest_mtime: string;
   components: BundleEntry<Component>[];

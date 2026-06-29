@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { readRawEntries, defaultRegistryDir } from "../src/registry/registryLoader.js";
 import type { RawEntries } from "../src/registry/registryAssembly.js";
+import { contentFingerprint } from "../src/registry/contentFingerprint.js";
 import type { BundleEntry, RegistryBundle } from "../src/registry/registryBundleTypes.js";
 import { loadDocsIndex } from "../src/docs-index/loader.js";
 import type { DocsIndexEntry } from "../src/docs-index/schema.js";
@@ -46,6 +47,7 @@ function build(): void {
   const bundle: RegistryBundle = {
     generated_at: new Date().toISOString(),
     fingerprint: "",
+    content_fingerprint: contentFingerprint(raw),
     newest_mtime: newest.toISOString(),
     components,
     edges,
