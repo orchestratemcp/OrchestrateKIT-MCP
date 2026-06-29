@@ -145,8 +145,17 @@ export type ComposeInput = {
   must_avoid: string[];
   risk_level?: string;
   local_or_hosted?: string;
-  output_depth?: "brief" | "standard" | "deep";
+  /**
+   * MAR-224: layered output depth.
+   *   guided | brief    — Layer 1 concise decision UI (plan_workflow)
+   *   standard          — route + safety, no technical block
+   *   technical | deep  — full plan (tiers, credentials, worker pipeline, evals)
+   */
+  output_depth?: "guided" | "brief" | "standard" | "technical" | "deep";
 };
+
+/** MAR-224: depths that render the concise Layer-1 decision UI. */
+export const LAYER1_DEPTHS = new Set(["guided", "brief"]);
 
 export type RegistrySnapshot = {
   components: Component[];
@@ -703,7 +712,7 @@ export function composeRoute(
     : {};
 
   const summaryMarkdown =
-    output_depth === "brief"
+    output_depth === "brief" || output_depth === "guided"
       ? `**Route status:** \`${routeValidation.route_status}\` | **Confidence:** ${routeValidation.confidence_label} | score: ${route_score}/100\n\n` +
         steps.map((s) => `${s.step}. \`${s.component_id}\``).join(" → ")
       : buildSummaryMarkdown(

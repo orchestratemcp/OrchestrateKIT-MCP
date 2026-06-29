@@ -105,8 +105,11 @@ describe("plan_workflow — automation_clearance on every plan (MAR-168)", () =>
     const r = plan("read emails, detect leads and write a note to the CRM for each lead");
     expect(r.automation_clearance).toBeDefined();
     expect(r.automation_clearance.level).toBe("L3");
+    // MAR-224: Layer-1 surfaces clearance via the status header (`automation:`)
+    // and the plain-language `**Autonomy:**` line; the full "Automation
+    // clearance" section is a technical-depth detail.
     expect(r.summary_markdown).toContain("automation:");
-    expect(r.summary_markdown).toContain("Automation clearance");
+    expect(r.summary_markdown).toContain("**Autonomy:**");
   });
 
   it("a public-publish goal is L4 / human always required", () => {
@@ -139,9 +142,18 @@ describe("plan_workflow — design_notes from edge control_flow_note (MAR-211)",
   });
 
   it("fan-out+saga route surfaces the conditional saga guidance note", () => {
-    const r = plan(
-      "Fan out a batch of documents to parallel processors, validate each result, " +
-      "and roll back all completed writes with a saga compensation step if any processor fails.",
+    // MAR-224: the "Design notes" markdown section is technical-depth; the
+    // structured design_notes array is depth-independent.
+    const r = planWorkflow(
+      {
+        goal:
+          "Fan out a batch of documents to parallel processors, validate each result, " +
+          "and roll back all completed writes with a saga compensation step if any processor fails.",
+        must_have_capabilities: [],
+        must_avoid: [],
+        output_depth: "technical",
+      },
+      registry,
     );
     expect(r.design_notes.length).toBeGreaterThan(0);
     const joined = r.design_notes.join(" ");

@@ -1079,55 +1079,121 @@ function buildStatusHeader(
   ].join("\n");
 }
 
-function buildBriefPlanMarkdown(
+/**
+ * MAR-224: brevity bound on the Layer-1 (guided/brief) markdown. The
+ * RESPONSE-UX-04 eval (MAR-227) asserts the rendered summary stays under this
+ * so "report creep" fails CI instead of silently re-bloating Layer 1.
+ */
+export const LAYER1_MAX_CHARS = 2400;
+
+/**
+ * MAR-224: Layer-1 concise "decision UI" rendering (the default).
+ *
+ * Shows only what a builder needs to DECIDE: (1) what they asked for, (2) the
+ * recommended route as a single line — not 10 step blocks, (3) the integrations
+ * to connect (names only, no per-scope gotchas), (4) the key safeguard
+ * (approval / irreversible-write boundary), (5) a next-action menu, plus a
+ * one-line provenance note. The full step list, model tiers,
+ * credentials/gotchas, worker pipeline, evals and the full provenance block move
+ * to `output_depth: "technical"`/"deep". The scannable status front-matter
+ * (buildStatusHeader) is prepended separately and carries the safety glance.
+ */
+function buildGuidedPlanMarkdown(
   goal: string,
   planSource: PlanSource,
   steps: RouteStep[],
   playbook: PlanPlaybook | null,
   safety: SafetyReview,
-  untestedEdges: UntestedEdge[],
   enforcedGates: string[],
   approvalAdvisory: ApprovalGateAdvisory | null,
+  clearance: AutomationClearance,
+  whatYouNeed: IntegrationNeed[],
+  suggestedNextActions: string[],
+  /**
+   * MAR-224: when true (`standard` depth) the recommended route is rendered as a
+   * full numbered step list with per-step risk instead of the one-line chain —
+   * a clean superset of the guided layer that still omits the technical block
+   * (model tiers, credentials, worker pipeline, provenance block = Layer 2).
+   */
+  fullSteps: boolean,
 ): string {
   const lines: string[] = [];
 
+  // (1) what you want — bound the echo so the brevity cap holds for any goal
+  // length (the full goal is always in the JSON `goal` field).
+  const shownGoal = goal.length > 240 ? `${goal.slice(0, 240).trimEnd()}…` : goal;
+  lines.push(`**You want:** ${shownGoal}`, ``);
+
+  // (2) what we recommend — one line, not 10 step blocks
+  const MAX_NODES = 10;
+  const names = steps.map((s) => s.component_name ?? s.component_id);
+  const chain =
+    names.length > MAX_NODES
+      ? `${names.slice(0, MAX_NODES).join(" → ")} → … (+${names.length - MAX_NODES})`
+      : names.join(" → ");
   if (planSource === "playbook" && playbook) {
     lines.push(
-      `**Validated playbook:** \`${playbook.id}\` — ${playbook.title} ` +
-        `(recall ${Math.round(playbook.recall * 100)}%, precision ${Math.round(playbook.precision * 100)}%)`,
-      ``,
+      `**Recommended:** validated playbook \`${playbook.id}\` — ${playbook.title} (${steps.length} steps)`,
     );
   } else {
-    lines.push(`**Composed candidate route** — no validated playbook strongly matches.`, ``);
+    lines.push(`**Recommended:** composed candidate route (${steps.length} steps)`);
+  }
+  if (fullSteps) {
+    lines.push(``, `**Steps:**`);
+    for (const s of steps) {
+      lines.push(
+        `${s.step}. **${s.component_name ?? s.component_id}** — ${s.purpose} [${s.risk_level} risk]`,
+      );
+    }
+    lines.push(``);
+  } else {
+    lines.push(`> ${chain}`, ``);
   }
 
-  lines.push(`**Steps**`, ``);
-  for (const s of steps) {
-    const tier = s.model_tier === "none" ? "deterministic" : `${s.model_tier} LLM`;
-    lines.push(`${s.step}. **${s.component_name ?? s.component_id}** — ${s.purpose} [${tier}, ${s.risk_level} risk]`);
+  // (3) what to connect — integration NAMES only, no scopes / gotchas (those are Layer 2)
+  if (whatYouNeed.length > 0) {
+    lines.push(`**To connect:** ${whatYouNeed.map((n) => n.label).join(", ")}`, ``);
+  } else {
+    lines.push(`**To connect:** nothing external — all steps are internal / deterministic`, ``);
   }
-  lines.push(``);
 
-  const safetyMark = safety.status === "pass" ? "✅" : safety.status === "warnings" ? "⚠️" : "❌";
-  lines.push(`**Safety:** ${safetyMark} ${safety.status.toUpperCase()}`);
+  // (4) key safeguard — approval boundary + irreversible-write note, plain language
+  let safeguard: string;
   if (enforcedGates.length > 0) {
-    lines.push(`**Approval enforced:** ${enforcedGates.map((g) => `\`${g}\``).join(", ")}`);
-  } else if (!approvalAdvisory && safety.approval_gates_required.length > 0) {
-    // MAR-148: the review requires a gate the route does not enforce (G2 gap).
-    lines.push(
-      `**⚠️ Approval REQUIRED but NOT enforced:** ` +
-        `${safety.approval_gates_required.map((g) => `\`${g}\``).join(", ")}`,
-    );
+    safeguard = enforcedGates.includes("human_approval_gate")
+      ? `a human approval step is enforced before anything external happens — keep it`
+      : `approval is enforced (${enforcedGates.join(", ")}) — keep it`;
+  } else if (approvalAdvisory) {
+    safeguard = `approval gate kept as advisory (you waived enforcement) — re-enable it to run unattended`;
+  } else if (safety.approval_gates_required.length > 0) {
+    safeguard = `⚠️ approval is REQUIRED but not in the route — add ${safety.approval_gates_required.join(", ")} before building`;
+  } else {
+    safeguard = `no approval gate required for this plan`;
   }
-  if (approvalAdvisory) {
-    lines.push(`**Gate advisory:** ${approvalAdvisory.reason}`);
+  lines.push(`**Key safeguard:** ${safeguard}.`);
+  if (steps.some((s) => s.risk_level === "high" || s.risk_level === "critical")) {
+    lines.push(`Some steps make irreversible external writes — do not run unattended past the gate.`);
   }
-  if (safety.blocking_issues.length > 0) {
-    lines.push(`**Blocking issues:** ${safety.blocking_issues.join("; ")}`);
+  const autoText = clearance.autonomous_allowed
+    ? "may run unattended"
+    : clearance.level === "L4"
+    ? "human always required"
+    : "human in the loop by default";
+  lines.push(`**Autonomy:** ${clearance.level} — ${autoText}.`, ``);
+
+  // (5) next-action menu (RESPONSE-UX-03)
+  if (suggestedNextActions.length > 0) {
+    lines.push(`**Next — pick one:**`);
+    for (const a of suggestedNextActions) lines.push(`- ${a}`);
+    lines.push(``);
   }
-  if (untestedEdges.length > 0) {
-    lines.push(`**Untested edges:** ${untestedEdges.length} — verify before building.`);
-  }
+
+  // one-line provenance + depth hint (the full provenance block is Layer 2)
+  lines.push(
+    `> 🟢 Route, safety and autonomy above are registry-grounded (no LLM). Anything you add is ` +
+      `🔵 suggested — don't present it as a registry fact. For the full step-by-step plan, model ` +
+      `tiers, credentials and build team, call again with \`output_depth: "technical"\`.`,
+  );
 
   return lines.join("\n");
 }
@@ -1596,7 +1662,9 @@ export function planWorkflow(
   // MAR-101: every depth leads with the same scannable status front-matter so
   // route_status / safety / blocking / approval / untested-edge count are
   // unmissable regardless of how much detail follows.
-  const outputDepth = input.output_depth ?? "standard";
+  // MAR-224: layered depth. guided/brief = Layer-1 concise decision UI (default);
+  // standard = step list + safety, no technical block; technical/deep = full plan.
+  const outputDepth = input.output_depth ?? "brief";
   const statusHeader = buildStatusHeader(
     route_status,
     safety_review,
@@ -1605,35 +1673,40 @@ export function planWorkflow(
     approval_gate_advisory,
     automation_clearance,
   );
-  const body =
-    outputDepth === "brief"
-      ? buildBriefPlanMarkdown(
-          input.goal,
-          planSource,
-          steps,
-          playbook,
-          safety_review,
-          untested_edges,
-          enforced_approval_gates,
-          approval_gate_advisory,
-        )
-      : buildPlanMarkdown(
-          input.goal,
-          planSource,
-          steps,
-          playbook,
-          safety_review,
-          model_tier_profile,
-          credential_advisory,
-          untested_edges,
-          approval_gate_advisory,
-          worker_pipeline,
-          loop_guidance,
-          automation_clearance,
-          design_notes,
-          what_you_need,
-          suggested_next_actions,
-        );
+  let body: string;
+  if (outputDepth === "guided" || outputDepth === "brief" || outputDepth === "standard") {
+    body = buildGuidedPlanMarkdown(
+      input.goal,
+      planSource,
+      steps,
+      playbook,
+      safety_review,
+      enforced_approval_gates,
+      approval_gate_advisory,
+      automation_clearance,
+      what_you_need,
+      suggested_next_actions,
+      outputDepth === "standard", // fullSteps: standard is the superset layer
+    );
+  } else {
+    body = buildPlanMarkdown(
+      input.goal,
+      planSource,
+      steps,
+      playbook,
+      safety_review,
+      model_tier_profile,
+      credential_advisory,
+      untested_edges,
+      approval_gate_advisory,
+      worker_pipeline,
+      loop_guidance,
+      automation_clearance,
+      design_notes,
+      what_you_need,
+      suggested_next_actions,
+    );
+  }
   const summary_markdown = `${statusHeader}\n\n${body}`;
 
   return {
@@ -1820,8 +1893,12 @@ const InputShape = {
   local_or_hosted: z.enum(["local", "hosted", "either"]).default("either").describe(
     "Local tool vs hosted product — affects the stack recommendation.",
   ),
-  output_depth: z.enum(["brief", "standard", "deep"]).default("standard").describe(
-    "brief = route only. standard = route + safety + tiers. deep = includes all evals.",
+  output_depth: z.enum(["guided", "brief", "standard", "technical", "deep"]).default("brief").describe(
+    "Layered output (MAR-224). guided/brief = concise Layer-1 decision UI: the goal, the " +
+    "recommended route as one line, integrations to connect (names only), the key safeguard, " +
+    "and a next-action menu. standard = adds the full step list + safety detail. " +
+    "technical/deep = the full plan — model tiers, credentials & gotchas, worker pipeline, " +
+    "untested edges, evals and the provenance block. Default brief.",
   ),
   build_target: z.enum(["cowork", "cursor", "chatgpt_gpt", "code"]).optional().describe(
     "Who will BUILD from this plan? " +
