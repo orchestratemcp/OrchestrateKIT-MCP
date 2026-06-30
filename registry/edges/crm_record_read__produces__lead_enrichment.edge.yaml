@@ -1,0 +1,12 @@
+id: crm_record_read__produces__lead_enrichment
+from: crm_record_read
+to: lead_enrichment
+relation: produces_input_for
+status: published
+reason: Enrichment needs a base record to augment. Reading the CRM record first gives lead_enrichment a stable identifier (email/domain) and the existing field set, so it can fill gaps rather than overwrite known-good data.
+severity: medium
+notes: Pass the CRM record id alongside the email/domain so the enriched result can be reconciled back to the right record downstream. Do not enrich on a name alone.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: crm_record_read__produces__lead_enrichment"

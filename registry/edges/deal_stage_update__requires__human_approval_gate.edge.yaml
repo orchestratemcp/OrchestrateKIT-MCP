@@ -1,0 +1,12 @@
+id: deal_stage_update__requires__human_approval_gate
+from: deal_stage_update
+to: human_approval_gate
+relation: requires
+status: published
+reason: Advancing a deal stage is an irreversible write to a revenue-bearing record that can trigger downstream automations (emails, tasks, forecast changes). It must never happen without explicit human approval.
+severity: critical
+notes: The gate must approve the SPECIFIC deal id and target stage, not a blanket "advance deals" permission. A hallucinated deal match advanced silently is a high-blast-radius error.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: deal_stage_update__requires__human_approval_gate"

@@ -1,0 +1,12 @@
+id: deal_stage_update__safer_with__auth_failure_handler
+from: deal_stage_update
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: A CRM deal write fails hard on an expired token or revoked scope. Without an auth-failure handler the workflow can leave a deal half-transitioned or silently skip the update, corrupting pipeline state.
+severity: medium
+notes: Distinguish a 401 (token expired — retry after refresh) from a 403 (scope revoked — escalate, do not retry). Never mark a stage change "done" on an auth failure.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: deal_stage_update__safer_with__auth_failure_handler"

@@ -1,0 +1,12 @@
+id: lead_enrichment__produces__deal_stage_update
+from: lead_enrichment
+to: deal_stage_update
+relation: produces_input_for
+status: published
+reason: An enrichment/fit score is a common signal for whether a deal should advance. The scored lead feeds the stage-change decision — but the score is advisory input, never an auto-trigger.
+severity: high
+notes: The score MUST NOT auto-advance the deal. deal_stage_update requires human_approval_gate precisely so a model's confident-but-wrong score cannot move a revenue record on its own.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: lead_enrichment__produces__deal_stage_update"

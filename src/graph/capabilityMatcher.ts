@@ -78,6 +78,9 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   pr_summary: ["code_agent"],
   // crm_sales
   crm_note_write: ["crm_sales"],
+  crm_record_read: ["crm_sales"],
+  lead_enrichment: ["crm_sales"],
+  deal_stage_update: ["crm_sales"],
   // monitoring
   page_monitor: ["monitoring"],
   // notification
@@ -225,6 +228,11 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
     "hubspot",
     "salesforce",
     "partnership",
+    // MAR-242: CRM-specific terms only. NOT "pipeline"/"enrich" — those already
+    // belong to data_etl and would bleed an ETL goal into crm_sales. "lead"/"crm"
+    // already establish the domain; lead_enrichment routes via its "enrich" hint.
+    "deal",
+    "opportunity",
   ],
   monitoring: [
     "monitor",
@@ -797,6 +805,22 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   post: ["external_publish"],
   crm: ["crm_note_write"],
   lead: ["crm_note_write"],
+  // MAR-242: CRM-domain depth — read / enrich / advance-stage (all HINT_ONLY).
+  "crm record": ["crm_record_read"],
+  "read the crm": ["crm_record_read"],
+  "look up": ["crm_record_read"],
+  lookup: ["crm_record_read"],
+  "contact record": ["crm_record_read"],
+  "deal record": ["crm_record_read"],
+  enrich: ["lead_enrichment"],
+  enrichment: ["lead_enrichment"],
+  firmographic: ["lead_enrichment"],
+  "deal stage": ["deal_stage_update"],
+  "pipeline stage": ["deal_stage_update"],
+  "opportunity stage": ["deal_stage_update"],
+  "advance the deal": ["deal_stage_update"],
+  "move the deal": ["deal_stage_update"],
+  "update the deal": ["deal_stage_update"],
   scrape: ["data_scraper"],
   crawl: ["data_scraper"],
   monitor: ["page_monitor"],
@@ -1064,6 +1088,16 @@ const HINT_ONLY_COMPONENTS = new Set([
   "vector_store",
   "source_attribution",
   "note_linking",
+  // MAR-242: CRM-domain depth. Their id/summary/capability tokens are generic
+  // ("read", "lookup", "record", "enrich", "score", "deal", "stage", "update")
+  // and would fuzzy-match unrelated data-read / scoring / state goals. Each is
+  // reachable only via its explicit CRM KEYWORD_HINTS (crm record / look up /
+  // enrich / deal stage / advance the deal …) within the `crm_sales` domain, so
+  // establishing the domain alone never injects them. crm_note_write stays
+  // fuzzy-matchable (its tokens are CRM-specific) as the default CRM write.
+  "crm_record_read",
+  "lead_enrichment",
+  "deal_stage_update",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */

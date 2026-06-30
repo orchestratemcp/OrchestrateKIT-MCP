@@ -4,10 +4,10 @@ export const SERVER_VERSION = "0.1.0";
 /**
  * Release-trust count floors (MAR-220). `health_check.safe_to_demo` reports
  * false — and the health-check regression test fails — if the live registry
- * drops below these. Raised to 55/116 after the MAR-217 knowledge domain.
+ * drops below these. Raised to 58/123 after the MAR-242 CRM-domain depth.
  */
-export const MIN_COMPONENTS = 55;
-export const MIN_EDGES = 116;
+export const MIN_COMPONENTS = 58;
+export const MIN_EDGES = 123;
 
 /**
  * MAR-99: server-level instructions sent to AI clients on connect.

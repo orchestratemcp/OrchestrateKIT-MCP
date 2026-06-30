@@ -1,0 +1,12 @@
+id: audit_log__recommended__deal_stage_update
+from: audit_log
+to: deal_stage_update
+relation: recommended_for
+status: published
+reason: A deal stage change alters forecasts and fires downstream automations. The audit log is the only reliable post-hoc record of which deal moved, from which stage to which, who approved it, and when.
+severity: high
+notes: Log the deal id, previous and new stage, the approval actor, and the workflow run_id. A stage change from an ambiguous deal match is impossible to investigate or reverse without this trail.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__deal_stage_update"

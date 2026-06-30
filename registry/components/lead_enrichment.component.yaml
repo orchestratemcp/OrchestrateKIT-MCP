@@ -1,0 +1,45 @@
+id: lead_enrichment
+name: Lead Enrichment
+status: published
+category: integration
+summary: Augments a lead or contact with firmographic / demographic data from an enrichment provider (Clearbit, Apollo, ZoomInfo, etc.) and optionally scores it. Read-and-augment only — it never writes back to the CRM itself.
+capabilities:
+  - enrich_lead
+  - append_firmographics
+  - resolve_company
+  - score_lead
+inputs:
+  - lead or contact record (email or domain at minimum) from crm_record_read or a trigger
+  - enrichment provider API credentials
+outputs:
+  - the lead augmented with company size, industry, role, and an optional fit/intent score
+risk_level: low
+side_effects:
+  - outbound API requests to a third-party enrichment provider counted against rate limits
+permissions:
+  read:
+    - enrichment provider lookup (email / domain)
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - crm_record_read
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - provider returns a confident match for the wrong person/company on a common name or shared domain
+  - enrichment data is stale (provider snapshot lag) and overwrites fresher CRM data downstream
+  - PII / GDPR — enriching EU contacts without a lawful basis; strip and gate before storage
+  - score is treated as ground truth and auto-advances a deal without human review
+evals:
+  - match precision on a labelled set of known leads (correct company resolved)
+  - score calibration vs. converted-vs-not outcomes on historical leads
+  - auth failure detection rate (invalid / exhausted provider key)
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: small
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

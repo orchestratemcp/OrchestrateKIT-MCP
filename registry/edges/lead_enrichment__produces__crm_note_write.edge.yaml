@@ -1,0 +1,12 @@
+id: lead_enrichment__produces__crm_note_write
+from: lead_enrichment
+to: crm_note_write
+relation: produces_input_for
+status: published
+reason: A common CRM flow logs the enrichment result back as a note/activity on the contact so reps can see the augmented context. The enriched lead is the input the note write records.
+severity: medium
+notes: Write the enrichment provenance (source, snapshot date, score) into the note so a rep can judge freshness. The note write still requires human approval (crm_note_write gate).
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: lead_enrichment__produces__crm_note_write"

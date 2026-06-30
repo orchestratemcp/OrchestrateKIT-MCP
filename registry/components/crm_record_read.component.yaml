@@ -1,0 +1,46 @@
+id: crm_record_read
+name: CRM Record Read
+status: published
+category: integration
+summary: Reads contact, lead, company, and deal records from a CRM (HubSpot, Salesforce, Pipedrive, etc.) for use before any write — the read side of a CRM agent. Stack adapters are configured separately via the stack registry.
+capabilities:
+  - crm_read
+  - contact_lookup
+  - lead_lookup
+  - deal_lookup
+  - list_crm_records
+inputs:
+  - CRM object type (contact | company | deal | lead) with optional filters (owner, stage, last-modified, search query)
+  - CRM API credentials or stack adapter reference (read-only scope)
+outputs:
+  - array of CRM record objects with the requested field set as returned by the CRM API
+risk_level: low
+side_effects:
+  - outbound API requests to the CRM counted against rate limits
+permissions:
+  read:
+    - CRM contact / company / deal records (read-only scope)
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - auth_failure_handler
+  - audit_log
+avoid_with: []
+failure_modes:
+  - ambiguous search returns multiple records and the wrong one is selected for a downstream write
+  - API key lacks the required read scope — fails with 403 with no actionable error to downstream
+  - pagination cursor expires for very large result sets causing incomplete reads
+  - PII in contact records requires downstream anonymisation before storage or logging
+evals:
+  - record retrieval completeness on a CRM sandbox account
+  - contact resolution accuracy on ambiguous or partial identifiers
+  - auth failure detection rate (invalid / under-scoped key)
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

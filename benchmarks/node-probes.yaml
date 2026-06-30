@@ -687,3 +687,30 @@ probes:
     goal: "Research a topic across multiple web sources and synthesize a cited summary."
     must_have: [research_synthesis, citation_checker]
     forbidden: [knowledge_ingestion, vector_store, note_linking, source_attribution]
+
+  # ── crm / sales domain depth (MAR-242) ────────────────────────────────────
+  # crm_record_read (read), lead_enrichment (augment), deal_stage_update (gated
+  # write) extend the previously single-component crm_sales domain. All three are
+  # HINT_ONLY, so each goal names the access pattern explicitly.
+  - id: crm_read_enrich_advance
+    goal: "Look up the contact's CRM record, enrich the lead with firmographic data, and advance the deal stage after I approve."
+    must_have: [crm_record_read, lead_enrichment, deal_stage_update]
+    forbidden: [page_monitor, data_scraper, calendar_lookup, calendar_write]
+
+  - id: crm_read_then_enrich
+    goal: "Read a lead from our CRM record and enrich it with company firmographic data."
+    must_have: [crm_record_read, lead_enrichment]
+    forbidden: [page_monitor, data_scraper, external_publish]
+
+  # Bleed guard: a plain web-research goal must NOT pull any CRM-depth component.
+  - id: research_not_crm_depth
+    goal: "Research a topic across multiple web sources and synthesize a cited summary."
+    must_have: [research_synthesis, citation_checker]
+    forbidden: [crm_record_read, lead_enrichment, deal_stage_update]
+
+  # Bleed guard: a pure ETL pipeline goal must NOT pull any CRM component
+  # (locks the data_etl ↔ crm_sales boundary after MAR-242 keyword tuning).
+  - id: etl_pipeline_not_crm
+    goal: "Build an ETL pipeline that ingests records from an API, normalizes them, and validates the schema."
+    must_have: [data_normalizer, schema_validation]
+    forbidden: [crm_note_write, crm_record_read, lead_enrichment, deal_stage_update]
