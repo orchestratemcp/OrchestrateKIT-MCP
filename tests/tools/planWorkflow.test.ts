@@ -489,6 +489,68 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
   });
 });
 
+// MAR-226: standardized, machine-consumable next-action menu.
+describe("planWorkflow — MAR-226 next-action menu", () => {
+  const at = (goal: string, build_target?: "cowork" | "cursor" | "chatgpt_gpt" | "code") =>
+    planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], build_target }, registry);
+
+  it("every plan has a non-empty menu of {id,label,action} with stable ids", () => {
+    const r = plan("read emails, detect leads and draft a reply for approval");
+    expect(r.next_action_menu.length).toBeGreaterThan(0);
+    for (const a of r.next_action_menu) {
+      expect(typeof a.id).toBe("string");
+      expect(a.label.length).toBeGreaterThan(0);
+      expect(a.action.length).toBeGreaterThan(0);
+    }
+    // always offers the drill-into-technical action mapped to output_depth
+    const tech = r.next_action_menu.find((a) => a.id === "show_technical_plan");
+    expect(tech).toBeDefined();
+    expect(tech!.action).toContain('output_depth: "technical"');
+  });
+
+  it("build_target gates the build path (cowork → cowork prompt, cursor → build brief, gpt → gpt prompt)", () => {
+    const cowork = at("read emails and draft a reply", "cowork").next_action_menu;
+    expect(cowork.find((a) => a.id === "generate_prompt")!.label).toContain("CoWork");
+    expect(cowork.find((a) => a.id === "export_build_brief")).toBeUndefined();
+
+    const cursor = at("read emails and draft a reply", "cursor").next_action_menu;
+    expect(cursor.find((a) => a.id === "export_build_brief")).toBeDefined();
+    expect(cursor.find((a) => a.id === "generate_prompt")).toBeUndefined();
+
+    const gpt = at("read emails and draft a reply", "chatgpt_gpt").next_action_menu;
+    expect(gpt.find((a) => a.id === "generate_prompt")!.label).toContain("ChatGPT");
+  });
+
+  it("a playbook-backed plan offers open_playbook; a composed plan does not", () => {
+    const pb = plan("scan a codebase, plan changes, edit code, run tests and write a PR summary");
+    expect(pb.plan_source).toBe("playbook");
+    const open = pb.next_action_menu.find((a) => a.id === "open_playbook");
+    expect(open).toBeDefined();
+    expect(open!.action).toContain(pb.playbook!.id);
+
+    const composed = plan(
+      "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
+    );
+    expect(composed.plan_source).toBe("composed");
+    expect(composed.next_action_menu.find((a) => a.id === "open_playbook")).toBeUndefined();
+  });
+
+  it("the Layer-1 markdown renders the menu under 'Next — pick one'", () => {
+    const r = plan("read emails and draft a reply for approval");
+    expect(r.summary_markdown).toContain("**Next — pick one:**");
+    for (const a of r.next_action_menu) {
+      expect(r.summary_markdown).toContain(a.label);
+    }
+  });
+
+  it("menu is tagged advisory; legacy suggested_next_actions stays for back-compat", () => {
+    const r = plan("read emails and draft a reply for approval");
+    expect(r.provenance.field_tags.next_action_menu).toBe("advisory");
+    expect(Array.isArray(r.suggested_next_actions)).toBe(true);
+    expect(r.suggested_next_actions.length).toBeGreaterThan(0);
+  });
+});
+
 // MAR-148 item-2: the two approval-gate fields must not contradict each other.
 // `enforced_approval_gates` = gates present in the route; `safety_review.
 // approval_gates_required` = gates the review says are needed. When they differ
