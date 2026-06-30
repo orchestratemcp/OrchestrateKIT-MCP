@@ -1,0 +1,12 @@
+id: uptime_check__produces__slack_notification
+from: uptime_check
+to: slack_notification
+relation: produces_input_for
+status: published
+reason: An uptime check exists to tell a human when a service goes down or recovers. The availability transition event (up/down/degraded, response code, latency) is the alert payload.
+severity: medium
+notes: Alert on the TRANSITION, not every failing probe, and send a recovery ("back up") notice too — a down alert with no all-clear leaves responders guessing. Honour the N-consecutive-failure threshold before paging.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: uptime_check__produces__slack_notification"

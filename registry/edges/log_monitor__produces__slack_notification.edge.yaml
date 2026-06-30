@@ -1,0 +1,12 @@
+id: log_monitor__produces__slack_notification
+from: log_monitor
+to: slack_notification
+relation: produces_input_for
+status: published
+reason: A log monitor's whole purpose is to surface an error pattern or anomaly spike to a human channel. The match event (pattern, count, sample lines) is the alert payload.
+severity: medium
+notes: Redact secrets/PII from the sampled log lines BEFORE they reach the channel, and cap the number of lines posted. Rate-limit so a log storm doesn't become an alert storm.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: log_monitor__produces__slack_notification"

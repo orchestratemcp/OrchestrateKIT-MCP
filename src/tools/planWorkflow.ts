@@ -836,6 +836,57 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
     ],
   },
 
+  metric_threshold_monitor: {
+    label: "Metrics provider — query a metric",
+    product_examples: ["Datadog", "Grafana / Prometheus", "AWS CloudWatch"],
+    auth_model: "API key + app key (Datadog) / API token (Grafana) / IAM role (CloudWatch)",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "No standard MCP; use the provider query API (Datadog v1 metrics, Prometheus HTTP API, CloudWatch GetMetricData)",
+    },
+    required_scopes: ["metrics_read", "timeseries_query"],
+    gotchas: [
+      "Use a read-only/query-scoped key — a metrics key with write scope can mutate monitors",
+      "Match the aggregation window to the signal: a 1-hour avg hides a 1-minute spike",
+      "A gap in the series (no datapoints) often reads as 0 — assert on data presence before comparing",
+    ],
+  },
+
+  log_monitor: {
+    label: "Log provider — query logs",
+    product_examples: ["Datadog Logs", "AWS CloudWatch Logs", "Sentry / Loki"],
+    auth_model: "API key (Datadog/Sentry) / IAM role (CloudWatch) / token (Loki)",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "No standard MCP; use the provider logs query API (Datadog Logs Search, CloudWatch Logs Insights, Sentry Issues)",
+    },
+    required_scopes: ["logs_read"],
+    gotchas: [
+      "Redact secrets/PII from sampled log lines BEFORE forwarding to an alert channel",
+      "Log ingestion lag means a query can run before the offending lines are indexed — add a lookback buffer",
+      "A broad pattern floods alerts and trains responders to ignore them — scope tightly and rate-limit",
+    ],
+  },
+
+  uptime_check: {
+    label: "Uptime / health-check probe",
+    product_examples: ["Pingdom", "UptimeRobot", "healthchecks.io / direct HTTP"],
+    auth_model: "API key (provider) — or no auth for a direct HTTP probe",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "No standard MCP; use the provider API or a direct HTTP/TCP probe",
+    },
+    required_scopes: ["monitors_read"],
+    gotchas: [
+      "Require N consecutive failures before paging — a single transient blip is not an outage",
+      "Probe from more than one region — a single-region check confuses a network blip with a real outage",
+      "Assert on the response body, not just a 200 — a 200 with an error page reads as healthy",
+    ],
+  },
+
   slack_notification: {
     label: "Slack — send messages",
     product_examples: ["Slack"],

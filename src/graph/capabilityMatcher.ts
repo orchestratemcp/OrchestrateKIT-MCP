@@ -83,6 +83,9 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   deal_stage_update: ["crm_sales"],
   // monitoring
   page_monitor: ["monitoring"],
+  metric_threshold_monitor: ["monitoring"],
+  log_monitor: ["monitoring"],
+  uptime_check: ["monitoring"],
   // notification
   slack_notification: ["notification"],
   discord_notification: ["notification"],
@@ -242,6 +245,17 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
     "change detection",
     "for changes",
     "uptime",
+    // MAR-243: metric / log / availability monitoring. Deliberately specific —
+    // not bare "log"/"alert" (too generic: blog/login/catalog) and NOT "threshold"
+    // (shared with threshold_router's domain-agnostic routing use). "metric" /
+    // "latency" / "error rate" / "downtime" / "anomaly" / "logs" are unambiguous.
+    "metric",
+    "latency",
+    "error rate",
+    "downtime",
+    "health check",
+    "anomaly",
+    "logs",
   ],
   notification: [
     "slack",
@@ -826,6 +840,25 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   monitor: ["page_monitor"],
   poll: ["page_monitor"],
   watch: ["page_monitor"],
+  // MAR-243: monitoring-domain depth (all HINT_ONLY). page_monitor stays the
+  // web-page change monitor; these are metric / log / availability observers.
+  metric: ["metric_threshold_monitor"],
+  "error rate": ["metric_threshold_monitor"],
+  latency: ["metric_threshold_monitor"],
+  "queue depth": ["metric_threshold_monitor"],
+  "metric threshold": ["metric_threshold_monitor"],
+  logs: ["log_monitor"],
+  "log monitor": ["log_monitor"],
+  "error logs": ["log_monitor"],
+  anomaly: ["log_monitor"],
+  sentry: ["log_monitor"],
+  "uptime check": ["uptime_check"],
+  uptime: ["uptime_check"],
+  downtime: ["uptime_check"],
+  "health check": ["uptime_check"],
+  "is up": ["uptime_check"],
+  "goes down": ["uptime_check"],
+  pingdom: ["uptime_check"],
   cron: ["scheduled_trigger"],
   scheduled: ["scheduled_trigger"],
   nightly: ["scheduled_trigger"],
@@ -1098,6 +1131,16 @@ const HINT_ONLY_COMPONENTS = new Set([
   "crm_record_read",
   "lead_enrichment",
   "deal_stage_update",
+  // MAR-243: monitoring-domain depth. Their id/summary tokens are generic
+  // ("monitor", "check", "log", "metric", "event") and would fuzzy-match
+  // unrelated scheduling / data / code goals (the page_monitor / data_scraper
+  // lesson, MAR-215). Each is reachable only via its explicit monitoring
+  // KEYWORD_HINTS (metric / error rate / latency / logs / anomaly / uptime /
+  // downtime / health check …) within the `monitoring` domain. page_monitor
+  // stays the web-page change monitor.
+  "metric_threshold_monitor",
+  "log_monitor",
+  "uptime_check",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */

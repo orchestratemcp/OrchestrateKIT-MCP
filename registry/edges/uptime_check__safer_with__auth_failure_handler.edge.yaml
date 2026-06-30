@@ -1,0 +1,12 @@
+id: uptime_check__safer_with__auth_failure_handler
+from: uptime_check
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: When the check runs through a provider (Pingdom/UptimeRobot) an expired key makes the provider call fail — without an auth-failure handler that is easily confused with the target being down, producing a false outage alert.
+severity: medium
+notes: Separate "the uptime provider rejected our credentials" from "the target endpoint is down". A provider auth failure is a monitor-health issue, not a target outage.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: uptime_check__safer_with__auth_failure_handler"

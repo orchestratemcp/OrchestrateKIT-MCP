@@ -714,3 +714,32 @@ probes:
     goal: "Build an ETL pipeline that ingests records from an API, normalizes them, and validates the schema."
     must_have: [data_normalizer, schema_validation]
     forbidden: [crm_note_write, crm_record_read, lead_enrichment, deal_stage_update]
+
+  # ── monitoring domain depth (MAR-243) ─────────────────────────────────────
+  # metric_threshold_monitor / log_monitor / uptime_check extend the previously
+  # single-component monitoring domain (page_monitor = web-page change only). All
+  # three are HINT_ONLY, so each goal names the observed signal explicitly.
+  - id: metric_breach_alert
+    goal: "Track our API error rate as a metric and alert me on Slack when it exceeds the threshold."
+    must_have: [metric_threshold_monitor, slack_notification]
+    forbidden: [page_monitor, data_scraper, calendar_lookup]
+
+  # NB: phrased with log-specific signals, not the verb "watch"/"monitor" — those
+  # are page_monitor hints and "watch the logs" pulls page_monitor as noise
+  # (the generic-monitor-verb residual; a contextual-suppression follow-up).
+  - id: log_anomaly_alert
+    goal: "Detect anomaly spikes in our application error logs and notify the team."
+    must_have: [log_monitor]
+    forbidden: [page_monitor, data_scraper]
+
+  - id: uptime_down_alert
+    goal: "Run an uptime check on our website endpoint every 5 minutes and alert me on Slack if it goes down."
+    must_have: [uptime_check]
+    forbidden: [page_monitor, data_scraper]
+
+  # Bleed guard: a web-page change goal stays on page_monitor and must NOT pull
+  # the metric/log/uptime observers (locks the monitoring sub-type boundary).
+  - id: page_change_not_metric_monitors
+    goal: "Monitor a competitor's pricing page and tell me when the page content changes."
+    must_have: [page_monitor]
+    forbidden: [metric_threshold_monitor, log_monitor, uptime_check]

@@ -1,0 +1,50 @@
+id: log_monitor
+name: Log Monitor
+status: published
+category: input
+summary: >-
+  Scans or tails application logs from a log provider (Datadog Logs, CloudWatch
+  Logs, Loki, Sentry, Elastic) for error patterns or anomaly spikes and emits a
+  match event with the offending log lines. Read-only; alerting and routing are
+  separate downstream components.
+capabilities:
+  - query_logs
+  - pattern_match
+  - anomaly_spike_detection
+  - emit_log_match_event
+inputs:
+  - log query (provider + index/stream + pattern or anomaly rule), lookback window, poll interval
+  - log provider API credentials (read-only)
+outputs:
+  - match event with the matching log lines, counts, and the time window when a pattern or spike is found
+risk_level: low
+side_effects:
+  - outbound API requests to the log provider, counted against query rate limits
+permissions:
+  read:
+    - log provider query API (read-only)
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - state_store
+  - data_normalizer
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - log volume spike makes a query time out and a real error pattern is missed in the dropped window
+  - a noisy pattern (e.g. a benign warning) floods alerts and trains responders to ignore them
+  - log ingestion lag means the query runs before the offending lines are indexed
+  - PII / secrets in log lines are forwarded to an alert channel without redaction
+evals:
+  - pattern-match recall on a fixture log set with known error lines
+  - anomaly-spike precision vs. a baseline of normal log volume
+  - redaction correctness — no secrets/PII leak into the emitted event
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

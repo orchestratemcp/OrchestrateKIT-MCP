@@ -1,0 +1,50 @@
+id: metric_threshold_monitor
+name: Metric Threshold Monitor
+status: published
+category: input
+summary: >-
+  Polls a numeric metric (error rate, latency, queue depth, revenue, etc.) from a
+  metrics provider (Datadog, Grafana, CloudWatch, Prometheus) on a schedule and
+  emits a breach event when the value crosses a configured threshold. Pairs with
+  threshold_router for severity routing and a notification egress for alerting.
+capabilities:
+  - poll_metric_on_schedule
+  - threshold_comparison
+  - emit_breach_event
+  - configurable_comparison_operator
+inputs:
+  - metric query (provider + metric name + aggregation), threshold value and comparison operator, poll interval
+  - metrics provider API credentials (read-only)
+outputs:
+  - breach event with the metric value, threshold, and direction when the threshold is crossed
+risk_level: low
+side_effects:
+  - outbound API requests to the metrics provider on schedule, counted against query rate limits
+permissions:
+  read:
+    - metrics provider query API (read-only)
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - state_store
+  - retry_policy
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - flapping — the metric oscillates around the threshold and fires repeated alerts without state-based debouncing
+  - a gap in the metric (no data points) is read as zero and silently suppresses a real breach
+  - aggregation window mismatch — a 1-min spike is averaged away by a 1-hour window and missed
+  - provider rate limit throttles the poll and delays breach detection past the alerting SLA
+evals:
+  - breach detection recall on a fixture series of known threshold crossings
+  - false-positive rate on a noisy-but-in-bounds series (debounce correctness)
+  - auth failure detection rate (invalid / under-scoped metrics key)
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none
