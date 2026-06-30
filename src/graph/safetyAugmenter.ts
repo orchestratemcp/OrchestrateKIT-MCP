@@ -30,6 +30,12 @@ const NEEDS_AUTH_FAILURE_HANDLER = new Set([
   "crm_record_read",
   "lead_enrichment",
   "deal_stage_update",
+  // MAR-243: monitoring-domain depth — all poll an external metrics / log /
+  // uptime provider with an expirable credential. An auth failure must surface
+  // as monitor-unhealthy, never as a silent "all clear".
+  "metric_threshold_monitor",
+  "log_monitor",
+  "uptime_check",
 ]);
 
 /** External-write components that always require human_approval_gate. */

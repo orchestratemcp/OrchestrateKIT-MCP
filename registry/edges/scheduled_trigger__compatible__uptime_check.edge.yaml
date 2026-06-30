@@ -1,0 +1,12 @@
+id: scheduled_trigger__compatible__uptime_check
+from: scheduled_trigger
+to: uptime_check
+relation: compatible_with
+status: published
+reason: An uptime check runs on a fixed interval — a scheduled trigger is its natural upstream driver, firing on the configured cadence and handing off to uptime_check for the probe.
+severity: low
+notes: When both are present, scheduled_trigger is the entrypoint and uptime_check performs the probe. Do not add a second scheduling layer inside uptime_check. The same pattern applies to metric_threshold_monitor and log_monitor.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: scheduled_trigger__compatible__uptime_check"

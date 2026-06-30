@@ -205,6 +205,10 @@ const AUTH_HANDLER_EDGES: Array<[string, string]> = [
   // MAR-242: CRM-domain depth
   ["crm_record_read__safer_with__auth_failure_handler", "crm_record_read"],
   ["deal_stage_update__safer_with__auth_failure_handler", "deal_stage_update"],
+  // MAR-243: monitoring-domain depth
+  ["metric_threshold_monitor__safer_with__auth_failure_handler", "metric_threshold_monitor"],
+  ["log_monitor__safer_with__auth_failure_handler", "log_monitor"],
+  ["uptime_check__safer_with__auth_failure_handler", "uptime_check"],
 ];
 
 for (const [edgeId, from] of AUTH_HANDLER_EDGES) {
@@ -686,5 +690,61 @@ describe("edge: lead_enrichment__produces__deal_stage_update", () => {
     );
     const ids = ordered.map((c) => c.id);
     expect(ids.indexOf("lead_enrichment")).toBeLessThan(ids.indexOf("deal_stage_update"));
+  });
+});
+
+// ── MAR-243: monitoring-domain depth (metric_threshold_monitor / log_monitor / uptime_check) ──
+
+describe("edge: metric_threshold_monitor__produces__threshold_router", () => {
+  it("computeExecutionOrder places metric_threshold_monitor before threshold_router", () => {
+    const ordered = computeExecutionOrder(
+      pick(["threshold_router", "metric_threshold_monitor"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("metric_threshold_monitor")).toBeLessThan(ids.indexOf("threshold_router"));
+  });
+});
+
+describe("edge: metric_threshold_monitor__produces__slack_notification", () => {
+  it("computeExecutionOrder places metric_threshold_monitor before slack_notification", () => {
+    const ordered = computeExecutionOrder(
+      pick(["slack_notification", "metric_threshold_monitor", "human_approval_gate"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("metric_threshold_monitor")).toBeLessThan(ids.indexOf("slack_notification"));
+  });
+});
+
+describe("edge: log_monitor__produces__slack_notification", () => {
+  it("computeExecutionOrder places log_monitor before slack_notification", () => {
+    const ordered = computeExecutionOrder(
+      pick(["slack_notification", "log_monitor", "human_approval_gate"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("log_monitor")).toBeLessThan(ids.indexOf("slack_notification"));
+  });
+});
+
+describe("edge: uptime_check__produces__slack_notification", () => {
+  it("computeExecutionOrder places uptime_check before slack_notification", () => {
+    const ordered = computeExecutionOrder(
+      pick(["slack_notification", "uptime_check", "human_approval_gate"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("uptime_check")).toBeLessThan(ids.indexOf("slack_notification"));
+  });
+});
+
+describe("edge: scheduled_trigger__compatible__uptime_check", () => {
+  it("edge is present in registry with relation compatible_with", () => {
+    const edge = edges.find((e) => e.id === "scheduled_trigger__compatible__uptime_check");
+    expect(edge).toBeDefined();
+    expect(edge!.relation).toBe("compatible_with");
+    expect(edge!.from).toBe("scheduled_trigger");
+    expect(edge!.to).toBe("uptime_check");
   });
 });

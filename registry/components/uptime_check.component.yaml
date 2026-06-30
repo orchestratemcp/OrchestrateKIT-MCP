@@ -1,0 +1,50 @@
+id: uptime_check
+name: Uptime Check
+status: published
+category: input
+summary: >-
+  Probes an endpoint or service for availability and health on a schedule —
+  directly (HTTP/TCP status, latency, expected body) or via a provider (Pingdom,
+  UptimeRobot, healthchecks.io). Emits an up / down / degraded status transition
+  event. Read-only; alerting is a separate downstream component.
+capabilities:
+  - probe_endpoint_health
+  - status_transition_detection
+  - latency_measurement
+  - emit_availability_event
+inputs:
+  - endpoint URL or provider check id, expected status/body, probe interval, failure threshold (N consecutive)
+  - optional provider API credentials (read-only)
+outputs:
+  - availability event on a status transition (up/down/degraded) with response code, latency, and consecutive-failure count
+risk_level: low
+side_effects:
+  - outbound probe requests to the monitored endpoint on schedule
+permissions:
+  read:
+    - monitored endpoint / uptime provider API
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - retry_policy
+  - state_store
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - a single transient failure fires a false "down" alert without an N-consecutive-failure threshold
+  - the probe itself runs from one region and reports down while the service is up elsewhere
+  - a 200 response with an error body is read as healthy (no body assertion)
+  - the monitoring infra outage is indistinguishable from the target being down
+evals:
+  - down-detection latency from outage start to event (target < 1 failure-threshold window)
+  - false-down rate against a stable endpoint over a long run
+  - degraded-vs-down classification accuracy on latency-only regressions
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

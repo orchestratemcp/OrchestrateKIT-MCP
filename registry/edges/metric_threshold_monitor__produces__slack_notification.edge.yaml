@@ -1,0 +1,12 @@
+id: metric_threshold_monitor__produces__slack_notification
+from: metric_threshold_monitor
+to: slack_notification
+relation: produces_input_for
+status: published
+reason: The canonical metric-monitor flow alerts a channel on breach. The breach event (metric, threshold, direction) is the payload the notification posts.
+severity: medium
+notes: Include the metric value, threshold, and a link to the dashboard in the alert. slack_notification still carries its own approval/advisory path — for an unattended monitor the gate downgrades to advisory (MAR-132).
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: metric_threshold_monitor__produces__slack_notification"

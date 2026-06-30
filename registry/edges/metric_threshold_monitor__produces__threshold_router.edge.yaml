@@ -1,0 +1,12 @@
+id: metric_threshold_monitor__produces__threshold_router
+from: metric_threshold_monitor
+to: threshold_router
+relation: produces_input_for
+status: published
+reason: The metric value and its breach direction are exactly the numeric signal threshold_router exists to route on — feeding it lets a single monitor fan out to different severities/actions (warn vs page vs auto-remediate) instead of a hard-coded branch.
+severity: medium
+notes: Pass the raw value AND the configured threshold so the router decides severity, not just a boolean breach. Keep the monitor's own threshold for the breach event and the router's bands for routing.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: metric_threshold_monitor__produces__threshold_router"

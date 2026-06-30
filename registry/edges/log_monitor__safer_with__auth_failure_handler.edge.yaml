@@ -1,0 +1,12 @@
+id: log_monitor__safer_with__auth_failure_handler
+from: log_monitor
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: A log query fails on an expired token or revoked scope, returning no lines. Without an auth-failure handler the monitor reads "no errors" and stops alerting precisely when visibility is lost.
+severity: medium
+notes: An auth error must surface as a monitor-health alert, not a silent empty result. Distinguish 401 (refresh) from 403 (escalate).
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: log_monitor__safer_with__auth_failure_handler"

@@ -1,0 +1,12 @@
+id: metric_threshold_monitor__safer_with__auth_failure_handler
+from: metric_threshold_monitor
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: A metrics query fails on an expired token or revoked scope. Without an auth-failure handler the monitor reads an empty series, interprets it as "no breach", and silently goes blind — the worst failure mode for an alerting system.
+severity: medium
+notes: Treat an auth error as an explicit monitor-unhealthy state (alert on it), never as "metric is fine". Distinguish 401 (refresh) from 403 (escalate).
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: metric_threshold_monitor__safer_with__auth_failure_handler"
