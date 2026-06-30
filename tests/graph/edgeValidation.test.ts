@@ -202,6 +202,9 @@ const AUTH_HANDLER_EDGES: Array<[string, string]> = [
   ["webhook_trigger__safer_with__auth_failure_handler", "webhook_trigger"],
   ["airtable_lookup__safer_with__auth_failure_handler", "airtable_lookup"],
   ["stripe_data_read__safer_with__auth_failure_handler", "stripe_data_read"],
+  // MAR-242: CRM-domain depth
+  ["crm_record_read__safer_with__auth_failure_handler", "crm_record_read"],
+  ["deal_stage_update__safer_with__auth_failure_handler", "deal_stage_update"],
 ];
 
 for (const [edgeId, from] of AUTH_HANDLER_EDGES) {
@@ -236,6 +239,7 @@ const AUDIT_EDGES: Array<[string, string]> = [
   ["audit_log__recommended__optional_email_send", "optional_email_send"],
   ["audit_log__recommended__calendar_write", "calendar_write"],
   ["audit_log__recommended__slack_notification", "slack_notification"],
+  ["audit_log__recommended__deal_stage_update", "deal_stage_update"], // MAR-242
 ];
 
 for (const [edgeId, from] of AUDIT_EDGES) {
@@ -643,5 +647,44 @@ describe("edge: source_attribution__recommended__citation_checker", () => {
     const ids = result.recommended_route.map((s) => s.component_id);
     expect(ids).toContain("source_attribution");
     expect(ids).toContain("citation_checker");
+  });
+});
+
+// ── MAR-242: CRM-domain depth (crm_record_read / lead_enrichment / deal_stage_update) ──
+
+describe("edge: deal_stage_update__requires__human_approval_gate", () => {
+  it("augmentWithSafety injects human_approval_gate when deal_stage_update is present", () => {
+    const result = augmentWithSafety(pick(["deal_stage_update"]), edges, components);
+    expect(result.components.map((c) => c.id)).toContain("human_approval_gate");
+  });
+});
+
+describe("edge: crm_record_read__produces__lead_enrichment", () => {
+  it("computeExecutionOrder places crm_record_read before lead_enrichment", () => {
+    const ordered = computeExecutionOrder(pick(["lead_enrichment", "crm_record_read"]), edges);
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("crm_record_read")).toBeLessThan(ids.indexOf("lead_enrichment"));
+  });
+});
+
+describe("edge: lead_enrichment__produces__crm_note_write", () => {
+  it("computeExecutionOrder places lead_enrichment before crm_note_write", () => {
+    const ordered = computeExecutionOrder(
+      pick(["crm_note_write", "lead_enrichment", "human_approval_gate"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("lead_enrichment")).toBeLessThan(ids.indexOf("crm_note_write"));
+  });
+});
+
+describe("edge: lead_enrichment__produces__deal_stage_update", () => {
+  it("computeExecutionOrder places lead_enrichment before deal_stage_update", () => {
+    const ordered = computeExecutionOrder(
+      pick(["deal_stage_update", "lead_enrichment", "human_approval_gate"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("lead_enrichment")).toBeLessThan(ids.indexOf("deal_stage_update"));
   });
 });

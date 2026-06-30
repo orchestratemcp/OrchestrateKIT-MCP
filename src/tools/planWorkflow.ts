@@ -781,6 +781,61 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
     ],
   },
 
+  crm_record_read: {
+    label: "CRM — read contacts / deals (read-only)",
+    product_examples: ["HubSpot", "Salesforce", "Pipedrive"],
+    auth_model: "Private App token (HubSpot, read scope) / OAuth2 (Salesforce)",
+    mcp_server: {
+      availability: "community",
+      transport: "stdio",
+      note: "No official HubSpot/Salesforce MCP; community implementations on npm. Use a read-only key.",
+    },
+    required_scopes: [
+      "crm.objects.contacts.read",
+      "crm.objects.deals.read",
+      "crm.objects.companies.read",
+    ],
+    gotchas: [
+      "Use a read-only token — never the same key you use for writes; least-privilege limits blast radius",
+      "Search by a unique key (email, deal id), not name — name search returns ambiguous multi-matches",
+      "HubSpot search API is eventually consistent: a record written <1s ago may not appear yet",
+    ],
+  },
+
+  lead_enrichment: {
+    label: "Lead enrichment provider",
+    product_examples: ["Clearbit", "Apollo", "ZoomInfo"],
+    auth_model: "API key (Authorization: Bearer)",
+    mcp_server: {
+      availability: "none",
+      transport: "none",
+      note: "No MCP server; call the provider REST API directly (Clearbit Enrichment, Apollo People API)",
+    },
+    required_scopes: ["enrichment:read"],
+    gotchas: [
+      "GDPR/CCPA: enriching EU/CA contacts needs a lawful basis — gate and document before storing",
+      "Providers bill per lookup and cache aggressively; dedupe by domain/email before calling",
+      "A confident match on a shared/free-email domain (gmail.com) is often wrong — require a corporate domain",
+    ],
+  },
+
+  deal_stage_update: {
+    label: "CRM — advance deal / opportunity stage",
+    product_examples: ["HubSpot", "Salesforce", "Pipedrive"],
+    auth_model: "Private App token (HubSpot, deals write) / OAuth2 (Salesforce)",
+    mcp_server: {
+      availability: "community",
+      transport: "stdio",
+      note: "No official MCP; community implementations on npm. Requires a deals-write scope.",
+    },
+    required_scopes: ["crm.objects.deals.read", "crm.objects.deals.write"],
+    gotchas: [
+      "A stage change fires downstream automations (emails, tasks, forecast updates) that cannot be recalled — gate it",
+      "Pipelines enforce stage order; skipping a required stage fails validation silently in some configs",
+      "Always read the current stage first (crm_record_read) — a blind set can move a deal backwards",
+    ],
+  },
+
   slack_notification: {
     label: "Slack — send messages",
     product_examples: ["Slack"],

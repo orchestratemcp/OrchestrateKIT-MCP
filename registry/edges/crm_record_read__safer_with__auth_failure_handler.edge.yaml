@@ -1,0 +1,12 @@
+id: crm_record_read__safer_with__auth_failure_handler
+from: crm_record_read
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: An expired token or under-scoped key makes a CRM read return a 401/403 (or an empty set) instead of data. Without an auth-failure handler the workflow proceeds on missing records and may write to the wrong contact downstream.
+severity: medium
+notes: Treat an empty result on an auth error differently from a genuine no-match — never let a 403 read silently degrade into "contact not found" and create a duplicate.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: crm_record_read__safer_with__auth_failure_handler"

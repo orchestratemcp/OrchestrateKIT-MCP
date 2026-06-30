@@ -1,0 +1,48 @@
+id: deal_stage_update
+name: Deal Stage Update
+status: published
+category: integration
+summary: Advances or sets the pipeline stage of a deal / opportunity in the CRM after human approval. An irreversible external write to a revenue-bearing business record — always gated. Stack adapters are configured separately.
+capabilities:
+  - update_deal_stage
+  - advance_opportunity
+  - set_pipeline_stage
+  - require_human_approval_before_write
+inputs:
+  - approved deal identifier, target pipeline stage, and reason
+  - CRM API credentials or stack adapter reference (deals write scope)
+outputs:
+  - write confirmation with deal ID, previous stage, new stage, and timestamp
+risk_level: high
+side_effects:
+  - writes an irreversible stage change to an external CRM deal — affects forecasts, reporting, and automations
+permissions:
+  read: []
+  write:
+    - CRM deal / opportunity stage
+  approval_required_for:
+    - every deal stage change
+requires:
+  - human_approval_gate
+recommended_with:
+  - audit_log
+  - auth_failure_handler
+  - crm_record_read
+avoid_with: []
+failure_modes:
+  - wrong deal advanced due to ambiguous identifier match
+  - stage change triggers downstream CRM automations (emails, tasks) with no way to recall them
+  - duplicate stage transition on retry after a transient API failure
+  - skipping required pipeline stages violates CRM validation rules and fails silently
+evals:
+  - idempotency test — duplicate trigger does not double-advance a deal
+  - rejection test — stage change blocked when human approval is absent
+  - deal resolution accuracy on ambiguous or partial identifiers
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

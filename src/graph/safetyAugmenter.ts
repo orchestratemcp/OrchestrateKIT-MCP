@@ -26,6 +26,10 @@ const NEEDS_AUTH_FAILURE_HANDLER = new Set([
   "chat_trigger",
   "airtable_lookup",
   "stripe_data_read",
+  // MAR-242: CRM-domain depth — all three call external CRM / enrichment APIs.
+  "crm_record_read",
+  "lead_enrichment",
+  "deal_stage_update",
 ]);
 
 /** External-write components that always require human_approval_gate. */
@@ -38,6 +42,7 @@ export const ALWAYS_REQUIRES_GATE = new Set([
   "discord_notification",
   "teams_notification",
   "telegram_notification",
+  "deal_stage_update", // MAR-242: irreversible write to a revenue-bearing deal
 ]);
 
 /** External-write components that always require audit_log. */
@@ -58,6 +63,9 @@ const ALWAYS_RECOMMEND_AUDIT = new Set([
   // vector index. The audit trail (what was indexed, when, from where) is the record
   // of what entered the knowledge base — log doc ids/timestamps, not embedded text.
   "vector_store",
+  // MAR-242: a deal stage change alters forecasts and fires downstream automations;
+  // the audit log is the only post-hoc record of which deal moved and who approved it.
+  "deal_stage_update",
 ]);
 
 /**
@@ -75,6 +83,7 @@ const ALWAYS_REQUIRES_VALIDATION = new Set([
   "discord_notification",
   "teams_notification",
   "telegram_notification",
+  "deal_stage_update", // MAR-242: validate the deal id + target stage before writing
 ]);
 
 export type AugmentResult = {

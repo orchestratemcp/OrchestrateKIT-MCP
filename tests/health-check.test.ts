@@ -61,12 +61,12 @@ describe("health_check tool", () => {
   });
 
   // MAR-114: count floor regression — must never drop below post-MAR-95 baseline
-  // MAR-217: raised to ≥55 components / ≥116 edges after knowledge domain (4 components, 8 edges)
+  // MAR-217: raised to ≥55/≥116 after knowledge domain; MAR-242: ≥58/≥123 after CRM depth
   // MAR-220: floor centralised in config (MIN_COMPONENTS / MIN_EDGES)
-  it("registry counts meet baseline (≥55 components, ≥116 edges after MAR-217 knowledge domain)", () => {
+  it("registry counts meet baseline (≥58 components, ≥123 edges after MAR-242 CRM depth)", () => {
     const r = buildHealthCheckResult().registry;
-    expect(MIN_COMPONENTS).toBe(55);
-    expect(MIN_EDGES).toBe(116);
+    expect(MIN_COMPONENTS).toBe(58);
+    expect(MIN_EDGES).toBe(123);
     expect(r.component_count, "components (regression floor)").toBeGreaterThanOrEqual(MIN_COMPONENTS);
     expect(r.edge_count, "edges (regression floor)").toBeGreaterThanOrEqual(MIN_EDGES);
     expect(r.stack_count, "stacks").toBeGreaterThanOrEqual(1);
