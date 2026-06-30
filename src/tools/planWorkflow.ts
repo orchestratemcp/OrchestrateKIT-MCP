@@ -363,6 +363,28 @@ export type ClarifyingQuestion = {
   options: string[];
 };
 
+/** Stable identifiers for the standardized next-action menu (MAR-226). */
+export type NextActionId =
+  | "show_technical_plan"
+  | "generate_prompt"
+  | "export_build_brief"
+  | "wire_integrations"
+  | "open_playbook"
+  | "review_after_build"
+  | "log_feedback";
+
+/**
+ * MAR-226: one entry in the standardized next-action menu. `id` is stable so a
+ * client can wire a button or auto-route the next call; `action` maps to an
+ * existing tool call, an `output_depth` re-call, or an assistant directive.
+ * Advisory (🔵) — keeps the existing flat `suggested_next_actions` for back-compat.
+ */
+export type NextAction = {
+  id: NextActionId;
+  label: string;
+  action: string;
+};
+
 export type ProvenanceTag = "grounded" | "computed" | "advisory";
 
 export type ProvenanceModel = {
@@ -436,6 +458,14 @@ export type PlanWorkflowOutput = {
    * Adapts to build_target if provided; offers all options if omitted.
    */
   suggested_next_actions: string[];
+  /**
+   * Standardized, machine-consumable next-action menu (MAR-226). A stable,
+   * enumerated set of actions — each with a consistent `id` and an `action`
+   * mapping to a tool call or `output_depth` re-call — so a client can render
+   * buttons or auto-route. Context-gated by `build_target`. The structured
+   * counterpart to `suggested_next_actions` (which stays for back-compat).
+   */
+  next_action_menu: NextAction[];
   /**
    * Bounded multiple-choice clarifying questions (MAR-225). Up to 3, returned
    * ONLY when the goal omits an architecture-affecting constraint (run trigger /
@@ -1102,6 +1132,110 @@ function buildSuggestedNextActions(
   return actions;
 }
 
+// ─────────────────────────── MAR-226: next-action menu ───────────────────────
+
+/**
+ * MAR-226: the standardized, machine-consumable next-action menu. A stable,
+ * enumerated set with consistent `id`s — each `action` maps to an existing tool
+ * call, an `output_depth` re-call, or an assistant directive — context-gated by
+ * `build_target` so irrelevant build paths are omitted. The structured
+ * counterpart to `buildSuggestedNextActions` (kept for back-compat).
+ */
+export function buildNextActionMenu(
+  planSource: PlanSource,
+  playbook: PlanPlaybook | null,
+  buildTarget: BuildTarget | undefined,
+  whatYouNeed: IntegrationNeed[],
+): NextAction[] {
+  const menu: NextAction[] = [];
+
+  // Drill into the full plan — links the MAR-224 depth layers.
+  menu.push({
+    id: "show_technical_plan",
+    label: "Show the full technical plan (steps, model tiers, credentials, build team)",
+    action: 'plan_workflow({ output_depth: "technical" })',
+  });
+
+  // Build path — gated by build_target so only the relevant one shows.
+  switch (buildTarget) {
+    case "cowork":
+      menu.push({
+        id: "generate_prompt",
+        label: "Generate the CoWork system prompt to paste into a Claude Project",
+        action: "assistant:generate_cowork_prompt",
+      });
+      break;
+    case "chatgpt_gpt":
+      menu.push({
+        id: "generate_prompt",
+        label: "Generate the ChatGPT Custom GPT system prompt + Actions JSON",
+        action: "assistant:generate_chatgpt_gpt",
+      });
+      break;
+    case "cursor":
+    case "code":
+      menu.push({
+        id: "export_build_brief",
+        label: "Export the full Cursor / Claude Code build brief",
+        action: "export_build_brief({ handoff_targets: ['prompt'] })",
+      });
+      break;
+    default:
+      // No target chosen — offer both build paths.
+      menu.push({
+        id: "generate_prompt",
+        label: "Generate the CoWork or ChatGPT system prompt for this plan",
+        action: "assistant:generate_prompt",
+      });
+      menu.push({
+        id: "export_build_brief",
+        label: "Export the full build brief (Cursor / Claude Code)",
+        action: "export_build_brief({ handoff_targets: ['prompt'] })",
+      });
+  }
+
+  // Wire integrations — only when the route needs external products.
+  if (whatYouNeed.length > 0) {
+    const names = whatYouNeed.slice(0, 3).map((n) => n.product_examples[0]).join(", ");
+    const extra = whatYouNeed.length > 3 ? ` +${whatYouNeed.length - 3} more` : "";
+    menu.push({
+      id: "wire_integrations",
+      label: `Wire up the integrations: ${names}${extra}`,
+      action: "see:what_you_need",
+    });
+  }
+
+  // Open the validated playbook when one backs the plan.
+  if (planSource === "playbook" && playbook) {
+    menu.push({
+      id: "open_playbook",
+      label: `Open the validated playbook \`${playbook.id}\``,
+      action: `get_playbook({ id: "${playbook.id}" })`,
+    });
+  }
+
+  // Validate the build against the plan.
+  menu.push({
+    id: "review_after_build",
+    label: "Validate your build against this plan",
+    action: "review_workflow_design({ ... })",
+  });
+
+  // Log the ship to the evidence library (stateless emitter).
+  menu.push({
+    id: "log_feedback",
+    label: "Record how the build went (feeds the evidence library)",
+    action: "record_session_feedback({ ... })",
+  });
+
+  return menu;
+}
+
+/** MAR-226: render the next-action menu as markdown bullets (label only). */
+function renderNextActionMenu(menu: NextAction[]): string[] {
+  return menu.map((a) => `- ${a.label}`);
+}
+
 // ─────────────────────────── MAR-225: clarifying questions ───────────────────
 
 /** Outbound external-send components (post/publish/message to people). */
@@ -1334,7 +1468,7 @@ function buildGuidedPlanMarkdown(
   approvalAdvisory: ApprovalGateAdvisory | null,
   clearance: AutomationClearance,
   whatYouNeed: IntegrationNeed[],
-  suggestedNextActions: string[],
+  nextActionMenu: NextAction[],
   clarifyingQuestions: ClarifyingQuestion[],
   /**
    * MAR-224: when true (`standard` depth) the recommended route is rendered as a
@@ -1415,10 +1549,10 @@ function buildGuidedPlanMarkdown(
     lines.push(...renderClarifyingQuestions(clarifyingQuestions));
   }
 
-  // (5) next-action menu (RESPONSE-UX-03)
-  if (suggestedNextActions.length > 0) {
+  // (5) standardized next-action menu (RESPONSE-UX-03 / MAR-226)
+  if (nextActionMenu.length > 0) {
     lines.push(`**Next — pick one:**`);
-    for (const a of suggestedNextActions) lines.push(`- ${a}`);
+    lines.push(...renderNextActionMenu(nextActionMenu));
     lines.push(``);
   }
 
@@ -1447,7 +1581,7 @@ function buildPlanMarkdown(
   clearance: AutomationClearance,
   designNotes: string[],
   whatYouNeed: IntegrationNeed[],
-  suggestedNextActions: string[],
+  nextActionMenu: NextAction[],
   clarifyingQuestions: ClarifyingQuestion[],
 ): string {
   const lines: string[] = [];
@@ -1649,10 +1783,10 @@ function buildPlanMarkdown(
     lines.push(...renderClarifyingQuestions(clarifyingQuestions));
   }
 
-  // MAR-208: "Suggested next actions" — target-aware, prevents dead-ending.
-  if (suggestedNextActions.length > 0) {
-    lines.push(`### Suggested next actions`, ``);
-    for (const a of suggestedNextActions) lines.push(`- ${a}`);
+  // MAR-226: standardized next-action menu — target-aware, prevents dead-ending.
+  if (nextActionMenu.length > 0) {
+    lines.push(`### Next actions`, ``);
+    for (const a of nextActionMenu) lines.push(`- ${a.label} — \`${a.action}\``);
     lines.push(``);
   }
 
@@ -1709,6 +1843,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       design_notes: "grounded",     // edge control_flow_note + component pattern
       what_you_need: "computed",    // derived from component permission scopes
       suggested_next_actions: "advisory",
+      next_action_menu: "advisory", // MAR-226: standardized action menu
       clarifying_questions: "advisory", // MAR-225: bounded constraint questions
       next_steps: "advisory",
     },
@@ -1899,6 +2034,13 @@ export function planWorkflow(
     input.build_target,
     what_you_need,
   );
+  // ── MAR-226: standardized, machine-consumable next-action menu ──
+  const next_action_menu = buildNextActionMenu(
+    planSource,
+    playbook,
+    input.build_target,
+    what_you_need,
+  );
 
   // ── MAR-225: bounded clarifying questions for missing architecture constraints ──
   const clarifying_questions = buildClarifyingQuestions(input.goal, routeComponentIds);
@@ -1930,7 +2072,7 @@ export function planWorkflow(
       approval_gate_advisory,
       automation_clearance,
       what_you_need,
-      suggested_next_actions,
+      next_action_menu,
       clarifying_questions,
       outputDepth === "standard", // fullSteps: standard is the superset layer
     );
@@ -1950,7 +2092,7 @@ export function planWorkflow(
       automation_clearance,
       design_notes,
       what_you_need,
-      suggested_next_actions,
+      next_action_menu,
       clarifying_questions,
     );
   }
@@ -1979,6 +2121,7 @@ export function planWorkflow(
     design_notes,
     what_you_need,
     suggested_next_actions,
+    next_action_menu,
     clarifying_questions,
     worker_pipeline,
     loop_guidance,

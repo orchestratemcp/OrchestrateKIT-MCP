@@ -87,6 +87,19 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     }
   });
 
+  // RESPONSE-UX-03 (MAR-226): the menu is a stable, machine-consumable set
+  it("next_action_menu is a stable enumerated set, each action mapping somewhere", () => {
+    const r = plan("guided");
+    expect(r.next_action_menu.length).toBeGreaterThan(0);
+    for (const a of r.next_action_menu) {
+      expect(typeof a.id).toBe("string");
+      expect(a.action.length).toBeGreaterThan(0);
+    }
+    // the canonical drill-in action is always present and maps to output_depth
+    expect(r.next_action_menu.some((a) => a.id === "show_technical_plan")).toBe(true);
+    expect(r.provenance.field_tags.next_action_menu).toBe("advisory");
+  });
+
   it("Layer-1 keeps a one-line provenance grounding note (🟢/🔵 preserved)", () => {
     const md = plan("guided").summary_markdown;
     expect(md).toContain("🟢");

@@ -219,6 +219,38 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "pr_summary",
     ],
   },
+  "next_action_menu": [
+    {
+      "action": "plan_workflow({ output_depth: "technical" })",
+      "id": "show_technical_plan",
+      "label": "Show the full technical plan (steps, model tiers, credentials, build team)",
+    },
+    {
+      "action": "assistant:generate_prompt",
+      "id": "generate_prompt",
+      "label": "Generate the CoWork or ChatGPT system prompt for this plan",
+    },
+    {
+      "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+      "id": "export_build_brief",
+      "label": "Export the full build brief (Cursor / Claude Code)",
+    },
+    {
+      "action": "get_playbook({ id: "codebase_agent_workflow" })",
+      "id": "open_playbook",
+      "label": "Open the validated playbook \`codebase_agent_workflow\`",
+    },
+    {
+      "action": "review_workflow_design({ ... })",
+      "id": "review_after_build",
+      "label": "Validate your build against this plan",
+    },
+    {
+      "action": "record_session_feedback({ ... })",
+      "id": "log_feedback",
+      "label": "Record how the build went (feeds the evidence library)",
+    },
+  ],
   "next_steps": [
     "get_playbook({ id: "codebase_agent_workflow" })",
     "get_route({ id: "codebase_agent_route_v1", include_component_details: true })",
@@ -257,6 +289,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "execution_order": "computed",
       "loop_guidance": "grounded",
       "model_tier_profile": "grounded",
+      "next_action_menu": "advisory",
       "next_steps": "advisory",
       "planning_order": "grounded",
       "playbook": "grounded",
@@ -666,6 +699,38 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "email_draft",
     ],
   },
+  "next_action_menu": [
+    {
+      "action": "plan_workflow({ output_depth: "technical" })",
+      "id": "show_technical_plan",
+      "label": "Show the full technical plan (steps, model tiers, credentials, build team)",
+    },
+    {
+      "action": "assistant:generate_prompt",
+      "id": "generate_prompt",
+      "label": "Generate the CoWork or ChatGPT system prompt for this plan",
+    },
+    {
+      "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+      "id": "export_build_brief",
+      "label": "Export the full build brief (Cursor / Claude Code)",
+    },
+    {
+      "action": "see:what_you_need",
+      "id": "wire_integrations",
+      "label": "Wire up the integrations: Perplexity, Gmail, Gmail +2 more",
+    },
+    {
+      "action": "review_workflow_design({ ... })",
+      "id": "review_after_build",
+      "label": "Validate your build against this plan",
+    },
+    {
+      "action": "record_session_feedback({ ... })",
+      "id": "log_feedback",
+      "label": "Record how the build went (feeds the evidence library)",
+    },
+  ],
   "next_steps": [
     "list_known_routes",
     "compose_workflow_route",
@@ -701,6 +766,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "execution_order": "computed",
       "loop_guidance": "grounded",
       "model_tier_profile": "grounded",
+      "next_action_menu": "advisory",
       "next_steps": "advisory",
       "planning_order": "grounded",
       "playbook": "grounded",
@@ -1267,6 +1333,38 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "pr_summary",
     ],
   },
+  "next_action_menu": [
+    {
+      "action": "plan_workflow({ output_depth: "technical" })",
+      "id": "show_technical_plan",
+      "label": "Show the full technical plan (steps, model tiers, credentials, build team)",
+    },
+    {
+      "action": "assistant:generate_prompt",
+      "id": "generate_prompt",
+      "label": "Generate the CoWork or ChatGPT system prompt for this plan",
+    },
+    {
+      "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+      "id": "export_build_brief",
+      "label": "Export the full build brief (Cursor / Claude Code)",
+    },
+    {
+      "action": "get_playbook({ id: "codebase_agent_workflow" })",
+      "id": "open_playbook",
+      "label": "Open the validated playbook \`codebase_agent_workflow\`",
+    },
+    {
+      "action": "review_workflow_design({ ... })",
+      "id": "review_after_build",
+      "label": "Validate your build against this plan",
+    },
+    {
+      "action": "record_session_feedback({ ... })",
+      "id": "log_feedback",
+      "label": "Record how the build went (feeds the evidence library)",
+    },
+  ],
   "next_steps": [
     "get_playbook({ id: "codebase_agent_workflow" })",
     "get_route({ id: "codebase_agent_route_v1", include_component_details: true })",
@@ -1305,6 +1403,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "execution_order": "computed",
       "loop_guidance": "grounded",
       "model_tier_profile": "grounded",
+      "next_action_menu": "advisory",
       "next_steps": "advisory",
       "planning_order": "grounded",
       "playbook": "grounded",

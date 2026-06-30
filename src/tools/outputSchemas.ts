@@ -104,6 +104,18 @@ export const PlanWorkflowOutputShape = z
       .optional(),
     // target-aware next steps — prevents post-plan dead-ending (MAR-208)
     suggested_next_actions: z.array(z.string()).optional(),
+    // standardized, machine-consumable next-action menu (MAR-226)
+    next_action_menu: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            label: z.string(),
+            action: z.string(),
+          })
+          .passthrough(),
+      )
+      .optional(),
     // bounded multiple-choice clarifying questions (MAR-225)
     clarifying_questions: z
       .array(
