@@ -127,6 +127,21 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     }
   });
 
+  // MAR-249: the operator register gives each step plain-English risk text
+  // (a spoken consequence) instead of a bare `[medium risk]` enum tag. This is
+  // the "picker → scope compiler" step-text win — verified on the standard step
+  // list and the technical step list.
+  it("standard/technical step lists carry plain-English risk consequences, not bare enum tags", () => {
+    const std = plan("standard").summary_markdown;
+    // the plain consequence phrasing appears (the HEAVY_GOAL route has writes)…
+    expect(std).toMatch(/risk — (safe to run|check its output|pair with a human|needs human sign-off)/);
+    // …and the old bare enum tag is gone from the step list
+    expect(std).not.toMatch(/\[(low|medium|high|critical) risk\]/);
+
+    const tech = plan("technical").summary_markdown;
+    expect(tech).toMatch(/↳ _(low|medium|high|critical|.*risk)/);
+  });
+
   it("technical/deep DO include the technical sections + full provenance block", () => {
     for (const depth of ["technical", "deep"] as const) {
       const md = plan(depth).summary_markdown;

@@ -57,6 +57,7 @@ import {
 } from "../review/types.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { riskStepNote } from "../lib/plainLanguage.js";
 import { PlanWorkflowOutputShape } from "./outputSchemas.js";
 
 // ───────────────────────────── types ─────────────────────────────
@@ -1627,8 +1628,10 @@ function buildGuidedPlanMarkdown(
   if (fullSteps) {
     lines.push(``, `**Steps:**`);
     for (const s of steps) {
+      // MAR-249: plain-English step text from the operator register — the risk
+      // consequence in words rather than a bare `[medium risk]` enum tag.
       lines.push(
-        `${s.step}. **${s.component_name ?? s.component_id}** — ${s.purpose} [${s.risk_level} risk]`,
+        `${s.step}. **${s.component_name ?? s.component_id}** — ${s.purpose} · _${riskStepNote(s.risk_level)}_`,
       );
     }
     lines.push(``);
@@ -1749,6 +1752,8 @@ function buildPlanMarkdown(
     const tierTag = s.model_tier === "none" ? "deterministic" : `${s.model_tier} LLM`;
     lines.push(
       `${s.step}. **\`${s.component_id}\`** [${tierTag}, risk: \`${s.risk_level}\`] — ${s.purpose}`,
+      // MAR-249: plain-English risk consequence from the operator register.
+      `   ↳ _${riskStepNote(s.risk_level)}_`,
     );
   }
   lines.push(``);
