@@ -336,6 +336,35 @@ probes:
     must_have: [email_read, email_draft]
     forbidden: [optional_email_send]
 
+  # ── MAR-244: read-from-email → store-data (F1) ────────────────────────────
+  # The re-dogfood failure: "read invoices from email → save to a spreadsheet"
+  # collapsed to an email-REPLY route (email_draft + optional_email_send) with no
+  # extraction and nowhere to store the result. Two fixes are locked here:
+  #   (1) file_storage (new) gives the "save it" destination; pdf_extraction routes
+  #       the document extraction (invoice establishes the data_etl domain).
+  #   (2) "Nothing gets sent out" is a negation the matcher was blind to — the
+  #       hallucinated outbound send (optional_email_send) must drop. email_draft is
+  #       an accepted residual here (a benign local draft, not an external send).
+  - id: invoice_email_to_storage_no_send
+    goal: "Read invoices from my email, extract the total and vendor from each, and save them into our finance spreadsheet. Nothing gets sent out."
+    via: plan
+    must_have: [email_read, pdf_extraction, file_storage]
+    forbidden: [optional_email_send]
+
+  # Over-fire guard: the new "nothing gets sent" negation phrases must NOT suppress a
+  # genuine affirmative send. "send a reply to each" keeps optional_email_send.
+  - id: email_reply_send_not_suppressed
+    goal: "Read my inbox, draft a reply to each customer enquiry, and send a reply to each once done."
+    must_have: [email_read, email_draft, optional_email_send]
+    forbidden: []
+
+  # Bleed guard: file_storage is HINT_ONLY — a CRM read with no storage noun must
+  # not pull it in.
+  - id: crm_read_no_file_storage
+    goal: "Look up a contact in our CRM and enrich it with company data."
+    must_have: [crm_record_read]
+    forbidden: [file_storage]
+
   # ── loop / orchestration domain (MAR-167) ────────────────────────────────
   # An explicitly iterative goal must select loop_controller — the deterministic
   # trigger that makes plan_workflow surface the bounded dynamic_worker_loop

@@ -1,0 +1,12 @@
+id: audit_log__recommended__file_storage
+from: audit_log
+to: file_storage
+relation: recommended_for
+status: published
+reason: A write to a persistent store should leave a record of what rows/files were written and where — the audit trail is the only post-hoc evidence of which rows the workflow added or overwrote.
+severity: low
+notes: Log the destination reference and row/byte count, not the full record content (which may contain PII or financial data).
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__file_storage"

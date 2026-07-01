@@ -1,0 +1,53 @@
+id: file_storage
+name: File Storage
+status: published
+category: integration
+summary: >-
+  Persists structured records or files to a storage destination — a spreadsheet
+  (Google Sheets / Excel), a CSV file, a database table, an Airtable base, or an
+  object store. The generic "save it somewhere" write step for data that has been
+  read or extracted and needs to be stored rather than sent externally. Stack
+  adapters (Sheets, S3, Postgres, etc.) are configured separately via the stack
+  registry.
+capabilities:
+  - append_records
+  - write_to_spreadsheet
+  - persist_structured_data
+  - save_to_file
+  - upsert_rows
+inputs:
+  - the records or file content to store, plus a destination reference (sheet id, table name, bucket + key, file path)
+  - storage credentials or stack adapter reference (write scope on the destination only)
+outputs:
+  - write confirmation with the destination reference and the count of rows / bytes written
+risk_level: medium
+side_effects:
+  - writes rows or files to the destination store — appends are additive but overwrites replace prior data
+permissions:
+  read: []
+  write:
+    - storage destination (spreadsheet / database table / file / object store)
+  approval_required_for: []
+requires: []
+recommended_with:
+  - schema_validation
+  - audit_log
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - a retry after a transient failure double-writes rows when the append is not idempotent (no upsert key)
+  - a schema drift between the source records and the destination columns drops or misaligns fields silently
+  - an overwrite (rather than append) destroys prior rows when the write mode is misconfigured
+  - the destination credential is scoped to the wrong sheet / table and the write lands in the wrong place
+evals:
+  - idempotency test — a duplicate trigger does not double-write rows to the destination
+  - field-mapping fidelity on a fixture record set (every source field lands in the right column)
+  - overwrite-vs-append correctness on a destination with existing rows
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

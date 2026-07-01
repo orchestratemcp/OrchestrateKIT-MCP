@@ -36,6 +36,9 @@ const NEEDS_AUTH_FAILURE_HANDLER = new Set([
   "metric_threshold_monitor",
   "log_monitor",
   "uptime_check",
+  // MAR-244: a storage write authenticates with a Sheets/S3/database credential
+  // that can expire — an auth failure must halt and alert, never drop the records.
+  "file_storage",
 ]);
 
 /** External-write components that always require human_approval_gate. */
@@ -72,6 +75,9 @@ const ALWAYS_RECOMMEND_AUDIT = new Set([
   // MAR-242: a deal stage change alters forecasts and fires downstream automations;
   // the audit log is the only post-hoc record of which deal moved and who approved it.
   "deal_stage_update",
+  // MAR-244: a persistent-store write should leave a record of what rows/files were
+  // written and where — the audit trail is the only post-hoc evidence of the write.
+  "file_storage",
 ]);
 
 /**

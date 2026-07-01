@@ -1,0 +1,12 @@
+id: file_storage__safer_with__auth_failure_handler
+from: file_storage
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: A storage write depends on an API key or OAuth token (Sheets, S3, database) that can expire or be scoped down. A credential-failure path prevents silently losing the records the workflow meant to persist.
+severity: medium
+notes: A 403 on the destination is a permission gap, not a transient error — the handler must halt and alert rather than drop the records on the floor.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: file_storage__safer_with__auth_failure_handler"

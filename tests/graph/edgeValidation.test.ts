@@ -209,6 +209,8 @@ const AUTH_HANDLER_EDGES: Array<[string, string]> = [
   ["metric_threshold_monitor__safer_with__auth_failure_handler", "metric_threshold_monitor"],
   ["log_monitor__safer_with__auth_failure_handler", "log_monitor"],
   ["uptime_check__safer_with__auth_failure_handler", "uptime_check"],
+  // MAR-244: file_storage
+  ["file_storage__safer_with__auth_failure_handler", "file_storage"],
 ];
 
 for (const [edgeId, from] of AUTH_HANDLER_EDGES) {
@@ -244,6 +246,7 @@ const AUDIT_EDGES: Array<[string, string]> = [
   ["audit_log__recommended__calendar_write", "calendar_write"],
   ["audit_log__recommended__slack_notification", "slack_notification"],
   ["audit_log__recommended__deal_stage_update", "deal_stage_update"], // MAR-242
+  ["audit_log__recommended__file_storage", "file_storage"], // MAR-244
 ];
 
 for (const [edgeId, from] of AUDIT_EDGES) {
@@ -703,6 +706,31 @@ describe("edge: metric_threshold_monitor__produces__threshold_router", () => {
     );
     const ids = ordered.map((c) => c.id);
     expect(ids.indexOf("metric_threshold_monitor")).toBeLessThan(ids.indexOf("threshold_router"));
+  });
+});
+
+// ── MAR-244: file_storage — extract / normalise / validate all run BEFORE the store write ──
+describe("edge: pdf_extraction__produces__file_storage", () => {
+  it("computeExecutionOrder places pdf_extraction before file_storage", () => {
+    const ordered = computeExecutionOrder(pick(["file_storage", "pdf_extraction"]), edges);
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("pdf_extraction")).toBeLessThan(ids.indexOf("file_storage"));
+  });
+});
+
+describe("edge: data_normalizer__produces__file_storage", () => {
+  it("computeExecutionOrder places data_normalizer before file_storage", () => {
+    const ordered = computeExecutionOrder(pick(["file_storage", "data_normalizer"]), edges);
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("data_normalizer")).toBeLessThan(ids.indexOf("file_storage"));
+  });
+});
+
+describe("edge: schema_validation__produces__file_storage", () => {
+  it("computeExecutionOrder places schema_validation before file_storage", () => {
+    const ordered = computeExecutionOrder(pick(["file_storage", "schema_validation"]), edges);
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("schema_validation")).toBeLessThan(ids.indexOf("file_storage"));
   });
 });
 
