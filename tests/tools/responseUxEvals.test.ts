@@ -171,4 +171,26 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     expect(plan("brief").clarifying_questions).toEqual([]);
     expect(plan("brief").summary_markdown).not.toContain("Quick checks to pin down the plan");
   });
+
+  // MAR-246: when the gate is waived to advisory on an explicit unattended goal, the
+  // Layer-1 header must not contradict itself — "do not run unattended past the gate"
+  // is only correct when a gate is actually ENFORCED.
+  it("an unattended-waiver goal does not print both 'may run unattended' and 'do not run unattended past the gate'", () => {
+    const r = planWorkflow(
+      {
+        goal: "Watch our API uptime and automatically alert the team on Slack the moment it goes down. This runs unattended — no human in the loop.",
+        must_have_capabilities: [],
+        must_avoid: [],
+        output_depth: "brief",
+      },
+      registry,
+    );
+    const md = r.summary_markdown;
+    // The waiver actually fired (advisory, not enforced) — otherwise this goal isn't exercising the case.
+    expect(r.enforced_approval_gates).toEqual([]);
+    expect(r.approval_gate_advisory).not.toBeNull();
+    if (md.includes("may run unattended")) {
+      expect(md).not.toContain("do not run unattended past the gate");
+    }
+  });
 });
