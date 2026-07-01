@@ -14,6 +14,7 @@
     "deploy:worker": "pnpm gen:registry && wrangler deploy",
     "test": "vitest run",
     "registry:lint": "tsx scripts/registry-lint.ts",
+    "export:obsidian": "tsx scripts/export-obsidian.ts",
     "probe": "tsx scripts/node-probes.ts",
     "demo": "tsx scripts/smoke-demo.ts",
     "smoke": "vitest run tests/smoke",

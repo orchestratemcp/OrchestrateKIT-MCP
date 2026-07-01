@@ -13,3 +13,6 @@ coverage/
 # Kept out of git to stop timestamp/mtime churn and stale-bundle drift.
 src/registry/registryBundle.generated.ts
 src/docs-index/bundle.generated.ts
+
+# Obsidian vault export (MAR-79) — build artifact, regenerate with `pnpm export:obsidian`.
+obsidian-vault/
