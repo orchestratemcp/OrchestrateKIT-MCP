@@ -498,7 +498,7 @@
       "goal": "Watch service endpoints for uptime changes and alert on detected changes.",
       "domain": "monitoring",
       "must_have": [
-        "page_monitor"
+        "uptime_check"
       ],
       "nice_to_have": [
         "audit_log",
@@ -507,7 +507,8 @@
       "forbidden": [
         "data_scraper",
         "external_publish",
-        "pr_summary"
+        "pr_summary",
+        "page_monitor"
       ],
       "missing_but_expected": [],
       "source": "manual"

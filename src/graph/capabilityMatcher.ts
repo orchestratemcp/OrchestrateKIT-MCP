@@ -1215,6 +1215,21 @@ const HINT_ONLY_COMPONENTS = new Set([
   "file_storage",
 ]);
 
+/**
+ * MAR-215 / MAR-243 residual: the specific monitoring observers. When one of
+ * these is selected, page_monitor's generic watch/monitor/poll verbs are noise
+ * unless the goal actually names a web page (see the suppression in
+ * matchCapabilities).
+ */
+const SPECIFIC_MONITOR_COMPONENTS = [
+  "metric_threshold_monitor",
+  "log_monitor",
+  "uptime_check",
+];
+
+/** Web-page signals that legitimately justify page_monitor. */
+const PAGE_MONITOR_SIGNALS = ["page", "webpage", "website", "url"];
+
 /** Domains a component belongs to (defaults to generic_orchestration). */
 function componentDomains(id: string): Domain[] {
   return COMPONENT_DOMAINS[id] ?? ["generic_orchestration"];
@@ -1341,6 +1356,22 @@ export function matchCapabilities(
     if (fromEntry.score <= 0 || toEntry.score <= 0) continue;
     toEntry.score -= AVOID_PENALTY[edge.severity] ?? 1;
     avoidPenalized.push(edge.id);
+  }
+
+  // ── page_monitor contextual suppression (MAR-215 / MAR-243 residual) ──
+  // page_monitor is the web-PAGE change monitor, reachable via the generic verbs
+  // watch / monitor / poll. On a metric / log / uptime goal ("watch our API
+  // uptime", "monitor the error rate") those verbs pull page_monitor in as noise
+  // ALONGSIDE the specific observer the goal actually named. Drop it when a
+  // specific monitoring observer scored AND the goal carries no web-page signal —
+  // page_monitor stays whenever the goal really names a page/site/URL, and stays
+  // as the sole fallback monitor when no specific observer matched.
+  if (scoreMap.has("page_monitor")) {
+    const hasPageSignal = PAGE_MONITOR_SIGNALS.some((t) => goalLower.includes(t));
+    const hasSpecificMonitor = SPECIFIC_MONITOR_COMPONENTS.some((id) =>
+      scoreMap.has(id),
+    );
+    if (!hasPageSignal && hasSpecificMonitor) scoreMap.delete("page_monitor");
   }
 
   // ── Build matches from positively-scored components ──

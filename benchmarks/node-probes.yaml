@@ -753,9 +753,10 @@ probes:
     must_have: [metric_threshold_monitor, slack_notification]
     forbidden: [page_monitor, data_scraper, calendar_lookup]
 
-  # NB: phrased with log-specific signals, not the verb "watch"/"monitor" — those
-  # are page_monitor hints and "watch the logs" pulls page_monitor as noise
-  # (the generic-monitor-verb residual; a contextual-suppression follow-up).
+  # The generic-monitor-verb residual ("watch"/"monitor" → page_monitor noise) is
+  # now suppressed contextually (MAR-215/243 fix): page_monitor drops when a
+  # specific observer is present and the goal names no web page — see the
+  # *_verb_not_page_monitor probes below.
   - id: log_anomaly_alert
     goal: "Detect anomaly spikes in our application error logs and notify the team."
     must_have: [log_monitor]
@@ -788,3 +789,29 @@ probes:
     goal: "Read incoming sales leads from email, enrich them, and update the deal stage in our CRM. A human must approve anything sent externally."
     must_have: [deal_stage_update]
     forbidden: [slack_notification, discord_notification, teams_notification]
+
+  # ── page_monitor generic-verb suppression (MAR-215 / MAR-243 residual) ─────
+  # "watch"/"monitor" are page_monitor hints. On a metric/log/uptime goal with no
+  # web-page signal they used to pull page_monitor in as noise alongside the
+  # specific observer. It's now dropped when a specific observer scored + no page.
+  - id: metric_monitor_verb_not_page_monitor
+    goal: "Monitor our API error rate and alert me on Slack when it exceeds the threshold."
+    must_have: [metric_threshold_monitor]
+    forbidden: [page_monitor]
+
+  - id: uptime_watch_verb_not_page_monitor
+    goal: "Watch our API uptime and alert the team on Slack the moment it goes down."
+    must_have: [uptime_check]
+    forbidden: [page_monitor]
+
+  - id: log_watch_verb_not_page_monitor
+    goal: "Watch our application error logs for anomaly spikes and notify the team."
+    must_have: [log_monitor]
+    forbidden: [page_monitor]
+
+  # Keep guard: a genuine web-page goal using the same verbs MUST keep page_monitor
+  # (no specific observer present + a real page signal → the fix does not over-fire).
+  - id: watch_web_page_keeps_page_monitor
+    goal: "Watch our pricing page and tell me when the page content changes."
+    must_have: [page_monitor]
+    forbidden: [metric_threshold_monitor, log_monitor, uptime_check]
