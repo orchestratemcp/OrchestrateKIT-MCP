@@ -36,6 +36,22 @@ const MIN_SCORE_THRESHOLD = 0;
 /** Max components to add via keyword match before safety augmentation. */
 const MATCH_TOP_N = 8;
 
+/**
+ * MAR-245: user-named platform egresses. Each is HINT_ONLY and reachable ONLY
+ * via its explicit platform keyword hint (slack/discord/teams/telegram), so if
+ * one appears in the matches at all, the goal named that platform by name. In a
+ * multi-domain goal ("update the CRM AND post to Slack") the CRM/email
+ * components outscore it and push it past MATCH_TOP_N / the MAX_COMPONENTS cap —
+ * silently dropping the integration the user explicitly asked for (reviewer_
+ * notification then stands in for it). These are protected from both cuts.
+ */
+const NAMED_EGRESS_COMPONENTS = new Set([
+  "slack_notification",
+  "discord_notification",
+  "teams_notification",
+  "telegram_notification",
+]);
+
 export type RouteStep = {
   step: number;
   component_id: string;
@@ -455,6 +471,20 @@ export function composeRoute(
   const selectedIds = new Set(selected.map((c) => c.id));
   const mustAvoidSet = new Set(must_avoid.map((s) => s.toLowerCase()));
 
+  // MAR-245: force-include any user-named platform egress that matched but ranked
+  // below MATCH_TOP_N — the goal names it explicitly, so honour it regardless of
+  // how many higher-scoring components the co-present domains contributed.
+  for (const m of matches.slice(MATCH_TOP_N)) {
+    if (!NAMED_EGRESS_COMPONENTS.has(m.component.id)) continue;
+    if (selectedIds.has(m.component.id)) continue;
+    if (mustAvoidSet.has(m.component.id.toLowerCase())) continue;
+    selected.push(m.component);
+    selectedIds.add(m.component.id);
+    assumptions.push(
+      `Kept \`${m.component.id}\` even though it ranked below the top ${MATCH_TOP_N} matches — the goal names it explicitly.`,
+    );
+  }
+
   for (const edge of registry.edges) {
     if (edge.relation !== "requires") continue;
     if (!selectedIds.has(edge.from)) continue;
@@ -508,12 +538,22 @@ export function composeRoute(
     );
   }
 
-  // Cap total components
-  let finalComponents = augmented.slice(0, MAX_COMPONENTS);
+  // Cap total components. MAR-245: a user-named platform egress is never dropped
+  // to the cap — reserve its slot and fill the rest up to MAX_COMPONENTS. (Final
+  // ordering is recomputed below, so the interim order here does not matter.)
+  let finalComponents: Component[];
   if (augmented.length > MAX_COMPONENTS) {
+    const namedEgress = augmented.filter((c) => NAMED_EGRESS_COMPONENTS.has(c.id));
+    const rest = augmented.filter((c) => !NAMED_EGRESS_COMPONENTS.has(c.id));
+    finalComponents = [
+      ...rest.slice(0, Math.max(0, MAX_COMPONENTS - namedEgress.length)),
+      ...namedEgress,
+    ];
     warnings.push(
       `Route was capped at ${MAX_COMPONENTS} components. ${augmented.length - MAX_COMPONENTS} lower-scoring matches were dropped.`,
     );
+  } else {
+    finalComponents = augmented;
   }
 
   // ── Step 5: Ordering — planning (topological) vs execution (runtime) ──

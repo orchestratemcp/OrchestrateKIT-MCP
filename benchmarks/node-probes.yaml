@@ -743,3 +743,19 @@ probes:
     goal: "Monitor a competitor's pricing page and tell me when the page content changes."
     must_have: [page_monitor]
     forbidden: [metric_threshold_monitor, log_monitor, uptime_check]
+
+  # ── named-egress retention (MAR-245) ──────────────────────────────────────
+  # A user-named platform egress (slack_notification) must survive multi-domain
+  # composition: CRM + email components outscore it and pushed it past MATCH_TOP_N
+  # / the MAX_COMPONENTS cap, silently dropping the Slack post the user asked for.
+  - id: crm_email_slack_keeps_named_egress
+    goal: "Read incoming sales leads from email, enrich them, update the deal stage in our CRM, and post a short summary to our Slack channel. A human must approve anything sent externally."
+    must_have: [deal_stage_update, slack_notification]
+    forbidden: []
+
+  # Bleed guard: the same CRM+email goal WITHOUT a Slack mention must NOT gain
+  # slack_notification — the force-include only fires when the goal names it.
+  - id: crm_email_no_slack_no_egress
+    goal: "Read incoming sales leads from email, enrich them, and update the deal stage in our CRM. A human must approve anything sent externally."
+    must_have: [deal_stage_update]
+    forbidden: [slack_notification, discord_notification, teams_notification]
