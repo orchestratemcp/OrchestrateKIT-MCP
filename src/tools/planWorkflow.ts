@@ -1657,7 +1657,16 @@ function buildGuidedPlanMarkdown(
     safeguard = `no approval gate required for this plan`;
   }
   lines.push(`**Key safeguard:** ${safeguard}.`);
-  if (steps.some((s) => s.risk_level === "high" || s.risk_level === "critical")) {
+  // MAR-246: only warn "do not run unattended past the gate" when there IS an
+  // ENFORCED gate to run past. When the gate was waived to advisory (an explicit
+  // unattended goal) this absolute contradicted both the advisory safeguard line
+  // above ("re-enable it to run unattended") and the "may run unattended" autonomy
+  // line below. The advisory safeguard + approval_gate_advisory already carry the
+  // irreversible-write caveat in that case.
+  if (
+    enforcedGates.length > 0 &&
+    steps.some((s) => s.risk_level === "high" || s.risk_level === "critical")
+  ) {
     lines.push(`Some steps make irreversible external writes — do not run unattended past the gate.`);
   }
   const autoText = clearance.autonomous_allowed
