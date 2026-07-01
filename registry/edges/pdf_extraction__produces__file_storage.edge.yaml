@@ -1,0 +1,12 @@
+id: pdf_extraction__produces__file_storage
+from: pdf_extraction
+to: file_storage
+relation: produces_input_for
+status: published
+reason: The canonical "extract from documents then store" flow — extracted fields (invoice totals, line items, vendor) are the records file_storage persists to a spreadsheet or table.
+severity: medium
+notes: Validate the extracted records against the destination schema before writing (schema_validation) so a malformed extraction does not corrupt the store.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: pdf_extraction__produces__file_storage"

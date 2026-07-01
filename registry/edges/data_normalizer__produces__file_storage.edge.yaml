@@ -1,0 +1,12 @@
+id: data_normalizer__produces__file_storage
+from: data_normalizer
+to: file_storage
+relation: produces_input_for
+status: published
+reason: Normalised records in a canonical format are what gets persisted — normalise before storing so the destination columns stay consistent across runs.
+severity: low
+notes: Run normalisation before the write, not after, so the stored rows are already in the destination's canonical shape.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: data_normalizer__produces__file_storage"

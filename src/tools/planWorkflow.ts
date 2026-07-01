@@ -1119,6 +1119,25 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
     ],
   },
 
+  // MAR-244: file_storage — the generic "save it somewhere" write destination.
+  file_storage: {
+    label: "Storage destination — write records / files",
+    product_examples: ["Google Sheets", "Airtable", "Postgres / SQLite", "S3 / GCS", "local CSV"],
+    auth_model: "OAuth2 (Google Sheets) / API key (Airtable, S3) / connection string (database)",
+    mcp_server: {
+      availability: "community",
+      transport: "stdio",
+      note: "No single official MCP; Google Sheets & Airtable have community servers, or write via the provider SDK directly",
+    },
+    required_scopes: ["https://www.googleapis.com/auth/spreadsheets (Sheets, write)"],
+    gotchas: [
+      "Append vs. overwrite: use an append/upsert API, never a full range overwrite, or a retry wipes existing rows",
+      "Give the write credential access to ONE sheet/table/bucket — a broad scope means a misrouted write lands anywhere",
+      "Make the write idempotent with an upsert key (invoice id, row hash) so a re-run does not double-write",
+      "Match the destination columns to the record schema up front — a silent field drop corrupts the store over time",
+    ],
+  },
+
   // MAR-217: knowledge / second-brain components
   vector_store: {
     label: "Vector database — semantic index for owned corpus",

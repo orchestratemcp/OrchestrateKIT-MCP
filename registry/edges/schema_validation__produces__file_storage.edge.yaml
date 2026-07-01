@@ -1,0 +1,12 @@
+id: schema_validation__produces__file_storage
+from: schema_validation
+to: file_storage
+relation: produces_input_for
+status: published
+reason: A write to a persistent store should be preceded by schema validation so malformed or partial records are rejected before they land in the destination.
+severity: medium
+notes: Validate against the DESTINATION schema (column types, required fields), not just the source shape — a store write is where a drift becomes permanent.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: schema_validation__produces__file_storage"

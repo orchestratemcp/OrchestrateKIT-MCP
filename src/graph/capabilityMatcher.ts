@@ -70,6 +70,12 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   pdf_extraction: ["data_etl"],
   airtable_lookup: ["data_etl"],
   stripe_data_read: ["data_etl"],
+  // MAR-244: file_storage is the generic "store it somewhere" write. It belongs to
+  // data_etl (extract → normalise → store) but is ALSO generic_orchestration so a
+  // "save the results to a spreadsheet" step routes in any domain. HINT_ONLY (see
+  // below), so the dual membership never fuzzy-bleeds — only its explicit storage
+  // hints select it.
+  file_storage: ["data_etl", "generic_orchestration"],
   // code_agent
   codebase_scan: ["code_agent"],
   code_editing: ["code_agent"],
@@ -204,6 +210,18 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
     "airtable",
     "stripe",
     "parse",
+    // MAR-244: document-extraction + storage terms. "invoice"/"receipt" name the
+    // extract-structured-data-from-documents shape; "spreadsheet"/"csv" name the
+    // store destination. These establish data_etl so pdf_extraction (the extractor)
+    // and file_storage (the destination) become eligible for "read invoices from
+    // email → save to a spreadsheet" goals that today collapse to an email-reply
+    // route with no extraction and no place to store the result.
+    "invoice",
+    "invoices",
+    "receipt",
+    "receipts",
+    "spreadsheet",
+    "csv",
   ],
   code_agent: [
     "code",
@@ -617,6 +635,23 @@ const CAPABILITY_SUPPRESSION_RULES: CapabilitySuppressionRule[] = [
       "do not auto-send",
       "never auto send",
       "no auto send",
+      // MAR-244: the "nothing gets sent" negation class. The re-dogfood invoice
+      // goals ("save invoices to a spreadsheet. Nothing gets sent out." / "Draft
+      // nothing externally without my approval.") read FROM email but forbid any
+      // outbound send, yet still routed optional_email_send — a negation-blind
+      // hallucinated external write (MAR-140 family). These phrases carry their own
+      // negation, so they never fire on an affirmative send goal.
+      "nothing gets sent",
+      "nothing sent out",
+      "nothing is sent",
+      "nothing goes out",
+      "nothing sent externally",
+      "nothing to send",
+      "draft nothing",
+      "no outbound email",
+      "no outbound emails",
+      "no emails sent",
+      "no email sent",
     ],
   },
   // email_draft — a "drafts only" / "draft only" goal with NO real mailbox intent
@@ -949,6 +984,36 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   // data_normalizer remains reachable via normalize / normalise / its own fuzzy
   // capability pass once the data_etl domain is established.
   extract: ["data_scraper", "data_normalizer", "pdf_extraction"],
+  // MAR-244: invoices/receipts are the canonical "extract structured fields from a
+  // document" case and are almost always PDFs. pdf_extraction is HINT_ONLY-reachable
+  // via "pdf"/"extract"; these add the document-noun path so "read invoices from my
+  // email" routes the extractor even when the word "pdf" is absent.
+  invoice: ["pdf_extraction"],
+  invoices: ["pdf_extraction"],
+  receipt: ["pdf_extraction"],
+  receipts: ["pdf_extraction"],
+  // MAR-244: file_storage (HINT_ONLY). The "save it somewhere" destination — a
+  // spreadsheet, sheet, CSV, table or object store. Reachable only via these
+  // explicit storage nouns/phrases so it never fuzzy-bleeds into unrelated goals.
+  spreadsheet: ["file_storage"],
+  "google sheet": ["file_storage"],
+  "google sheets": ["file_storage"],
+  "to a sheet": ["file_storage"],
+  "into a sheet": ["file_storage"],
+  "in a sheet": ["file_storage"],
+  csv: ["file_storage"],
+  "save to a file": ["file_storage"],
+  "save it to": ["file_storage"],
+  "save them": ["file_storage"],
+  "save each": ["file_storage"],
+  "store them": ["file_storage"],
+  "store each": ["file_storage"],
+  "store the records": ["file_storage"],
+  "save the records": ["file_storage"],
+  "write to a file": ["file_storage"],
+  "append to": ["file_storage"],
+  "database table": ["file_storage"],
+  "log it to": ["file_storage"],
   normalize: ["data_normalizer"],
   normalise: ["data_normalizer"],
   deduplicate: ["deduplication"],
@@ -1141,6 +1206,13 @@ const HINT_ONLY_COMPONENTS = new Set([
   "metric_threshold_monitor",
   "log_monitor",
   "uptime_check",
+  // MAR-244: file_storage's id/summary/capability tokens ("file", "storage",
+  // "save", "write", "records", "store") are among the most generic in any goal
+  // and would fuzzy-match nearly every data/processing/state goal. It is a precise
+  // destination, reachable only via its explicit storage hints (spreadsheet / csv /
+  // google sheet / save to a file / store the records …) within the data_etl or
+  // generic domain, so establishing the domain alone never injects it.
+  "file_storage",
 ]);
 
 /** Domains a component belongs to (defaults to generic_orchestration). */
