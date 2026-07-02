@@ -815,3 +815,39 @@ probes:
     goal: "Watch our pricing page and tell me when the page content changes."
     must_have: [page_monitor]
     forbidden: [metric_threshold_monitor, log_monitor, uptime_check]
+
+  # ── data-report spine (MAR-254): db_read + report_generation ──────────────
+  # The audit G4 failure class: "pull from Postgres, generate a PDF report, post
+  # to Slack" routed pdf_extraction (wrong direction) + crm_note_write
+  # (hallucinated) and had neither a database read nor a report step.
+  # NOTE: scheduled_trigger is NOT asserted here — "Every Monday at 8am" is the
+  # MAR-253 weekday-phrase gap, fixed separately. crm_note_write / loop_controller
+  # are not forbidden yet: crm_note_write still fuzzy-scores into the top-8
+  # (MAR-250 coverage flags it as unsupported supply); "no human in the loop"
+  # fires loop_controller (MAR-214, in review).
+  - id: scheduled_db_report_slack
+    goal: "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop."
+    must_have: [db_read, report_generation, slack_notification]
+    forbidden: [pdf_extraction, calendar_lookup, calendar_write, email_read]
+
+  # Bleed guard: the document-EXTRACTION direction keeps pdf_extraction and must
+  # NOT gain report_generation — parsing an existing PDF is the opposite arrow.
+  - id: pdf_invoice_extraction_keeps_pdf_extraction
+    goal: "Parse incoming PDF invoices from email attachments, extract line items and totals, validate them against a purchase order in Airtable, and flag any mismatches for human review."
+    must_have: [pdf_extraction]
+    forbidden: [report_generation, db_read]
+
+  # Bleed guard: bare "summarize"/"summary" must never select report_generation
+  # (the MAR-127 token class) — only compound creation phrases reach it.
+  - id: news_summary_not_report_generation
+    goal: "Every morning, summarize the top AI industry news from a handful of trusted sources into a short digest."
+    must_have: []
+    forbidden: [report_generation, db_read]
+
+  # Bleed guard: a database WRITE destination must not pull the READ component —
+  # db_read is reachable only via direction-carrying phrases ("from our
+  # database"), and "save to a database table" is file_storage's territory.
+  - id: db_write_destination_not_db_read
+    goal: "Take the scraped records, normalize them, and save them to a database table every night."
+    must_have: [file_storage]
+    forbidden: [db_read, report_generation]

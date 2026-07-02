@@ -1,0 +1,13 @@
+id: scheduled_trigger__produces__db_read
+from: scheduled_trigger
+to: db_read
+relation: produces_input_for
+status: published
+reason: The canonical scheduled-report flow starts with a timed trigger firing a read-only database query ("every Monday at 8am, pull last week's numbers").
+severity: low
+notes: The trigger payload carries the reporting window (e.g. "last week") so the query is parameterized by run date, not hardcoded.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: scheduled_trigger__produces__db_read"
+  - "probe:scheduled_db_report_slack"

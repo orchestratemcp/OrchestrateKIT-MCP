@@ -1,0 +1,12 @@
+id: audit_log__recommended__db_read
+from: audit_log
+to: db_read
+relation: recommended_for
+status: published
+reason: Production-database access from an automated workflow should leave a trace — which query ran, when, with which credential — so a slow query or surprising number is diagnosable after the fact.
+severity: low
+notes: Log the query template and parameters, never raw result rows (they may contain business-sensitive data).
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__db_read"

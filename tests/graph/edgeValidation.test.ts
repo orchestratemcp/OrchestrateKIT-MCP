@@ -776,3 +776,76 @@ describe("edge: scheduled_trigger__compatible__uptime_check", () => {
     expect(edge!.to).toBe("uptime_check");
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAR-254 — Data-report spine: db_read + report_generation (2 components,
+// 8 edges). Kills the G4 failure class (Postgres→PDF→Slack scheduled report).
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** produces_input_for: execution ordering for the data-report flow. */
+const MAR254_ORDER_EDGES: Array<[string, string, string, string[]]> = [
+  [
+    "scheduled_trigger__produces__db_read",
+    "scheduled_trigger",
+    "db_read",
+    ["db_read", "scheduled_trigger", "report_generation"],
+  ],
+  [
+    "db_read__produces__report_generation",
+    "db_read",
+    "report_generation",
+    ["report_generation", "db_read", "slack_notification"],
+  ],
+  [
+    "db_read__produces__schema_validation",
+    "db_read",
+    "schema_validation",
+    ["schema_validation", "db_read"],
+  ],
+  [
+    "report_generation__produces__slack_notification",
+    "report_generation",
+    "slack_notification",
+    ["slack_notification", "report_generation", "human_approval_gate"],
+  ],
+  [
+    "report_generation__produces__human_approval_gate",
+    "report_generation",
+    "human_approval_gate",
+    ["human_approval_gate", "report_generation"],
+  ],
+  [
+    "report_generation__produces__file_storage",
+    "report_generation",
+    "file_storage",
+    ["file_storage", "report_generation"],
+  ],
+];
+
+for (const [edgeId, from, to, set] of MAR254_ORDER_EDGES) {
+  describe(`edge: ${edgeId}`, () => {
+    it(`computeExecutionOrder places ${from} before ${to}`, () => {
+      const ids = computeExecutionOrder(pick(set), edges).map((c) => c.id);
+      expect(ids.indexOf(from)).toBeLessThan(ids.indexOf(to));
+    });
+  });
+}
+
+/** recommended_for support edges: present, correctly shaped, tested. */
+const MAR254_RECOMMENDED_EDGES: Array<[string, string, string]> = [
+  ["retry_policy__recommended__db_read", "retry_policy", "db_read"],
+  ["audit_log__recommended__db_read", "audit_log", "db_read"],
+];
+
+for (const [edgeId, from, to] of MAR254_RECOMMENDED_EDGES) {
+  describe(`edge: ${edgeId}`, () => {
+    it("edge is present in registry with relation recommended_for and tested", () => {
+      const edge = edges.find((e) => e.id === edgeId);
+      expect(edge).toBeDefined();
+      expect(edge!.relation).toBe("recommended_for");
+      expect(edge!.from).toBe(from);
+      expect(edge!.to).toBe(to);
+      expect(edge!.tested).toBe(true);
+    });
+  });
+}

@@ -1,0 +1,13 @@
+id: db_read__produces__report_generation
+from: db_read
+to: report_generation
+relation: produces_input_for
+status: published
+reason: The row set from the read-only query is exactly the structured data the report template renders — the data-report spine (db_read → report_generation → egress).
+severity: medium
+notes: Validate the row set (schema_validation) before rendering — an empty or malformed result renders a confident-looking report with wrong numbers, which is worse than a loud failure.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: db_read__produces__report_generation"
+  - "probe:scheduled_db_report_slack"

@@ -1,0 +1,12 @@
+id: retry_policy__recommended__db_read
+from: retry_policy
+to: db_read
+relation: recommended_for
+status: published
+reason: Database queries fail transiently (connection pool exhaustion, replica lag, timeouts). A bounded retry prevents a whole scheduled report run from dying on one blip.
+severity: low
+notes: Retry the QUERY, never a surrounding write. Keep max_attempts low (2-3) with backoff — a query that fails three times is a real problem, not a blip.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: retry_policy__recommended__db_read"
