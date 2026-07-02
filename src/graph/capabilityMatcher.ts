@@ -88,6 +88,16 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   // below), so the dual membership never fuzzy-bleeds — only its explicit storage
   // hints select it.
   file_storage: ["data_etl", "generic_orchestration"],
+  // MAR-254: the data-report spine. db_read is the read-only SQL/warehouse
+  // source ("pull the numbers from our Postgres database") and report_generation
+  // the document-CREATION direction ("generate a PDF summary report") —
+  // pdf_extraction is the opposite arrow. Both are data_etl-native but ALSO
+  // generic_orchestration so a scheduled-report goal with no other ETL vocabulary
+  // still reaches them. Both HINT_ONLY (see below): their id/summary tokens
+  // ("read", "report", "data", "generate") are among the most ambient words in
+  // any goal, so only their explicit hints ever select them.
+  db_read: ["data_etl", "generic_orchestration"],
+  report_generation: ["data_etl", "generic_orchestration"],
   // code_agent
   codebase_scan: ["code_agent"],
   code_editing: ["code_agent"],
@@ -1028,6 +1038,38 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   "append to": ["file_storage"],
   "database table": ["file_storage"],
   "log it to": ["file_storage"],
+  // MAR-254: db_read (HINT_ONLY) — read-only SQL/warehouse source. Provider
+  // names are domain-unique; the generic forms are direction-carrying PHRASES
+  // ("from our database", "query the database") so a "save to a database" WRITE
+  // goal never pulls the READ component via a bare "database" token.
+  postgres: ["db_read"],
+  postgresql: ["db_read"],
+  mysql: ["db_read"],
+  bigquery: ["db_read"],
+  snowflake: ["db_read"],
+  "sql database": ["db_read"],
+  "sql query": ["db_read"],
+  "from our database": ["db_read"],
+  "from the database": ["db_read"],
+  "from a database": ["db_read"],
+  "query the database": ["db_read"],
+  "database query": ["db_read"],
+  "data warehouse": ["db_read"],
+  // MAR-254: report_generation (HINT_ONLY) — document-CREATION phrases only.
+  // Deliberately compound: bare "report"/"summary" are the MAR-127 bleed tokens
+  // and must never select it.
+  "pdf report": ["report_generation"],
+  "summary report": ["report_generation"],
+  "pdf summary": ["report_generation"],
+  "generate a report": ["report_generation"],
+  "create a report": ["report_generation"],
+  "produce a report": ["report_generation"],
+  "generate a pdf": ["report_generation"],
+  "create a pdf": ["report_generation"],
+  "weekly report": ["report_generation"],
+  "daily report": ["report_generation"],
+  "monthly report": ["report_generation"],
+  "report generation": ["report_generation"],
   normalize: ["data_normalizer"],
   normalise: ["data_normalizer"],
   deduplicate: ["deduplication"],
@@ -1227,6 +1269,14 @@ const HINT_ONLY_COMPONENTS = new Set([
   // google sheet / save to a file / store the records …) within the data_etl or
   // generic domain, so establishing the domain alone never injects it.
   "file_storage",
+  // MAR-254: the data-report spine. db_read's tokens ("database", "read",
+  // "query", "data", "rows") and report_generation's ("report", "summary",
+  // "document", "generate", "render") are ambient in most goals — fuzzy matching
+  // would inject a SQL read into any "read X" goal and a report renderer into
+  // any "summary" goal (the MAR-127 token class). Reachable only via their
+  // explicit provider names and direction-carrying phrases above.
+  "db_read",
+  "report_generation",
 ]);
 
 /**
@@ -1243,6 +1293,32 @@ const SPECIFIC_MONITOR_COMPONENTS = [
 
 /** Web-page signals that legitimately justify page_monitor. */
 const PAGE_MONITOR_SIGNALS = ["page", "webpage", "website", "url"];
+
+/**
+ * MAR-254: extraction-direction signals that legitimately justify
+ * pdf_extraction. "Generate a PDF summary report" fires pdf_extraction via the
+ * bare `pdf` hint even though the goal CREATES a document (the opposite arrow —
+ * observed live in the 2026-07-01 audit G4). When report_generation matched
+ * (a creation phrase is present) and none of these extraction signals appear,
+ * pdf_extraction is direction-wrong noise and is dropped.
+ */
+const PDF_EXTRACTION_SIGNALS = [
+  "extract",
+  "parse",
+  "parsing",
+  "incoming",
+  "attachment",
+  "attachments",
+  "invoice",
+  "receipt",
+  "from the pdf",
+  "from a pdf",
+  "from pdfs",
+  "read pdf",
+  "read the pdf",
+  "scanned",
+  "ocr",
+];
 
 /** Domains a component belongs to (defaults to generic_orchestration). */
 function componentDomains(id: string): Domain[] {
@@ -1392,6 +1468,19 @@ export function matchCapabilities(
       scoreMap.has(id),
     );
     if (!hasPageSignal && hasSpecificMonitor) scoreMap.delete("page_monitor");
+  }
+
+  // ── pdf_extraction direction suppression (MAR-254) ──
+  // pdf_extraction PARSES an existing PDF; report_generation CREATES one. The
+  // bare `pdf` hint fires the extractor on document-creation goals ("generate a
+  // PDF summary report"). When the creation direction matched and the goal
+  // carries no extraction signal, the extractor is direction-wrong noise.
+  // Mirrors the page_monitor suppression above.
+  if (scoreMap.has("pdf_extraction") && scoreMap.has("report_generation")) {
+    const hasExtractionSignal = PDF_EXTRACTION_SIGNALS.some((t) =>
+      goalLower.includes(t),
+    );
+    if (!hasExtractionSignal) scoreMap.delete("pdf_extraction");
   }
 
   // ── Build matches from positively-scored components ──

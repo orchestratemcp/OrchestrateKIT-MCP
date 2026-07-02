@@ -1,0 +1,52 @@
+id: db_read
+name: Database Read
+status: published
+category: input
+summary: >-
+  Runs a read-only query against a SQL database or warehouse (Postgres, MySQL,
+  BigQuery, Snowflake) and returns structured rows for downstream steps. The
+  data-source primitive for "pull the numbers from our database" goals —
+  distinct from data_scraper (web pages) and airtable_lookup / stripe_data_read
+  (specific SaaS APIs). Read-only by contract: it never writes, migrates, or
+  mutates.
+capabilities:
+  - sql_query_readonly
+  - fetch_structured_rows
+  - parameterized_query
+  - aggregate_timerange_query
+inputs:
+  - SQL query or query template (parameterized — never string-concatenated user input)
+  - database connection credentials (read-only role)
+outputs:
+  - structured row set (column names + typed values) for the downstream step
+risk_level: low
+side_effects:
+  - read load on the database — heavy aggregate queries can slow a production instance; prefer a replica
+permissions:
+  read:
+    - database read-only role (SELECT on the required schemas only)
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - retry_policy
+  - schema_validation
+  - auth_failure_handler
+avoid_with: []
+failure_modes:
+  - credential has write scope — a compromised or buggy step can mutate production data; always provision a SELECT-only role
+  - query without a time bound scans the whole table and times out or stalls the workflow
+  - querying the primary during business hours degrades the production app — use a read replica
+  - NULL vs zero confusion — an empty result set silently reads as "no sales" instead of "query problem"
+evals:
+  - returns the expected row set on a seeded fixture database
+  - rejects (fails loudly) when the credential lacks read scope, instead of returning empty
+  - query timeout is enforced and surfaces as a retryable failure
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

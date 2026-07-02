@@ -1,0 +1,13 @@
+id: report_generation__produces__slack_notification
+from: report_generation
+to: slack_notification
+relation: produces_input_for
+status: published
+reason: The rendered report (or its summary + link) is the payload the channel notification delivers — the "post the weekly report to Slack" delivery leg.
+severity: medium
+notes: Post the headline numbers inline and attach/link the full document — a bare file with no summary gets ignored. slack_notification keeps its own approval/advisory path (advisory for unattended reports, MAR-132).
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: report_generation__produces__slack_notification"
+  - "probe:scheduled_db_report_slack"

@@ -4,10 +4,11 @@ export const SERVER_VERSION = "0.1.0";
 /**
  * Release-trust count floors (MAR-220). `health_check.safe_to_demo` reports
  * false — and the health-check regression test fails — if the live registry
- * drops below these. Raised to 62/136 after the MAR-244 file_storage primitive.
+ * drops below these. Raised to 64/144 after the MAR-254 data-report spine
+ * (db_read + report_generation, 8 edges).
  */
-export const MIN_COMPONENTS = 62;
-export const MIN_EDGES = 136;
+export const MIN_COMPONENTS = 64;
+export const MIN_EDGES = 144;
 
 /**
  * MAR-99: server-level instructions sent to AI clients on connect.

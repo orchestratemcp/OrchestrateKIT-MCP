@@ -1,0 +1,50 @@
+id: report_generation
+name: Report Generation
+status: published
+category: processing
+summary: >-
+  Renders structured data into a formatted document — a PDF, HTML page, or
+  Markdown report — from a fixed template, optionally with an LLM-written
+  narrative summary section. The document-CREATION direction: pdf_extraction is
+  the opposite arrow (parse an existing PDF into data). The rendered artifact is
+  an internal file until a downstream egress (Slack, email, file_storage)
+  delivers it.
+capabilities:
+  - render_template_to_document
+  - tabular_data_to_pdf
+  - chart_embedding
+  - narrative_summary_section
+inputs:
+  - structured data (rows / metrics) from an upstream read step
+  - report template (layout, sections, branding) — deterministic; the template is fixed, only the data varies
+outputs:
+  - rendered document artifact (PDF / HTML / Markdown) ready for delivery or storage
+risk_level: low
+side_effects:
+  - none external — the artifact is local until an egress component delivers it
+permissions:
+  read: []
+  write: []
+  approval_required_for: []
+requires: []
+recommended_with:
+  - schema_validation
+  - file_storage
+avoid_with: []
+failure_modes:
+  - empty or partial input data renders a confident-looking report with wrong numbers — validate the row set first
+  - template drift — a renamed column silently renders as blank instead of failing the run
+  - LLM narrative section states numbers that differ from the table it sits next to; keep narrative generation grounded on the same rows
+  - unbounded chart/data volume blows up render time or file size
+evals:
+  - rendered document contains every expected section for a seeded fixture dataset
+  - render fails loudly (not blank fields) when an expected column is missing
+  - narrative numbers match the tabular numbers on a fixture report
+tested_in_playbooks: []
+tested_in_routes: []
+sources: []
+
+model_tier: small
+fallback_tier: none
+context_need: moderate
+compression_strategy: summarise

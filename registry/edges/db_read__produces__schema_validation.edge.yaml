@@ -1,0 +1,12 @@
+id: db_read__produces__schema_validation
+from: db_read
+to: schema_validation
+relation: produces_input_for
+status: published
+reason: Query results should be validated (expected columns present, row count sane, no all-NULL windows) before any downstream step treats them as facts.
+severity: low
+notes: Catches the "empty result reads as zero sales" failure mode at the boundary instead of inside the report.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: db_read__produces__schema_validation"

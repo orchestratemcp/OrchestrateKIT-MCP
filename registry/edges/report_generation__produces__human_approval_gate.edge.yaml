@@ -1,0 +1,12 @@
+id: report_generation__produces__human_approval_gate
+from: report_generation
+to: human_approval_gate
+relation: produces_input_for
+status: published
+reason: In an attended report flow the rendered document is the artifact a human reviews before it is delivered externally — the gate consumes the report as its review payload.
+severity: low
+notes: Only wired when the flow is attended; unattended scheduled reports run gate-free with an advisory (MAR-132 pattern) since a Slack post is a notification-class egress.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: report_generation__produces__human_approval_gate"

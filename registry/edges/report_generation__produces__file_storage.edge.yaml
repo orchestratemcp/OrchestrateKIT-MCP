@@ -1,0 +1,12 @@
+id: report_generation__produces__file_storage
+from: report_generation
+to: file_storage
+relation: produces_input_for
+status: published
+reason: Rendered reports are commonly archived (drive folder, S3 bucket, sheet index) in addition to — or instead of — being posted; file_storage is the persistence leg for the artifact.
+severity: low
+notes: Store with a date-stamped, idempotent key so a retried run overwrites its own artifact instead of duplicating it.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: report_generation__produces__file_storage"
