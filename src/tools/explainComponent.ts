@@ -25,6 +25,11 @@ import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import { ExplainComponentOutputShape } from "./outputSchemas.js";
 import { freshnessLabel } from "../lib/freshness.js";
+import {
+  riskStatement,
+  categoryStatement,
+  relationPhrase,
+} from "../lib/plainLanguage.js";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -37,52 +42,10 @@ const InputShape = {
 };
 
 // ---------------------------------------------------------------------------
-// Plain-language helpers
+// Plain-language helpers (riskStatement / categoryStatement / relationPhrase
+// now live in ../lib/plainLanguage so the same register also powers per-step
+// text in a composed plan — MAR-249).
 // ---------------------------------------------------------------------------
-
-function riskStatement(riskLevel: string): string {
-  switch (riskLevel) {
-    case "low":
-      return "Low-risk step — generally safe to run automatically.";
-    case "medium":
-      return "Medium-risk step — review the output before letting it feed into a write operation.";
-    case "high":
-      return "High-risk step — should always be paired with a human approval check before it runs.";
-    case "critical":
-      return "Critical-risk step — requires explicit human sign-off and audit logging every time it executes.";
-    default:
-      return `Risk level: ${riskLevel}.`;
-  }
-}
-
-function categoryStatement(category: string): string {
-  const labels: Record<string, string> = {
-    input: "data source or trigger",
-    processing: "data transformation step",
-    state: "state management component",
-    safety: "safety and control checkpoint",
-    tool: "tool or external lookup",
-    output: "content generation or output step",
-    eval: "evaluation and scoring step",
-    orchestration: "workflow routing or orchestration",
-    integration: "external service integration",
-  };
-  return labels[category] ?? category;
-}
-
-function relationPhrase(relation: string): string {
-  const phrases: Record<string, string> = {
-    produces_input_for: "feeds its output to",
-    requires: "must always be paired with",
-    safer_with: "works more safely when paired with",
-    compatible_with: "works well alongside",
-    recommended_for: "is recommended before",
-    before: "should run before",
-    tested: "has been tested with",
-    avoid_when: "should be avoided together with",
-  };
-  return phrases[relation] ?? relation;
-}
 
 function componentName(id: string, components: Component[]): string {
   const c = components.find((x) => x.id === id);
