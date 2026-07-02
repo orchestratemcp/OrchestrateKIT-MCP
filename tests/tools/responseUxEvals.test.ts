@@ -214,6 +214,10 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
 // depth carries the front-matter line; the gap block appears exactly when
 // there is a gap, and a clean plan pays nothing for it.
 describe("MAR-250 — coverage honesty in the rendered output", () => {
+  // MAR-254 covered the original Postgres/report fixture, so the standing
+  // uncovered-goal fixture names systems the registry genuinely lacks.
+  const ZENDESK_SMS_GOAL =
+    "Every Monday morning, pull last week's support tickets from Zendesk and text me a summary via SMS.";
   const PG_REPORT_GOAL =
     "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.";
 
@@ -224,17 +228,29 @@ describe("MAR-250 — coverage honesty in the rendered output", () => {
     }
   });
 
-  it("a poor-coverage plan names its gaps in Layer 1 (the audit G4 goal)", () => {
+  it("a poor-coverage plan names its gaps in Layer 1 (registry-unknown systems)", () => {
+    const r = planWorkflow(
+      { goal: ZENDESK_SMS_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+    const md = r.summary_markdown;
+    expect(md).toContain("Not covered by the registry");
+    expect(md.toLowerCase()).toContain("zendesk");
+    // even with the gap block, Layer 1 stays under the brevity bound
+    expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
+  });
+
+  it("unsupported extras are named in Layer 1 (the audit G4 goal, post-MAR-254)", () => {
     const r = planWorkflow(
       { goal: PG_REPORT_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
       registry,
     );
     const md = r.summary_markdown;
-    expect(md).toContain("Not covered by the registry");
-    expect(md.toLowerCase()).toContain("postgres");
+    // demand is now covered (db_read + report_generation) — no false gap block…
+    expect(md).not.toContain("Not covered by the registry");
+    // …but the fuzzy-matched extra is still called out for verification.
     expect(md).toContain("In the route but not asked for:");
     expect(md).toContain("`crm_note_write`");
-    // even with the gap block, Layer 1 stays under the brevity bound
     expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
   });
 

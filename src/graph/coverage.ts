@@ -124,25 +124,58 @@ function isClaimed(item: string, claimedTokens: Set<string>): boolean {
 }
 
 /**
- * Nouns anchor the verdict: when a clause names demand nouns, it is uncovered
- * iff ANY noun is unclaimed ("generate a PDF summary report" is uncovered when
- * `report` has no component even though `pdf` matched something). A clause with
- * only demand verbs is uncovered iff ALL of them are unclaimed — verbs are too
- * generic for a single miss to outweigh a claimed sibling ("post it to our team
- * Slack channel" is covered by the claimed `slack` even though `post` isn't).
+ * Nouns anchor the verdict: when a clause names demand-noun UNITS, it is
+ * uncovered iff ANY unit is unclaimed. A clause with only demand verbs is
+ * uncovered iff ALL of them are unclaimed — verbs are too generic for a single
+ * miss to outweigh a claimed sibling ("post it to our team Slack channel" is
+ * covered by the claimed `slack` even though `post` isn't).
+ *
+ * A UNIT is a compound: demand nouns within 2 words of each other in the clause
+ * ("our Postgres database", "PDF summary report") name ONE system/artifact, and
+ * the unit is claimed when ANY member is. Without grouping, "Postgres database"
+ * false-alarmed after MAR-254: db_read claims `postgres` but no phrase claims
+ * the adjacent `database`, and a covered step read as an uncovered one.
  */
 function clauseIsUncovered(
-  nouns: string[],
+  nounUnits: string[][],
   verbs: string[],
   claimedTokens: Set<string>,
 ): boolean {
-  if (nouns.length > 0) {
-    return nouns.some((n) => !isClaimed(n, claimedTokens));
+  if (nounUnits.length > 0) {
+    return nounUnits.some((unit) => unit.every((n) => !isClaimed(n, claimedTokens)));
   }
   if (verbs.length > 0) {
     return verbs.every((v) => !isClaimed(v, claimedTokens));
   }
   return false;
+}
+
+/**
+ * Group a clause's demand nouns into compound units: nouns whose word positions
+ * are within `maxGap` of each other merge ("pdf … report" with "summary"
+ * between them is one artifact). Multi-word phrase hits are their own unit.
+ */
+function groupNounUnits(
+  words: string[],
+  phraseHits: string[],
+  isDemandNoun: (w: string) => boolean,
+): string[][] {
+  const MAX_GAP = 2;
+  const units: string[][] = [];
+  let current: string[] = [];
+  let lastIdx = -Infinity;
+  words.forEach((w, i) => {
+    if (!isDemandNoun(w)) return;
+    if (i - lastIdx > MAX_GAP && current.length > 0) {
+      units.push(current);
+      current = [];
+    }
+    current.push(w);
+    lastIdx = i;
+  });
+  if (current.length > 0) units.push(current);
+  for (const p of phraseHits) units.push([p]);
+  return units;
 }
 
 export type CoverageInput = {
@@ -196,22 +229,23 @@ export function computeCoverage(input: CoverageInput): Coverage {
     const clauseLower = clause.toLowerCase();
 
     const words = tokenizeWords(clause);
-    const phraseHits = DEMAND_PHRASES.filter((p) => clauseLower.includes(p));
     // A negated demand word is a constraint ("never send", "no emails"), not a
     // step — check negation against the FULL goal so a negation just before the
     // clause boundary still counts.
-    const nouns = [
-      ...words.filter(
-        (w) => DEMAND_NOUNS.has(w) && !isNegatedInContext(goalLower, w),
-      ),
-      ...phraseHits.filter((p) => !isNegatedInContext(goalLower, p)),
-    ];
+    const phraseHits = DEMAND_PHRASES.filter(
+      (p) => clauseLower.includes(p) && !isNegatedInContext(goalLower, p),
+    );
+    const nounUnits = groupNounUnits(
+      words,
+      phraseHits,
+      (w) => DEMAND_NOUNS.has(w) && !isNegatedInContext(goalLower, w),
+    );
     const verbs = words.filter(
       (w) => DEMAND_VERBS.has(w) && !isNegatedInContext(goalLower, w),
     );
-    if (nouns.length === 0 && verbs.length === 0) continue;
+    if (nounUnits.length === 0 && verbs.length === 0) continue;
 
-    if (clauseIsUncovered(nouns, verbs, claimedTokens)) {
+    if (clauseIsUncovered(nounUnits, verbs, claimedTokens)) {
       const shown =
         clause.length > CLAUSE_MAX_CHARS
           ? `${clause.slice(0, CLAUSE_MAX_CHARS - 1).trimEnd()}…`

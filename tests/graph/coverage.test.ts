@@ -35,13 +35,29 @@ const G3_NOTION =
   "Every morning, gather the top AI industry news from a handful of trusted sources and save a short digest note into my Notion workspace. No emails, no social posts.";
 const G4_PG_REPORT =
   "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.";
+// A goal naming systems the registry genuinely does not cover (Zendesk, SMS) —
+// the standing "poor coverage" fixture now that MAR-254 covers the Postgres one.
+const ZENDESK_SMS =
+  "Every Monday morning, pull last week's support tickets from Zendesk and text me a summary via SMS.";
 
 describe("MAR-250 — unmatched demand (goal steps the registry cannot carry)", () => {
-  it("flags the Postgres read and the PDF report steps on the scheduled-report goal", () => {
+  it("the audit G4 scheduled-report goal is now fully demand-covered (MAR-254 closed the gap)", () => {
+    // Pre-MAR-254 this goal flagged the Postgres and report clauses. db_read +
+    // report_generation now claim them — coverage proves the fix end-to-end,
+    // including the compound-noun rule ("Postgres database" is ONE demand unit;
+    // db_read claiming `postgres` covers it even though no phrase says "database").
     const out = plan(G4_PG_REPORT);
+    expect(out.coverage.unmatched_demand).toEqual([]);
+    const ids = out.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("db_read");
+    expect(ids).toContain("report_generation");
+  });
+
+  it("flags both steps of a goal naming registry-unknown systems (Zendesk, SMS)", () => {
+    const out = plan(ZENDESK_SMS);
     const unmatched = out.coverage.unmatched_demand.join(" | ").toLowerCase();
-    expect(unmatched).toContain("postgres");
-    expect(unmatched).toContain("report");
+    expect(unmatched).toContain("zendesk");
+    expect(unmatched).toContain("sms");
     expect(out.coverage.coverage_label).toBe("poor");
   });
 
@@ -99,9 +115,11 @@ describe("MAR-250 — unsupported supply (components with no goal phrase behind 
 });
 
 describe("MAR-250 — coverage verdict and provenance", () => {
-  it("coverage label degrades honestly: G4 poor, G1 not poor", () => {
-    expect(plan(G4_PG_REPORT).coverage.coverage_label).toBe("poor");
+  it("coverage label degrades honestly: uncovered-systems goal poor, G1 not poor", () => {
+    expect(plan(ZENDESK_SMS).coverage.coverage_label).toBe("poor");
     expect(plan(G1_EMAIL_TRIAGE).coverage.coverage_label).not.toBe("poor");
+    // G4 post-MAR-254: demand covered; only unsupported extras remain → partial.
+    expect(plan(G4_PG_REPORT).coverage.coverage_label).toBe("partial");
   });
 
   it("coverage is tagged computed in provenance", () => {
@@ -115,7 +133,7 @@ describe("MAR-250 — coverage verdict and provenance", () => {
     expect(emailRead!.tokens.length).toBeGreaterThan(0);
   });
 
-  it("flag-only: coverage never changes route membership (crm_note_write stays until MAR-254)", () => {
+  it("flag-only: coverage never changes route membership (crm_note_write stays, flagged not dropped)", () => {
     const ids = plan(G4_PG_REPORT).recommended_route.map((s) => s.component_id);
     expect(ids).toContain("crm_note_write");
   });
@@ -137,6 +155,6 @@ describe("MAR-250 — coverage verdict and provenance", () => {
       registry,
     );
     expect(composed.coverage.unsupported_supply).toContain("crm_note_write");
-    expect(composed.coverage.coverage_label).toBe("poor");
+    expect(composed.coverage.coverage_label).toBe("partial");
   });
 });
