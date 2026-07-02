@@ -128,6 +128,23 @@ export const PlanWorkflowOutputShape = z
           .passthrough(),
       )
       .optional(),
+    // coverage accounting — unmatched demand / unsupported supply (MAR-250)
+    coverage: z
+      .object({
+        matched: z.array(
+          z
+            .object({
+              component_id: z.string(),
+              tokens: z.array(z.string()),
+            })
+            .passthrough(),
+        ),
+        unmatched_demand: z.array(z.string()),
+        unsupported_supply: z.array(z.string()),
+        coverage_label: z.enum(["full", "partial", "poor"]),
+      })
+      .passthrough()
+      .optional(),
     // provenance model — grounded / computed / advisory tags per field (MAR-206)
     provenance: z
       .object({

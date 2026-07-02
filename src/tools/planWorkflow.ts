@@ -39,6 +39,8 @@ import {
   type AvoidViolation,
 } from "../graph/routeOrdering.js";
 import { ALWAYS_REQUIRES_GATE } from "../graph/safetyAugmenter.js";
+import { matchCapabilities } from "../graph/capabilityMatcher.js";
+import { computeCoverage, type Coverage } from "../graph/coverage.js";
 import { findOverlappingPlaybooks } from "../graph/playbookOverlap.js";
 import {
   composeWorkerPipeline,
@@ -438,6 +440,15 @@ export type PlanWorkflowOutput = {
    * `enforced_approval_gates`.
    */
   approval_gate_advisory: ApprovalGateAdvisory | null;
+  /**
+   * Coverage accounting (MAR-250): matched goal phrases per component,
+   * `unmatched_demand` (goal steps no registry component claimed — treat as 🔵
+   * unguided), and `unsupported_supply` (components with no supporting goal
+   * phrase — likely matcher noise; verify or remove). The keystone honesty
+   * layer for the scope-compiler direction: the plan says where the registry
+   * ends instead of silently dropping or inventing scope.
+   */
+  coverage: Coverage;
   evals_to_add: string[];
   /**
    * Advisory design notes drawn from edge `control_flow_note` annotations (MAR-211).
@@ -1517,6 +1528,7 @@ function buildStatusHeader(
   enforcedGates: string[],
   approvalAdvisory: ApprovalGateAdvisory | null,
   clearance: AutomationClearance,
+  coverage: Coverage,
 ): string {
   const routeIcon =
     routeStatus === "validated" ? "✅" : routeStatus === "blocked_candidate" ? "❌" : "⚠️";
@@ -1553,9 +1565,30 @@ function buildStatusHeader(
     ? "human ALWAYS required"
     : "human by default";
 
+  // MAR-250: coverage verdict. The plan must say where the registry ends —
+  // uncovered goal steps and unjustified components change the trust story more
+  // than any other line here.
+  const unmatchedN = coverage.unmatched_demand.length;
+  const unsupportedN = coverage.unsupported_supply.length;
+  let coverageLine: string;
+  if (coverage.coverage_label === "full") {
+    coverageLine = `✅ full — every goal step is registry-covered`;
+  } else {
+    const parts: string[] = [];
+    if (unmatchedN > 0) {
+      parts.push(`${unmatchedN} goal step${unmatchedN === 1 ? "" : "s"} NOT covered`);
+    }
+    if (unsupportedN > 0) {
+      parts.push(`${unsupportedN} component${unsupportedN === 1 ? "" : "s"} without goal support`);
+    }
+    const covIcon = coverage.coverage_label === "poor" ? "❌" : "⚠️";
+    coverageLine = `${covIcon} ${coverage.coverage_label} — ${parts.join(", ")}`;
+  }
+
   return [
     `---`,
     `route_status:   ${routeIcon} ${routeStatus}`,
+    `coverage:       ${coverageLine}`,
     `safety:         ${safetyIcon} ${safety.status} (risk ${safety.risk_score}/100)`,
     `blocking:       ${blockingIcon} ${blockingCount} issue${blockingCount === 1 ? "" : "s"}`,
     `approval:       ${approval}`,
@@ -1571,6 +1604,39 @@ function buildStatusHeader(
  * so "report creep" fails CI instead of silently re-bloating Layer 1.
  */
 export const LAYER1_MAX_CHARS = 2400;
+
+/**
+ * MAR-250: the coverage gap block, shared by every depth. Empty when coverage
+ * is full — a clean plan pays zero characters for this. Capped at 5 phrases so
+ * a wordy goal cannot flood Layer 1.
+ */
+const COVERAGE_MAX_SHOWN = 5;
+
+function renderCoverageBlock(coverage: Coverage): string[] {
+  const lines: string[] = [];
+  if (coverage.unmatched_demand.length > 0) {
+    const shown = coverage.unmatched_demand.slice(0, COVERAGE_MAX_SHOWN);
+    const more = coverage.unmatched_demand.length - shown.length;
+    lines.push(
+      `**Not covered by the registry:**`,
+      ...shown.map((p) => `- "${p}"`),
+    );
+    if (more > 0) lines.push(`- …and ${more} more`);
+    lines.push(
+      `> No registry component carries these steps. Mark them 🔵 unguided and spell them out for your builder/coding agent — this plan does not handle them.`,
+      ``,
+    );
+  }
+  if (coverage.unsupported_supply.length > 0) {
+    lines.push(
+      `**In the route but not asked for:** ${coverage.unsupported_supply
+        .map((id) => `\`${id}\``)
+        .join(", ")} — matched on generic word overlap only. Verify before building, or remove.`,
+      ``,
+    );
+  }
+  return lines;
+}
 
 /**
  * MAR-224: Layer-1 concise "decision UI" rendering (the default).
@@ -1596,6 +1662,7 @@ function buildGuidedPlanMarkdown(
   whatYouNeed: IntegrationNeed[],
   nextActionMenu: NextAction[],
   clarifyingQuestions: ClarifyingQuestion[],
+  coverage: Coverage,
   /**
    * MAR-224: when true (`standard` depth) the recommended route is rendered as a
    * full numbered step list with per-step risk instead of the one-line chain —
@@ -1638,6 +1705,10 @@ function buildGuidedPlanMarkdown(
   } else {
     lines.push(`> ${chain}`, ``);
   }
+
+  // (2b) MAR-250: coverage gaps — what the registry does NOT carry, before the
+  // connect list, so the reader never mistakes a partial plan for a complete one.
+  lines.push(...renderCoverageBlock(coverage));
 
   // (3) what to connect — integration NAMES only, no scopes / gotchas (those are Layer 2)
   if (whatYouNeed.length > 0) {
@@ -1720,6 +1791,7 @@ function buildPlanMarkdown(
   whatYouNeed: IntegrationNeed[],
   nextActionMenu: NextAction[],
   clarifyingQuestions: ClarifyingQuestion[],
+  coverage: Coverage,
 ): string {
   const lines: string[] = [];
 
@@ -1757,6 +1829,13 @@ function buildPlanMarkdown(
     );
   }
   lines.push(``);
+
+  // MAR-250: coverage gaps directly under the steps — a technical reader must
+  // see where the registry ends before reading tiers/credentials.
+  const coverageBlock = renderCoverageBlock(coverage);
+  if (coverageBlock.length > 0) {
+    lines.push(`### Coverage gaps`, ``, ...coverageBlock);
+  }
 
   lines.push(`### Model-tier profile`, ``);
   if (modelTiers.frontier.length > 0)
@@ -1976,6 +2055,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       avoid_when_violations: "computed",
       enforced_approval_gates: "computed",
       approval_gate_advisory: "advisory",
+      coverage: "computed", // MAR-250: matcher provenance + demand lexicon, no LLM
       automation_clearance: "computed",
       worker_pipeline: "grounded",
       loop_guidance: "grounded",
@@ -2067,6 +2147,34 @@ export function planWorkflow(
     planningOrder = composed.planning_order;
     executionOrder = composed.execution_order;
     routeComponentIds = composed.recommended_route.map((s) => s.component_id);
+  }
+
+  // ── Step 3b: coverage accounting for the chosen route (MAR-250) ──
+  // Composed plans reuse the compose pass's coverage. Playbook plans serve a
+  // different (golden-path) component set, so coverage is recomputed against it:
+  // unmatched demand still surfaces (a playbook can under-cover a goal), while
+  // unsupported-supply accounting is skipped — the playbook set is validated as
+  // a whole, not per-token.
+  let coverage: Coverage;
+  if (planSource === "playbook") {
+    const playbookMatchResult = matchCapabilities(
+      input.goal,
+      input.must_have_capabilities,
+      input.must_avoid,
+      registry.components,
+      registry.edges,
+    );
+    coverage = computeCoverage({
+      goal: input.goal,
+      routeMatches: playbookMatchResult.matches.filter((m) =>
+        routeComponentIds.includes(m.component.id),
+      ),
+      finalComponentIds: routeComponentIds,
+      injectedComponentIds: new Set(),
+      mode: "playbook",
+    });
+  } else {
+    coverage = composed.coverage;
   }
 
   // ── Step 4: review the chosen route's component set ──
@@ -2198,6 +2306,7 @@ export function planWorkflow(
     enforced_approval_gates,
     approval_gate_advisory,
     automation_clearance,
+    coverage,
   );
   let body: string;
   if (outputDepth === "guided" || outputDepth === "brief" || outputDepth === "standard") {
@@ -2213,6 +2322,7 @@ export function planWorkflow(
       what_you_need,
       next_action_menu,
       clarifying_questions,
+      coverage,
       outputDepth === "standard", // fullSteps: standard is the superset layer
     );
   } else {
@@ -2233,6 +2343,7 @@ export function planWorkflow(
       what_you_need,
       next_action_menu,
       clarifying_questions,
+      coverage,
     );
   }
   const summary_markdown = `${statusHeader}\n\n${body}`;
@@ -2256,6 +2367,7 @@ export function planWorkflow(
     avoid_when_violations,
     enforced_approval_gates,
     approval_gate_advisory,
+    coverage,
     evals_to_add: composed.evals_to_add,
     design_notes,
     what_you_need,

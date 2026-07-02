@@ -174,6 +174,60 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
   "avoid_when_violations": [],
   "clarifying_questions": [],
   "confidence_label": "high",
+  "coverage": {
+    "coverage_label": "partial",
+    "matched": [
+      {
+        "component_id": "code_editing",
+        "tokens": [
+          "changes",
+          "code",
+          "edit",
+          "plan",
+        ],
+      },
+      {
+        "component_id": "codebase_scan",
+        "tokens": [
+          "code",
+          "codebase",
+          "edit",
+          "plan",
+          "scan",
+        ],
+      },
+      {
+        "component_id": "plan_generation",
+        "tokens": [
+          "code",
+          "codebase",
+          "plan",
+        ],
+      },
+      {
+        "component_id": "pr_summary",
+        "tokens": [
+          "changes",
+          "plan",
+          "summary",
+        ],
+      },
+      {
+        "component_id": "test_runner",
+        "tokens": [
+          "changes",
+          "code",
+          "run",
+          "test",
+          "tests",
+        ],
+      },
+    ],
+    "unmatched_demand": [
+      "write a PR summary",
+    ],
+    "unsupported_supply": [],
+  },
   "credential_advisory": {
     "components_requiring_credentials": [],
     "secret_manager_recommendation": null,
@@ -283,6 +337,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "avoid_when_violations": "computed",
       "clarifying_questions": "advisory",
       "confidence_label": "computed",
+      "coverage": "computed",
       "credential_advisory": "computed",
       "design_notes": "grounded",
       "enforced_approval_gates": "computed",
@@ -627,6 +682,78 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
   "avoid_when_violations": [],
   "clarifying_questions": [],
   "confidence_label": "medium",
+  "coverage": {
+    "coverage_label": "full",
+    "matched": [
+      {
+        "component_id": "audit_log",
+        "tokens": [
+          "write",
+        ],
+      },
+      {
+        "component_id": "crm_note_write",
+        "tokens": [
+          "approval",
+          "crm",
+          "lead",
+          "note",
+          "write",
+        ],
+      },
+      {
+        "component_id": "email_draft",
+        "tokens": [
+          "draft",
+          "email",
+        ],
+      },
+      {
+        "component_id": "email_read",
+        "tokens": [
+          "email",
+          "emails",
+          "read",
+        ],
+      },
+      {
+        "component_id": "human_approval_gate",
+        "tokens": [
+          "approval",
+        ],
+      },
+      {
+        "component_id": "optional_email_send",
+        "tokens": [
+          "approval",
+          "draft",
+          "email",
+        ],
+      },
+      {
+        "component_id": "research_synthesis",
+        "tokens": [
+          "research",
+        ],
+      },
+      {
+        "component_id": "source_ranking",
+        "tokens": [
+          "research",
+          "search",
+        ],
+      },
+      {
+        "component_id": "source_retrieval",
+        "tokens": [
+          "research",
+          "search",
+        ],
+      },
+    ],
+    "unmatched_demand": [],
+    "unsupported_supply": [],
+  },
   "credential_advisory": {
     "components_requiring_credentials": [
       {
@@ -760,6 +887,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "avoid_when_violations": "computed",
       "clarifying_questions": "advisory",
       "confidence_label": "computed",
+      "coverage": "computed",
       "credential_advisory": "computed",
       "design_notes": "grounded",
       "enforced_approval_gates": "computed",
@@ -1288,6 +1416,60 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
   "avoid_when_violations": [],
   "clarifying_questions": [],
   "confidence_label": "high",
+  "coverage": {
+    "coverage_label": "partial",
+    "matched": [
+      {
+        "component_id": "code_editing",
+        "tokens": [
+          "changes",
+          "code",
+          "edit",
+          "plan",
+        ],
+      },
+      {
+        "component_id": "codebase_scan",
+        "tokens": [
+          "code",
+          "codebase",
+          "edit",
+          "plan",
+          "scan",
+        ],
+      },
+      {
+        "component_id": "plan_generation",
+        "tokens": [
+          "code",
+          "codebase",
+          "plan",
+        ],
+      },
+      {
+        "component_id": "pr_summary",
+        "tokens": [
+          "changes",
+          "plan",
+          "summary",
+        ],
+      },
+      {
+        "component_id": "test_runner",
+        "tokens": [
+          "changes",
+          "code",
+          "run",
+          "test",
+          "tests",
+        ],
+      },
+    ],
+    "unmatched_demand": [
+      "write a PR summary",
+    ],
+    "unsupported_supply": [],
+  },
   "credential_advisory": {
     "components_requiring_credentials": [],
     "secret_manager_recommendation": null,
@@ -1397,6 +1579,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "avoid_when_violations": "computed",
       "clarifying_questions": "advisory",
       "confidence_label": "computed",
+      "coverage": "computed",
       "credential_advisory": "computed",
       "design_notes": "grounded",
       "enforced_approval_gates": "computed",
@@ -1910,6 +2093,7 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
   "status": "ok",
   "untested_edges": [],
   "warnings": [
+    "[text]",
     "[text]",
     "[text]",
     "[text]",
