@@ -5,6 +5,7 @@ import type { Route } from "../registry/routeSchema.js";
 import type { Stack } from "../registry/stackSchema.js";
 import type { Worker } from "../registry/workerSchema.js";
 import { matchCapabilities } from "./capabilityMatcher.js";
+import { computeCoverage, type Coverage } from "./coverage.js";
 import { augmentWithSafety } from "./safetyAugmenter.js";
 import {
   orderComponents,
@@ -129,6 +130,13 @@ export type ComposedRoute = {
   avoid_when_violations: AvoidViolation[];
   /** Components that matched but have no graph edges to the route — possible false positives. */
   compose_noise: ComposeNoiseFlag[];
+  /**
+   * Coverage accounting (MAR-250): which goal phrases the route claimed, which
+   * goal steps matched nothing (unmatched demand), and which components rode in
+   * on fuzzy word overlap alone (unsupported supply). Flag-only — membership is
+   * never changed here.
+   */
+  coverage: Coverage;
   /** Playbook-first recommendation when a known playbook covers ≥80% of this route. */
   playbook_recommendation: PlaybookRecommendation | null;
   missing_capabilities: string[];
@@ -447,6 +455,12 @@ export function composeRoute(
       untested_edges: [],
       avoid_when_violations: [],
       compose_noise: [],
+      coverage: computeCoverage({
+        goal,
+        routeMatches: [],
+        finalComponentIds: [],
+        injectedComponentIds: new Set(),
+      }),
       playbook_recommendation: null,
       missing_capabilities,
       required_approval_gates: [],
@@ -485,6 +499,7 @@ export function composeRoute(
     );
   }
 
+  const requiresAdded = new Set<string>();
   for (const edge of registry.edges) {
     if (edge.relation !== "requires") continue;
     if (!selectedIds.has(edge.from)) continue;
@@ -495,6 +510,7 @@ export function composeRoute(
     if (required) {
       selected.push(required);
       selectedIds.add(required.id);
+      requiresAdded.add(required.id);
       assumptions.push(
         `Added \`${required.id}\` because \`${edge.from}\` requires it.`,
       );
@@ -602,6 +618,35 @@ export function composeRoute(
       reason:
         "Matched the goal text but has no graph edge connecting it to the rest of the route — verify it is not a matcher false positive.",
     }));
+
+  // ── Coverage accounting (MAR-250) ──
+  // Which goal phrases the final route claims, which goal steps matched nothing,
+  // and which components have only fuzzy word-overlap support. Policy additions
+  // (safety augmenter, requires expansion) are supported by construction.
+  const injectedForCoverage = new Set<string>([
+    ...augmenterInjected,
+    ...requiresAdded,
+  ]);
+  const coverage = computeCoverage({
+    goal,
+    routeMatches: matches.filter((m) => finalIds.has(m.component.id)),
+    finalComponentIds: [...finalIds],
+    injectedComponentIds: injectedForCoverage,
+  });
+  if (coverage.unmatched_demand.length > 0) {
+    warnings.push(
+      `Goal steps NOT covered by any registry component: ` +
+        coverage.unmatched_demand.map((p) => `"${p}"`).join("; ") +
+        `. Treat these as unguided (🔵) — tell the builder/coding agent explicitly; do not assume the route handles them.`,
+    );
+  }
+  if (coverage.unsupported_supply.length > 0) {
+    warnings.push(
+      `Components with no supporting goal phrase (matched on generic word overlap only): ` +
+        coverage.unsupported_supply.map((id) => `\`${id}\``).join(", ") +
+        `. Verify each is genuinely needed before building — likely matcher noise.`,
+    );
+  }
 
   // ── Step 7: Playbook / route overlap ──
   const playbookOverlaps = findOverlappingPlaybooks(finalIds, registry.playbooks, 0.6);
@@ -786,6 +831,7 @@ export function composeRoute(
     untested_edges: untestedEdges,
     avoid_when_violations: avoidViolations,
     compose_noise: composeNoise,
+    coverage,
     playbook_recommendation: playbookRecommendation,
     missing_capabilities,
     required_approval_gates: requiredApprovalGates,

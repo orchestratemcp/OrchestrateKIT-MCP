@@ -1,10 +1,22 @@
 import type { Component } from "../registry/componentSchema.js";
 import type { Edge } from "../registry/edgeSchema.js";
 
+/**
+ * Which scoring pass produced a match token (MAR-250). "hint" and "segment" are
+ * STRONG evidence — the goal named the concept (explicit keyword hint) or used a
+ * word that IS the component's identifier. "capability" and "summary" are FUZZY
+ * evidence — a goal word merely appeared somewhere in the component's prose. A
+ * component selected on fuzzy evidence alone has no goal phrase that actually
+ * asked for it (the crm_note_write-on-a-Postgres-report failure class).
+ */
+export type MatchEvidenceKind = "hint" | "segment" | "capability" | "summary";
+
 export type CapabilityMatch = {
   component: Component;
   score: number;
   matched_tokens: string[];
+  /** Distinct scoring passes that contributed to this match (MAR-250). */
+  evidence: MatchEvidenceKind[];
 };
 
 export type MatchResult = {
@@ -467,8 +479,10 @@ const NEGATION_WORDS = new Set(["no", "not", "never", "without"]);
  * Returns true when `keyword` appears in `text` and the preceding 1-3 words
  * contain a negation word — e.g. "no emails sent", "never send notifications".
  * Only called when the keyword has already been found in text.
+ * Exported for the coverage module (MAR-250): a negated demand word is a
+ * constraint, not a workflow step, and must never be reported as unmatched demand.
  */
-function isNegatedInContext(text: string, keyword: string): boolean {
+export function isNegatedInContext(text: string, keyword: string): boolean {
   const idx = text.indexOf(keyword);
   if (idx === -1) return false;
   // Grab up to 25 chars before the keyword and split into words.
@@ -1288,12 +1302,18 @@ export function matchCapabilities(
   suppressConstrainedCapabilities(goalLower, domainAllowed, goalDomains);
 
   // ── Phase 2: scoped scoring ──
-  const scoreMap = new Map<string, { score: number; tokens: Set<string> }>();
+  const scoreMap = new Map<
+    string,
+    { score: number; tokens: Set<string>; kinds: Set<MatchEvidenceKind> }
+  >();
 
-  const bump = (id: string, delta: number, token: string) => {
-    const entry = scoreMap.get(id) ?? { score: 0, tokens: new Set<string>() };
+  const bump = (id: string, delta: number, token: string, kind: MatchEvidenceKind) => {
+    const entry =
+      scoreMap.get(id) ??
+      { score: 0, tokens: new Set<string>(), kinds: new Set<MatchEvidenceKind>() };
     entry.score += delta;
     entry.tokens.add(token);
+    entry.kinds.add(kind);
     scoreMap.set(id, entry);
   };
 
@@ -1301,7 +1321,7 @@ export function matchCapabilities(
   for (const [keyword, ids] of Object.entries(KEYWORD_HINTS)) {
     if (goalLower.includes(keyword)) {
       for (const id of ids) {
-        if (domainAllowed.has(id)) bump(id, 2, keyword);
+        if (domainAllowed.has(id)) bump(id, 2, keyword, "hint");
       }
     }
   }
@@ -1320,7 +1340,7 @@ export function matchCapabilities(
     const identifierTokens = new Set([...idSegments, ...nameWords]);
     for (const seg of identifierTokens) {
       if (seg.length > 2 && tokenSet.has(seg)) {
-        bump(component.id, 2, seg);
+        bump(component.id, 2, seg, "segment");
       }
     }
 
@@ -1329,13 +1349,13 @@ export function matchCapabilities(
       // Capability substring match
       for (const cap of component.capabilities) {
         if (cap.toLowerCase().includes(token)) {
-          bump(component.id, 1, token);
+          bump(component.id, 1, token, "capability");
           break;
         }
       }
       // Summary match — weak signal
       if (component.summary.toLowerCase().includes(token)) {
-        bump(component.id, 0.5, token);
+        bump(component.id, 0.5, token, "summary");
       }
     }
   }
@@ -1392,6 +1412,7 @@ export function matchCapabilities(
         component,
         score: entry.score,
         matched_tokens: Array.from(entry.tokens),
+        evidence: Array.from(entry.kinds).sort(),
       });
     }
   }

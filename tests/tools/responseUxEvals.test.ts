@@ -194,3 +194,37 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     }
   });
 });
+
+// MAR-250: the coverage verdict is part of the Layer-1 trust surface. Every
+// depth carries the front-matter line; the gap block appears exactly when
+// there is a gap, and a clean plan pays nothing for it.
+describe("MAR-250 — coverage honesty in the rendered output", () => {
+  const PG_REPORT_GOAL =
+    "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.";
+
+  it("every depth carries a coverage: line in the front-matter", () => {
+    for (const depth of ["guided", "brief", "standard", "technical", "deep"] as const) {
+      const md = plan(depth).summary_markdown;
+      expect(md, `${depth} must carry coverage front-matter`).toMatch(/^coverage: {7}/m);
+    }
+  });
+
+  it("a poor-coverage plan names its gaps in Layer 1 (the audit G4 goal)", () => {
+    const r = planWorkflow(
+      { goal: PG_REPORT_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+    const md = r.summary_markdown;
+    expect(md).toContain("Not covered by the registry");
+    expect(md.toLowerCase()).toContain("postgres");
+    expect(md).toContain("In the route but not asked for:");
+    expect(md).toContain("`crm_note_write`");
+    // even with the gap block, Layer 1 stays under the brevity bound
+    expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
+  });
+
+  it("a plan with no unmatched demand renders no 'Not covered' block", () => {
+    const md = plan("brief").summary_markdown;
+    expect(md).not.toContain("Not covered by the registry");
+  });
+});
