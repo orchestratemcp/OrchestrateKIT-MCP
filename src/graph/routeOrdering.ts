@@ -138,12 +138,22 @@ export function edgesWithinSet(
 /**
  * Irreversible external-write components. Human approval must always precede
  * these in execution order, and they must run after deterministic validation.
+ *
+ * MAR-252: the platform notification egresses belong here too — a posted Slack
+ * message is as irreversible as a sent email. Their omission put the gate
+ * AFTER slack_notification in execution_order (audit G2/G4: `… →
+ * slack_notification → human_approval_gate → …`), an order in which the gate
+ * physically cannot gate the send.
  */
 const IRREVERSIBLE_WRITES = new Set([
   "external_publish",
   "optional_email_send",
   "calendar_write",
   "crm_note_write",
+  "slack_notification",
+  "discord_notification",
+  "teams_notification",
+  "telegram_notification",
 ]);
 
 /**
