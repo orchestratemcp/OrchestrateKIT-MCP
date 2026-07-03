@@ -820,14 +820,14 @@ probes:
   # The audit G4 failure class: "pull from Postgres, generate a PDF report, post
   # to Slack" routed pdf_extraction (wrong direction) + crm_note_write
   # (hallucinated) and had neither a database read nor a report step.
-  # NOTE: scheduled_trigger is NOT asserted here — "Every Monday at 8am" is the
-  # MAR-253 weekday-phrase gap, fixed separately. crm_note_write / loop_controller
-  # are not forbidden yet: crm_note_write still fuzzy-scores into the top-8
-  # (MAR-250 coverage flags it as unsupported supply); "no human in the loop"
-  # fires loop_controller (MAR-214, in review).
+  # scheduled_trigger asserted since MAR-253 (weekday/clock schedule signal —
+  # "Every Monday at 8am" now selects it like "every morning" always did).
+  # crm_note_write / loop_controller are not forbidden yet: crm_note_write still
+  # fuzzy-scores into the top-8 (MAR-250 coverage flags it as unsupported
+  # supply); "no human in the loop" fires loop_controller (MAR-214, in review).
   - id: scheduled_db_report_slack
     goal: "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop."
-    must_have: [db_read, report_generation, slack_notification]
+    must_have: [scheduled_trigger, db_read, report_generation, slack_notification]
     forbidden: [pdf_extraction, calendar_lookup, calendar_write, email_read]
 
   # Bleed guard: the document-EXTRACTION direction keeps pdf_extraction and must
@@ -851,3 +851,19 @@ probes:
     goal: "Take the scraped records, normalize them, and save them to a database table every night."
     must_have: [file_storage]
     forbidden: [db_read, report_generation]
+
+  # ── weekday/clock schedule signal (MAR-253) ────────────────────────────────
+  # "Every morning" matched scheduled_trigger; "Every Monday at 8am" did not —
+  # the planner then asked "How should this workflow start?" with the answer in
+  # the goal's first five words. Contextual regex (every/each/on/at + weekday
+  # or clock time), never bare weekday tokens.
+  - id: weekday_time_schedule_trigger
+    goal: "Each Friday at 6pm, pull the week's numbers and post a recap to our team Slack channel."
+    must_have: [scheduled_trigger, slack_notification]
+    forbidden: [calendar_lookup, calendar_write]
+
+  # Bleed guard: an EVENT trigger phrasing must not gain scheduled_trigger.
+  - id: event_trigger_not_schedule
+    goal: "When a pull request is opened on GitHub, review the diff for problems and post a summary comment. Never edit or commit any code."
+    must_have: [github_trigger]
+    forbidden: [scheduled_trigger]

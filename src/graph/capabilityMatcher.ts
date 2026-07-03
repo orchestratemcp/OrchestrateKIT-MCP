@@ -940,6 +940,8 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   "every week": ["scheduled_trigger"],
   "every month": ["scheduled_trigger"],
   midnight: ["scheduled_trigger"],
+  // MAR-253: weekday/clock phrasings ("every Monday at 8am") are handled by
+  // SCHEDULE_TIME_PATTERNS below — regex, since times can't be enumerated here.
   webhook: ["webhook_trigger"],
   github: ["github_trigger"],
   "pull request": ["github_trigger", "pr_summary"],
@@ -1098,6 +1100,33 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   state: ["state_store"],
   persist: ["state_store"],
 };
+
+/**
+ * MAR-253: weekday / clock-time schedule signals. "Every morning" reached
+ * scheduled_trigger via its phrase hint, but "Every Monday at 8am" did not —
+ * the live audit G4 goal composed with NO trigger and then asked "How should
+ * this workflow start each time?" while the answer sat in the first five words.
+ *
+ * Deliberately CONTEXTUAL patterns, not bare tokens: a weekday or clock time
+ * only counts as a schedule when carried by every/each/on/at phrasing, so
+ * "Monday's report" or a company name never fires. Real vocabulary-gap fix,
+ * not matcher-gaming — the phrasing comes from a rated dogfood goal
+ * (2026-06-18, rated 2/5).
+ */
+const WEEKDAY = "(monday|tuesday|wednesday|thursday|friday|saturday|sunday)";
+const SCHEDULE_TIME_PATTERNS: RegExp[] = [
+  new RegExp(`\\b(every|each)\\s+${WEEKDAY}`), // "every Monday", "each Friday"
+  new RegExp(`\\bon\\s+${WEEKDAY}s\\b`), // "on Mondays"
+  new RegExp(`\\b${WEEKDAY}s?\\s+(morning|mornings|evening|evenings|night|nights|at)\\b`), // "Monday morning", "Friday at 6"
+  /\bat\s+\d{1,2}(:\d{2})?\s*(am|pm)\b/, // "at 8am", "at 8:30 pm"
+  /\bat\s+\d{1,2}:\d{2}\b/, // "at 18:00"
+  /\b(weekly|biweekly|monthly)\s+on\b/, // "weekly on Tuesdays"
+];
+
+/** True when the goal states a recurring weekday/clock schedule (MAR-253). */
+export function hasScheduleTimeSignal(goalLower: string): boolean {
+  return SCHEDULE_TIME_PATTERNS.some((p) => p.test(goalLower));
+}
 
 /** Score penalty applied to the `to` component of a co-occurring avoid_when edge. */
 const AVOID_PENALTY: Record<string, number> = {
@@ -1400,6 +1429,12 @@ export function matchCapabilities(
         if (domainAllowed.has(id)) bump(id, 2, keyword, "hint");
       }
     }
+  }
+
+  // Pass 1b (MAR-253): weekday/clock schedule signal — regex, hint-strength.
+  // "Every Monday at 8am" selects scheduled_trigger exactly like "every morning".
+  if (domainAllowed.has("scheduled_trigger") && hasScheduleTimeSignal(goalLower)) {
+    bump("scheduled_trigger", 2, "schedule-time phrase", "hint");
   }
 
   // Passes 2–4: per-component token matching (gated)
