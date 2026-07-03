@@ -1,4 +1,5 @@
 import type { ReviewContext, ReviewFinding, ReviewRule } from "../types.js";
+import { isNegatedInContext } from "../../graph/capabilityMatcher.js";
 
 // ---------------------------------------------------------------------------
 // External write keywords in integrations / goal / architecture text
@@ -19,9 +20,18 @@ const EXTERNAL_WRITE_KEYWORDS = [
   "sms",
 ];
 
+/**
+ * MAR-252: negation-aware. "No emails, no social posts" is a CONSTRAINT, not a
+ * write — the negation-blind scan made a read-only news-digest goal fail the
+ * safety review for an "ungated external write" while automation_clearance
+ * simultaneously said "L0 — may run unattended" (audit G3, the three-way
+ * front-matter contradiction). A keyword only counts when it is not negated.
+ */
 function mentionsExternalWrite(text: string): boolean {
   const lower = text.toLowerCase();
-  return EXTERNAL_WRITE_KEYWORDS.some((kw) => lower.includes(kw));
+  return EXTERNAL_WRITE_KEYWORDS.some(
+    (kw) => lower.includes(kw) && !isNegatedInContext(lower, kw),
+  );
 }
 
 // ---------------------------------------------------------------------------

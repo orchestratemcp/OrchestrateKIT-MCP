@@ -1554,16 +1554,32 @@ function buildStatusHeader(
 
   // MAR-168: autonomy clearance. ✅ may run unattended · ⚠️ human by default
   // (earnable) · ❌ human always required (L4).
-  const autoIcon = clearance.autonomous_allowed
-    ? "✅"
-    : clearance.level === "L4"
-    ? "❌"
-    : "⚠️";
-  const autoText = clearance.autonomous_allowed
-    ? "may run unattended"
-    : clearance.level === "L4"
-    ? "human ALWAYS required"
-    : "human by default";
+  // MAR-252 reconciliation: the clearance only speaks for the route it can see.
+  // (1) When coverage found uncovered goal steps, an unattended verdict must
+  // carry that caveat — "L0, safe" next to "1 goal step NOT covered" was the
+  // audit G3 contradiction. (2) A blocking safety failure always overrides an
+  // unattended ✅ — the two may never co-occur in this front-matter.
+  const uncoveredN = coverage.unmatched_demand.length;
+  let autoIcon: string;
+  let autoText: string;
+  if (clearance.autonomous_allowed && safety.status === "fail") {
+    autoIcon = "⚠️";
+    autoText = "unattended blocked — resolve the safety failure first";
+  } else if (clearance.autonomous_allowed && uncoveredN > 0) {
+    autoIcon = "⚠️";
+    autoText =
+      `may run unattended for the COVERED steps only — ` +
+      `${uncoveredN} goal step${uncoveredN === 1 ? "" : "s"} not carried by this plan (see coverage)`;
+  } else if (clearance.autonomous_allowed) {
+    autoIcon = "✅";
+    autoText = "may run unattended";
+  } else if (clearance.level === "L4") {
+    autoIcon = "❌";
+    autoText = "human ALWAYS required";
+  } else {
+    autoIcon = "⚠️";
+    autoText = "human by default";
+  }
 
   // MAR-250: coverage verdict. The plan must say where the registry ends —
   // uncovered goal steps and unjustified components change the trust story more
@@ -1717,14 +1733,19 @@ function buildGuidedPlanMarkdown(
     lines.push(`**To connect:** nothing external — all steps are internal / deterministic`, ``);
   }
 
-  // (4) key safeguard — approval boundary + irreversible-write note, plain language
+  // (4) key safeguard — approval boundary + irreversible-write note, plain language.
+  // MAR-252: the waived-gate copy must agree with the clearance instead of
+  // telling the user to "re-enable it to run unattended" (they waived it BECAUSE
+  // it runs unattended — the old line contradicted the waiver it described).
   let safeguard: string;
   if (enforcedGates.length > 0) {
     safeguard = enforcedGates.includes("human_approval_gate")
       ? `a human approval step is enforced before anything external happens — keep it`
       : `approval is enforced (${enforcedGates.join(", ")}) — keep it`;
   } else if (approvalAdvisory) {
-    safeguard = `approval gate kept as advisory (you waived enforcement) — re-enable it to run unattended`;
+    safeguard = clearance.autonomous_allowed
+      ? `approval gate waived per your request — acceptable here (notification-class writes only); re-add it if this grows a business-system write`
+      : `approval gate waived per your request, but the route still writes to a business system (${approvalAdvisory.write_components.join(", ")}) — keep a human check until that write is removed or gated`;
   } else if (safety.approval_gates_required.length > 0) {
     safeguard = `⚠️ approval is REQUIRED but not in the route — add ${safety.approval_gates_required.join(", ")} before building`;
   } else {
@@ -1743,11 +1764,19 @@ function buildGuidedPlanMarkdown(
   ) {
     lines.push(`Some steps make irreversible external writes — do not run unattended past the gate.`);
   }
-  const autoText = clearance.autonomous_allowed
-    ? "may run unattended"
-    : clearance.level === "L4"
-    ? "human always required"
-    : "human in the loop by default";
+  // MAR-252: mirror the front-matter reconciliation — an unattended verdict
+  // carries the uncovered-steps caveat and never co-occurs with a safety fail.
+  const uncovered = coverage.unmatched_demand.length;
+  const autoText =
+    clearance.autonomous_allowed && safety.status === "fail"
+      ? "unattended blocked — resolve the safety failure first"
+      : clearance.autonomous_allowed && uncovered > 0
+      ? `may run unattended for the covered steps only (${uncovered} goal step${uncovered === 1 ? "" : "s"} not carried by this plan)`
+      : clearance.autonomous_allowed
+      ? "may run unattended"
+      : clearance.level === "L4"
+      ? "human always required"
+      : "human in the loop by default";
   lines.push(`**Autonomy:** ${clearance.level} — ${autoText}.`, ``);
 
   // MAR-225: bounded clarifying questions (only when an architecture-affecting

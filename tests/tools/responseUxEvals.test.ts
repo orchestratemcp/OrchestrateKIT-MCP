@@ -259,3 +259,79 @@ describe("MAR-250 — coverage honesty in the rendered output", () => {
     expect(md).not.toContain("Not covered by the registry");
   });
 });
+
+// MAR-252: verdict coherence. The three verdict systems (safety review = goal
+// scan, automation clearance = route scan, coverage = demand accounting) must
+// tell ONE story — the audit G3 goal showed "safety: fail" + "L0 may run
+// unattended" + "nothing external" in a single front-matter.
+describe("MAR-252 — verdict coherence in the rendered output", () => {
+  const G3_NOTION =
+    "Every morning, gather the top AI industry news from a handful of trusted sources and save a short digest note into my Notion workspace. No emails, no social posts.";
+  const G2_UPTIME =
+    "Watch our API's uptime and error rate and alert the on-call engineer in Slack the moment something breaks. Fully unattended, no human in the loop. It must never write to any business system — alerting only.";
+  const G4_PG_REPORT =
+    "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.";
+
+  function planGoal(goal: string) {
+    return planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+  }
+
+  it("negated write phrases never fail the safety review (G3: 'No emails, no social posts')", () => {
+    const r = planGoal(G3_NOTION);
+    expect(r.safety_review.status).not.toBe("fail");
+    expect(r.safety_review.blocking_issues).toEqual([]);
+  });
+
+  it("an unattended verdict over uncovered goal steps carries the caveat (G3)", () => {
+    const r = planGoal(G3_NOTION);
+    // clearance itself says autonomous — but the goal has an uncovered write,
+    // so the rendered line must not read as a clean unqualified "unattended".
+    expect(r.automation_clearance.autonomous_allowed).toBe(true);
+    expect(r.coverage.unmatched_demand.length).toBeGreaterThan(0);
+    expect(r.summary_markdown).toContain("covered steps only");
+    expect(r.summary_markdown).not.toMatch(/automation: {5}✅/);
+  });
+
+  it("front-matter never shows a safety ❌ together with an unattended ✅ (invariant)", () => {
+    for (const goal of [G3_NOTION, G2_UPTIME, G4_PG_REPORT]) {
+      const md = planGoal(goal).summary_markdown;
+      const fm = md.split("---")[1] ?? "";
+      const safetyFails = /safety: {9}❌/.test(fm);
+      const unattendedOk = /automation: {5}✅/.test(fm);
+      expect(safetyFails && unattendedOk, `contradiction on "${goal.slice(0, 40)}…"`).toBe(false);
+    }
+  });
+
+  it("the approval gate precedes the Slack send in execution order (G2/G4)", () => {
+    for (const goal of [G2_UPTIME, G4_PG_REPORT]) {
+      const r = planGoal(goal);
+      const gate = r.execution_order.indexOf("human_approval_gate");
+      const slack = r.execution_order.indexOf("slack_notification");
+      expect(gate, "gate present").toBeGreaterThanOrEqual(0);
+      expect(slack, "slack present").toBeGreaterThanOrEqual(0);
+      expect(gate, `gate must precede slack on "${goal.slice(0, 40)}…"`).toBeLessThan(slack);
+    }
+  });
+
+  it("waived-gate copy agrees with the clearance (one sentence, no 're-enable to run unattended')", () => {
+    const g2 = planGoal(G2_UPTIME); // L2 — waiver acceptable
+    expect(g2.summary_markdown).toContain("waived per your request — acceptable here");
+    const g4 = planGoal(G4_PG_REPORT); // L3 — business-system write remains
+    expect(g4.summary_markdown).toContain("still writes to a business system");
+    for (const md of [g2.summary_markdown, g4.summary_markdown]) {
+      expect(md).not.toContain("re-enable it to run unattended");
+      // the waiver is described exactly once
+      expect(md.match(/waived per your request/g)?.length).toBe(1);
+    }
+  });
+
+  it("enforced-gate plans keep the original copy (bleed-guard)", () => {
+    const r = planGoal(HEAVY_GOAL);
+    expect(r.enforced_approval_gates).toContain("human_approval_gate");
+    expect(r.summary_markdown).toContain("a human approval step is enforced");
+    expect(r.summary_markdown).not.toContain("waived per your request");
+  });
+});
