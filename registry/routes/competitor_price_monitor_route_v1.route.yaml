@@ -1,0 +1,53 @@
+id: competitor_price_monitor_route_v1
+name: Competitor Price Monitor with Threshold Alerts
+status: validated
+summary: >
+  Golden-path route for the competitor_price_monitor playbook: poll competitor
+  product pages on a schedule, detect price changes by hashing a selector-scoped
+  region, deduplicate repeat events, validate the extracted price, and post an
+  internal Slack alert when the configured threshold is crossed — with page
+  hashes and last prices in state_store, credential resilience on the Slack
+  egress, and an audit record for every check.
+components:
+  - scheduled_trigger
+  - page_monitor
+  - state_store
+  - deduplication
+  - schema_validation
+  - threshold_router
+  - slack_notification
+  - auth_failure_handler
+  - audit_log
+edges:
+  - scheduled_trigger__compatible__page_monitor
+  - page_monitor__requires__state_store
+  - page_monitor__produces__deduplication
+  - deduplication__produces__schema_validation
+  - schema_validation__produces__threshold_router
+  - threshold_router__produces__slack_notification
+  - slack_notification__safer_with__auth_failure_handler
+  - threshold_router__recommended__audit_log
+risk_level: low
+confidence: 0.85
+failure_modes:
+  - price selector breaks on a page redesign — validation rejects the parse and alerts stop silently without a consecutive-failure alarm
+  - full-page hashing flaps on rotating content (ads, timestamps) and floods dedupe — scope the hash to the price element
+  - currency/locale drift mis-parses the price and trips or misses the threshold
+  - state_store loss resets hash baselines and re-alerts every page on the next tick
+  - Slack credential expiry silences the only egress — auth_failure_handler must escalate before halting
+  - anti-bot rate limiting interrupts polling mid-list, leaving stale baselines for the tail
+evals:
+  - change-detection recall on known price-change fixtures (>= 95%)
+  - false-alert rate on unchanged pages (< 1%)
+  - dedupe correctness — no repeat alert for an already-reported price
+  - threshold correctness — alert fires iff the configured bound is crossed
+  - audit completeness — every check, suppression, and alert has a record
+notes: >
+  Promoted from 4+ OrchestrateLab sessions (2026-06-15 → 06-29) via MAR-266.
+  page_monitor is the primary fetch step (data_scraper is the nightly-ETL
+  variant's marker and stays out — see the playbook's component-set comment).
+  This is an UNATTENDED pattern by contract: the only egress is a
+  notification-class internal Slack post, so the route runs gate-free with the
+  MAR-132 approval advisory retained (audit-G2 precedent, L2 clearance) —
+  read-only on all external sites, never add an external write to this route.
+sources: []

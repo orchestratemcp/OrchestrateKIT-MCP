@@ -136,6 +136,44 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
     expect(r.playbook?.id).not.toBe("email_lead_to_crm");
   });
 
+  // MAR-266: the hourly price-watch shape (4+ Lab sessions) routes to the
+  // published competitor_price_monitor playbook as an UNATTENDED L2 pattern.
+  const PRICE_MONITOR_LOCK_GOAL =
+    "Check 5 competitor product pages every hour; detect price changes; send an internal Slack alert " +
+    "with a one-line summary when price drops below a configurable threshold; unattended scheduled run; " +
+    "read-only on all external sites; deduplicate alerts";
+
+  it("routes the hourly price-watch goal to the competitor_price_monitor playbook", () => {
+    const r = plan(PRICE_MONITOR_LOCK_GOAL);
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("competitor_price_monitor");
+  });
+
+  // MAR-266 acceptance: clearance lands L2 (notification-only egress) with
+  // autonomy allowed, NO enforced human gate (advisory only, MAR-132 lineage),
+  // and a safety review that does not fail — the gate-free unattended contract.
+  it("gives the price-watch playbook route L2 clearance with no enforced gate", () => {
+    const r = plan(PRICE_MONITOR_LOCK_GOAL);
+    expect(r.automation_clearance.level).toBe("L2");
+    expect(r.automation_clearance.autonomous_allowed).toBe(true);
+    expect(r.safety_review.status).not.toBe("fail");
+    expect(r.safety_review.blocking_issues).toEqual([]);
+    expect(r.safety_review.approval_gates_required).toEqual([]);
+    // the MAR-132 advisory is retained, not silently dropped
+    expect(
+      r.safety_review.warnings.some((w) => w.toLowerCase().includes("advisory")),
+    ).toBe(true);
+  });
+
+  // MAR-266 signal gate: a price SUBJECT without a recurring-check cadence
+  // token must not fire the playbook (both token classes are required).
+  it("does not fire competitor_price_monitor without a cadence signal", () => {
+    const r = plan(
+      "Update the product prices in our catalog and post a Slack summary of the changes",
+    );
+    expect(r.playbook?.id).not.toBe("competitor_price_monitor");
+  });
+
   // MAR-130 regression: email_calendar_assistant over-matched CRM / invoice / HR
   // (precision 0.63–0.70) and overrode the route, dropping the primary-domain
   // component. The 0.72 precision floor must downgrade these to composed.

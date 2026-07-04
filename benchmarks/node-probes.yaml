@@ -898,3 +898,50 @@ probes:
     forbidden_playbook: [email_lead_to_crm]
     must_have: [crm_record_read, lead_enrichment]
     forbidden: [email_read, email_draft]
+
+  # ── competitor_price_monitor playbook promotion (MAR-266) ───────────────────
+  # The hourly price-watch shape (4+ Lab sessions, 2026-06-15 → 06-29) must
+  # route playbook-first as an UNATTENDED L2 pattern: no enforced human gate
+  # (notification-class egress only, MAR-132 advisory), page_monitor as the
+  # change-detection core, state_store via its requires edge. The
+  # human_approval_gate in `forbidden` is the unattended contract — the
+  # playbook route must stay gate-free (advisory retained in the safety
+  # review), never re-acquire the gate glue the composed path injects.
+  - id: competitor_price_monitor_playbook
+    goal: "Check 5 competitor product pages every hour; detect price changes; send an internal Slack alert with a one-line summary when price drops below a configurable threshold; unattended scheduled run; read-only on all external sites; deduplicate alerts"
+    via: plan
+    required_playbook: competitor_price_monitor
+    must_have: [scheduled_trigger, page_monitor, state_store, deduplication, threshold_router, slack_notification]
+    forbidden: [calendar_lookup, calendar_write, email_read, human_approval_gate]
+
+  # Bleed guard: a docs-change monitoring goal keeps page_monitor but composes
+  # with the research chain — the price playbook's threshold/dedupe spine must
+  # not claim it (no price/competitor signal → gate blocks; overlap floors
+  # block independently).
+  - id: docs_change_monitor_not_price_playbook
+    goal: "Monitor documentation pages for changes and summarize what changed"
+    via: plan
+    forbidden_playbook: [competitor_price_monitor]
+    must_have: [page_monitor]
+    forbidden: [threshold_router, slack_notification]
+
+  # Bleed guard: the nightly scrape-to-Postgres variant PASSES the signal gate
+  # (competitor + pricing + every-night tokens) and is kept composed by the
+  # overlap floors alone — its data_scraper/db_read spine is exactly what the
+  # playbook excludes. This is the data_extraction territory boundary.
+  - id: nightly_etl_not_price_playbook
+    goal: "Every night, scrape competitor pricing pages, normalize the records, and load them into our Postgres database"
+    via: plan
+    forbidden_playbook: [competitor_price_monitor]
+    must_have: [data_scraper, data_normalizer]
+    forbidden: [page_monitor, threshold_router]
+
+  # Bleed guard: the G2 uptime goal stays on the MAR-243 monitoring observers —
+  # "watch/alert" over-breadth must not pull the price playbook (no price
+  # signal → gate blocks) nor page_monitor (MAR-215 suppression).
+  - id: uptime_not_price_playbook
+    goal: "Watch our API uptime and alert the team on Slack the moment it goes down."
+    via: plan
+    forbidden_playbook: [competitor_price_monitor]
+    must_have: [uptime_check, slack_notification]
+    forbidden: [page_monitor, deduplication]

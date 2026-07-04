@@ -296,6 +296,14 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
     "health check",
     "anomaly",
     "logs",
+    // MAR-266: price-watch phrasing. "Check 5 competitor product pages every
+    // hour; detect price changes…" carries no monitor/watch/poll verb, so the
+    // most-repeated Lab monitoring goal never established the domain and
+    // page_monitor (HINT_ONLY, monitoring-domain) was unreachable. Phrase-based
+    // like the MAR-243 entries — bare "price" would drag pricing/billing goals
+    // into monitoring.
+    "price change",
+    "price drop",
   ],
   notification: [
     "slack",
@@ -899,6 +907,14 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   monitor: ["page_monitor"],
   poll: ["page_monitor"],
   watch: ["page_monitor"],
+  // MAR-266: price-watch phrasing reaches the web-page change monitor without a
+  // monitor/watch/poll verb ("check … product pages …; detect price changes").
+  // Phrase-based on purpose: "pricing pages" (the nightly-ETL scrape variant)
+  // and bare "price"/"product" must NOT fire these. The MAR-215 contextual
+  // suppression still applies when a specific observer scores.
+  "price change": ["page_monitor"],
+  "price drop": ["page_monitor"],
+  "product page": ["page_monitor"],
   // MAR-243: monitoring-domain depth (all HINT_ONLY). page_monitor stays the
   // web-page change monitor; these are metric / log / availability observers.
   metric: ["metric_threshold_monitor"],
@@ -1298,6 +1314,14 @@ const HINT_ONLY_COMPONENTS = new Set([
   // google sheet / save to a file / store the records …) within the data_etl or
   // generic domain, so establishing the domain alone never injects it.
   "file_storage",
+  // MAR-266: airtable_lookup is a specific provider integration (the
+  // stripe_data_read lesson, MAR-145). Its capability/summary tokens include
+  // bare "read"/"records"/"lookup", so the fuzzy passes pulled it into any
+  // goal that merely SAYS "read" — observed on "read-only on all external
+  // sites", a pure CONSTRAINT phrase, where it polluted the price-monitor
+  // composed set below the playbook precision floor. Reachable only via its
+  // explicit "airtable" hint; both airtable probes name Airtable literally.
+  "airtable_lookup",
   // MAR-254: the data-report spine. db_read's tokens ("database", "read",
   // "query", "data", "rows") and report_generation's ("report", "summary",
   // "document", "generate", "render") are ambient in most goals — fuzzy matching

@@ -62,18 +62,19 @@ describe("health_check tool", () => {
 
   // MAR-114: count floor regression — must never drop below post-MAR-95 baseline
   // MAR-217: ≥55/≥116 (knowledge); MAR-242: ≥58/≥123 (CRM); MAR-243: ≥61/≥131 (monitoring)
-  // MAR-244: ≥62/≥136 (file_storage primitive); MAR-254: ≥64/≥144 (data-report spine)
+  // MAR-244: ≥62/≥136 (file_storage primitive); MAR-254: ≥64/≥144 (data-report
+  // spine); MAR-266: ≥64/≥147 (price-monitor golden-path edges)
   // MAR-220: floor centralised in config (MIN_COMPONENTS / MIN_EDGES)
-  it("registry counts meet baseline (≥64 components, ≥144 edges after MAR-254 data-report spine)", () => {
+  it("registry counts meet baseline (≥64 components, ≥147 edges after MAR-266 price-monitor edges)", () => {
     const r = buildHealthCheckResult().registry;
     expect(MIN_COMPONENTS).toBe(64);
-    expect(MIN_EDGES).toBe(144);
+    expect(MIN_EDGES).toBe(147);
     expect(r.component_count, "components (regression floor)").toBeGreaterThanOrEqual(MIN_COMPONENTS);
     expect(r.edge_count, "edges (regression floor)").toBeGreaterThanOrEqual(MIN_EDGES);
     expect(r.stack_count, "stacks").toBeGreaterThanOrEqual(1);
     expect(r.route_count, "routes").toBeGreaterThanOrEqual(5);
-    // MAR-265: email_lead_to_crm published → 7 playbooks is the new floor.
-    expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(7);
+    // MAR-266: competitor_price_monitor published → 8 playbooks is the new floor.
+    expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(8);
   });
 
   // MAR-220: release-trust safe_to_demo verdict

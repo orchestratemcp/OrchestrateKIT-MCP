@@ -1,0 +1,13 @@
+id: schema_validation__produces__threshold_router
+from: schema_validation
+to: threshold_router
+relation: produces_input_for
+status: published
+reason: A threshold comparison is only meaningful on a validated value — schema_validation must reject malformed extractions (non-numeric, wrong currency, implausible bounds) before threshold_router decides whether to alert.
+severity: medium
+notes: A parse glitch that reaches threshold_router fires a false alert; one that is rejected routes to a review queue instead. Added for the competitor_price_monitor golden path (MAR-266).
+conditions: []
+tested: true
+test_refs:
+  - "probe:competitor_price_monitor_playbook"
+  - "test:edgeValidation"

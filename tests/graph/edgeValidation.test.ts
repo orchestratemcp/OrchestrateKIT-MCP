@@ -777,6 +777,44 @@ describe("edge: scheduled_trigger__compatible__uptime_check", () => {
   });
 });
 
+// ── MAR-266: competitor_price_monitor golden path (3 new sequencing edges) ──
+// change events dedupe FIRST (identity: URL + extracted value), then the
+// validated value feeds the threshold decision, then only the above-threshold
+// branch reaches the notification.
+
+describe("edge: page_monitor__produces__deduplication", () => {
+  it("computeExecutionOrder places page_monitor before deduplication", () => {
+    const ordered = computeExecutionOrder(
+      pick(["deduplication", "page_monitor", "state_store"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("page_monitor")).toBeLessThan(ids.indexOf("deduplication"));
+  });
+});
+
+describe("edge: schema_validation__produces__threshold_router", () => {
+  it("computeExecutionOrder places schema_validation before threshold_router", () => {
+    const ordered = computeExecutionOrder(
+      pick(["threshold_router", "schema_validation"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("schema_validation")).toBeLessThan(ids.indexOf("threshold_router"));
+  });
+});
+
+describe("edge: threshold_router__produces__slack_notification", () => {
+  it("computeExecutionOrder places threshold_router before slack_notification", () => {
+    const ordered = computeExecutionOrder(
+      pick(["slack_notification", "threshold_router", "human_approval_gate"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("threshold_router")).toBeLessThan(ids.indexOf("slack_notification"));
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MAR-254 — Data-report spine: db_read + report_generation (2 components,
 // 8 edges). Kills the G4 failure class (Postgres→PDF→Slack scheduled report).
