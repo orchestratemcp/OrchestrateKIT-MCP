@@ -44,7 +44,8 @@ export const PlanWorkflowOutputShape = z
     recommended_route: z
       .array(z.object({ component_id: z.string() }).passthrough())
       .optional(),
-    // advisory build pipeline (MAR-166)
+    // advisory build pipeline (MAR-166) — null at guided/brief/standard unless
+    // the plan is loop/worker-shaped (MAR-256 payload diet)
     worker_pipeline: z
       .object({
         workers: z.array(z.object({ worker_id: z.string() }).passthrough()),
@@ -52,7 +53,10 @@ export const PlanWorkflowOutputShape = z
         feedback_loops: z.array(z.object({}).passthrough()),
       })
       .passthrough()
+      .nullable()
       .optional(),
+    // MAR-256: non-null exactly when worker_pipeline was omitted for depth
+    worker_pipeline_pointer: z.string().nullable().optional(),
     // advisory bounded-loop contract — null unless the route is loop-shaped (MAR-167)
     loop_guidance: z
       .object({

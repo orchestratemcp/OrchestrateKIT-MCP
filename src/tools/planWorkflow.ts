@@ -594,9 +594,20 @@ export type PlanWorkflowOutput = {
    * Advisory multi-worker BUILD pipeline (MAR-166): the specialist workers
    * (planner → coder → reviewer → tester) recommended to implement this plan in
    * the user's own runtime, with their handoff contracts. Deterministic and the
-   * same build team for every plan; empty when the registry has no workers.
+   * same build team for every plan — which is exactly why it is BOILERPLATE at
+   * shallow depths (MAR-256): ~1,500 identical tokens shipped with every plan.
+   * Emitted only at output_depth technical/deep, OR when the plan is genuinely
+   * loop/worker-shaped (loop_controller / fan_out_collector in the route, or
+   * the dynamic_worker_loop playbook matched — that plan IS the pipeline).
+   * Null otherwise; `worker_pipeline_pointer` says how to get it.
    */
-  worker_pipeline: WorkerPipeline;
+  worker_pipeline: WorkerPipeline | null;
+  /**
+   * Non-null exactly when worker_pipeline was omitted for depth (MAR-256):
+   * a one-line pointer telling the client how to retrieve the build-team
+   * contracts without paying for them on every call.
+   */
+  worker_pipeline_pointer: string | null;
   /**
    * Advisory bounded-loop guidance (MAR-167). Non-null only when the planned
    * route contains `loop_controller` — i.e. the goal asks for an iterative /
@@ -1328,6 +1339,25 @@ function buildWhatYouNeed(
  * environment. Without a target, offers all three options (CoWork / code / GPT)
  * so the reading agent can prompt the user to choose.
  */
+/**
+ * MAR-256: unique integration product names in stable (route) order. Two
+ * IntegrationNeed entries can share the same first product example (two Slack
+ * scopes → "Slack, Slack, HubSpot" — audit G4, live), so the menu label must
+ * dedupe by NAME, and the "+N more" count must count unique names, not entries.
+ */
+function uniqueIntegrationNames(whatYouNeed: IntegrationNeed[]): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const n of whatYouNeed) {
+    const name = n.product_examples[0];
+    if (name && !seen.has(name)) {
+      seen.add(name);
+      names.push(name);
+    }
+  }
+  return names;
+}
+
 function buildSuggestedNextActions(
   planSource: PlanSource,
   playbook: PlanPlaybook | null,
@@ -1362,9 +1392,10 @@ function buildSuggestedNextActions(
       actions.push(`[c] ${GPT}`);
   }
 
-  if (whatYouNeed.length > 0) {
-    const top = whatYouNeed.slice(0, 3).map((n) => n.product_examples[0]).join(", ");
-    const extra = whatYouNeed.length > 3 ? ` + ${whatYouNeed.length - 3} more (see what_you_need)` : "";
+  const integrationNames = uniqueIntegrationNames(whatYouNeed);
+  if (integrationNames.length > 0) {
+    const top = integrationNames.slice(0, 3).join(", ");
+    const extra = integrationNames.length > 3 ? ` + ${integrationNames.length - 3} more (see what_you_need)` : "";
     actions.push(`Wire up the integrations: ${top}${extra}`);
   }
 
@@ -1435,9 +1466,10 @@ export function buildNextActionMenu(
   }
 
   // Wire integrations — only when the route needs external products.
-  if (whatYouNeed.length > 0) {
-    const names = whatYouNeed.slice(0, 3).map((n) => n.product_examples[0]).join(", ");
-    const extra = whatYouNeed.length > 3 ? ` +${whatYouNeed.length - 3} more` : "";
+  const integrationNames = uniqueIntegrationNames(whatYouNeed);
+  if (integrationNames.length > 0) {
+    const names = integrationNames.slice(0, 3).join(", ");
+    const extra = integrationNames.length > 3 ? ` +${integrationNames.length - 3} more` : "";
     menu.push({
       id: "wire_integrations",
       label: `Wire up the integrations: ${names}${extra}`,
@@ -1916,7 +1948,7 @@ function buildPlanMarkdown(
   credentials: CredentialAdvisory,
   untestedEdges: UntestedEdge[],
   approvalAdvisory: ApprovalGateAdvisory | null,
-  workerPipeline: WorkerPipeline,
+  workerPipeline: WorkerPipeline | null,
   loopGuidance: LoopGuidance | null,
   clearance: AutomationClearance,
   designNotes: string[],
@@ -2050,7 +2082,7 @@ function buildPlanMarkdown(
   }
 
   // MAR-166: advisory build team for implementing this plan in your runtime.
-  if (workerPipeline.workers.length > 0) {
+  if (workerPipeline && workerPipeline.workers.length > 0) {
     lines.push(
       `### Build team (worker pipeline)`,
       ``,
@@ -2190,6 +2222,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       coverage: "computed", // MAR-250: matcher provenance + demand lexicon, no LLM
       automation_clearance: "computed",
       worker_pipeline: "grounded",
+      worker_pipeline_pointer: "advisory", // MAR-256: depth-omission pointer
       loop_guidance: "grounded",
       design_notes: "grounded",     // edge control_flow_note + component pattern
       what_you_need: "computed",    // derived from component permission scopes
@@ -2389,11 +2422,28 @@ export function planWorkflow(
     : composed.route_status;
 
   // ── MAR-166: advisory build pipeline (planner → coder → reviewer → tester) ──
-  // Same deterministic build team for every plan; the registry supplies the
-  // workers and their handoff contracts.
-  const worker_pipeline = composeWorkerPipeline(registry.workers ?? []);
+  // MAR-256 payload diet: the pipeline is the same build team for every plan
+  // (byte-identical, ~1,500 tokens), so it ships only at technical/deep — or
+  // when the plan is genuinely loop/worker-shaped and the pipeline is
+  // plan-specific content rather than boilerplate (loop components in the
+  // route, or the dynamic_worker_loop playbook — that plan IS the pipeline).
+  const outputDepth = input.output_depth ?? "brief";
+  const technicalDepth = outputDepth === "technical" || outputDepth === "deep";
+  const routeIsLoopShaped =
+    routeComponentIds.includes("loop_controller") ||
+    routeComponentIds.includes("fan_out_collector") ||
+    playbook?.id === "dynamic_worker_loop";
+  const worker_pipeline =
+    technicalDepth || routeIsLoopShaped
+      ? composeWorkerPipeline(registry.workers ?? [])
+      : null;
+  const worker_pipeline_pointer = worker_pipeline
+    ? null
+    : `Omitted at output_depth "${outputDepth}" — re-call plan_workflow with output_depth: "technical" to include the build-team worker contracts.`;
 
   // ── MAR-167: bounded-loop contract when the route is loop-shaped ──
+  // Already plan-specific (null unless loop_controller is in the route), so it
+  // needs no depth gating — a non-null value is never boilerplate.
   const loop_guidance = buildLoopGuidance(routeComponentIds, registry);
 
   // ── MAR-168: earned-by-evidence autonomy clearance (every plan) ──
@@ -2428,7 +2478,7 @@ export function planWorkflow(
   // unmissable regardless of how much detail follows.
   // MAR-224: layered depth. guided/brief = Layer-1 concise decision UI (default);
   // standard = step list + safety, no technical block; technical/deep = full plan.
-  const outputDepth = input.output_depth ?? "brief";
+  // (outputDepth computed above with the MAR-256 worker_pipeline gate.)
   const statusHeader = buildStatusHeader(
     route_status,
     safety_review,
@@ -2505,6 +2555,7 @@ export function planWorkflow(
     next_action_menu,
     clarifying_questions,
     worker_pipeline,
+    worker_pipeline_pointer,
     loop_guidance,
     automation_clearance,
     next_steps:

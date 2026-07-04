@@ -335,3 +335,89 @@ describe("MAR-252 — verdict coherence in the rendered output", () => {
     expect(r.summary_markdown).not.toContain("waived per your request");
   });
 });
+
+/**
+ * OUTPUT-06 (MAR-256) — payload diet. The fixed 4-worker `worker_pipeline`
+ * (~1,500 tokens, byte-identical across goals) must not ship in every default
+ * response; loop_guidance is already plan-specific (null unless the route
+ * loops). Plus the audit-G4 live bug: "Wire up the integrations: Slack, Slack,
+ * HubSpot" — names must be unique.
+ */
+describe("OUTPUT-06 (MAR-256) — worker_pipeline gated on depth, integrations deduped", () => {
+  // The G1 audit goal — the reference for the size regression eval.
+  const G1_EMAIL =
+    "Every morning, read unread customer support emails, classify them by urgency, and draft " +
+    "replies for my approval — never send anything automatically. A human reviews every draft.";
+  const LOOP_GOAL =
+    "trigger an agent on a webhook that loops: a coder writes code, a tester runs " +
+    "tests, and an independent reviewer keeps iterating until approved";
+
+  function planDepth(goal: string, depth?: "guided" | "brief" | "standard" | "technical" | "deep") {
+    return planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: depth },
+      registry,
+    );
+  }
+
+  it("default depth ships worker_pipeline: null with a pointer", () => {
+    const r = planDepth(G1_EMAIL);
+    expect(r.worker_pipeline).toBeNull();
+    expect(r.worker_pipeline_pointer).toContain('output_depth: "technical"');
+    // no loop in this plan → loop_guidance null too
+    expect(r.loop_guidance).toBeNull();
+  });
+
+  it("standard depth also omits the pipeline; technical/deep carry it unchanged", () => {
+    expect(planDepth(G1_EMAIL, "standard").worker_pipeline).toBeNull();
+    for (const depth of ["technical", "deep"] as const) {
+      const r = planDepth(G1_EMAIL, depth);
+      expect(r.worker_pipeline).not.toBeNull();
+      expect(r.worker_pipeline!.workers.length).toBeGreaterThan(0);
+      expect(r.worker_pipeline_pointer).toBeNull();
+    }
+  });
+
+  it("a genuinely loop-shaped plan keeps worker_pipeline AND loop_guidance at every depth", () => {
+    for (const depth of [undefined, "standard", "technical"] as const) {
+      const r = planDepth(LOOP_GOAL, depth);
+      expect(
+        r.recommended_route.some((s) => s.component_id === "loop_controller"),
+        "fixture goal must still route loop_controller",
+      ).toBe(true);
+      expect(r.worker_pipeline, `worker_pipeline at ${depth ?? "default"}`).not.toBeNull();
+      expect(r.loop_guidance, `loop_guidance at ${depth ?? "default"}`).not.toBeNull();
+      expect(r.worker_pipeline_pointer).toBeNull();
+    }
+  });
+
+  it("integration names are unique in the menu label and suggested actions (audit G4)", () => {
+    // HEAVY_GOAL pulls several integrations incl. multiple Slack-backed needs.
+    const r = planDepth(HEAVY_GOAL);
+    const lines = [
+      ...r.suggested_next_actions,
+      ...r.next_action_menu.map((m) => m.label),
+    ].filter((l) => l.includes("Wire up the integrations:"));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      const names = line
+        .split("Wire up the integrations:")[1]!
+        .split("+")[0]!
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      expect(new Set(names).size, `duplicate names in "${line}"`).toBe(names.length);
+    }
+  });
+
+  // Size regression eval: the default-depth G1 response measured 14,347 bytes
+  // post-diet vs 17,571 with the block reinserted (an 18% cut — the
+  // byte-identical worker_pipeline block alone is 3,393 bytes; the audit's
+  // "~60%" estimate overcounted it). The ceiling has headroom for legitimate
+  // drift but fails loudly if the boilerplate creeps back into the default.
+  const G1_DEFAULT_JSON_MAX_BYTES = 15_000;
+
+  it(`default-depth G1 response JSON stays under ${G1_DEFAULT_JSON_MAX_BYTES} bytes`, () => {
+    const bytes = Buffer.byteLength(JSON.stringify(planDepth(G1_EMAIL)), "utf8");
+    expect(bytes).toBeLessThanOrEqual(G1_DEFAULT_JSON_MAX_BYTES);
+  });
+});

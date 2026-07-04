@@ -33,15 +33,18 @@ function planTech(goal: string) {
 }
 
 describe("planWorkflow — worker build pipeline (MAR-166)", () => {
-  it("attaches the planner → coder → reviewer → tester build team to a plan", () => {
-    const r = plan("scan a codebase, plan changes, edit code, run tests and write a PR summary");
-    expect(r.worker_pipeline.workers.map((w) => w.worker_id)).toEqual([
+  // MAR-256: the pipeline is depth-gated boilerplate — technical/deep carry it
+  // (responseUxEvals.test.ts locks the null-with-pointer default).
+  it("attaches the planner → coder → reviewer → tester build team at technical depth", () => {
+    const r = planTech("scan a codebase, plan changes, edit code, run tests and write a PR summary");
+    expect(r.worker_pipeline).not.toBeNull();
+    expect(r.worker_pipeline!.workers.map((w) => w.worker_id)).toEqual([
       "planner",
       "coder",
       "reviewer",
       "tester",
     ]);
-    expect(r.worker_pipeline.handoffs.map((h) => `${h.from}->${h.to}`)).toContain(
+    expect(r.worker_pipeline!.handoffs.map((h) => `${h.from}->${h.to}`)).toContain(
       "planner->coder",
     );
   });
