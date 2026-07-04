@@ -215,11 +215,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       {
         "component_id": "test_runner",
         "tokens": [
-          "changes",
-          "code",
-          "run",
           "test",
-          "tests",
         ],
       },
     ],
@@ -1282,11 +1278,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       {
         "component_id": "test_runner",
         "tokens": [
-          "changes",
-          "code",
-          "run",
           "test",
-          "tests",
         ],
       },
     ],

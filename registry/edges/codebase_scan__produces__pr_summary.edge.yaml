@@ -1,0 +1,13 @@
+id: codebase_scan__produces__pr_summary
+from: codebase_scan
+to: pr_summary
+relation: produces_input_for
+status: published
+reason: The read-only review path — scan findings (problems, risky patterns, open questions with file/line references) feed the reviewer-facing summary directly, without any code_editing step in between.
+severity: medium
+notes: This is the READ pipeline's counterpart to code_editing__produces__pr_summary (the write pipeline). Every finding in the summary must cite a file/line from the scan so reviewers can verify in one click. Added for the pr_review_readonly golden path (MAR-267).
+conditions: []
+tested: true
+test_refs:
+  - "probe:pr_review_readonly_playbook"
+  - "test:edgeValidation"

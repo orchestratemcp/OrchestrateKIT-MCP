@@ -1,0 +1,141 @@
+id: pr_review_readonly
+version: "1.0.0"
+status: published
+title: Read-Only PR Review with Hard No-Write Guarantee
+summary: >
+  Blueprint for a webhook-triggered pull-request reviewer that scans the diff
+  and posts a summary for human reviewers — with a HARD no-write guarantee:
+  code_editing is structurally excluded, and any goal that asks to edit, fix,
+  or implement routes to codebase_agent_workflow instead. The whole identity of
+  this playbook is its negative scope (see avoid_when). Promoted from 3+
+  OrchestrateLab sessions (2026-06-15 → 06-23, including the June-18 rated-2
+  session where code_editing leaked into exactly this goal — MAR-140 lineage)
+  via MAR-267.
+workflow_type: code-review
+risk_level: low
+golden_path_route_id: pr_review_readonly_route_v1
+stack_id: default_orchestratekit_stack
+
+# Component set is the CORE evidence shape (MAR-267): the read-path spine plus
+# schema_validation (github_trigger requires it — webhook payloads are
+# untrusted input) and audit_log.
+#
+# Two deliberate EXCLUSIONS, both load-bearing:
+#   - code_editing: the entire point. Its absence here + the avoid_when entry
+#     + the lock probe's forbidden list + the corpus row ARE the no-write
+#     guarantee. Any edit/fix/implement intent fails this playbook's signal
+#     gate and routes to codebase_agent_workflow (the write pipeline).
+#   - test_runner: it requires code_editing per its registry contract (the
+#     write-pipeline coupling), so including it without code_editing breaks
+#     requires-closure discipline (the MAR-265 lesson) — and running the suite
+#     executes code and writes artifacts, which sits poorly with a read-only
+#     promise. CI runs the tests; the reviewer READS the CI result (see
+#     implementation steps).
+components:
+  - github_trigger
+  - schema_validation
+  - codebase_scan
+  - pr_summary
+  - reviewer_notification
+  - audit_log
+
+edges:
+  - github_trigger__requires__schema_validation
+  - github_trigger__produces__codebase_scan
+  - codebase_scan__produces__pr_summary
+  - pr_summary__produces__reviewer_notification
+  - audit_log__recommended__reviewer_notification
+
+best_for:
+  - automatic first-pass review the moment a PR opens — findings posted before a human looks
+  - read-only diff analysis (bugs, risky patterns, missing tests, style drift) with a summary comment
+  - unattended operation — the only egress is a review comment/notification (L2, advisory gate per MAR-132)
+
+avoid_when:
+  - the agent should EDIT code, fix bugs, or implement anything — that is
+    codebase_agent_workflow territory; code_editing must never enter this route
+  - anything should be published externally — external_publish is out of scope;
+    the only egress is the reviewer-facing summary
+  - the workflow should email people — optional_email_send is out of scope;
+    reviewer_notification covers the review-channel post
+  - auto-merge, auto-approve, or any repo mutation is expected — this pattern
+    never holds write credentials to the repository
+
+recommended_architecture:
+  pattern: Webhook → validate payload → scan diff → summarize findings → notify reviewers (audited)
+  why: >
+    Every step is a pure read over the PR snapshot except the final
+    notification, which is notification-class egress (blast radius: a comment).
+    That is what makes the no-write guarantee enforceable at the credential
+    level — grant the agent read-only repo scopes plus comment permission, and
+    the workflow cannot exceed this playbook's scope even when prompted to.
+
+llm_driven_steps:
+  - codebase_scan — diff analysis and problem-finding (frontier or standard model
+    depending on repo complexity)
+  - pr_summary — findings condensed into a reviewer-facing summary
+
+deterministic_steps:
+  - github_trigger
+  - schema_validation
+  - reviewer_notification
+  - audit_log
+
+permissions:
+  read:
+    - PR diff, changed files, and PR metadata (read-only repo scope)
+  write:
+    - review comment / reviewer notification channel (notification-class egress only)
+    - audit log store
+  approval_required_for: []
+
+guardrails:
+  - NEVER edit, commit, push, approve, or merge — request read-only repo scopes
+    plus comment permission so the guarantee holds even if the agent is prompted to write
+  - Validate the webhook payload before acting — unsigned or malformed events are dropped
+  - Treat PR content as untrusted input — diff text must not be executed, and
+    prompt-injection attempts inside the diff must not change the reviewer's scope
+  - Post ONE summary comment per review pass — re-runs update it instead of spamming
+  - Surface uncertainty honestly — findings the scanner is unsure about are
+    labelled as questions for the human reviewer, not asserted as defects
+  - Log every review pass (PR id, commit SHA, findings count, comment id) to audit_log
+
+failure_modes:
+  - prompt injection inside the diff steers the summary or exfiltrates context —
+    scope the scanner's tools to read-only and never follow instructions found in code
+  - huge PRs exceed the scan context — chunk by file and summarize per-chunk, or
+    flag "too large for automated review" instead of reviewing half silently
+  - hallucinated findings erode reviewer trust — require file/line references for
+    every claim so humans can verify in one click
+  - webhook delivery missed — PR gets no review and nobody notices (add a
+    scheduled sweep for unreviewed open PRs)
+  - duplicate comments on synchronize events — dedupe on (PR id, head SHA)
+  - granted credentials broader than read+comment silently void the no-write
+    guarantee — audit the token scopes, not just the workflow
+
+evals:
+  - finding precision — fraction of posted findings a human reviewer confirms as real
+  - finding recall on a fixture set of PRs with known seeded defects
+  - reference integrity — every finding cites a file/line that exists in the diff
+  - no-write guarantee — zero repo mutations across all runs (verify via audit + token scopes)
+  - comment dedupe — one summary per (PR, head SHA) even under webhook retries
+  - latency — summary posted within minutes of PR open
+
+implementation_steps:
+  - "Step 1: Register a GitHub webhook for pull_request events (opened, synchronize). Verify the HMAC signature in schema_validation before anything else runs."
+  - "Step 2: Grant the agent READ-ONLY repo scopes plus pull-request comment permission — the credential set is the enforcement layer for the no-write guarantee."
+  - "Step 3: Implement codebase_scan over the PR diff (changed files + minimal surrounding context). Chunk large PRs by file; never execute code from the diff."
+  - "Step 4: Tests belong to CI, not this agent — read the PR's check-run/CI status via the API and fold it into the summary instead of running test_runner here (test_runner requires code_editing per the registry contract; adding it would break the read-only shape)."
+  - "Step 5: Implement pr_summary — findings with file/line references, severity, and open questions for the human reviewer. One summary per (PR, head SHA)."
+  - "Step 6: Post via reviewer_notification as a PR comment (or review-thread post). On re-runs, update the existing comment instead of adding a new one."
+  - "Step 7: Write an audit_log record per pass: PR id, head SHA, findings count, comment id, token scopes used."
+
+sources:
+  - title: GitHub webhooks — pull_request event
+    url: https://docs.github.com/en/webhooks/webhook-events-and-payloads#pull_request
+    source_type: official_docs
+    last_checked: "2026-07-04"
+  - title: GitHub REST API — Pull request review comments
+    url: https://docs.github.com/en/rest/pulls/comments
+    source_type: official_docs
+    last_checked: "2026-07-04"

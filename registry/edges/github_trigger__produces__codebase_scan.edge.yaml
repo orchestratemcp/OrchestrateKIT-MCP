@@ -1,0 +1,13 @@
+id: github_trigger__produces__codebase_scan
+from: github_trigger
+to: codebase_scan
+relation: produces_input_for
+status: published
+reason: A pull_request webhook event carries the repo/PR coordinates the scanner needs — the validated payload (diff ref, head SHA, changed files) is codebase_scan's input for a review pass.
+severity: medium
+notes: Scan the PR diff snapshot at the event's head SHA, not the moving branch — a mid-review push would otherwise make findings reference lines that no longer exist. Added for the pr_review_readonly golden path (MAR-267).
+conditions: []
+tested: true
+test_refs:
+  - "probe:pr_review_readonly_playbook"
+  - "test:edgeValidation"

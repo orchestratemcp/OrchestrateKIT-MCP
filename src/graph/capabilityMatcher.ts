@@ -1314,6 +1314,14 @@ const HINT_ONLY_COMPONENTS = new Set([
   // google sheet / save to a file / store the records …) within the data_etl or
   // generic domain, so establishing the domain alone never injects it.
   "file_storage",
+  // MAR-267: test_runner's capability/summary tokens include bare "diff" /
+  // "code", so the fuzzy passes pulled it into READ-ONLY review goals ("review
+  // the diff for problems") that never ask to run anything — polluting the
+  // pr_review_readonly composed set below the playbook precision floor.
+  // Reachable via its "test"/"testing" hints (substring — fires on "tests",
+  // "test suite", "unit tests"); every probe/corpus goal that needs it names
+  // tests literally.
+  "test_runner",
   // MAR-266: airtable_lookup is a specific provider integration (the
   // stripe_data_read lesson, MAR-145). Its capability/summary tokens include
   // bare "read"/"records"/"lookup", so the fuzzy passes pulled it into any

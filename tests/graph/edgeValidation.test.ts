@@ -815,6 +815,48 @@ describe("edge: threshold_router__produces__slack_notification", () => {
   });
 });
 
+// ── MAR-267: pr_review_readonly golden path (3 sequencing + 1 audit edge) ──
+// The READ pipeline: webhook event → scan the diff → summarize findings →
+// notify reviewers. No code_editing anywhere — that is the write pipeline
+// (code_editing__produces__pr_summary).
+
+describe("edge: github_trigger__produces__codebase_scan", () => {
+  it("computeExecutionOrder places github_trigger before codebase_scan", () => {
+    const ordered = computeExecutionOrder(
+      pick(["codebase_scan", "github_trigger", "schema_validation"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("github_trigger")).toBeLessThan(ids.indexOf("codebase_scan"));
+  });
+});
+
+describe("edge: codebase_scan__produces__pr_summary", () => {
+  it("computeExecutionOrder places codebase_scan before pr_summary (read pipeline, no code_editing)", () => {
+    const ordered = computeExecutionOrder(pick(["pr_summary", "codebase_scan"]), edges);
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("codebase_scan")).toBeLessThan(ids.indexOf("pr_summary"));
+  });
+});
+
+describe("edge: pr_summary__produces__reviewer_notification", () => {
+  it("computeExecutionOrder places pr_summary before reviewer_notification", () => {
+    const ordered = computeExecutionOrder(
+      pick(["reviewer_notification", "pr_summary"]),
+      edges,
+    );
+    const ids = ordered.map((c) => c.id);
+    expect(ids.indexOf("pr_summary")).toBeLessThan(ids.indexOf("reviewer_notification"));
+  });
+});
+
+describe("edge: audit_log__recommended__reviewer_notification", () => {
+  it("augmentWithSafety adds audit_log when reviewer_notification is present", () => {
+    const result = augmentWithSafety(pick(["reviewer_notification"]), edges, components);
+    expect(result.components.map((c) => c.id)).toContain("audit_log");
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MAR-254 — Data-report spine: db_read + report_generation (2 components,
 // 8 edges). Kills the G4 failure class (Postgres→PDF→Slack scheduled report).

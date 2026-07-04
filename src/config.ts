@@ -4,11 +4,11 @@ export const SERVER_VERSION = "0.1.0";
 /**
  * Release-trust count floors (MAR-220). `health_check.safe_to_demo` reports
  * false — and the health-check regression test fails — if the live registry
- * drops below these. Raised to 64/147 after the MAR-266 price-monitor
- * golden-path edges (previously 64/144, MAR-254 data-report spine).
+ * drops below these. Raised to 64/151 after the MAR-267 PR-review golden-path
+ * edges (previously 64/147 MAR-266, 64/144 MAR-254).
  */
 export const MIN_COMPONENTS = 64;
-export const MIN_EDGES = 147;
+export const MIN_EDGES = 151;
 
 /**
  * MAR-99: server-level instructions sent to AI clients on connect.

@@ -174,6 +174,47 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
     expect(r.playbook?.id).not.toBe("competitor_price_monitor");
   });
 
+  // MAR-267: the read-only PR-review shape (3+ Lab sessions, incl. the June-18
+  // rated-2 code_editing leak) routes to the published pr_review_readonly
+  // playbook with the hard no-write guarantee intact.
+  const PR_REVIEW_LOCK_GOAL =
+    "When a pull request is opened on GitHub, review the diff for problems and post a summary " +
+    "comment. Never edit or commit any code — read-only.";
+
+  it("routes the read-only PR-review goal to the pr_review_readonly playbook", () => {
+    const r = plan(PR_REVIEW_LOCK_GOAL);
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("pr_review_readonly");
+    // the no-write guarantee: neither the write step nor its coupled runner
+    const ids = r.recommended_route.map((s) => s.component_id);
+    expect(ids).not.toContain("code_editing");
+    expect(ids).not.toContain("test_runner");
+  });
+
+  // MAR-267 acceptance: notification-class egress only → L2, autonomous, no
+  // enforced gate (MAR-132 advisory retained).
+  it("gives the PR-review playbook route L2 clearance with no enforced gate", () => {
+    const r = plan(PR_REVIEW_LOCK_GOAL);
+    expect(r.automation_clearance.level).toBe("L2");
+    expect(r.automation_clearance.autonomous_allowed).toBe(true);
+    expect(r.safety_review.status).not.toBe("fail");
+    expect(r.safety_review.blocking_issues).toEqual([]);
+    expect(r.safety_review.approval_gates_required).toEqual([]);
+  });
+
+  // MAR-267 boundary: UNNEGATED edit intent must not fire the read-only
+  // playbook — that goal belongs to the write pipeline. The gate is
+  // negation-aware, so the lock goal's "Never edit or commit" (negated) fires
+  // the playbook while "implement a bug fix" (unnegated) is rejected.
+  it("does not fire pr_review_readonly when the goal carries edit intent", () => {
+    const r = plan(
+      "Understand the codebase, implement a bug fix, and run unit tests before opening a pull request",
+    );
+    expect(r.playbook?.id).not.toBe("pr_review_readonly");
+    const ids = r.recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("code_editing");
+  });
+
   // MAR-130 regression: email_calendar_assistant over-matched CRM / invoice / HR
   // (precision 0.63–0.70) and overrode the route, dropping the primary-domain
   // component. The 0.72 precision floor must downgrade these to composed.
