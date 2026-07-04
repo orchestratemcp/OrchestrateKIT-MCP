@@ -103,12 +103,25 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
     expect(r.playbook?.id).toBe("email_calendar_assistant");
   });
 
-  it("keeps a novel CRM goal on the composed path (low precision)", () => {
+  // MAR-265: this goal used to prove "novel CRM stays composed" — it is
+  // exactly the lead-detection shape the email_lead_to_crm playbook was
+  // promoted on (3 Lab sessions), so it now routes playbook-first.
+  it("routes a lead-detection goal to the email_lead_to_crm playbook", () => {
     const r = plan(
       "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
     );
-    expect(r.plan_source).toBe("composed");
-    expect(r.playbook).toBeNull();
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("email_lead_to_crm");
+  });
+
+  // MAR-265 signal gate: without a lead/CRM token the playbook must not fire
+  // even if component overlap scores clear the floors ("leaderboard" must not
+  // count as a lead signal — the gate is word-bounded).
+  it("does not fire email_lead_to_crm without a lead/CRM signal token", () => {
+    const r = plan(
+      "read inbound email, research the sender company, write an internal note about our leaderboard standings, and draft a follow-up for my approval",
+    );
+    expect(r.playbook?.id).not.toBe("email_lead_to_crm");
   });
 
   // MAR-130 regression: email_calendar_assistant over-matched CRM / invoice / HR
@@ -261,8 +274,10 @@ describe("planWorkflow — output shape", () => {
   });
 
   it("summary_markdown labels a composed candidate as a candidate", () => {
+    // MAR-265: lead-detection now routes playbook-first — use a goal with no
+    // published playbook so the plan stays a composed candidate.
     const r = plan(
-      "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
+      "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.",
     );
     expect(r.summary_markdown.toLowerCase()).toContain("candidate");
   });
@@ -529,7 +544,7 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
     expect(open!.action).toContain(pb.playbook!.id);
 
     const composed = plan(
-      "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
+      "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.",
     );
     expect(composed.plan_source).toBe("composed");
     expect(composed.next_action_menu.find((a) => a.id === "open_playbook")).toBeUndefined();
@@ -648,8 +663,10 @@ describe("planWorkflow — output_depth layering (MAR-224)", () => {
 // MAR-101: scannable front-matter status block leads every plan output
 describe("planWorkflow — status front-matter header (MAR-101)", () => {
   const playbookGoal = "start from a content brief, generate copy, design visuals, approve and publish";
+  // MAR-265: the lead-detection goal now routes playbook-first, so the
+  // composed reference goal is the (playbook-less) data-report shape.
   const composedGoal =
-    "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval";
+    "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.";
 
   it("summary_markdown opens with a front-matter fence", () => {
     const r = plan(playbookGoal);

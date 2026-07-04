@@ -75,8 +75,10 @@ async function structured(
 
 const PLAYBOOK_GOAL =
   "scan a codebase, plan changes, edit code, run tests and write a PR summary";
+// MAR-265: the lead-detection goal now routes to the email_lead_to_crm
+// playbook, so the composed golden uses the (playbook-less) data-report shape.
 const COMPOSED_GOAL =
-  "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval";
+  "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.";
 const PREAMBLE_GOAL =
   "OrchestrateMCP is a workflow-design advisor that helps you plan safer AI agent workflows.";
 

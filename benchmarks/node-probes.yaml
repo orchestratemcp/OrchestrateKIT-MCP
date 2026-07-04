@@ -867,3 +867,34 @@ probes:
     goal: "When a pull request is opened on GitHub, review the diff for problems and post a summary comment. Never edit or commit any code."
     must_have: [github_trigger]
     forbidden: [scheduled_trigger]
+
+  # ── email_lead_to_crm playbook promotion (MAR-265) ──────────────────────────
+  # The lead-detection shape (3 Lab sessions, avg 4.3/5) must route playbook-
+  # first with the attended core intact. Guard lineage: this shape is adjacent
+  # to email_calendar_assistant's historical over-match (MAR-130/142) — the two
+  # bleed-guards below are the acceptance bar, not optional.
+  - id: email_lead_playbook_fires
+    goal: "Read inbound email, detect sales leads, write a CRM note, and draft a follow-up for my approval"
+    via: plan
+    required_playbook: email_lead_to_crm
+    must_have: [crm_note_write, email_draft, human_approval_gate]
+    forbidden: [calendar_lookup, calendar_write]
+
+  # Bleed guard: generic morning email triage (G1) has no lead/CRM signal and
+  # must NOT be claimed by the lead playbook.
+  - id: email_triage_not_lead_playbook
+    goal: "Morning agent reads inbox, classifies messages urgent/FYI/needs-reply/spam, drafts replies for needs-reply, saves everything as drafts for human review. Scheduled daily trigger. Must never auto-send."
+    via: plan
+    forbidden_playbook: [email_lead_to_crm]
+    must_have: [email_read, email_draft]
+    forbidden: []
+
+  # Bleed guard: a CRM READ/enrich goal stays on the MAR-242 CRM components —
+  # the lead playbook (email-centric, write-heavy) must not claim it even
+  # though the goal says "CRM".
+  - id: crm_read_not_lead_playbook
+    goal: "Look up a contact in our CRM and enrich it with recent company news"
+    via: plan
+    forbidden_playbook: [email_lead_to_crm]
+    must_have: [crm_record_read, lead_enrichment]
+    forbidden: [email_read, email_draft]
