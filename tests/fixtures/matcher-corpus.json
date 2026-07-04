@@ -1,7 +1,7 @@
 {
   "generated_by": "OrchestrateLab LAB-03 (MAR-106) corpus export",
   "version": 1,
-  "goal_count": 35,
+  "goal_count": 36,
   "goals": [
     {
       "slug": "code_bugfix_tests",
@@ -22,7 +22,9 @@
         "research_synthesis"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "code_feature_pr",
@@ -46,7 +48,9 @@
         "research_synthesis"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "content_blog_publish",
@@ -69,7 +73,9 @@
         "research_synthesis"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "content_social_posts",
@@ -90,7 +96,9 @@
         "research_synthesis"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "crm_lead_followup",
@@ -111,7 +119,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "crm_prospect_note",
@@ -130,7 +140,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_blog_to_social_variants",
@@ -162,7 +174,9 @@
         "blog_post_ingestor",
         "social_scheduler"
       ],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_honey_factcheck",
@@ -184,7 +198,9 @@
       "missing_but_expected": [
         "claim_extraction"
       ],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_hourly_price_monitor",
@@ -211,7 +227,9 @@
       "missing_but_expected": [
         "page_monitor"
       ],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_hr_onboarding_provision",
@@ -235,7 +253,9 @@
       "missing_but_expected": [
         "hr_record_trigger"
       ],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_invoice_po_match",
@@ -259,7 +279,9 @@
       "missing_but_expected": [
         "pdf_extraction"
       ],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_morning_email_triage",
@@ -285,7 +307,9 @@
         "summary_generation",
         "urgency_flagging"
       ],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_nightly_price_etl",
@@ -312,7 +336,9 @@
         "postgres_write",
         "scheduled_trigger"
       ],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_postcall_crm_note",
@@ -331,7 +357,9 @@
         "research_synthesis"
       ],
       "missing_but_expected": [],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_readonly_pr_review",
@@ -357,7 +385,9 @@
         "pr_comment_poster",
         "webhook_trigger"
       ],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "dogfood_weekly_research_visual",
@@ -385,7 +415,9 @@
         "caption_generation",
         "weekly_scheduler"
       ],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "email_meeting_scheduler",
@@ -406,7 +438,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "email_triage_reply",
@@ -428,7 +462,9 @@
         "external_publish"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "etl_api_ingest",
@@ -450,7 +486,9 @@
         "source_retrieval"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "etl_csv_dedupe",
@@ -471,7 +509,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "invoice_po_match",
@@ -493,7 +533,9 @@
         "calendar_write"
       ],
       "missing_but_expected": [],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
     },
     {
       "slug": "knowledge_note_save",
@@ -515,7 +557,9 @@
         "optional_email_send"
       ],
       "missing_but_expected": [],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
     },
     {
       "slug": "monitor_docs_changes",
@@ -534,7 +578,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "monitor_uptime_alerts",
@@ -554,7 +600,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "composed",
+      "xfail": ""
     },
     {
       "slug": "p1_research_workflow",
@@ -578,7 +626,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "benchmark:p1_research_workflow"
+      "source": "benchmark:p1_research_workflow",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "p2_content_publish_workflow",
@@ -602,7 +652,9 @@
         "research_synthesis"
       ],
       "missing_but_expected": [],
-      "source": "benchmark:p2_content_publish_workflow"
+      "source": "benchmark:p2_content_publish_workflow",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "p3_email_calendar_assistant",
@@ -627,7 +679,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "benchmark:p3_email_calendar_assistant"
+      "source": "benchmark:p3_email_calendar_assistant",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "p4_codebase_agent",
@@ -652,7 +706,9 @@
         "research_synthesis"
       ],
       "missing_but_expected": [],
-      "source": "benchmark:p4_codebase_agent"
+      "source": "benchmark:p4_codebase_agent",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "p5_data_pipeline",
@@ -676,7 +732,9 @@
         "source_retrieval"
       ],
       "missing_but_expected": [],
-      "source": "benchmark:p5_data_pipeline"
+      "source": "benchmark:p5_data_pipeline",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "p6_email_lead_crm",
@@ -700,7 +758,9 @@
         "external_publish"
       ],
       "missing_but_expected": [],
-      "source": "benchmark:p6_email_lead_crm"
+      "source": "benchmark:p6_email_lead_crm",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "p7_product_monitor_content",
@@ -724,7 +784,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "benchmark:p7_product_monitor_content"
+      "source": "benchmark:p7_product_monitor_content",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "research_cited_faq",
@@ -743,7 +805,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "research_competitor_brief",
@@ -765,7 +829,9 @@
         "pr_summary"
       ],
       "missing_but_expected": [],
-      "source": "manual"
+      "source": "manual",
+      "level": "raw",
+      "xfail": ""
     },
     {
       "slug": "scheduled_data_report",
@@ -786,7 +852,34 @@
         "pdf_extraction"
       ],
       "missing_but_expected": [],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
+    {
+      "slug": "scheduled_data_report_strict",
+      "goal": "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.",
+      "domain": "data_etl",
+      "must_have": [
+        "db_read",
+        "report_generation",
+        "scheduled_trigger",
+        "slack_notification"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "retry_policy"
+      ],
+      "forbidden": [
+        "calendar_lookup",
+        "crm_note_write",
+        "loop_controller",
+        "pdf_extraction"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": "loop_controller fires from 'no human in the loop' (MAR-214, In Review) and crm_note_write fuzzy-survives the top-8 cut (unticketed MATCH candidate)"
     },
     {
       "slug": "unattended_alert_no_reviewer",
@@ -806,7 +899,9 @@
         "page_monitor"
       ],
       "missing_but_expected": [],
-      "source": "dogfood"
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
     }
   ]
 }
