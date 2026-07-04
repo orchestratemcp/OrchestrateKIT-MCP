@@ -202,6 +202,25 @@ function hasLeadCrmSignal(goal: string): boolean {
 }
 
 /**
+ * Strong price-watch signal for competitor_price_monitor (MAR-266): the goal
+ * must name the SUBJECT (price / competitor / product page) AND the recurring
+ * check (schedule or monitor verb). Word-bounded like LEAD_CRM_SIGNAL.
+ * Deliberately NOT the only guard: the nightly scrape-to-Postgres variant
+ * passes both token classes ("competitor pricing pages" + "every night") and
+ * is kept composed by the overlap floors instead — its composed set has
+ * data_scraper/db_read, which this playbook deliberately excludes.
+ */
+const PRICE_WATCH_SUBJECT_SIGNAL =
+  /\bprice(s|d)?\b|\bpricing\b|\bcompetitor(s|')?\b|product page/;
+const PRICE_WATCH_CADENCE_SIGNAL =
+  /\b(every|each|hourly|daily|nightly|weekly|scheduled?|cron|monitor(s|ing)?|watch(es|ing)?|poll(s|ing)?|track(s|ing)?)\b/;
+
+function hasPriceWatchSignal(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return PRICE_WATCH_SUBJECT_SIGNAL.test(g) && PRICE_WATCH_CADENCE_SIGNAL.test(g);
+}
+
+/**
  * Per-playbook goal-signal gate (MAR-142 pattern, generalized in MAR-265):
  * a playbook listed here only fires when the goal carries at least one of its
  * strong domain tokens, regardless of recall/precision scores. Playbooks not
@@ -213,6 +232,8 @@ function playbookSignalGatePassed(playbookId: string, goal: string): boolean {
       return hasEmailCalendarSignal(goal);
     case "email_lead_to_crm":
       return hasLeadCrmSignal(goal);
+    case "competitor_price_monitor":
+      return hasPriceWatchSignal(goal);
     default:
       return true;
   }

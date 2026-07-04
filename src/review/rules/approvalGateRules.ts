@@ -1,5 +1,6 @@
 import type { ReviewContext, ReviewFinding, ReviewRule } from "../types.js";
 import { isNegatedInContext } from "../../graph/capabilityMatcher.js";
+import { componentActionClass } from "../../graph/automationClearance.js";
 
 // ---------------------------------------------------------------------------
 // External write keywords in integrations / goal / architecture text
@@ -69,6 +70,39 @@ const externalWriteWithoutApprovalGate: ReviewRule = (ctx: ReviewContext): Revie
       (ctx.humanApprovalRequired !== false));
 
   if (alreadyHasGate) return [];
+
+  // MAR-266 (MAR-132/252 lineage): when the resolved design's entire write
+  // surface is at most notification-class (componentActionClass ≤ 2 — the same
+  // classification automation_clearance uses for L2), an ungated design is an
+  // ADVISORY, not a blocking failure. Without this, a gate-free Slack-alert
+  // route fails the safety review while its clearance simultaneously says
+  // "L2 — may run unattended" (the audit-G2 three-way contradiction, this time
+  // from the component side instead of negation). Only applies when components
+  // are actually resolved — a goal-text-only review stays conservative, and a
+  // real external write (class ≥ 3: email send, calendar write, CRM write,
+  // publish) keeps the critical finding regardless of any notification also
+  // being present.
+  const classes = ctx.resolvedComponents.map((c) => componentActionClass(c));
+  const notificationClassOnly =
+    classes.length > 0 && classes.every((cls) => cls <= 2) && classes.some((cls) => cls === 2);
+  if (notificationClassOnly) {
+    return [
+      {
+        severity: "medium",
+        category: "approval_gate",
+        message:
+          "Notification-class egress without a human approval gate — advisory only (MAR-132): " +
+          "the only external sends are rate-limited notifications, whose blast radius is a message, " +
+          "not a record change.",
+        reason:
+          "An unattended monitor/report whose sole egress is an internal notification does not need " +
+          "an enforced human gate; keep the advisory and rate-limit the channel instead.",
+        recommended_fix:
+          "No enforced gate needed. If the workflow later gains a business-system write (email send, " +
+          "CRM/calendar write, publish), add `human_approval_gate` before it.",
+      },
+    ];
+  }
 
   return [
     {

@@ -1,0 +1,13 @@
+id: page_monitor__produces__deduplication
+from: page_monitor
+to: deduplication
+relation: produces_input_for
+status: published
+reason: Change events from a polled page can repeat (hash flapping, rotating content, a price seen before) — deduplication must consume the event stream before anything downstream reacts to it.
+severity: medium
+notes: Dedupe on the stable identity (URL + extracted value), not the raw diff payload — a page that flaps between two contents would otherwise re-alert on every flip. Added for the competitor_price_monitor golden path (MAR-266).
+conditions: []
+tested: true
+test_refs:
+  - "probe:competitor_price_monitor_playbook"
+  - "test:edgeValidation"

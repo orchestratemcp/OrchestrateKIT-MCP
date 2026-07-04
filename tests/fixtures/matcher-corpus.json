@@ -208,27 +208,31 @@
       "domain": "monitoring",
       "must_have": [
         "scheduled_trigger",
-        "slack_notification"
+        "page_monitor",
+        "state_store",
+        "deduplication",
+        "schema_validation",
+        "threshold_router",
+        "slack_notification",
+        "audit_log"
       ],
       "nice_to_have": [
-        "audit_log",
-        "data_scraper",
-        "deduplication",
+        "auth_failure_handler",
         "retry_policy"
       ],
       "forbidden": [
         "calendar_lookup",
         "calendar_write",
+        "data_scraper",
         "email_draft",
         "email_read",
         "external_publish",
+        "human_approval_gate",
         "research_synthesis"
       ],
-      "missing_but_expected": [
-        "page_monitor"
-      ],
+      "missing_but_expected": [],
       "source": "dogfood",
-      "level": "raw",
+      "level": "composed",
       "xfail": ""
     },
     {

@@ -1,0 +1,13 @@
+id: threshold_router__produces__slack_notification
+from: threshold_router
+to: slack_notification
+relation: produces_input_for
+status: published
+reason: threshold_router's above-threshold branch is the alert trigger — it hands the routed event (value, bound, direction) to slack_notification for the internal alert post.
+severity: medium
+notes: Below-threshold events must NOT reach the notification — they go to audit_log only. Include value, threshold, and source link in the alert payload. Added for the competitor_price_monitor golden path (MAR-266).
+conditions: []
+tested: true
+test_refs:
+  - "probe:competitor_price_monitor_playbook"
+  - "test:edgeValidation"

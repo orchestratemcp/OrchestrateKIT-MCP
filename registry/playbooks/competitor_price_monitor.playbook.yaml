@@ -1,0 +1,158 @@
+id: competitor_price_monitor
+version: "1.0.0"
+status: published
+title: Competitor Price Monitor with Threshold Alerts
+summary: >
+  Blueprint for an unattended price-watch agent that polls competitor product
+  pages on a schedule, detects price changes via content hashing, deduplicates
+  repeat events, validates the extracted price, and posts an internal Slack
+  alert when the price crosses a configurable threshold. Read-only on all
+  external sites; the only egress is a notification-class Slack post, so the
+  pattern runs gate-free with an approval advisory (MAR-132). Promoted from 4+
+  OrchestrateLab sessions (2026-06-15 → 06-29) via MAR-266.
+workflow_type: monitoring
+risk_level: low
+golden_path_route_id: competitor_price_monitor_route_v1
+stack_id: default_orchestratekit_stack
+
+# Component set is the CORE evidence shape from the promoting sessions
+# (MAR-266), plus the glue compose injects on this exact goal shape
+# (schema_validation price gating, auth_failure_handler for the credentialed
+# Slack egress) — the MAR-265 lesson: the set must contain compose's own
+# injections or the playbook can't clear the 0.72 precision floor on its own
+# core phrasing.
+#
+# Two deliberate EXCLUSIONS, both load-bearing:
+#   - data_scraper: the sessions used both page_monitor and data_scraper as the
+#     fetch step; page_monitor is the primary here because change detection is
+#     the core loop AND because data_scraper is the nightly-ETL variant's
+#     domain marker — with data_scraper in this set, the "scrape competitor
+#     pricing pages nightly into Postgres" goal reaches the recall floor and
+#     steals the playbook (its price/schedule tokens pass the signal gate, so
+#     the overlap floors are the only guard). That variant stays composed —
+#     it is data_extraction_enrichment territory (see avoid_when).
+#   - data_normalizer: requires data_scraper per its registry contract, and
+#     including a component without its required companion fails the safety
+#     review (the MAR-265 8-component-core lesson). Multi-site normalisation
+#     is documented as an optional extension in the implementation steps.
+components:
+  - scheduled_trigger
+  - page_monitor
+  - state_store
+  - deduplication
+  - schema_validation
+  - threshold_router
+  - slack_notification
+  - auth_failure_handler
+  - audit_log
+
+edges:
+  - scheduled_trigger__compatible__page_monitor
+  - page_monitor__requires__state_store
+  - page_monitor__produces__deduplication
+  - deduplication__produces__schema_validation
+  - schema_validation__produces__threshold_router
+  - threshold_router__produces__slack_notification
+  - slack_notification__safer_with__auth_failure_handler
+  - threshold_router__recommended__audit_log
+
+best_for:
+  - hourly/daily competitor product-page price watching with internal alerts
+  - unattended change detection on a fixed URL list, read-only on all external sites
+  - threshold-gated notification — alert only when the price crosses a configured bound
+
+avoid_when:
+  - nightly scrape-and-load pipelines into a database — that is a data-extraction
+    workflow (data_extraction_enrichment territory), not a monitor
+  - API uptime / metric / log monitoring — use the MAR-243 monitoring observers
+    (uptime_check, metric_threshold_monitor, log_monitor), not a page watcher
+  - documentation-page change summaries — compose page_monitor with the research
+    chain instead; this playbook's threshold/dedupe spine adds nothing there
+  - any variant that must WRITE to external systems — this pattern is read-only
+    on externals by contract
+
+recommended_architecture:
+  pattern: Schedule → poll & diff → dedupe → validate → threshold-route → notify (with state, auth resilience, audit)
+  why: >
+    Every step before the Slack post is deterministic and idempotent, which is
+    what makes the unattended clearance defensible: a crash at any step can be
+    retried on the next tick because page_monitor's hash state lives in
+    state_store, deduplication suppresses re-alerts for a price already
+    reported, and the only irreversible action is an internal notification.
+
+llm_driven_steps:
+  - slack_notification — the one-line alert summary may be LLM-written
+    (Haiku-class); a template string is an acceptable deterministic fallback
+
+deterministic_steps:
+  - scheduled_trigger
+  - page_monitor
+  - state_store
+  - deduplication
+  - schema_validation
+  - threshold_router
+  - auth_failure_handler
+  - audit_log
+
+permissions:
+  read:
+    - monitored competitor product-page URLs (read-only, robots/ToS permitting)
+    - state_store hash and last-price keys
+  write:
+    - state_store hash and last-price keys
+    - internal Slack channel (notification-class egress only)
+  approval_required_for: []
+
+guardrails:
+  - Read-only on all external sites — never submit forms, log in, or add to cart
+  - Respect robots.txt and the site's ToS; keep the polling interval polite (advisory)
+  - No enforced human gate — the sole egress is an internal notification; keep
+    the MAR-132 advisory in place rather than silently deleting it
+  - Deduplicate before alerting — a price already reported must not re-alert
+    until it changes again or the dedupe window expires
+  - Validate the extracted price (numeric, currency, sane bounds) before the
+    threshold comparison — a parse glitch must not fire a false alert
+  - Log every alert (and every suppressed duplicate) to audit_log with URL,
+    old/new price, and threshold state
+
+failure_modes:
+  - page redesign breaks the price selector — schema_validation rejects the parse
+    and the alert silently stops until the selector is fixed (alert on N consecutive
+    validation failures)
+  - anti-bot measures (rate limiting, CAPTCHAs, IP blocks) interrupt polling
+  - hash flapping on pages with rotating content (ads, timestamps) floods
+    deduplication — scope the hash to a CSS selector around the price
+  - currency/locale formatting drift ("1.299,00 €" vs "€1,299.00") mis-parses
+    the price and trips or misses the threshold
+  - state_store loss resets baselines — every page re-alerts on the next tick
+  - Slack credential expiry kills the only egress — auth_failure_handler must
+    alert an operator channel out-of-band before halting
+
+evals:
+  - change-detection recall on a fixture set of known price changes (target >= 95%)
+  - false-alert rate on unchanged/reformatted pages (target < 1%)
+  - dedupe correctness — no repeat alert for an unchanged price within the window
+  - threshold correctness — alert fires iff price crosses the configured bound
+  - price-parse validation coverage — malformed extractions rejected, never alerted
+  - audit completeness — every alert and suppression has an audit_log record
+
+implementation_steps:
+  - "Step 1: Configure scheduled_trigger with the polling cadence (hourly in the promoting sessions). Keep the URL list in config, not code."
+  - "Step 2: Implement page_monitor scoped to a CSS selector around the price element — hashing the full page flaps on ads/timestamps. Persist hashes and last-seen prices in state_store."
+  - "Step 3 (alternative fetch): swap page_monitor for data_scraper when you need structured multi-field extraction (name, price, availability) across heterogeneous sites — and add data_normalizer with it (data_normalizer requires data_scraper per the registry contract). That shape is drifting toward data_extraction_enrichment; if you also load a database, use that playbook instead."
+  - "Step 4: Deduplicate change events on (URL, extracted price) with a configurable window so a flapping page cannot re-alert on a price already reported."
+  - "Step 5: Validate the extracted price with schema_validation — numeric, expected currency, sane bounds (e.g. reject a 0 or a 100x jump as a parse error, route to a review queue instead of alerting)."
+  - "Step 6: Implement threshold_router with the configurable bound (absolute price, percentage drop, or both). Below-threshold changes go to audit_log only."
+  - "Step 7: Post the alert with slack_notification — one line: product, old → new price, threshold, link. A template string is fine; an LLM summary (Haiku-class) is optional."
+  - "Step 8: Wire auth_failure_handler around the Slack egress — refresh, retry with backoff, then alert an operator channel before halting (an unattended monitor that dies silently is worse than no monitor)."
+  - "Step 9: Write an audit_log record for every check: URL, hash result, price, dedupe decision, threshold decision, alert status."
+
+sources:
+  - title: robots.txt specification (RFC 9309)
+    url: https://www.rfc-editor.org/rfc/rfc9309
+    source_type: official_docs
+    last_checked: "2026-07-04"
+  - title: Slack API — chat.postMessage
+    url: https://api.slack.com/methods/chat.postMessage
+    source_type: official_docs
+    last_checked: "2026-07-04"
