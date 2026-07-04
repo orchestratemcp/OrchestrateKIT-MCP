@@ -22,6 +22,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { detectConstraintSignals } from "../lib/constraintSignals.js";
 
 // ──────────────────────────────── input ────────────────────────────────
 
@@ -164,7 +165,9 @@ export type BuildBriefOutput = {
     s1_summary: string;
     s2_route: string;
     s3_worker_contracts: string;
-    s4_loop_contract: string | null;
+    /** Always a string since MAR-255 — an explicit "no loop" line when absent
+     * (the §3→§5 numbering hole read as a bug). */
+    s4_loop_contract: string;
     s5_safety: string;
     s6_do_not_add: string;
     s7_review_loopback: string;
@@ -181,26 +184,43 @@ export type BuildBriefOutput = {
 
 // ────────────────────────────── helpers ────────────────────────────────
 
-/** Detect explicit read-only / unattended / no-outbound constraints in the goal. */
-function extractConstraints(goal: string): string[] {
-  const g = goal.toLowerCase();
-  const constraints: string[] = [];
-  if (/read[- ]?only|never write|no write|no writes/.test(g))
-    constraints.push("read-only — no external writes");
-  if (/unattended|no human|without human|fully automat|fully autonomous/.test(g))
-    constraints.push("unattended — no human in the loop");
-  if (/no outbound|no email sent|no send|draft only|internal only/.test(g))
-    constraints.push("no outbound — stays internal / draft");
-  return constraints;
-}
-
+/**
+ * §0 from the SHARED constraint detection (MAR-255) — the same module
+ * plan_workflow's gate/waiver logic uses (src/lib/constraintSignals.ts), so the
+ * brief can never again open with "no constraint detected" on a goal the
+ * planner already constrained (audit 2026-07-01, live). Each detected class
+ * shows the goal phrase that triggered it — the compiler shows its work.
+ */
 function s0Constraints(goal: string, approvalAdvisory: { reason: string } | null | undefined): string {
-  const detected = extractConstraints(goal);
+  const sig = detectConstraintSignals(goal);
   const lines = ["**§0 Constraints** _(stated in goal)_", ""];
-  if (detected.length === 0) {
+
+  const entries: string[] = [];
+  if (sig.read_only.detected)
+    entries.push(`read-only — no external writes _(trigger: "${sig.read_only.trigger}")_`);
+  if (sig.draft_only.detected)
+    entries.push(`draft-only — no autonomous sends _(trigger: "${sig.draft_only.trigger}")_`);
+  if (sig.no_outbound.detected && !sig.draft_only.detected)
+    entries.push(`no-outbound — stays internal _(trigger: "${sig.no_outbound.trigger}")_`);
+  if (sig.attended_required.detected)
+    entries.push(`attended — a human reviews before actions _(trigger: "${sig.attended_required.trigger}")_`);
+  if (sig.unattended.detected && !sig.attended_required.detected)
+    entries.push(`unattended — no human in the loop _(trigger: "${sig.unattended.trigger}")_`);
+
+  if (entries.length === 0) {
+    // Only when it's actually true (MAR-255 edge case: keep today's line).
     lines.push("- No explicit read-only / unattended / no-outbound constraint detected.");
   } else {
-    for (const c of detected) lines.push(`- ${c}`);
+    for (const c of entries) lines.push(`- ${c}`);
+  }
+
+  if (sig.conflict) {
+    lines.push(
+      "",
+      `> ⚠️ **Conflicting constraints:** the goal both waives and requires human review ` +
+        `("${sig.unattended.trigger}" vs "${sig.attended_required.trigger}"). ` +
+        `Resolve this before building — state ONE of the two in the goal and re-run plan_workflow.`,
+    );
   }
   if (approvalAdvisory) {
     lines.push("", `> ⚠️ **Gate advisory:** ${approvalAdvisory.reason}`);
@@ -248,7 +268,13 @@ function s3WorkerContracts(
   workerPipeline: { workers: z.infer<typeof WorkerShape>[]; feedback_loops: object[] } | null | undefined,
 ): string {
   if (!workerPipeline || workerPipeline.workers.length === 0) {
-    return "**§3 Worker contracts** — No worker pipeline in registry.";
+    // MAR-255: honest absence line — the old copy claimed "No worker pipeline
+    // in registry" when the caller simply hadn't passed it (audit defect 2).
+    return (
+      "**§3 Worker contracts** — Not included in this call. " +
+      "Pass `worker_pipeline` from a `plan_workflow` response " +
+      '(available at `output_depth: "technical"`, MAR-256) to include the build-team contracts.'
+    );
   }
   const lines = [
     "**§3 Worker contracts** _(build team for implementing this plan, 🟢 grounded)_",
@@ -274,8 +300,16 @@ function s4LoopContract(
     loop_contract: z.infer<typeof LoopContractShape>;
     guardrail_checklist: string[];
   } | null | undefined,
-): string | null {
-  if (!loopGuidance) return null;
+): string {
+  if (!loopGuidance) {
+    // MAR-255: render §4 explicitly instead of skipping it — the §3 → §5
+    // numbering hole read as a bug to users (audit defect 3).
+    return (
+      "**§4 Loop contract** — No loop in this plan. " +
+      "(Non-empty only when the route is loop-shaped; if plan_workflow returned " +
+      "`loop_guidance`, pass it to include the bounded-iteration spec.)"
+    );
+  }
   const lc = loopGuidance.loop_contract;
   const lines = [
     "**§4 Loop contract** _(bounded-iteration spec, 🟢 grounded from playbook)_",

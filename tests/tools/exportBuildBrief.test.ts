@@ -59,7 +59,7 @@ describe("export_build_brief — structure (MAR-205)", () => {
   });
 });
 
-describe("export_build_brief — §0 constraints (MAR-205)", () => {
+describe("export_build_brief — §0 constraints (MAR-205, shared detection MAR-255)", () => {
   it("detects explicit read-only constraint", () => {
     const b = planAndBrief("scan a GitHub PR, read-only, never write anything");
     expect(b.sections.s0_constraints).toContain("read-only");
@@ -75,6 +75,81 @@ describe("export_build_brief — §0 constraints (MAR-205)", () => {
   it("states 'no constraint detected' when goal has none", () => {
     const b = planAndBrief("read emails and draft a CRM note for each lead");
     expect(b.sections.s0_constraints).toContain("No explicit");
+  });
+
+  // MAR-255 acceptance 1: the G1 audit goal — the brief used to open with
+  // "No explicit … constraint detected" on it (live, 2026-07-01) while the
+  // planner had already enforced the gate on the same phrasing.
+  it("G1 audit goal → §0 lists draft-only + attended with trigger phrases", () => {
+    const b = planAndBrief(
+      "Every morning, read unread customer support emails, classify them by urgency, and draft " +
+        "replies for my approval — never send anything automatically. A human reviews every draft.",
+    );
+    expect(b.sections.s0_constraints).toContain("draft-only");
+    expect(b.sections.s0_constraints).toContain('trigger: "never send anything automatically"');
+    expect(b.sections.s0_constraints).toContain("attended");
+    expect(b.sections.s0_constraints).toContain('trigger: "for my approval"');
+    expect(b.sections.s0_constraints).not.toContain("No explicit");
+  });
+
+  it("conflicting constraints are both listed with a ⚠️ marker (MAR-255)", () => {
+    const b = planAndBrief(
+      "Runs unattended on a schedule, but a human reviews every draft before it goes out",
+    );
+    expect(b.sections.s0_constraints).toContain("Conflicting constraints");
+    expect(b.sections.s0_constraints).toContain("unattended");
+    expect(b.sections.s0_constraints).toContain("attended");
+  });
+});
+
+describe("export_build_brief — §3/§4 round-trip inputs + numbering (MAR-255)", () => {
+  const GOAL = "read emails, detect leads and write a note to the CRM for each lead";
+
+  it("omitting worker_pipeline yields the pointer line, not 'No worker pipeline in registry'", () => {
+    // default-depth plan → worker_pipeline null (MAR-256), so the brief must
+    // point at the round-trip instead of making a false registry claim.
+    const b = planAndBrief(GOAL);
+    expect(b.sections.s3_worker_contracts).toContain("Not included in this call");
+    expect(b.sections.s3_worker_contracts).toContain("output_depth");
+    expect(b.sections.s3_worker_contracts).not.toContain("No worker pipeline in registry");
+  });
+
+  it("passing worker_pipeline from a technical-depth plan renders the §3 contracts", () => {
+    const plan = planWorkflow(
+      { goal: GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "technical" },
+      registry,
+    );
+    expect(plan.worker_pipeline).not.toBeNull();
+    const b = exportBuildBrief({
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates,
+      untested_edges: plan.untested_edges,
+      avoid_when_violations: plan.avoid_when_violations,
+      evals_to_add: plan.evals_to_add,
+      design_notes: plan.design_notes,
+      worker_pipeline: plan.worker_pipeline,
+      loop_guidance: plan.loop_guidance,
+      approval_gate_advisory: plan.approval_gate_advisory,
+      handoff_targets: ["prompt"],
+    });
+    expect(b.sections.s3_worker_contracts).toContain("Pipeline:");
+    expect(b.sections.s3_worker_contracts).toContain("`planner`");
+    expect(b.sections.s3_worker_contracts).toContain("`tester`");
+  });
+
+  it("§4 always renders — an explicit 'no loop' line instead of a §3→§5 numbering hole", () => {
+    const b = planAndBrief(GOAL);
+    expect(b.sections.s4_loop_contract).toContain("§4 Loop contract");
+    expect(b.sections.s4_loop_contract).toContain("No loop in this plan");
+    // the assembled brief has continuous numbering
+    expect(b.brief_markdown).toContain("§3");
+    expect(b.brief_markdown).toContain("§4");
+    expect(b.brief_markdown).toContain("§5");
   });
 });
 
@@ -122,10 +197,11 @@ describe("export_build_brief — §2 route is grounded (MAR-205 + MAR-206)", () 
   });
 });
 
-describe("export_build_brief — §4 loop contract (MAR-205)", () => {
-  it("s4_loop_contract is null for non-loop routes", () => {
+describe("export_build_brief — §4 loop contract (MAR-205, always rendered since MAR-255)", () => {
+  it("s4_loop_contract is the explicit 'no loop' line for non-loop routes", () => {
     const b = planAndBrief("read emails, detect leads and write a CRM note");
-    expect(b.sections.s4_loop_contract).toBeNull();
+    expect(b.sections.s4_loop_contract).toContain("No loop in this plan");
+    expect(b.sections.s4_loop_contract).not.toContain("max_iterations");
   });
 
   it("fan-out route does NOT get the worker-build-loop contract (MAR-209 integration)", () => {
@@ -133,8 +209,10 @@ describe("export_build_brief — §4 loop contract (MAR-205)", () => {
       "fan out a batch of documents to parallel processors, validate each, " +
       "roll back with saga compensation if any fails",
     );
-    // Because loop_guidance is null for fan-out routes (MAR-209), s4 should be null
-    expect(b.sections.s4_loop_contract).toBeNull();
+    // loop_guidance is null for fan-out routes (MAR-209) — §4 renders the
+    // explicit absence line, never the bounded-iteration contract.
+    expect(b.sections.s4_loop_contract).toContain("No loop in this plan");
+    expect(b.sections.s4_loop_contract).not.toContain("max_iterations");
   });
 });
 
