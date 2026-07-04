@@ -28,6 +28,9 @@ interface CorpusGoal {
   forbidden: string[];
   missing_but_expected: string[];
   source: string;
+  /** MAR-260: "raw" (this suite) or "composed" (composedCorpus.test.ts). */
+  level?: "raw" | "composed";
+  xfail?: string;
 }
 
 interface Corpus {
@@ -54,6 +57,11 @@ const corpus = JSON.parse(readFileSync(corpusPath, "utf8")) as Corpus;
 
 const { components, edges } = loadRegistry();
 
+// MAR-260: goals labelled level "composed" are enforced against the full
+// plan_workflow route in composedCorpus.test.ts, not against the raw matcher
+// here (their contracts describe the composed surface). Absent level = raw.
+const rawGoals = corpus.goals.filter((g) => (g.level ?? "raw") === "raw");
+
 function matchedIds(goal: string): string[] {
   return matchCapabilities(goal, [], [], components, edges).matches.map(
     (m) => m.component.id,
@@ -78,7 +86,7 @@ describe("matcher regression corpus (MAR-106)", () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  for (const goal of corpus.goals) {
+  for (const goal of rawGoals) {
     describe(goal.slug, () => {
       const ids = matchedIds(goal.goal);
 
