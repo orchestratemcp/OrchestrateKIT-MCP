@@ -39,7 +39,7 @@ import {
   type AvoidViolation,
 } from "../graph/routeOrdering.js";
 import { ALWAYS_REQUIRES_GATE } from "../graph/safetyAugmenter.js";
-import { matchCapabilities } from "../graph/capabilityMatcher.js";
+import { matchCapabilities, isNegatedInContext } from "../graph/capabilityMatcher.js";
 import { computeCoverage, type Coverage } from "../graph/coverage.js";
 import { findOverlappingPlaybooks } from "../graph/playbookOverlap.js";
 import {
@@ -221,6 +221,56 @@ function hasPriceWatchSignal(goal: string): boolean {
 }
 
 /**
+ * pr_review_readonly boundary (MAR-267). Positive: the goal names a PR / diff
+ * review. Negative: any UNNEGATED edit-intent token routes the goal to
+ * codebase_agent_workflow / composed instead — that boundary is the playbook's
+ * whole identity (hard no-write guarantee). Negation-aware on purpose: the
+ * lock goal itself says "Never edit or commit any code", and a naive blocklist
+ * would reject the exact phrasing the playbook was promoted on (the MAR-252
+ * negation-blindness class, inverted).
+ */
+const PR_REVIEW_SUBJECT_SIGNAL =
+  /\bpull request(s)?\b|\bprs?\b|\bdiff(s)?\b|code review|review the (code|change|changes)/;
+const EDIT_INTENT_TOKENS = [
+  "edit",
+  "edits",
+  "editing",
+  "fix",
+  "fixes",
+  "fixing",
+  "bug fix",
+  "bugfix",
+  "implement",
+  "implements",
+  "implementing",
+  "refactor",
+  "refactors",
+  "refactoring",
+  "commit",
+  "commits",
+  "committing",
+  "merge",
+  "merges",
+  "write code",
+];
+
+function hasEditIntent(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return EDIT_INTENT_TOKENS.some((t) => {
+    // word-bounded ("fix" must not fire on "prefix"/"fixture"), then
+    // negation-checked ("never edit" is a constraint, not intent)
+    const re = new RegExp(`\\b${t.replace(/ /g, "\\s+")}\\b`);
+    if (!re.test(g)) return false;
+    return !isNegatedInContext(g, t);
+  });
+}
+
+function hasPrReviewSignal(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return PR_REVIEW_SUBJECT_SIGNAL.test(g) && !hasEditIntent(g);
+}
+
+/**
  * Per-playbook goal-signal gate (MAR-142 pattern, generalized in MAR-265):
  * a playbook listed here only fires when the goal carries at least one of its
  * strong domain tokens, regardless of recall/precision scores. Playbooks not
@@ -234,6 +284,8 @@ function playbookSignalGatePassed(playbookId: string, goal: string): boolean {
       return hasLeadCrmSignal(goal);
     case "competitor_price_monitor":
       return hasPriceWatchSignal(goal);
+    case "pr_review_readonly":
+      return hasPrReviewSignal(goal);
     default:
       return true;
   }

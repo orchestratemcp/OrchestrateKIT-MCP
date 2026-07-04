@@ -1,0 +1,13 @@
+id: audit_log__recommended__reviewer_notification
+from: audit_log
+to: reviewer_notification
+relation: recommended_for
+status: published
+reason: Reviewer notifications are externally visible egress — every posted review summary should leave an audit record (PR id, head SHA, findings count, comment id) so review passes are traceable.
+severity: medium
+notes: Mirrors the MAR-213 audit_log__recommended__* pattern for the other egress components (slack/discord/teams/telegram/email). Added with the pr_review_readonly golden path (MAR-267).
+conditions: []
+tested: true
+test_refs:
+  - "probe:pr_review_readonly_playbook"
+  - "test:edgeValidation"

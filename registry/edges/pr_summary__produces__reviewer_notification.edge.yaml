@@ -1,0 +1,13 @@
+id: pr_summary__produces__reviewer_notification
+from: pr_summary
+to: reviewer_notification
+relation: produces_input_for
+status: published
+reason: The rendered summary is what gets posted — reviewer_notification delivers it to the review channel (PR comment, review request) as the workflow's only egress.
+severity: medium
+notes: Update the existing comment on re-runs (dedupe on PR id + head SHA) instead of posting a new one per webhook retry. Added for the pr_review_readonly golden path (MAR-267).
+conditions: []
+tested: true
+test_refs:
+  - "probe:pr_review_readonly_playbook"
+  - "test:edgeValidation"

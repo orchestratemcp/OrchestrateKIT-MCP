@@ -370,14 +370,17 @@
       "goal": "Design a read-only PR review agent triggered by a new PR webhook; scans changed code, runs the test suite, posts a summary for human reviewers; no auto-merge, no commits, no approvals.",
       "domain": "code_agent",
       "must_have": [
+        "webhook_trigger",
         "codebase_scan",
         "pr_summary",
+        "reviewer_notification",
         "test_runner"
       ],
       "nice_to_have": [
         "human_approval_gate"
       ],
       "forbidden": [
+        "code_editing",
         "copy_generation",
         "design_brief_generation",
         "external_publish",
@@ -386,11 +389,10 @@
       ],
       "missing_but_expected": [
         "code_diff_reader",
-        "pr_comment_poster",
-        "webhook_trigger"
+        "pr_comment_poster"
       ],
       "source": "dogfood",
-      "level": "raw",
+      "level": "composed",
       "xfail": ""
     },
     {

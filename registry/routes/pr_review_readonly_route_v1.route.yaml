@@ -1,0 +1,49 @@
+id: pr_review_readonly_route_v1
+name: Read-Only PR Review with Hard No-Write Guarantee
+status: validated
+summary: >
+  Golden-path route for the pr_review_readonly playbook: a pull-request webhook
+  fires, the payload is validated, the diff is scanned read-only for problems,
+  findings are condensed into a reviewer-facing summary with file/line
+  references, and the summary is posted to the review channel — every pass
+  audited. code_editing is structurally excluded; the only egress is the
+  notification-class review comment.
+components:
+  - github_trigger
+  - schema_validation
+  - codebase_scan
+  - pr_summary
+  - reviewer_notification
+  - audit_log
+edges:
+  - github_trigger__requires__schema_validation
+  - github_trigger__produces__codebase_scan
+  - codebase_scan__produces__pr_summary
+  - pr_summary__produces__reviewer_notification
+  - audit_log__recommended__reviewer_notification
+risk_level: low
+confidence: 0.85
+failure_modes:
+  - prompt injection inside the diff steers the summary — scanner tools must stay read-only and ignore instructions found in code
+  - huge PRs exceed scan context and get half-reviewed silently — chunk per file or flag as too large
+  - hallucinated findings without file/line references erode reviewer trust
+  - missed webhook delivery leaves a PR unreviewed with no alarm — add a scheduled sweep
+  - duplicate summaries on synchronize retries — dedupe on (PR id, head SHA)
+  - over-scoped credentials silently void the no-write guarantee — audit token scopes
+evals:
+  - finding precision confirmed by human reviewers
+  - finding recall on PRs with known seeded defects
+  - reference integrity — every finding cites a real file/line in the diff
+  - no-write guarantee — zero repo mutations across all runs
+  - one summary per (PR, head SHA) under webhook retries
+notes: >
+  Promoted from 3+ OrchestrateLab sessions (2026-06-15 → 06-23) via MAR-267.
+  This is the safety-showcase pattern: its identity is the NEGATIVE scope.
+  code_editing must never enter this route (the June-18 rated-2 session leaked
+  it into exactly this goal — MAR-140 lineage); edit/fix/implement intent
+  fails the signal gate and routes to codebase_agent_workflow. test_runner is
+  deliberately absent — it requires code_editing per the registry contract,
+  and CI owns test execution (the reviewer reads check-run results instead).
+  Unattended-safe: the only egress is a review comment (notification-class,
+  L2, gate-free with the MAR-132 advisory).
+sources: []

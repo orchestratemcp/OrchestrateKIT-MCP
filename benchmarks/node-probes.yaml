@@ -945,3 +945,35 @@ probes:
     forbidden_playbook: [competitor_price_monitor]
     must_have: [uptime_check, slack_notification]
     forbidden: [page_monitor, deduplication]
+
+  # ── pr_review_readonly playbook promotion (MAR-267) ─────────────────────────
+  # The read-only PR-review shape (3+ Lab sessions incl. the June-18 rated-2
+  # code_editing leak, MAR-140 lineage) must route playbook-first with the
+  # HARD no-write guarantee: code_editing + test_runner forbidden is the
+  # playbook's identity, not just noise control. The gate is negation-aware —
+  # "Never edit or commit" is the lock phrasing, not edit intent.
+  - id: pr_review_readonly_playbook
+    goal: "When a pull request is opened on GitHub, review the diff for problems and post a summary comment. Never edit or commit any code — read-only."
+    via: plan
+    required_playbook: pr_review_readonly
+    must_have: [github_trigger, codebase_scan, pr_summary, reviewer_notification]
+    forbidden: [code_editing, test_runner, external_publish, optional_email_send, human_approval_gate]
+
+  # Bleed guard: UNNEGATED edit intent ("implement a bug fix") must route to
+  # the write pipeline (codebase_agent_workflow or composed WITH code_editing),
+  # never to the read-only playbook — that boundary is the whole point.
+  - id: bugfix_pr_not_review_playbook
+    goal: "Understand the codebase, implement a bug fix, and run unit tests before opening a pull request"
+    via: plan
+    forbidden_playbook: [pr_review_readonly]
+    must_have: [code_editing, test_runner]
+    forbidden: []
+
+  # Bleed guard: the PR→Slack notification-bot shape stays composed with
+  # slack_notification — a summary POST to a chat channel is not a review.
+  - id: pr_slack_notify_not_review_playbook
+    goal: "When a PR opens post a summary to #dev-alerts Slack, fully automated"
+    via: plan
+    forbidden_playbook: [pr_review_readonly]
+    must_have: [slack_notification]
+    forbidden: [code_editing]
