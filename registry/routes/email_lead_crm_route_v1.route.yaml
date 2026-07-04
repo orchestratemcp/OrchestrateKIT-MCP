@@ -3,16 +3,15 @@ name: Email Lead to CRM with Follow-up
 status: validated
 summary: >
   Golden-path route for the email_lead_to_crm playbook: read inbound email,
-  classify and validate the lead (reject free-mail senders before spending
-  research budget), research the company, draft a personalised follow-up, and
-  — only after explicit human approval — write the CRM note and optionally
-  send, with an audit record for every external write.
+  classify and validate the lead (reject free-mail senders), draft a
+  personalised follow-up, and — only after explicit human approval — write the
+  CRM note and optionally send, with an audit record for every external write.
+  The company-research chain is an optional extension (see the playbook's
+  implementation steps).
 components:
   - email_read
   - intent_classifier
   - schema_validation
-  - source_retrieval
-  - research_synthesis
   - email_draft
   - human_approval_gate
   - crm_note_write
@@ -21,7 +20,6 @@ components:
 edges:
   - email_read__produces__intent_classifier
   - intent_classifier__produces__crm_note_write
-  - source_retrieval__tested__research_synthesis
   - email_draft__safer_with__human_approval_gate
   - crm_note_write__requires__human_approval_gate
   - optional_email_send__requires__human_approval_gate

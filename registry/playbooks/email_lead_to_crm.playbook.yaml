@@ -4,9 +4,10 @@ status: published
 title: Email Lead to CRM with Follow-up
 summary: >
   Blueprint for a sales-email agent that reads inbound emails, identifies company
-  leads (filtering free-mail domains), researches the sender's company, writes a
-  CRM note, and drafts a personalised follow-up — all gated behind human approval
-  before any external write. Promoted from 3 OrchestrateLab sessions (avg 4.3/5).
+  leads (filtering free-mail domains), writes a CRM note, and drafts a
+  personalised follow-up — all gated behind human approval before any external
+  write. Promoted from 3 OrchestrateLab sessions (avg 4.3/5). Company research
+  before the draft is an optional extension (see implementation steps).
   Requires saga compensation because CRM write and email send must stay in sync.
 workflow_type: crm-sales
 risk_level: high
@@ -14,17 +15,19 @@ golden_path_route_id: email_lead_crm_route_v1
 stack_id: default_orchestratekit_stack
 
 # Component set is the CORE evidence shape from the 3 promoting sessions
-# (MAR-265). Research-quality steps (source_ranking, citation_checker,
-# source_freshness_check) stay as implementation guidance below rather than
-# components — keeping the set tight is what lets the playbook fire on the
-# minimal lead-detection phrasing without re-creating the email_calendar
-# catch-all (MAR-130/142 history).
+# (MAR-265): the consistently-logged components plus schema_validation (lead
+# gating) and the safety spine. The company-research chain (source_retrieval →
+# research_synthesis with citation_checker + source_freshness_check) is an
+# OPTIONAL extension documented in the implementation steps — including
+# research_synthesis without its required companions fails the safety review,
+# and including the full chain makes the set so broad the playbook can't fire
+# on its own core phrasing (recall 0.54 < 0.60). Tight set = fires on the
+# lead-detection shape without re-creating the email_calendar catch-all
+# (MAR-130/142 history).
 components:
   - email_read
   - intent_classifier
   - schema_validation
-  - source_retrieval
-  - research_synthesis
   - email_draft
   - human_approval_gate
   - crm_note_write
@@ -37,7 +40,6 @@ edges:
   - email_draft__safer_with__human_approval_gate
   - crm_note_write__requires__human_approval_gate
   - optional_email_send__requires__human_approval_gate
-  - source_retrieval__tested__research_synthesis
   - audit_log__recommended__optional_email_send
 
 best_for:
@@ -59,14 +61,12 @@ recommended_architecture:
     step that deletes the CRM note on send failure is required; do not skip it.
 
 llm_driven_steps:
-  - research_synthesis
   - email_draft
   - crm_note_write
 
 deterministic_steps:
   - email_read
   - schema_validation
-  - source_retrieval
   - human_approval_gate
   - optional_email_send
   - audit_log
@@ -100,11 +100,11 @@ evals:
 implementation_steps:
   - "Step 1: Implement email_read with Gmail API or IMAP. Extract sender domain for schema_validation."
   - "Step 2: Implement schema_validation to gate on company domains — reject free-mail (gmail.com, outlook.com, yahoo.com). This is where lead detection happens; no LLM needed."
-  - "Step 3: Implement source_retrieval with a search API (Perplexity or Brave Search) using the sender domain as the query."
-  - "Step 4: Implement source_ranking with a small model (Haiku-class) to score sources by relevance and authority before passing to synthesis."
-  - "Step 5: Implement source_freshness_check — reject any source older than 90 days before synthesis runs."
-  - "Step 6: Implement citation_checker — after research_synthesis, fetch each cited URL and verify the claim is supported. Reject hallucinated citations."
-  - "Step 7: Implement research_synthesis with a frontier model (Opus/Sonnet-class). Ground every claim in a verified source."
+  - "Step 3 (optional research extension): add source_retrieval with a search API (Perplexity or Brave Search) using the sender domain as the query."
+  - "Step 4 (optional research extension): add source_ranking with a small model (Haiku-class) to score sources by relevance and authority before passing to synthesis."
+  - "Step 5 (optional research extension): add source_freshness_check — reject any source older than 90 days before synthesis runs."
+  - "Step 6 (optional research extension): add citation_checker — after research_synthesis, fetch each cited URL and verify the claim is supported. Reject hallucinated citations. If you add research_synthesis, citation_checker and source_freshness_check are REQUIRED companions (the safety review enforces this)."
+  - "Step 7 (optional research extension): add research_synthesis with a frontier model (Opus/Sonnet-class). Ground every claim in a verified source."
   - "Step 8: Implement email_draft with a standard model. Pass the research summary + original email + tone instructions."
   - "Step 9: Surface draft + research summary to human_approval_gate. Show recipient, full draft, and the company summary used to write it."
   - "Step 10: On approval — wrap crm_note_write and optional_email_send in a saga: write CRM note first, then send email. If send fails, call the CRM note delete endpoint (compensation). Log both outcomes to audit_log."

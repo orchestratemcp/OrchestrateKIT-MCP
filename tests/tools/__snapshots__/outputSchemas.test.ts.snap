@@ -1899,10 +1899,10 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
   "assumptions": [
     "Added audit_log because the route includes external actions.",
   ],
-  "confidence": 0.71,
+  "confidence": 0.72,
   "matched_playbook_ids": [
-    "email_calendar_assistant",
     "email_lead_to_crm",
+    "email_calendar_assistant",
   ],
   "next_recommended_tools": [
     "get_playbook",
@@ -1918,10 +1918,11 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
     "[text]",
   ],
   "recommendation_markdown": "[text]",
-  "route_id": "email_calendar_route_v1",
+  "route_id": "email_lead_crm_route_v1",
   "status": "ok",
   "untested_edges": [],
   "warnings": [
+    "[text]",
     "[text]",
     "[text]",
     "[text]",
