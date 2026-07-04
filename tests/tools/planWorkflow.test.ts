@@ -103,15 +103,27 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
     expect(r.playbook?.id).toBe("email_calendar_assistant");
   });
 
-  // MAR-265: this goal used to prove "novel CRM stays composed" — it is
-  // exactly the lead-detection shape the email_lead_to_crm playbook was
-  // promoted on (3 Lab sessions), so it now routes playbook-first.
+  // MAR-265: the core lead-detection shape (3 Lab sessions) routes to the
+  // published email_lead_to_crm playbook.
   it("routes a lead-detection goal to the email_lead_to_crm playbook", () => {
     const r = plan(
-      "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
+      "Read inbound email, detect sales leads, write a CRM note, and draft a follow-up for my approval",
     );
     expect(r.plan_source).toBe("playbook");
     expect(r.playbook?.id).toBe("email_lead_to_crm");
+  });
+
+  // MAR-265: the research-flavored variant stays composed — the playbook's
+  // core set deliberately excludes the research chain (research_synthesis
+  // without citation_checker + source_freshness_check fails the safety
+  // review), so a goal explicitly asking for company research composes a
+  // route that includes it instead.
+  it("keeps the research-flavored lead goal on the composed path", () => {
+    const r = plan(
+      "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",
+    );
+    expect(r.plan_source).toBe("composed");
+    expect(r.playbook).toBeNull();
   });
 
   // MAR-265 signal gate: without a lead/CRM token the playbook must not fire
