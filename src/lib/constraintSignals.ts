@@ -1,0 +1,257 @@
+/**
+ * constraintSignals — MAR-255 (BRIEF-03).
+ *
+ * The single source of truth for goal-constraint detection, shared by
+ * plan_workflow (gate enforcement / waiver logic, MAR-132/229) and
+ * export_build_brief (§0 Constraints). Extracted VERBATIM from planWorkflow so
+ * the planner's behavior is unchanged; the brief previously had its own weaker
+ * detector and opened with "No explicit … constraint detected" on goals the
+ * planner had already constrained (audit 2026-07-01, live).
+ *
+ * Pure string logic — no registry, no LLM, no state.
+ */
+
+/**
+ * Explicit "read-only / no-write" constraint phrases (MAR-142). Used by the
+ * planner to warn when a write-bearing playbook is routed for a constrained
+ * goal, and by the brief's §0.
+ */
+export const WRITE_CONSTRAINT_SIGNALS = [
+  "read-only",
+  "read only",
+  "never write",
+  "no write",
+  "no writes",
+  "no database update",
+  "no emails sent",
+  "no email sent",
+  "never send",
+];
+
+export function hasWriteConstraint(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return WRITE_CONSTRAINT_SIGNALS.some((s) => g.includes(s));
+}
+
+/**
+ * Explicit "no human gate" phrases. Substring-matched on the lowercased goal.
+ * Deliberately narrow — only unambiguous opt-outs, never bare "automated".
+ */
+export const UNATTENDED_WAIVER_SIGNALS = [
+  "unattended",
+  "no human",
+  "without human",
+  "no approval",
+  "without approval",
+  "no gate",
+  "without a gate",
+  "no manual approval",
+  "fully automated",
+  "fully autonomous",
+];
+
+/**
+ * Waiver signals whose meaning flips under a preceding negation ("not
+ * unattended", "never fully automated"). The "no …" / "without …" signals are
+ * already opt-outs and are left as-is. (MAR-229)
+ */
+const NEGATABLE_WAIVER_SIGNALS = ["unattended", "fully automated", "fully autonomous"];
+
+/**
+ * Explicit "I DO want the human gate" phrases. When any is present (and not
+ * itself negated) the user is asking for an ENFORCED gate, so it outranks any
+ * waiver phrasing — never downgrade to advisory. (MAR-229)
+ *
+ * Deliberately collision-free: phrases that appear inside waiver phrasings
+ * ("no manual approval", "no human in the loop", "no approval required") are
+ * excluded so they can't mis-fire. `\battended\b` is handled separately so it
+ * matches "attended" but not "unattended".
+ */
+export const APPROVAL_REQUIRED_SIGNALS = [
+  "must approve",
+  "must be approved",
+  "must review",
+  "must be reviewed",
+  "require approval",
+  "requires approval",
+  "needs approval",
+  "need approval",
+  "require human",
+  "requires human",
+  "human must",
+  "approve before",
+  "approval before",
+  "review before",
+];
+
+/**
+ * True when `phrase` occurs in `goal` with at least one occurrence NOT preceded
+ * by a negation word. `includeNo` adds "no"/"without" to the negation set (used
+ * for approval phrases like "no approval before"; the waiver path uses only the
+ * not/never family). (MAR-229)
+ */
+export function occursUnnegated(goal: string, phrase: string, includeNo: boolean): boolean {
+  const neg = includeNo
+    ? /\b(not|never|no longer|isn't|is not|aren't|won't|wont|no|without)\b\W*$/
+    : /\b(not|never|no longer|isn't|is not|aren't|won't|wont)\b\W*$/;
+  let from = 0;
+  for (;;) {
+    const idx = goal.indexOf(phrase, from);
+    if (idx < 0) return false;
+    const before = goal.slice(Math.max(0, idx - 16), idx);
+    if (!neg.test(before)) return true; // a clean, non-negated occurrence
+    from = idx + phrase.length;
+  }
+}
+
+/** True when the goal explicitly REQUIRES a human approval gate (MAR-229). */
+export function hasExplicitApprovalRequirement(goal: string): boolean {
+  const g = goal.toLowerCase();
+  // \battended\b matches standalone "attended" but NOT "unattended" (the 'un'
+  // prefix removes the leading word boundary).
+  if (/\battended\b/.test(g)) return true;
+  return APPROVAL_REQUIRED_SIGNALS.some((s) => occursUnnegated(g, s, true));
+}
+
+/**
+ * True when the goal explicitly waives a human approval gate (MAR-132, hardened
+ * in MAR-229). An explicit approval REQUIREMENT outranks any waiver phrase, and
+ * negated waiver signals ("not unattended") do not count.
+ */
+export function hasUnattendedWaiver(goal: string): boolean {
+  const g = goal.toLowerCase();
+  if (hasExplicitApprovalRequirement(g)) return false;
+  return UNATTENDED_WAIVER_SIGNALS.some((s) => {
+    if (!g.includes(s)) return false;
+    // negatable signals ("not unattended") don't count when negated
+    if (NEGATABLE_WAIVER_SIGNALS.includes(s) && !occursUnnegated(g, s, false)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+// ───────────────────── §0 constraint detection (MAR-255) ─────────────────────
+
+export type ConstraintSignal = {
+  detected: boolean;
+  /** The goal phrase that triggered detection — the compiler shows its work. */
+  trigger: string | null;
+};
+
+export type ConstraintSignals = {
+  read_only: ConstraintSignal;
+  unattended: ConstraintSignal;
+  attended_required: ConstraintSignal;
+  draft_only: ConstraintSignal;
+  no_outbound: ConstraintSignal;
+  /** unattended + attended both present — surface both with a ⚠️ marker. */
+  conflict: boolean;
+};
+
+/** First matching phrase from a list (substring on the lowercased goal). */
+function firstMatch(g: string, phrases: string[]): string | null {
+  for (const p of phrases) if (g.includes(p)) return p;
+  return null;
+}
+
+/**
+ * §0-only trigger phrases. These EXTEND the planner's signal sets for the
+ * brief's rendering — they are deliberately NOT used by hasUnattendedWaiver /
+ * hasExplicitApprovalRequirement, whose phrase tables are load-bearing for
+ * gate enforcement (MAR-229) and must not drift under a rendering change.
+ */
+const DRAFT_ONLY_SIGNALS = [
+  "draft-only",
+  "draft only",
+  "drafts only",
+  "as drafts",
+  "save as draft",
+  "saves everything as drafts",
+  "never send anything automatically",
+  "never auto-send",
+  "never auto send",
+  "no auto-send",
+  "must never auto-send",
+];
+
+const ATTENDED_SIGNALS_FOR_BRIEF = [
+  "for my approval",
+  "for approval",
+  "for my review",
+  "human reviews",
+  "a human reviews",
+  "human review before",
+  "i review",
+  "i approve",
+];
+
+const NO_OUTBOUND_SIGNALS = [
+  "no outbound",
+  "no emails sent",
+  "no email sent",
+  "never send",
+  "internal only",
+  "stays internal",
+  "do not send",
+  "don't send",
+  "no external sends",
+];
+
+const READ_ONLY_SIGNALS = [
+  "read-only",
+  "read only",
+  "never write",
+  "no write",
+  "no writes",
+  "no database update",
+  "never edit",
+  "never commit",
+];
+
+/**
+ * Detect the goal's explicit constraints with their trigger phrases (MAR-255).
+ * Uses the planner's own predicates for unattended/attended (single source),
+ * plus brief-side phrase tables for the classes the planner tracks implicitly
+ * (draft-only, no-outbound, read-only-as-a-class).
+ */
+export function detectConstraintSignals(goal: string): ConstraintSignals {
+  const g = goal.toLowerCase();
+
+  const readOnlyTrigger = firstMatch(g, READ_ONLY_SIGNALS);
+  const draftOnlyTrigger = firstMatch(g, DRAFT_ONLY_SIGNALS);
+  const noOutboundTrigger = firstMatch(g, NO_OUTBOUND_SIGNALS);
+
+  const unattended = hasUnattendedWaiver(g);
+  const unattendedTrigger = unattended
+    ? firstMatch(g, UNATTENDED_WAIVER_SIGNALS)
+    : null;
+
+  const attended =
+    hasExplicitApprovalRequirement(g) ||
+    ATTENDED_SIGNALS_FOR_BRIEF.some((s) => occursUnnegated(g, s, true));
+  const attendedTrigger = attended
+    ? (/\battended\b/.test(g) ? "attended" : null) ??
+      firstMatch(g, APPROVAL_REQUIRED_SIGNALS) ??
+      firstMatch(g, ATTENDED_SIGNALS_FOR_BRIEF)
+    : null;
+
+  // hasUnattendedWaiver already yields to an explicit approval requirement
+  // (MAR-229), so a true conflict is only visible via the brief-side attended
+  // phrases co-occurring with a waiver phrase — mirror the planner: attended
+  // wins, but SHOW both with a marker instead of silently dropping one.
+  const rawWaiverPhrase = firstMatch(g, UNATTENDED_WAIVER_SIGNALS);
+  const conflict = attended && rawWaiverPhrase !== null;
+
+  return {
+    read_only: { detected: readOnlyTrigger !== null, trigger: readOnlyTrigger },
+    unattended: {
+      detected: unattended || (conflict && rawWaiverPhrase !== null),
+      trigger: unattendedTrigger ?? (conflict ? rawWaiverPhrase : null),
+    },
+    attended_required: { detected: attended, trigger: attendedTrigger },
+    draft_only: { detected: draftOnlyTrigger !== null, trigger: draftOnlyTrigger },
+    no_outbound: { detected: noOutboundTrigger !== null, trigger: noOutboundTrigger },
+    conflict,
+  };
+}
