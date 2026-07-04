@@ -54,6 +54,13 @@ describe("node probes (MAR-125)", () => {
           `${probe.id} matched forbidden playbook: ${r.leaked_playbook.join(", ")}`,
         ).toEqual([]);
       });
+
+      it("selects the required playbook when one is pinned", () => {
+        expect(
+          r.missing_playbook,
+          `${probe.id} did not select required playbook: ${r.missing_playbook.join(", ")}`,
+        ).toEqual([]);
+      });
     });
   }
 });

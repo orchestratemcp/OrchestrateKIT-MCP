@@ -1,0 +1,50 @@
+id: email_lead_crm_route_v1
+name: Email Lead to CRM with Follow-up
+status: validated
+summary: >
+  Golden-path route for the email_lead_to_crm playbook: read inbound email,
+  classify and validate the lead (reject free-mail senders before spending
+  research budget), research the company, draft a personalised follow-up, and
+  — only after explicit human approval — write the CRM note and optionally
+  send, with an audit record for every external write.
+components:
+  - email_read
+  - intent_classifier
+  - schema_validation
+  - source_retrieval
+  - research_synthesis
+  - email_draft
+  - human_approval_gate
+  - crm_note_write
+  - optional_email_send
+  - audit_log
+edges:
+  - email_read__produces__intent_classifier
+  - intent_classifier__produces__crm_note_write
+  - source_retrieval__tested__research_synthesis
+  - email_draft__safer_with__human_approval_gate
+  - crm_note_write__requires__human_approval_gate
+  - optional_email_send__requires__human_approval_gate
+  - audit_log__recommended__optional_email_send
+risk_level: high
+confidence: 0.85
+failure_modes:
+  - CRM note written but email send fails — record exists for an email never delivered (saga compensation required)
+  - Free-mail sender passes schema_validation and wastes research budget on a non-lead
+  - Research synthesis hallucinates company details that citation_checker cannot fully catch
+  - Stale company data (acquisition, pivot) produces an incorrect follow-up
+  - Approval notification not delivered — workflow stalls without a timeout handler
+  - Duplicate CRM note on retry when crm_note_write is not idempotent
+evals:
+  - lead detection precision/recall on labelled inbound emails (company vs personal)
+  - citation verification coverage — every claim has a reachable, matching URL
+  - saga rollback correctness — CRM note deleted when a simulated send fails
+  - approval gate enforcement — no CRM write or send executes without approval
+  - audit log completeness — every crm_note_write and optional_email_send has a record
+notes: >
+  Promoted from 3 OrchestrateLab sessions (2026-06-11/12/13, avg 4.3/5) via
+  MAR-265. The CRM write and the email send are both irreversible and must stay
+  in sync — wrap them in a saga and delete the CRM note if the send fails.
+  This is an attended pattern by definition: human_approval_gate precedes both
+  external writes and must never be removed for an "unattended" variant.
+sources: []

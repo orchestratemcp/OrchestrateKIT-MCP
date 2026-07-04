@@ -469,8 +469,10 @@ describe("plan_workflow", () => {
   });
 
   it("returns a composed plan for a novel goal", () => {
+    // MAR-265: lead-detection routes playbook-first now — use the
+    // (playbook-less) data-report shape as the composed reference.
     const r = planWorkflow(
-      { goal: "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval", must_have_capabilities: [], must_avoid: [] },
+      { goal: "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.", must_have_capabilities: [], must_avoid: [] },
       registry,
     );
     expect(r.plan_source).toBe("composed");

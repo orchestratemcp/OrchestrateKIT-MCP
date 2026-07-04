@@ -189,6 +189,36 @@ function hasEmailCalendarSignal(goal: string): boolean {
 }
 
 /**
+ * Strong lead/CRM signal for email_lead_to_crm (MAR-265). Word-bounded — a
+ * plain `includes("lead")` would fire on "leaderboard" / "misleading". The
+ * playbook must not catch generic email goals (the email_calendar_assistant
+ * over-match history, MAR-130/142, is the failure to avoid); the precision
+ * floor blocks most of them, this gate is the explicit belt-and-braces.
+ */
+const LEAD_CRM_SIGNAL = /\blead(s)?\b|\bcrm\b|\bprospect(s)?\b|\bdeal(s)?\b|sales opportunit/;
+
+function hasLeadCrmSignal(goal: string): boolean {
+  return LEAD_CRM_SIGNAL.test(goal.toLowerCase());
+}
+
+/**
+ * Per-playbook goal-signal gate (MAR-142 pattern, generalized in MAR-265):
+ * a playbook listed here only fires when the goal carries at least one of its
+ * strong domain tokens, regardless of recall/precision scores. Playbooks not
+ * listed are ungated (scores alone decide).
+ */
+function playbookSignalGatePassed(playbookId: string, goal: string): boolean {
+  switch (playbookId) {
+    case "email_calendar_assistant":
+      return hasEmailCalendarSignal(goal);
+    case "email_lead_to_crm":
+      return hasLeadCrmSignal(goal);
+    default:
+      return true;
+  }
+}
+
+/**
  * Explicit "read-only / no-write" constraint phrases (MAR-142). When present in
  * a goal that was routed to a playbook containing write components, surface a
  * safety warning — the playbook route's fixed structure cannot adapt its writes
@@ -2113,20 +2143,18 @@ export function planWorkflow(
   // ── Step 2: plan_workflow's own precision-aware playbook routing (MAR-98) ──
   const composedIds = new Set(composed.recommended_route.map((s) => s.component_id));
   const bestOverlap = findOverlappingPlaybooks(composedIds, registry.playbooks, 0.3)[0];
-  // MAR-142: also require at least one strong email/calendar token in the goal
-  // before accepting email_calendar_assistant as a playbook match — the precision
-  // floor alone (0.72) is not sufficient when generic tokens like "read" happen
-  // to score above it on a non-email goal (e.g. Stripe→Slack read-only report).
-  const emailCalendarGatePassed =
-    !bestOverlap ||
-    bestOverlap.playbook_id !== "email_calendar_assistant" ||
-    hasEmailCalendarSignal(input.goal);
+  // MAR-142 (generalized MAR-265): gated playbooks also require a strong
+  // domain token in the goal — the precision floor alone (0.72) is not
+  // sufficient when generic tokens like "read" happen to score above it on an
+  // out-of-domain goal (e.g. Stripe→Slack read-only report).
+  const signalGatePassed =
+    !bestOverlap || playbookSignalGatePassed(bestOverlap.playbook_id, input.goal);
 
   const playbookMatch =
     bestOverlap &&
     bestOverlap.overlap_fraction >= PLAYBOOK_RECALL_MIN &&
     bestOverlap.precision >= PLAYBOOK_PRECISION_MIN &&
-    emailCalendarGatePassed
+    signalGatePassed
       ? bestOverlap
       : null;
   const planSource: PlanSource = playbookMatch ? "playbook" : "composed";

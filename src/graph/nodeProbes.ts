@@ -32,6 +32,12 @@ export interface NodeProbe {
    * an unrelated domain (e.g. email_calendar_assistant on a CRM goal, MAR-130).
    */
   forbidden_playbook?: string[];
+  /**
+   * Playbook id that MUST be the plan_workflow match for this goal (MAR-265).
+   * Only meaningful with `via: plan`. Locks playbook-first routing for a goal
+   * shape a published playbook was promoted on.
+   */
+  required_playbook?: string;
   /** Known-failing probe documenting an open bug; does not fail the gate. */
   xfail?: boolean;
   /** Linear id tracking the xfail. */
@@ -49,6 +55,8 @@ export interface ProbeResult {
   leaked: string[];
   /** Forbidden playbook(s) the plan_workflow match leaked (via: plan only). */
   leaked_playbook: string[];
+  /** required_playbook that plan_workflow did NOT select (via: plan only). */
+  missing_playbook: string[];
   routeIds: string[];
 }
 
@@ -98,13 +106,22 @@ export function runProbe(
   const leaked_playbook = matchedPlaybookId
     ? (probe.forbidden_playbook ?? []).filter((id) => id === matchedPlaybookId)
     : [];
+  const missing_playbook =
+    probe.required_playbook && probe.required_playbook !== matchedPlaybookId
+      ? [probe.required_playbook]
+      : [];
 
   return {
     id: probe.id,
-    passed: missing.length === 0 && leaked.length === 0 && leaked_playbook.length === 0,
+    passed:
+      missing.length === 0 &&
+      leaked.length === 0 &&
+      leaked_playbook.length === 0 &&
+      missing_playbook.length === 0,
     missing,
     leaked,
     leaked_playbook,
+    missing_playbook,
     routeIds: [...idSet],
   };
 }

@@ -241,9 +241,10 @@ describe("graphToolFormatters — toInlineEdgeSummary (MAR-92)", () => {
 describe("registry data — routes logic", () => {
   const registry = loadRegistry();
 
-  it("registry has 6 routes", () => {
+  it("registry has 7 routes", () => {
     // 5 original + dynamic_worker_loop_route_v1 (MAR-167)
-    expect(registry.routes.length).toBe(6);
+    // + email_lead_crm_route_v1 (MAR-265)
+    expect(registry.routes.length).toBe(7);
   });
 
   it("research_route_v1 exists and has components", () => {
