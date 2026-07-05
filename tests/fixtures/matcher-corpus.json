@@ -293,26 +293,28 @@
       "domain": "email_calendar",
       "must_have": [
         "email_draft",
-        "email_read"
+        "email_read",
+        "human_approval_gate",
+        "intent_classifier",
+        "scheduled_trigger"
       ],
       "nice_to_have": [
         "audit_log",
-        "human_approval_gate",
-        "intent_classifier"
+        "reviewer_notification"
       ],
       "forbidden": [
-        "codebase_scan",
-        "data_scraper",
-        "design_brief_generation",
-        "research_synthesis"
+        "calendar_lookup",
+        "calendar_write",
+        "crm_note_write",
+        "external_publish",
+        "optional_email_send"
       ],
       "missing_but_expected": [
-        "scheduled_trigger",
         "summary_generation",
         "urgency_flagging"
       ],
       "source": "dogfood",
-      "level": "raw",
+      "level": "composed",
       "xfail": ""
     },
     {
