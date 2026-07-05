@@ -1007,3 +1007,46 @@ probes:
     goal: "Read inbound email, detect sales leads, write a CRM note, and draft a follow-up for my approval"
     via: plan
     forbidden_playbook: [morning_email_triage]
+
+  # ── invoice_intake_po_match playbook promotion (MAR-302) ─────────────────────
+  # Most-repeated shape in lab.db (4+ sessions). Read the inbox as a document
+  # SOURCE → extract → normalize → validate against PO → discrepancy route →
+  # MANDATORY gate. The MAR-302 matcher fix suppresses the email drafting/sending
+  # path + web scraper/page-monitor for the invoice-from-inbox shape, so the
+  # composed route is clean enough for the playbook to fire (precision was
+  # 0.60 before the fix, 1.0 after).
+  - id: invoice_intake_po_match_playbook
+    goal: "Agent monitors a shared email inbox for PDF invoices; extracts line items and totals; validates against a matching PO in the ERP; flags discrepancies for mandatory human review; enforces a hard threshold requiring a human gate; routes approved invoices to the accounting system."
+    via: plan
+    required_playbook: invoice_intake_po_match
+    must_have: [email_read, pdf_extraction, schema_validation, threshold_router, human_approval_gate]
+    forbidden: [email_draft, optional_email_send, data_scraper, page_monitor, calendar_lookup, calendar_write, external_publish, research_synthesis, codebase_scan]
+
+  # MAR-302 matcher fix (compose-level, holds independent of playbook routing):
+  # email-as-document-source drops the drafting/sending path + web scraper and
+  # page-monitor for an invoice-from-inbox goal with no correspondence intent.
+  - id: invoice_from_inbox_drops_draft_and_scraper
+    goal: "Read PDF invoices from a shared inbox, extract totals, and validate each against its purchase order."
+    must_have: [email_read, pdf_extraction, schema_validation]
+    forbidden: [email_draft, optional_email_send, data_scraper, page_monitor]
+
+  # Guard: a genuine correspondence goal ("draft a reply") KEEPS the email path —
+  # the suppression is gated on the ABSENCE of correspondence intent.
+  - id: invoice_reply_keeps_email_draft
+    goal: "Read invoices from the shared inbox, extract totals, and draft a reply to the vendor confirming receipt for my approval."
+    must_have: [email_read, email_draft]
+    forbidden: []
+
+  # Guard: invoices scraped from a web portal (no inbox) KEEP data_scraper — the
+  # suppression is gated on an email-SOURCE token.
+  - id: portal_invoice_scrape_keeps_data_scraper
+    goal: "Scrape invoices from our supplier portal website every night, extract totals, validate against POs, and load into the database."
+    must_have: [data_scraper, pdf_extraction, schema_validation]
+    forbidden: [email_read]
+
+  # Bleed guard: a generic non-invoice PDF/ETL goal that shares pdf_extraction +
+  # schema_validation must NOT fire the invoice playbook (no invoice signal).
+  - id: generic_pdf_etl_not_invoice_playbook
+    goal: "Extract tables from research PDFs, normalize them into a common schema, and load into the database."
+    via: plan
+    forbidden_playbook: [invoice_intake_po_match]

@@ -1214,6 +1214,10 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
       "[text]",
       "[text]",
       "[text]",
+      "[text]",
+      "[text]",
+      "[text]",
+      "[text]",
     ],
     "evals": [
       "[user_goal_intake] goal parsing accuracy on diverse test inputs",
@@ -1366,6 +1370,7 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
     "email_lead_to_crm",
     "morning_email_triage",
     "email_calendar_assistant",
+    "invoice_intake_po_match",
   ],
   "next_recommended_tools": [
     "get_playbook",
