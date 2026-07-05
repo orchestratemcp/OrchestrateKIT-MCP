@@ -62,6 +62,10 @@ import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import { riskStepNote } from "../lib/plainLanguage.js";
 import { PlanWorkflowOutputShape } from "./outputSchemas.js";
+import {
+  buildObservabilityGuidance,
+  type ObservabilityGuidance,
+} from "../lib/observabilityContract.js";
 
 // ───────────────────────────── types ─────────────────────────────
 
@@ -589,6 +593,13 @@ export type PlanWorkflowOutput = {
    * we never drop the gate ourselves.
    */
   automation_clearance: AutomationClearance;
+  /**
+   * Advisory observability guidance (MAR-296 / DASH-02). The DASH-v1 run-event
+   * set to emit, and which irreversible components DASH expects a resolved gate
+   * before (gate compliance). Advisory — the MCP never talks to DASH; the full
+   * `agent.manifest.json` + event-wiring section is emitted by export_build_brief.
+   */
+  observability: ObservabilityGuidance;
   next_steps: string[];
   /**
    * MAR-206: provenance model — which parts of this output are registry-derived
@@ -2189,6 +2200,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       worker_pipeline: "grounded",
       worker_pipeline_pointer: "advisory", // MAR-256: depth-omission pointer
       loop_guidance: "grounded",
+      observability: "advisory",    // MAR-296: DASH-v1 event/gate guidance
       design_notes: "grounded",     // edge control_flow_note + component pattern
       what_you_need: "computed",    // derived from component permission scopes
       suggested_next_actions: "advisory",
@@ -2523,6 +2535,7 @@ export function planWorkflow(
     worker_pipeline_pointer,
     loop_guidance,
     automation_clearance,
+    observability: buildObservabilityGuidance(steps),
     next_steps:
       planSource === "playbook"
         ? [

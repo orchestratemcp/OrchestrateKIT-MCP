@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orchestratemcp.dev/orchestratedash/contracts/agent.manifest.schema.json",
+  "title": "OrchestrateDASH agent manifest v1",
+  "description": "Emitted by orchestratekit-mcp's export_build_brief, one file per planned agent. additionalProperties is intentionally left open at every level per the contract's additive-versioning rule — DASH must ignore unknown fields rather than reject them.",
+  "type": "object",
+  "required": ["manifest_version", "agent", "planned_route", "safety_contract", "monitoring", "provenance"],
+  "properties": {
+    "manifest_version": {
+      "const": 1
+    },
+    "agent": {
+      "type": "object",
+      "required": ["name", "goal", "plan_source", "playbook_id", "route_id", "build_target"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Slug the user confirms at plan time; primary key joining manifest to run events."
+        },
+        "goal": { "type": "string", "minLength": 1 },
+        "plan_source": { "enum": ["playbook", "composed"] },
+        "playbook_id": {
+          "type": "string",
+          "description": "Empty string when plan_source is \"composed\"."
+        },
+        "route_id": {
+          "type": "string",
+          "description": "Empty string when plan_source is \"composed\"."
+        },
+        "build_target": { "enum": ["cowork", "cursor", "chatgpt_gpt", "code"] }
+      }
+    },
+    "planned_route": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "component_id", "risk_level", "model_tier"],
+        "properties": {
+          "step": { "type": "integer", "minimum": 1 },
+          "component_id": { "type": "string", "minLength": 1 },
+          "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+          "model_tier": { "enum": ["none", "small", "standard", "frontier"] }
+        }
+      }
+    },
+    "safety_contract": {
+      "type": "object",
+      "required": ["automation_clearance", "enforced_approval_gates", "irreversible_components"],
+      "properties": {
+        "automation_clearance": { "enum": ["L0", "L1", "L2", "L3", "L4"] },
+        "enforced_approval_gates": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "irreversible_components": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "required": ["events", "endpoint_env", "token_env", "output_location"],
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "run_started",
+              "step_started",
+              "step_completed",
+              "gate_requested",
+              "gate_resolved",
+              "run_completed",
+              "run_failed"
+            ]
+          }
+        },
+        "endpoint_env": {
+          "type": "string",
+          "description": "Env var name the agent reads its DASH ingest URL from, e.g. DASH_INGEST_URL."
+        },
+        "token_env": {
+          "type": "string",
+          "description": "Env var name the agent reads its static bearer token from, e.g. DASH_INGEST_TOKEN."
+        },
+        "output_location": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["generated_by", "registry_fingerprint", "generated_at"],
+      "properties": {
+        "generated_by": { "type": "string" },
+        "registry_fingerprint": { "type": "string" },
+        "generated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
