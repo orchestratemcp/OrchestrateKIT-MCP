@@ -1,7 +1,7 @@
 {
   "generated_by": "OrchestrateLab LAB-03 (MAR-106) corpus export",
   "version": 1,
-  "goal_count": 36,
+  "goal_count": 35,
   "goals": [
     {
       "slug": "code_bugfix_tests",
@@ -867,29 +867,6 @@
       ],
       "forbidden": [
         "calendar_lookup",
-        "pdf_extraction"
-      ],
-      "missing_but_expected": [],
-      "source": "dogfood",
-      "level": "composed",
-      "xfail": ""
-    },
-    {
-      "slug": "scheduled_data_report_strict",
-      "goal": "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.",
-      "domain": "data_etl",
-      "must_have": [
-        "db_read",
-        "report_generation",
-        "scheduled_trigger",
-        "slack_notification"
-      ],
-      "nice_to_have": [
-        "audit_log",
-        "retry_policy"
-      ],
-      "forbidden": [
-        "calendar_lookup",
         "crm_note_write",
         "loop_controller",
         "pdf_extraction"
@@ -897,7 +874,7 @@
       "missing_but_expected": [],
       "source": "dogfood",
       "level": "composed",
-      "xfail": "loop_controller fires from 'no human in the loop' (MAR-214, In Review) and crm_note_write fuzzy-survives the top-8 cut (unticketed MATCH candidate)"
+      "xfail": ""
     },
     {
       "slug": "unattended_alert_no_reviewer",

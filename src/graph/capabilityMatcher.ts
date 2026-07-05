@@ -790,6 +790,98 @@ function suppressEmailDraftForDocumentSource(
 }
 
 /**
+ * MAR-303: crm_note_write-on-a-Postgres-report suppression. crm_note_write is
+ * deliberately kept fuzzy-matchable as the default CRM write (MAR-242), but the
+ * bare data-subject token "sales" (e.g. "pull last week's SALES numbers from our
+ * Postgres database") establishes the crm_sales domain and its fuzzy id/summary
+ * tokens then select crm_note_write onto a pure data-report goal that never
+ * touches a CRM. It survives the top-N composed cut and degrades a scheduled
+ * DB→report→Slack plan to L3/non-autonomous (crm_note_write is an external
+ * write) when the goal is unattended and notification-only.
+ *
+ * Suppress crm_note_write ONLY in the data-report shape: a database SOURCE token
+ * is present AND no genuine CRM-write intent token appears. A real CRM goal
+ * ("log a CRM note after the sales call", "detect leads and write a CRM note")
+ * always names crm / contact / lead / a CRM product, so it keeps crm_note_write;
+ * MAR-242's default-fuzzy behaviour is untouched everywhere outside this shape.
+ */
+const DATABASE_SOURCE_TOKENS = [
+  "database",
+  "postgres",
+  "postgresql",
+  "mysql",
+  "sql ",
+  "sql database",
+  "data warehouse",
+  "warehouse",
+  "bigquery",
+  "snowflake",
+  "redshift",
+];
+const CRM_WRITE_INTENT = [
+  "crm",
+  "contact",
+  "lead",
+  "prospect",
+  "deal",
+  "hubspot",
+  "salesforce",
+  "pipedrive",
+  "opportunity",
+];
+function suppressCrmNoteForDataReport(
+  goalLower: string,
+  domainAllowed: Set<string>,
+): void {
+  if (!DATABASE_SOURCE_TOKENS.some((t) => goalLower.includes(t))) return;
+  if (CRM_WRITE_INTENT.some((t) => goalLower.includes(t))) return;
+  domainAllowed.delete("crm_note_write");
+}
+
+/**
+ * MAR-303: "in the loop" idiom suppression for loop_controller. The idiom "no
+ * human in the loop" / "human in the loop" / "keep me in the loop" is an
+ * attended/unattended phrase — the OPPOSITE of asking for iteration — but the
+ * bare token "loop" fuzzy-matches loop_controller's id-segment, injecting a
+ * loop primitive (and the misleading dynamic-worker loop_guidance) into a plain
+ * scheduled report/monitor plan. loop_controller must STAY fuzzy-matchable for
+ * genuine batch/fan-out/saga goals (they select it via "batch"/"parallel"
+ * summary tokens, not a "loop" word), so this is not a HINT_ONLY exclusion:
+ * drop loop_controller ONLY when the idiom is present AND the goal carries no
+ * genuine iteration / fan-out / rollback signal. A fan-out goal that also says
+ * "no human in the loop" keeps loop_controller via its fan-out signal.
+ */
+const IN_THE_LOOP_IDIOM = ["in the loop"];
+const GENUINE_ITERATION_SIGNAL = [
+  "fan out",
+  "fan-out",
+  "fanout",
+  "batch",
+  "parallel",
+  "iterate",
+  "iterating",
+  "iteration",
+  "loop until",
+  "feedback loop",
+  "retry loop",
+  "saga",
+  "roll back",
+  "rollback",
+  "each item",
+  "one at a time",
+  "until the tests pass",
+  "until approved",
+];
+function suppressLoopControllerForIdiom(
+  goalLower: string,
+  domainAllowed: Set<string>,
+): void {
+  if (!IN_THE_LOOP_IDIOM.some((t) => goalLower.includes(t))) return;
+  if (GENUINE_ITERATION_SIGNAL.some((t) => goalLower.includes(t))) return;
+  domainAllowed.delete("loop_controller");
+}
+
+/**
  * Classify a goal into workflow domains (MAR-88).
  * Always includes `generic_orchestration` so safety/orchestration components
  * are never blocked. Exported for unit testing.
@@ -1035,7 +1127,16 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   github: ["github_trigger"],
   "pull request": ["github_trigger", "pr_summary"],
   "github event": ["github_trigger"],
-  loop: ["loop_controller"],
+  // MAR-303: bare "loop" removed — it fired loop_controller on the idiom "no
+  // human in the loop" / "keep me in the loop" (attended/unattended phrasing,
+  // NOT iteration). Same class as MAR-214's "for each" removal. True iteration
+  // is still hit via iterate*/iteration below plus the specific loop phrases;
+  // fan-out/saga goals pull loop_controller via the fan_out_collector edge, not
+  // this hint, so those routes are unaffected.
+  "loop until": ["loop_controller"],
+  "feedback loop": ["loop_controller"],
+  "retry loop": ["loop_controller"],
+  "iteration loop": ["loop_controller"],
   iterate: ["loop_controller"],
   iterates: ["loop_controller"],
   // "iterating" does not contain "iterate" as a substring (i-t-e-r-a-t-e vs
@@ -1513,6 +1614,12 @@ export function matchCapabilities(
   // MAR-302: email-as-document-source (invoice/PO ingest, no correspondence
   // intent) drops the email drafting/sending path — email is a SOURCE here.
   suppressEmailDraftForDocumentSource(goalLower, domainAllowed, goalDomains);
+  // MAR-303: a database-source report goal with no CRM-write intent drops the
+  // crm_note_write false-positive ("sales" data subject → crm_sales domain).
+  suppressCrmNoteForDataReport(goalLower, domainAllowed);
+  // MAR-303: the "in the loop" idiom (with no real iteration/fan-out signal)
+  // drops the loop_controller false-positive on unattended report/monitor goals.
+  suppressLoopControllerForIdiom(goalLower, domainAllowed);
 
   // ── Phase 2: scoped scoring ──
   const scoreMap = new Map<

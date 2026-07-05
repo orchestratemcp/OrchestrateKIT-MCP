@@ -1,0 +1,51 @@
+id: scheduled_data_report_route_v1
+name: Scheduled Data Report to Slack (Unattended)
+status: validated
+summary: >
+  Golden-path route for the scheduled_data_report playbook: on a schedule, read
+  from a SQL/warehouse source, validate the result set, render a summary report,
+  and post it to an internal Slack channel — fully unattended, with credential
+  resilience on the read and the Slack egress and an audit record for every run.
+  The only egress is a notification-class internal post (L2), so it runs
+  gate-free with the MAR-132 approval advisory retained. No human approval is
+  enforced; no external publishing.
+components:
+  - scheduled_trigger
+  - db_read
+  - report_generation
+  - schema_validation
+  - slack_notification
+  - auth_failure_handler
+  - audit_log
+edges:
+  - scheduled_trigger__produces__db_read
+  - db_read__produces__report_generation
+  - db_read__produces__schema_validation
+  - report_generation__produces__slack_notification
+  - slack_notification__safer_with__auth_failure_handler
+  - audit_log__recommended__slack_notification
+risk_level: low
+confidence: 0.83
+failure_modes:
+  - Query returns a partial/empty result on a transient DB error and the report ships looking "healthy" — validate the row count before rendering
+  - Schema drift in the source table silently changes a column meaning — schema_validation must reject an unexpected shape, not coerce it
+  - Slack credential expiry silences the only egress — auth_failure_handler must escalate before the run is marked successful
+  - Timezone/locale drift shifts "last week" boundaries and double-counts or misses rows
+  - Report renders but the scheduled trigger drifts or misfires — no report and nobody notices without a heartbeat
+evals:
+  - query correctness on a fixture warehouse (row counts + aggregates match expected)
+  - schema-drift rejection — an altered column shape is caught before rendering
+  - report fidelity on diverse result sets (empty, single-row, large)
+  - egress delivery — the Slack post lands on every successful run
+  - audit completeness — every run (query, validation, render, post) has a record
+notes: >
+  Promoted from 2 OrchestrateLab sessions + audit G4 via MAR-303. Unblocked by
+  MAR-254 (db_read + report_generation components). Unattended L2 by contract:
+  the only egress is a notification-class internal Slack post, so the route runs
+  gate-free with the MAR-132 approval advisory retained (mirrors MAR-266's
+  competitor_price_monitor). The two G4 matcher residuals (loop_controller from
+  the "no human in the loop" idiom; crm_note_write from the "sales" data
+  subject) are suppressed by the MAR-303 matcher fix, so they never enter this
+  route. report_generation is the WRITE/render direction — do not confuse it
+  with pdf_extraction (the read-from-PDF direction, MAR-254).
+sources: []

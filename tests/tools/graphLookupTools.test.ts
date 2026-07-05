@@ -241,14 +241,15 @@ describe("graphToolFormatters — toInlineEdgeSummary (MAR-92)", () => {
 describe("registry data — routes logic", () => {
   const registry = loadRegistry();
 
-  it("registry has 11 routes", () => {
+  it("registry has 12 routes", () => {
     // 5 original + dynamic_worker_loop_route_v1 (MAR-167)
     // + email_lead_crm_route_v1 (MAR-265)
     // + competitor_price_monitor_route_v1 (MAR-266)
     // + pr_review_readonly_route_v1 (MAR-267)
     // + morning_email_triage_route_v1 (MAR-301)
     // + invoice_intake_po_match_route_v1 (MAR-302)
-    expect(registry.routes.length).toBe(11);
+    // + scheduled_data_report_route_v1 (MAR-303)
+    expect(registry.routes.length).toBe(12);
   });
 
   it("research_route_v1 exists and has components", () => {

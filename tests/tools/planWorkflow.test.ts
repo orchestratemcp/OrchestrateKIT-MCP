@@ -368,10 +368,11 @@ describe("planWorkflow — output shape", () => {
   });
 
   it("summary_markdown labels a composed candidate as a candidate", () => {
-    // MAR-265: lead-detection now routes playbook-first — use a goal with no
-    // published playbook so the plan stays a composed candidate.
+    // Use a goal with no published playbook so the plan stays a composed
+    // candidate (the analytics-API report shape — no DB-source token, so
+    // scheduled_data_report's signal gate does not fire).
     const r = plan(
-      "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.",
+      "Every Monday at 8am, pull last week's signups from our analytics API, summarize them, and post to our team Slack channel.",
     );
     expect(r.summary_markdown.toLowerCase()).toContain("candidate");
   });
@@ -638,7 +639,7 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
     expect(open!.action).toContain(pb.playbook!.id);
 
     const composed = plan(
-      "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.",
+      "Every Monday at 8am, pull last week's signups from our analytics API, summarize them, and post to our team Slack channel.",
     );
     expect(composed.plan_source).toBe("composed");
     expect(composed.next_action_menu.find((a) => a.id === "open_playbook")).toBeUndefined();
@@ -757,10 +758,12 @@ describe("planWorkflow — output_depth layering (MAR-224)", () => {
 // MAR-101: scannable front-matter status block leads every plan output
 describe("planWorkflow — status front-matter header (MAR-101)", () => {
   const playbookGoal = "start from a content brief, generate copy, design visuals, approve and publish";
-  // MAR-265: the lead-detection goal now routes playbook-first, so the
-  // composed reference goal is the (playbook-less) data-report shape.
+  // The composed reference goal must match NO published playbook. MAR-303 gave
+  // the Postgres→report→Slack shape its own playbook, so this uses the
+  // analytics-API variant (no DB-source token → scheduled_data_report's signal
+  // gate does not fire → stays composed).
   const composedGoal =
-    "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.";
+    "Every Monday at 8am, pull last week's signups from our analytics API, summarize them, and post to our team Slack channel.";
 
   it("summary_markdown opens with a front-matter fence", () => {
     const r = plan(playbookGoal);

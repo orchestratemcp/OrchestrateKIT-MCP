@@ -218,8 +218,12 @@ describe("MAR-250 — coverage honesty in the rendered output", () => {
   // uncovered-goal fixture names systems the registry genuinely lacks.
   const ZENDESK_SMS_GOAL =
     "Every Monday morning, pull last week's support tickets from Zendesk and text me a summary via SMS.";
-  const PG_REPORT_GOAL =
-    "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.";
+  // MAR-303 fixed the Postgres/report goal's crm_note_write hallucination at
+  // source (it now routes to a clean playbook), so the standing "unsupported
+  // extra" fixture is a pure post-to-Slack goal where reviewer_notification
+  // still rides in on fuzzy overlap — flagged, not dropped.
+  const UNSUPPORTED_EXTRA_GOAL =
+    "Summarize our monthly sales performance and post the summary to our team Slack channel.";
 
   it("every depth carries a coverage: line in the front-matter", () => {
     for (const depth of ["guided", "brief", "standard", "technical", "deep"] as const) {
@@ -240,17 +244,18 @@ describe("MAR-250 — coverage honesty in the rendered output", () => {
     expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
   });
 
-  it("unsupported extras are named in Layer 1 (the audit G4 goal, post-MAR-254)", () => {
+  it("unsupported extras are named in Layer 1 (fuzzy-matched extra, flagged not dropped)", () => {
     const r = planWorkflow(
-      { goal: PG_REPORT_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      { goal: UNSUPPORTED_EXTRA_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
       registry,
     );
     const md = r.summary_markdown;
-    // demand is now covered (db_read + report_generation) — no false gap block…
+    // demand is covered — no false gap block…
     expect(md).not.toContain("Not covered by the registry");
-    // …but the fuzzy-matched extra is still called out for verification.
+    // …but the fuzzy-matched extra (reviewer_notification, no phrase asked for it)
+    // is still called out for verification.
     expect(md).toContain("In the route but not asked for:");
-    expect(md).toContain("`crm_note_write`");
+    expect(md).toContain("`reviewer_notification`");
     expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
   });
 
@@ -269,8 +274,11 @@ describe("MAR-252 — verdict coherence in the rendered output", () => {
     "Every morning, gather the top AI industry news from a handful of trusted sources and save a short digest note into my Notion workspace. No emails, no social posts.";
   const G2_UPTIME =
     "Watch our API's uptime and error rate and alert the on-call engineer in Slack the moment something breaks. Fully unattended, no human in the loop. It must never write to any business system — alerting only.";
-  const G4_PG_REPORT =
-    "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.";
+  // MAR-303 made the old Postgres/report G4 a clean L2 playbook (no business
+  // write), so the L3 "waived gate over an irreversible business write" fixture
+  // is now a CRM sync: unattended + a real CRM write → L3, gate waived-but-kept.
+  const G4_CRM_WRITE =
+    "Every night, automatically sync new signups into our HubSpot CRM and post a summary to Slack — fully unattended, no human approval.";
 
   function planGoal(goal: string) {
     return planWorkflow(
@@ -296,7 +304,7 @@ describe("MAR-252 — verdict coherence in the rendered output", () => {
   });
 
   it("front-matter never shows a safety ❌ together with an unattended ✅ (invariant)", () => {
-    for (const goal of [G3_NOTION, G2_UPTIME, G4_PG_REPORT]) {
+    for (const goal of [G3_NOTION, G2_UPTIME, G4_CRM_WRITE]) {
       const md = planGoal(goal).summary_markdown;
       const fm = md.split("---")[1] ?? "";
       const safetyFails = /safety: {9}❌/.test(fm);
@@ -306,7 +314,7 @@ describe("MAR-252 — verdict coherence in the rendered output", () => {
   });
 
   it("the approval gate precedes the Slack send in execution order (G2/G4)", () => {
-    for (const goal of [G2_UPTIME, G4_PG_REPORT]) {
+    for (const goal of [G2_UPTIME, G4_CRM_WRITE]) {
       const r = planGoal(goal);
       const gate = r.execution_order.indexOf("human_approval_gate");
       const slack = r.execution_order.indexOf("slack_notification");
@@ -319,7 +327,7 @@ describe("MAR-252 — verdict coherence in the rendered output", () => {
   it("waived-gate copy agrees with the clearance (one sentence, no 're-enable to run unattended')", () => {
     const g2 = planGoal(G2_UPTIME); // L2 — waiver acceptable
     expect(g2.summary_markdown).toContain("waived per your request — acceptable here");
-    const g4 = planGoal(G4_PG_REPORT); // L3 — business-system write remains
+    const g4 = planGoal(G4_CRM_WRITE); // L3 — business-system write remains
     expect(g4.summary_markdown).toContain("still writes to a business system");
     for (const md of [g2.summary_markdown, g4.summary_markdown]) {
       expect(md).not.toContain("re-enable it to run unattended");

@@ -469,10 +469,11 @@ describe("plan_workflow", () => {
   });
 
   it("returns a composed plan for a novel goal", () => {
-    // MAR-265: lead-detection routes playbook-first now — use the
-    // (playbook-less) data-report shape as the composed reference.
+    // Use a goal that matches no published playbook. MAR-303 gave the
+    // Postgres→report→Slack shape its own playbook, so this uses the
+    // analytics-API variant (no DB-source token → stays composed).
     const r = planWorkflow(
-      { goal: "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.", must_have_capabilities: [], must_avoid: [] },
+      { goal: "Every Monday at 8am, pull last week's signups from our analytics API, summarize them, and post to our team Slack channel.", must_have_capabilities: [], must_avoid: [] },
       registry,
     );
     expect(r.plan_source).toBe("composed");
