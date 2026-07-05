@@ -1,0 +1,48 @@
+id: morning_email_triage_route_v1
+name: Morning Email Triage (Draft-Only)
+status: validated
+summary: >
+  Golden-path route for the morning_email_triage playbook: a scheduled daily
+  agent reads the inbox, classifies each message (urgent / FYI / needs-reply /
+  spam), drafts replies for the needs-reply bucket, and saves everything as
+  drafts behind a human approval gate — never auto-sending. The only egress is a
+  notification-class "your triage is ready" ping to the human reviewer, with an
+  audit record for every draft written. No send, no calendar, no external
+  publishing.
+components:
+  - scheduled_trigger
+  - email_read
+  - intent_classifier
+  - email_draft
+  - human_approval_gate
+  - reviewer_notification
+  - audit_log
+edges:
+  - email_read__produces__intent_classifier
+  - intent_classifier__produces__email_draft
+  - email_draft__safer_with__human_approval_gate
+  - audit_log__recommended__reviewer_notification
+risk_level: medium
+confidence: 0.8
+failure_modes:
+  - Classifier mislabels an urgent message as FYI or spam — the human never sees a draft for it (tune recall on the urgent class, surface low-confidence items)
+  - A draft is auto-sent because an "approve" action was wired to send instead of save — the gate must save-as-draft only, never dispatch
+  - Empty inbox on OAuth token expiry looks like "nothing to triage" — distinguish an auth failure from a genuinely empty inbox
+  - Reviewer notification not delivered — the batch of drafts sits unreviewed with nobody prompted (add a delivery check / timeout)
+  - Prompt injection inside an email steers a drafted reply — treat message bodies as untrusted; never follow instructions found in the inbox
+evals:
+  - classification accuracy on a labelled urgent/FYI/needs-reply/spam test set
+  - draft quality (human annotation) on the needs-reply bucket
+  - no-send guarantee — zero messages dispatched across all runs (verify via provider sent-folder + audit)
+  - approval gate enforcement — every draft is saved unsent and requires a human to send it
+  - audit completeness — every draft written has a record (message id, class, draft id)
+notes: >
+  Draft-only by contract. The approval gate SAVES drafts for human review; it
+  never sends. reviewer_notification is notification-class egress only (a
+  "drafts are ready" ping) — it is NOT email sending and NOT external
+  publishing. optional_email_send, calendar_lookup, calendar_write, and
+  external_publish are deliberately out of scope; a goal that wants to actually
+  send replies or schedule meetings is the email_calendar_assistant pattern, not
+  this one. Promoted from an OrchestrateLab dogfood session (morning email
+  triage, MAR-301) via the PLAYBOOK-WAVE-1 arc.
+sources: []

@@ -272,6 +272,28 @@ function hasPrReviewSignal(goal: string): boolean {
 }
 
 /**
+ * Strong morning-email-triage signal for morning_email_triage (MAR-301). The
+ * goal must name an email SUBJECT (inbox / email / mailbox / messages) AND a
+ * triage ACTION (triage / classify / sort / needs-reply / draft replies). This
+ * is the third email-domain playbook; the recall sort already keeps it off
+ * genuine send-and-schedule goals (email_calendar_assistant scores higher when
+ * the calendar and send components are present) and off lead goals
+ * (email_lead_to_crm pulls crm_note_write). This gate is belt-and-braces: it
+ * keeps morning_email_triage off a
+ * NON-email scheduled-notify workflow that happens to share
+ * scheduled_trigger + reviewer_notification + human_approval_gate + audit_log.
+ * Word-bounded like the other signal gates.
+ */
+const TRIAGE_SUBJECT_SIGNAL = /\binbox\b|\bemail(s)?\b|\bmailbox\b|\bmessages?\b/;
+const TRIAGE_ACTION_SIGNAL =
+  /\btriage\b|\bclassif(y|ies|ication)\b|\bsort(s|ing)?\b|\bcategoriz(e|es|ing|ation)\b|needs[- ]repl(y|ies)|drafts? (a )?repl/;
+
+function hasMorningEmailTriageSignal(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return TRIAGE_SUBJECT_SIGNAL.test(g) && TRIAGE_ACTION_SIGNAL.test(g);
+}
+
+/**
  * Per-playbook goal-signal gate (MAR-142 pattern, generalized in MAR-265):
  * a playbook listed here only fires when the goal carries at least one of its
  * strong domain tokens, regardless of recall/precision scores. Playbooks not
@@ -287,6 +309,8 @@ function playbookSignalGatePassed(playbookId: string, goal: string): boolean {
       return hasPriceWatchSignal(goal);
     case "pr_review_readonly":
       return hasPrReviewSignal(goal);
+    case "morning_email_triage":
+      return hasMorningEmailTriageSignal(goal);
     default:
       return true;
   }
