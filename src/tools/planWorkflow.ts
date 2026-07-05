@@ -312,6 +312,26 @@ function hasInvoiceIntakeSignal(goal: string): boolean {
 }
 
 /**
+ * Strong scheduled-data-report signal for scheduled_data_report (MAR-303),
+ * mirroring MAR-266's two-token-class pattern: the goal must name a database
+ * SOURCE (database / SQL / warehouse / a named engine) AND a recurring CADENCE
+ * (schedule / cron / every|each + a period or a weekday). Both are required so a
+ * one-off "query the database once" or a generic "every morning summarise the
+ * news" (no DB) does not fire it. The recall sort keeps it off pdf_extraction-
+ * direction goals (report_generation is the write direction; those pull
+ * pdf_extraction and score higher on the invoice/document playbooks).
+ */
+const DB_REPORT_SUBJECT_SIGNAL =
+  /\bdatabase\b|\bpostgres(ql)?\b|\bmysql\b|\bsql\b|\bwarehouse\b|\bbigquery\b|\bsnowflake\b|\bredshift\b|data warehouse/;
+const DB_REPORT_CADENCE_SIGNAL =
+  /\b(every|each|hourly|daily|nightly|weekly|monthly|scheduled?|cron)\b|\b(mon|tues|wednes|thurs|fri|satur|sun)day\b/;
+
+function hasScheduledDataReportSignal(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return DB_REPORT_SUBJECT_SIGNAL.test(g) && DB_REPORT_CADENCE_SIGNAL.test(g);
+}
+
+/**
  * Per-playbook goal-signal gate (MAR-142 pattern, generalized in MAR-265):
  * a playbook listed here only fires when the goal carries at least one of its
  * strong domain tokens, regardless of recall/precision scores. Playbooks not
@@ -331,6 +351,8 @@ function playbookSignalGatePassed(playbookId: string, goal: string): boolean {
       return hasMorningEmailTriageSignal(goal);
     case "invoice_intake_po_match":
       return hasInvoiceIntakeSignal(goal);
+    case "scheduled_data_report":
+      return hasScheduledDataReportSignal(goal);
     default:
       return true;
   }

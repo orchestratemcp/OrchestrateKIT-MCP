@@ -1,0 +1,139 @@
+id: scheduled_data_report
+version: "1.0.0"
+status: published
+title: Scheduled Data Report to Slack (Unattended)
+summary: >
+  Blueprint for an unattended reporting agent: on a schedule, read from a
+  SQL/warehouse source, validate the result set, render a summary report, and
+  post it to an internal Slack channel — no human in the loop. The audit G4 goal
+  (2 OrchestrateLab sessions), unblocked by MAR-254's db_read + report_generation
+  components. Unattended L2 by contract: the only egress is a notification-class
+  internal Slack post, so it runs gate-free with the MAR-132 approval advisory
+  retained. No enforced human gate, no external publishing. Promoted via MAR-303.
+workflow_type: data-etl
+risk_level: low
+golden_path_route_id: scheduled_data_report_route_v1
+stack_id: default_orchestratekit_stack
+
+# Component set is the CORE evidence shape (MAR-303), mirroring MAR-266's
+# unattended monitor→Slack discipline: scheduled read → validate → render →
+# notify, with credential resilience and audit. NO human_approval_gate (the goal
+# is explicitly unattended — the MAR-132 advisory is retained instead, applied
+# automatically because every egress is notification-class). The golden path
+# leads with slack_notification as the egress; the matcher may also append
+# reviewer_notification (a "the report is ready" ping) via MAR-128 coverage on
+# the "report/summary" tokens — harmless, notification-class, L2 preserved.
+#
+# report_generation is the WRITE/render direction — the opposite of pdf_extraction
+# (read-from-PDF, MAR-254). A goal that EXTRACTS from a document must not fire this
+# playbook (see avoid_when + the bleed-guard probe).
+#
+# Two G4 matcher residuals used to contaminate this goal's composed route and
+# blocked the playbook from firing (precision 0.45) AND degraded it to
+# L3/non-autonomous: loop_controller (from the "no human in the loop" idiom) and
+# crm_note_write (from the "sales" data subject). Both are suppressed by the
+# MAR-303 matcher fix, so they never enter this route — the playbook fires clean
+# at L2.
+components:
+  - scheduled_trigger
+  - db_read
+  - report_generation
+  - schema_validation
+  - slack_notification
+  - auth_failure_handler
+  - audit_log
+
+edges:
+  - scheduled_trigger__produces__db_read
+  - db_read__produces__report_generation
+  - db_read__produces__schema_validation
+  - report_generation__produces__slack_notification
+  - slack_notification__safer_with__auth_failure_handler
+  - audit_log__recommended__slack_notification
+
+best_for:
+  - a recurring internal report — pull metrics from a database on a schedule and post a digest to Slack
+  - unattended dashboards-as-a-message — no UI, the numbers land in a channel on a cadence
+  - any scheduled SQL/warehouse read that renders a summary and posts it internally
+
+avoid_when:
+  - the report must be approved by a human before it is shared — that is an
+    attended pattern; this one is unattended and posts directly to an internal channel
+  - the data is EXTRACTED from PDFs/invoices rather than read from a database —
+    that is pdf_extraction (the read-from-document direction), not report_generation
+  - the output is published externally (a public page, a customer email) —
+    external_publish is out of scope; the only egress is an internal Slack post
+  - the workflow writes back to a CRM or a system of record — this playbook only
+    reads and reports
+
+recommended_architecture:
+  pattern: Schedule → read DB → validate result → render report → post to Slack (audited, credential-resilient)
+  why: >
+    Every step is a read or a local render except the final Slack post, which is
+    notification-class egress (blast radius: an internal message). That is what
+    earns the unattended L2 clearance — grant the agent read-only DB scopes plus
+    a Slack bot token and nothing else, and the workflow cannot exceed "read and
+    report" even if prompted to. Credential resilience on the read and the post
+    keeps a token expiry from silently shipping an empty or unsent report.
+
+llm_driven_steps:
+  - report_generation — summarise the result set into a readable report
+
+deterministic_steps:
+  - scheduled_trigger
+  - db_read
+  - schema_validation
+  - slack_notification
+  - auth_failure_handler
+  - audit_log
+
+permissions:
+  read:
+    - SQL / warehouse source (read-only query scope)
+  write:
+    - Slack channel post (notification-class egress only)
+    - audit log store
+  approval_required_for: []
+
+guardrails:
+  - Keep it read-only + notify — request read-only DB scopes and a Slack post
+    token; no write-back credentials, so "unattended" stays safe
+  - Validate the result set before rendering — an empty or malformed query result
+    must not ship as a "healthy" report
+  - Reject schema drift — an unexpected column shape is an error, not something to coerce
+  - Pin the reporting window explicitly (timezone + boundaries) so "last week"
+    is deterministic across runs
+  - auth_failure_handler must escalate a DB or Slack credential failure before the
+    run is marked successful — a silent failure is worse than a visible one
+  - Log every run (query, validation outcome, render, post) to audit_log with a timestamp
+  - Do NOT add a human approval gate — the goal is unattended; the MAR-132 advisory
+    is the right surface if a reviewer later wants one
+
+failure_modes:
+  - Transient DB error returns a partial/empty result and the report ships looking healthy
+  - Schema drift silently changes a column meaning — validate the shape, don't coerce
+  - Slack credential expiry silences the only egress — escalate before marking success
+  - Timezone/locale drift shifts the reporting window and double-counts or misses rows
+  - Scheduled trigger drift/misfire — no report and nobody notices without a heartbeat
+
+evals:
+  - query correctness on a fixture warehouse (row counts + aggregates)
+  - schema-drift rejection before rendering
+  - report fidelity on empty / single-row / large result sets
+  - egress delivery — the Slack post lands on every successful run
+  - audit completeness — every run has a record
+
+implementation_steps:
+  - "Step 1: Register a scheduled_trigger for the cadence (e.g. Monday 8am). Pin the timezone."
+  - "Step 2: Implement db_read with a READ-ONLY query scope. Parameterise the reporting window; never string-concatenate SQL."
+  - "Step 3: Implement schema_validation on the result set — reject empty/partial results and unexpected column shapes before anything renders."
+  - "Step 4: Implement report_generation to summarise the validated result set (a standard model is enough for a numeric digest; render to PDF/markdown as needed)."
+  - "Step 5: Post via slack_notification to the internal channel. This is the only egress — notification-class, internal."
+  - "Step 6: Wrap the DB read and the Slack post with auth_failure_handler — a credential failure escalates and the run is NOT marked successful."
+  - "Step 7: Write an audit_log record per run: query id, window, validation outcome, render status, Slack message id, timestamp."
+
+sources:
+  - title: Slack API — chat.postMessage
+    url: https://api.slack.com/methods/chat.postMessage
+    source_type: official_docs
+    last_checked: "2026-07-05"

@@ -1050,3 +1050,40 @@ probes:
     goal: "Extract tables from research PDFs, normalize them into a common schema, and load into the database."
     via: plan
     forbidden_playbook: [invoice_intake_po_match]
+
+  # ── scheduled_data_report playbook promotion (MAR-303) ───────────────────────
+  # Audit G4 (2 sessions), unblocked by MAR-254. Unattended L2 DB→report→Slack.
+  # The two G4 residuals were the reason the playbook could not fire before
+  # (composed precision 0.45 + degraded to L3): loop_controller from the "no
+  # human in the loop" idiom, and crm_note_write from the "sales" data subject.
+  # The MAR-303 matcher fix suppresses both → fires clean at L2.
+  - id: scheduled_data_report_playbook
+    goal: "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop."
+    via: plan
+    required_playbook: scheduled_data_report
+    must_have: [scheduled_trigger, db_read, report_generation, slack_notification]
+    forbidden: [loop_controller, crm_note_write, pdf_extraction, calendar_lookup, calendar_write, external_publish]
+
+  # MAR-303 matcher fix (compose-level, holds independent of playbook routing):
+  # the "no human in the loop" idiom with no iteration/fan-out signal drops the
+  # loop_controller false-positive; the "sales" data subject on a DB report drops
+  # the crm_note_write false-positive.
+  - id: db_report_no_loop_no_crm
+    goal: "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a summary report, and post it to Slack. Fully unattended, no human in the loop."
+    must_have: [scheduled_trigger, db_read, report_generation, slack_notification]
+    forbidden: [loop_controller, crm_note_write]
+
+  # Guard: a genuine CRM goal KEEPS crm_note_write (it names the CRM/contact, not
+  # just a data subject) — the suppression is gated on the absence of CRM-write
+  # intent AND requires a database source, neither of which this goal has.
+  - id: crm_call_keeps_crm_note_write
+    goal: "After a sales call, look up the contact in our CRM and log a note summarizing what was discussed."
+    must_have: [crm_note_write]
+    forbidden: []
+
+  # Bleed guard: a pdf_extraction-DIRECTION goal (extract FROM a document) must
+  # NOT fire the report playbook — report_generation is the write direction (MAR-254).
+  - id: pdf_extract_not_report_playbook
+    goal: "Extract line items from incoming PDF invoices and load them into a spreadsheet."
+    via: plan
+    forbidden_playbook: [scheduled_data_report]

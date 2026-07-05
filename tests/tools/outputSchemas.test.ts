@@ -75,10 +75,11 @@ async function structured(
 
 const PLAYBOOK_GOAL =
   "scan a codebase, plan changes, edit code, run tests and write a PR summary";
-// MAR-265: the lead-detection goal now routes to the email_lead_to_crm
-// playbook, so the composed golden uses the (playbook-less) data-report shape.
+// The composed golden must match no published playbook. MAR-303 gave the
+// Postgres→report→Slack shape its own playbook, so this uses the analytics-API
+// variant (no DB-source token → scheduled_data_report's gate does not fire).
 const COMPOSED_GOAL =
-  "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel.";
+  "Every Monday at 8am, pull last week's signups from our analytics API, summarize them, and post to our team Slack channel.";
 const PREAMBLE_GOAL =
   "OrchestrateMCP is a workflow-design advisor that helps you plan safer AI agent workflows.";
 
