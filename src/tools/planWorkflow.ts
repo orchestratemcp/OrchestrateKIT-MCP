@@ -294,6 +294,24 @@ function hasMorningEmailTriageSignal(goal: string): boolean {
 }
 
 /**
+ * Strong invoice-intake signal for invoice_intake_po_match (MAR-302). The goal
+ * must name the SUBJECT (invoice / receipt / purchase order / accounts payable).
+ * The recall sort is the real separator vs the data_extraction_enrichment
+ * scrape pipeline (which has data_scraper/state_store the invoice route lacks)
+ * and vs the email playbooks (this shape reads email as a document source, not
+ * correspondence — the MAR-302 matcher fix strips the drafting/sending path so
+ * the email playbooks never out-score it here). This gate is belt-and-braces:
+ * it keeps invoice_intake off a generic ETL goal that shares
+ * pdf_extraction + schema_validation but has nothing to do with invoices.
+ */
+const INVOICE_INTAKE_SIGNAL =
+  /\binvoice(s)?\b|\breceipt(s)?\b|\bpurchase order(s)?\b|accounts payable/;
+
+function hasInvoiceIntakeSignal(goal: string): boolean {
+  return INVOICE_INTAKE_SIGNAL.test(goal.toLowerCase());
+}
+
+/**
  * Per-playbook goal-signal gate (MAR-142 pattern, generalized in MAR-265):
  * a playbook listed here only fires when the goal carries at least one of its
  * strong domain tokens, regardless of recall/precision scores. Playbooks not
@@ -311,6 +329,8 @@ function playbookSignalGatePassed(playbookId: string, goal: string): boolean {
       return hasPrReviewSignal(goal);
     case "morning_email_triage":
       return hasMorningEmailTriageSignal(goal);
+    case "invoice_intake_po_match":
+      return hasInvoiceIntakeSignal(goal);
     default:
       return true;
   }

@@ -1,0 +1,145 @@
+id: invoice_intake_po_match
+version: "1.0.0"
+status: published
+title: Invoice Intake with PO Match and Mandatory Human Gate
+summary: >
+  Blueprint for the most-repeated shape in the OrchestrateLab evidence base (4+
+  sessions): a shared inbox is monitored for PDF invoices, each is extracted and
+  normalized into line items and totals, validated against a matching purchase
+  order, and routed by discrepancy severity — with every invoice held behind a
+  MANDATORY human approval gate before it is routed to the accounting system.
+  Read-and-validate only: no email is drafted or sent, no web page is scraped,
+  and the accounting-system write is an operator-wired integration at the gate's
+  output, not an automated step. Promoted via MAR-302.
+workflow_type: data-etl
+risk_level: high
+golden_path_route_id: invoice_intake_po_match_route_v1
+stack_id: default_orchestratekit_stack
+
+# Component set is the CORE evidence shape (MAR-302): read the inbox as a
+# document SOURCE, extract + normalize the invoice, validate against the PO,
+# route by discrepancy severity, flag discrepancies to a reviewer, and hold
+# everything behind a mandatory gate, audited.
+#
+# email_read is a SOURCE, not a mailbox the agent writes back to. The matcher
+# suppresses email_draft / optional_email_send (no correspondence intent) and
+# data_scraper / page_monitor (the source is email + PDF, not the web) for this
+# invoice-from-inbox shape (MAR-302 matcher fix) — WITHOUT that, the composed
+# route carried a drafting/sending/scraping path the goal never asked for and
+# scored below the playbook precision floor.
+#
+# The accounting-system write is deliberately NOT in the component set: no
+# accounting_write component exists, MAR-135 does not track one, and inventing
+# one ad hoc destabilizes precision elsewhere (the MAR-265 lesson). It is
+# documented as the integration wired at the gate's output (see steps).
+components:
+  - email_read
+  - pdf_extraction
+  - data_normalizer
+  - schema_validation
+  - threshold_router
+  - reviewer_notification
+  - human_approval_gate
+  - audit_log
+
+edges:
+  - pdf_extraction__produces__data_normalizer
+  - schema_validation__produces__threshold_router
+  - threshold_router__produces__human_approval_gate
+  - threshold_router__recommended__audit_log
+  - audit_log__recommended__reviewer_notification
+
+best_for:
+  - accounts-payable intake — read invoices from a shared inbox, match to POs, gate discrepancies for a human
+  - any document-from-email ingest that must validate against a system of record before a downstream write
+  - attended finance workflows where a human approves every invoice before it reaches accounting
+
+avoid_when:
+  - the agent should reply to or email the vendor — that is a correspondence
+    workflow; this playbook reads the inbox as a document source and never drafts or sends
+  - invoices are scraped from a supplier web portal rather than emailed — that is
+    a data_scraper pipeline (data_extraction_enrichment), not an inbox intake
+  - the workflow should post to the ledger automatically with no human review —
+    this pattern's gate is mandatory and the accounting write is operator-wired, never automated
+  - the goal is to GENERATE and send invoices (the write direction) rather than
+    intake and validate received ones
+
+recommended_architecture:
+  pattern: Read inbox → extract + normalize invoice → validate against PO → route by discrepancy → mandatory human gate → hand approved record to accounting (audited)
+  why: >
+    The invoice arrives as untrusted input and the downstream effect (a ledger
+    entry / payment) is irreversible, so validation and a human gate sit between
+    intake and accounting. The gate is mandatory for EVERY routed invoice, not
+    only flagged ones — a clean PO match still gets a recorded approval before
+    the operator's accounting integration runs. Grant the agent inbox-read and
+    PO-read scopes only; the accounting write lives outside the agent's
+    credentials, which is what keeps "route to accounting" from becoming an
+    unreviewed automated post.
+
+llm_driven_steps:
+  - pdf_extraction — parse line items and totals from the invoice PDF
+  - data_normalizer — normalize vendor-specific layouts into a common schema
+
+deterministic_steps:
+  - email_read
+  - schema_validation
+  - threshold_router
+  - reviewer_notification
+  - human_approval_gate
+  - audit_log
+
+permissions:
+  read:
+    - shared inbox / mailbox (read-only, for invoice attachments)
+    - purchase orders in the ERP (read-only)
+  write:
+    - reviewer notification channel (notification-class egress only)
+    - audit log store
+  approval_required_for:
+    - routing any invoice to the accounting system (mandatory human gate, every invoice)
+
+guardrails:
+  - The human approval gate is MANDATORY for every routed invoice — a clean PO
+    match still requires a recorded approval; never auto-approve on match
+  - Never post to the accounting ledger from the agent — hand an approved,
+    validated record to the operator's accounting integration; withhold ledger-write credentials
+  - Reject low-confidence extractions at schema_validation instead of passing
+    wrong totals to the PO match — an OCR miss must not silently approve
+  - No matching PO → route to human review, never auto-approve on a miss
+  - Dedupe on invoice number + vendor before the PO match so a resent invoice is
+    not processed (or paid) twice
+  - Treat the invoice PDF as untrusted input — prompt-injection text inside a
+    document must not change totals, the PO match, or the gate
+  - Log every extraction, PO-match result, discrepancy, and approval to audit_log
+
+failure_modes:
+  - OCR/parse error yields wrong totals — reject low-confidence extractions at validation
+  - No matching PO but the invoice is auto-approved — misses must route to human review
+  - Threshold too loose lets material discrepancies reach accounting under the gate
+  - Duplicate (resent) invoice processed or paid twice — dedupe on invoice number + vendor
+  - Accounting write treated as automatic — it is operator-wired at the gate output, not a route step
+  - Approval notification not delivered — invoices pile up unreviewed with no prompt
+
+evals:
+  - extraction accuracy on a labelled invoice-PDF set (line items + totals)
+  - PO-match precision/recall on matched vs mismatched fixtures
+  - discrepancy-threshold correctness — flags iff the configured bound is crossed
+  - gate enforcement — zero invoices routed to accounting without a recorded approval
+  - audit completeness — every extraction, match result, and approval has a record
+
+implementation_steps:
+  - "Step 1: Implement email_read against the shared inbox with a read-only mail scope. Pull PDF attachments; distinguish an auth failure from an empty inbox. This is a document source — no draft/send scope is granted."
+  - "Step 2: Implement pdf_extraction (a document-parse / OCR step) to pull line items, totals, invoice number, and vendor from each PDF."
+  - "Step 3: Implement data_normalizer to map vendor-specific invoice layouts onto one common schema. Dedupe on (invoice number, vendor) here."
+  - "Step 4: Implement schema_validation to (a) reject low-confidence extractions and (b) validate the normalized invoice against the matching purchase order read from the ERP. No matching PO → route to human review."
+  - "Step 5: Implement threshold_router to grade discrepancy severity against the configured bound. Carry the severity into the gate copy so the reviewer sees why an invoice was flagged."
+  - "Step 6: Post reviewer_notification for flagged discrepancies (notification-class egress only — it never sends the invoice anywhere)."
+  - "Step 7: Route EVERY invoice through human_approval_gate — mandatory, including clean PO matches. Approve means 'cleared to hand to accounting', and the approval is recorded."
+  - "Step 8: On approval, hand the validated record to the operator's ACCOUNTING-SYSTEM INTEGRATION. This integration is out of scope for the registry graph (no accounting_write component) — implement it as an outbound call the operator wires and credentials separately, so the agent never holds ledger-write access."
+  - "Step 9: Write an audit_log record for every extraction, PO-match result, discrepancy grade, and approval (invoice id, vendor, PO id, decision, actor, timestamp)."
+
+sources:
+  - title: Accounts payable three-way match (invoice / PO / receipt) — overview
+    url: https://en.wikipedia.org/wiki/Three-way_match
+    source_type: unknown
+    last_checked: "2026-07-05"

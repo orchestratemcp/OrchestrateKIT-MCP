@@ -717,6 +717,79 @@ function suppressConstrainedCapabilities(
 }
 
 /**
+ * MAR-302: email-as-document-SOURCE scoping. When a goal reads an inbox to
+ * INGEST documents (invoices / receipts / purchase orders) for extraction and
+ * downstream processing — and expresses NO affirmative email-correspondence
+ * intent — email is a SOURCE, not a mailbox the agent writes back to. The bare
+ * "email" KEYWORD_HINT pulls email_draft + optional_email_send onto these goals
+ * (the "monitor a shared email inbox for PDF invoices → validate against a PO →
+ * route to accounting" shape), a drafting/sending path the goal never asked for.
+ * On the invoice_intake_po_match shape it dragged the composed route to 10
+ * components (precision 0.60 < the 0.72 playbook floor) and, because both are
+ * primary-domain category, MAR-128 would re-append them even to a playbook
+ * route — so no probe `forbidden` can hide them.
+ *
+ * Unlike CAPABILITY_SUPPRESSION_RULES (explicit negation phrases that name the
+ * forbidden action), this is SHAPE-based, so it is gated hard to never drop a
+ * wanted draft: it fires ONLY when the document-source data_etl signal is
+ * present AND no correspondence-intent token appears. An affirmative "read
+ * invoices from email and draft a reply to the vendor" keeps both components.
+ * email_read itself is untouched — reading the inbox is the whole point.
+ */
+const EMAIL_SOURCE_TOKENS = ["email", "inbox", "mailbox"];
+const DOCUMENT_SOURCE_TOKENS = [
+  "invoice",
+  "invoices",
+  "receipt",
+  "receipts",
+  "purchase order",
+  "purchase orders",
+];
+const EMAIL_CORRESPONDENCE_INTENT = [
+  "reply",
+  "replies",
+  "respond",
+  "response",
+  "draft a",
+  "draft an",
+  "draft the",
+  "draft repl",
+  "compose",
+  "write back",
+  "send an email",
+  "send email",
+  "email back",
+  "email them",
+  "email me",
+  "email us",
+  "email the",
+  "email a ",
+  "auto-respond",
+  "autorespond",
+  "acknowledge",
+];
+function suppressEmailDraftForDocumentSource(
+  goalLower: string,
+  domainAllowed: Set<string>,
+  goalDomains: Set<Domain>,
+): void {
+  if (!goalDomains.has("data_etl")) return;
+  if (!EMAIL_SOURCE_TOKENS.some((t) => goalLower.includes(t))) return;
+  if (!DOCUMENT_SOURCE_TOKENS.some((t) => goalLower.includes(t))) return;
+  if (EMAIL_CORRESPONDENCE_INTENT.some((t) => goalLower.includes(t))) return;
+  domainAllowed.delete("email_draft");
+  domainAllowed.delete("optional_email_send");
+  // Documents arrive as inbox attachments — the source is email + PDF, not a
+  // website, so the web scraper and the web-page monitor are both noise here
+  // (they re-enter the composed route once the drafting path is gone; "monitors
+  // a shared email inbox" trips page_monitor on the verb "monitor"). Gated on
+  // the email-source token above so a genuine "scrape/monitor a supplier portal"
+  // goal keeps them.
+  domainAllowed.delete("data_scraper");
+  domainAllowed.delete("page_monitor");
+}
+
+/**
  * Classify a goal into workflow domains (MAR-88).
  * Always includes `generic_orchestration` so safety/orchestration components
  * are never blocked. Exported for unit testing.
@@ -1437,6 +1510,9 @@ export function matchCapabilities(
   // happen here, before scoring, so neither keyword hints nor the fuzzy passes
   // can re-select them; nothing downstream re-adds them (see the engine doc).
   suppressConstrainedCapabilities(goalLower, domainAllowed, goalDomains);
+  // MAR-302: email-as-document-source (invoice/PO ingest, no correspondence
+  // intent) drops the email drafting/sending path — email is a SOURCE here.
+  suppressEmailDraftForDocumentSource(goalLower, domainAllowed, goalDomains);
 
   // ── Phase 2: scoped scoring ──
   const scoreMap = new Map<

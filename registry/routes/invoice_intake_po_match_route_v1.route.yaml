@@ -1,0 +1,55 @@
+id: invoice_intake_po_match_route_v1
+name: Invoice Intake with PO Match and Mandatory Human Gate
+status: validated
+summary: >
+  Golden-path route for the invoice_intake_po_match playbook: a shared inbox is
+  read for PDF invoices, each invoice is extracted and normalized into line
+  items and totals, validated against a matching purchase order, and routed by
+  discrepancy severity — with discrepancies flagged to a reviewer and every
+  invoice held behind a mandatory human approval gate before anything is routed
+  to the accounting system. Read-and-validate only: the accounting-system write
+  is an integration the operator wires at the gate's output (see notes), not a
+  registry component. No email drafting, no sending, no web scraping.
+components:
+  - email_read
+  - pdf_extraction
+  - data_normalizer
+  - schema_validation
+  - threshold_router
+  - reviewer_notification
+  - human_approval_gate
+  - audit_log
+edges:
+  - pdf_extraction__produces__data_normalizer
+  - schema_validation__produces__threshold_router
+  - threshold_router__produces__human_approval_gate
+  - threshold_router__recommended__audit_log
+  - audit_log__recommended__reviewer_notification
+risk_level: high
+confidence: 0.82
+failure_modes:
+  - OCR/parse error on a scanned invoice yields wrong totals — schema_validation must reject low-confidence extractions, not pass them silently to the PO match
+  - No matching PO found — the invoice must route to human review, never auto-approve on a miss
+  - Threshold set too loose — material discrepancies slip under the gate and reach accounting; the gate is mandatory for every routed invoice, not just flagged ones
+  - Duplicate invoice (resend) processed twice — dedupe on invoice number + vendor before the PO match
+  - Approval notification not delivered — invoices pile up unreviewed with nobody prompted
+  - Accounting-system write treated as automatic — it is out of scope for this route; the agent hands an approved, validated record to the operator's integration, it does not post to the ledger itself
+evals:
+  - extraction accuracy on a labelled set of invoice PDFs (line items + totals)
+  - PO-match precision/recall against a fixture of matched and mismatched invoices
+  - discrepancy-threshold correctness — flags iff the configured bound is crossed
+  - gate enforcement — zero invoices routed to accounting without a recorded human approval
+  - audit completeness — every extraction, match result, and approval has a record
+notes: >
+  Promoted from 4 OrchestrateLab sessions (the most-repeated shape in lab.db)
+  via MAR-302. The human_approval_gate is MANDATORY, not advisory: the goal
+  demands a hard threshold requiring a human gate and carries no unattended
+  waiver, so the MAR-132 advisory downgrade does not apply. The
+  accounting-system write is deliberately NOT a registry component (no
+  accounting_write component exists; MAR-135 does not track one and inventing
+  one ad hoc destabilizes precision — the MAR-265 lesson): document it as the
+  integration wired at the gate's output in implementation steps. email_read is
+  a document SOURCE here — the matcher's email drafting/sending path and the web
+  scraper/page-monitor are suppressed for the invoice-from-inbox shape (MAR-302
+  matcher fix), so this route never drafts, sends, or scrapes.
+sources: []

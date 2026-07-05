@@ -267,24 +267,30 @@
       "domain": "data_etl",
       "must_have": [
         "email_read",
-        "schema_validation"
+        "human_approval_gate",
+        "pdf_extraction",
+        "schema_validation",
+        "threshold_router"
       ],
       "nice_to_have": [
         "audit_log",
-        "human_approval_gate"
+        "data_normalizer",
+        "reviewer_notification"
       ],
       "forbidden": [
         "calendar_lookup",
+        "calendar_write",
         "codebase_scan",
-        "design_brief_generation",
+        "data_scraper",
+        "email_draft",
         "external_publish",
+        "optional_email_send",
+        "page_monitor",
         "research_synthesis"
       ],
-      "missing_but_expected": [
-        "pdf_extraction"
-      ],
+      "missing_but_expected": [],
       "source": "dogfood",
-      "level": "raw",
+      "level": "composed",
       "xfail": ""
     },
     {
@@ -538,7 +544,11 @@
       ],
       "forbidden": [
         "calendar_lookup",
-        "calendar_write"
+        "calendar_write",
+        "data_scraper",
+        "email_draft",
+        "optional_email_send",
+        "page_monitor"
       ],
       "missing_but_expected": [],
       "source": "dogfood",
