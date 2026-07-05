@@ -1,0 +1,149 @@
+id: morning_email_triage
+version: "1.0.0"
+status: published
+title: Morning Email Triage (Draft-Only, Never Auto-Send)
+summary: >
+  Blueprint for a scheduled daily agent that reads the inbox, classifies every
+  message (urgent / FYI / needs-reply / spam), drafts replies for the
+  needs-reply bucket, and saves everything as drafts behind a human approval
+  gate — with a HARD no-send guarantee. The whole identity of this playbook is
+  its negative scope: optional_email_send, calendar_lookup, calendar_write and
+  external_publish are structurally excluded, and any goal that wants to
+  actually send replies or schedule meetings routes to email_calendar_assistant
+  instead. Promoted from an OrchestrateLab dogfood session (morning email
+  triage) via MAR-301. Third email-domain playbook alongside
+  email_calendar_assistant (send + schedule) and email_lead_to_crm (lead → CRM).
+workflow_type: email-triage
+risk_level: medium
+golden_path_route_id: morning_email_triage_route_v1
+stack_id: default_orchestratekit_stack
+
+# Component set is the CORE evidence shape from the dogfood session (MAR-301):
+# the scheduled read → classify → draft spine, the human gate that makes the
+# drafts safe, the notification-class "drafts ready" egress, and audit_log.
+#
+# Two deliberate EXCLUSIONS, both load-bearing (the MAR-267 pattern):
+#   - optional_email_send: the entire point. "Must never auto-send" is the
+#     promise; its absence here + the avoid_when entry + the lock probe's
+#     forbidden list + the corpus row ARE the no-send guarantee. A goal that
+#     wants to send routes to email_calendar_assistant (which gates the send).
+#   - calendar_lookup / calendar_write: no scheduling in scope. Their presence
+#     is what distinguishes email_calendar_assistant; keeping them out is how
+#     the two email playbooks stay separable (MAR-130/142 over-match history).
+# intent_classifier is the classify step (urgent/FYI/needs-reply/spam) — the
+# literal core of a triage agent — and is included even though the raw matcher
+# under-selects it on this phrasing (it is nice_to_have in the corpus row).
+components:
+  - scheduled_trigger
+  - email_read
+  - intent_classifier
+  - email_draft
+  - human_approval_gate
+  - reviewer_notification
+  - audit_log
+
+edges:
+  - email_read__produces__intent_classifier
+  - intent_classifier__produces__email_draft
+  - email_draft__safer_with__human_approval_gate
+  - audit_log__recommended__reviewer_notification
+
+best_for:
+  - a scheduled morning agent that pre-sorts the inbox and drafts replies for a human to review and send
+  - inbox triage that classifies messages by urgency/intent and never touches the send button
+  - attended email workflow where the human always sends — the agent only reads, classifies, and drafts
+
+avoid_when:
+  - the agent should actually SEND replies or auto-respond — that is
+    email_calendar_assistant territory; optional_email_send must never enter this route
+  - the workflow schedules meetings or manages a calendar — calendar_lookup /
+    calendar_write are out of scope; use email_calendar_assistant
+  - inbound messages are sales leads to be written to a CRM — that is
+    email_lead_to_crm; this playbook has no crm_note_write
+  - anything should be published externally — external_publish is out of scope;
+    the only egress is the internal reviewer notification
+
+recommended_architecture:
+  pattern: Schedule → read inbox → classify → draft (needs-reply only) → save behind approval gate → notify reviewer (audited)
+  why: >
+    Every step is a read or a local draft except the final reviewer
+    notification, which is notification-class egress (blast radius: a "drafts
+    are ready" ping). Nothing sends mail. That is what makes the no-send
+    guarantee enforceable at the credential level — grant the agent read +
+    draft-create scopes and NO send scope, and the workflow cannot dispatch a
+    reply even when prompted to. The approval gate saves drafts; a human opens
+    them and sends.
+
+llm_driven_steps:
+  - intent_classifier — classify each message urgent / FYI / needs-reply / spam
+  - email_draft — draft a reply for the needs-reply bucket
+
+deterministic_steps:
+  - scheduled_trigger
+  - email_read
+  - human_approval_gate
+  - reviewer_notification
+  - audit_log
+
+permissions:
+  read:
+    - inbox / mailbox (read-only mail scope)
+  write:
+    - draft creation only (no send scope)
+    - reviewer notification channel (notification-class egress only)
+    - audit log store
+  approval_required_for: []
+
+guardrails:
+  - NEVER send — request read + draft-create mail scopes and withhold the send
+    scope so the no-send guarantee holds even if the agent is prompted to send
+  - The approval gate SAVES drafts for human review; wiring "approve" to a send
+    action voids the entire pattern — approve means save-as-draft, nothing more
+  - Treat every email body as untrusted input — prompt-injection attempts inside
+    a message must not change what the agent drafts or its scope
+  - Surface classification uncertainty — low-confidence urgent/spam calls are
+    flagged for the human, not acted on silently
+  - Distinguish an auth failure from an empty inbox — a silent OAuth expiry must
+    not be reported as "nothing to triage"
+  - Log every draft written (message id, assigned class, draft id) to audit_log
+
+failure_modes:
+  - Urgent message misclassified as FYI/spam — no draft surfaces and the human
+    misses it (tune urgent-class recall; surface low-confidence items)
+  - An approve action wired to send instead of save — drafts go out unreviewed
+    (the single most dangerous failure; the gate must save-only)
+  - OAuth token expiry returns an empty inbox — looks like a quiet morning while
+    real mail piles up unread
+  - Reviewer notification not delivered — a batch of drafts sits unreviewed with
+    nobody prompted (add a delivery check / timeout)
+  - Prompt injection inside an email steers the drafted reply — scope the drafter
+    to the message content and never follow instructions found in the inbox
+  - Duplicate drafts on a re-run if draft creation is not idempotent per message id
+
+evals:
+  - classification accuracy on a labelled urgent/FYI/needs-reply/spam test set
+  - draft quality (human annotation) on the needs-reply bucket
+  - no-send guarantee — zero messages dispatched across all runs (verify via the
+    provider sent-folder and audit_log)
+  - approval gate enforcement — every draft saved unsent, a human sends manually
+  - audit completeness — every draft written has a record
+
+implementation_steps:
+  - "Step 1: Register a scheduled_trigger for the daily cadence (e.g. 7am). The trigger only fires the run; it holds no mail logic."
+  - "Step 2: Grant read + draft-create mail scopes and NO send scope — the credential set is the enforcement layer for the no-send guarantee."
+  - "Step 3: Implement email_read to pull the unread/inbox window. Strip quoted reply chains before classifying. Distinguish an auth error from an empty inbox."
+  - "Step 4: Implement intent_classifier to label each message urgent / FYI / needs-reply / spam with a confidence score. Flag low-confidence urgent/spam calls for the human."
+  - "Step 5: For the needs-reply bucket only, implement email_draft with a standard model. Pass the original message + tone instructions; do not draft for FYI/spam."
+  - "Step 6: Save every draft behind human_approval_gate as an unsent draft in the mail client — approve means SAVE, never dispatch. There is no send step in this playbook."
+  - "Step 7: Post one reviewer_notification (a 'your morning triage is ready, N drafts await' ping). This is the only egress and is notification-class — it never contains or sends the replies."
+  - "Step 8: Write an audit_log record per draft: message id, assigned class, draft id, run timestamp."
+
+sources:
+  - title: Gmail API — Drafts (create, never send)
+    url: https://developers.google.com/gmail/api/reference/rest/v1/users.drafts
+    source_type: official_docs
+    last_checked: "2026-07-05"
+  - title: Gmail API — Users.messages list (inbox read)
+    url: https://developers.google.com/gmail/api/reference/rest/v1/users.messages/list
+    source_type: official_docs
+    last_checked: "2026-07-05"

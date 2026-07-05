@@ -977,3 +977,33 @@ probes:
     forbidden_playbook: [pr_review_readonly]
     must_have: [slack_notification]
     forbidden: [code_editing]
+
+  # ── morning_email_triage playbook promotion (MAR-301) ───────────────────────
+  # Third email-domain playbook (alongside email_calendar_assistant and
+  # email_lead_to_crm). The scheduled read → classify → draft → gate shape (a
+  # dogfood session) must route playbook-first, DRAFT-ONLY. The forbidden list
+  # is the no-send / no-schedule / no-publish identity — and pins the MATCH-07
+  # residuals (calendar_*, external_publish) that this exact goal used to leak
+  # but no longer does (negation + schedule-hint fixes landed upstream).
+  - id: morning_email_triage_playbook
+    goal: "Morning agent reads inbox, classifies messages urgent/FYI/needs-reply/spam, drafts replies for needs-reply, saves everything as drafts for human review. Scheduled daily trigger. Must never auto-send. No external publishing."
+    via: plan
+    required_playbook: morning_email_triage
+    must_have: [scheduled_trigger, email_read, intent_classifier, email_draft, human_approval_gate]
+    forbidden: [optional_email_send, calendar_lookup, calendar_write, external_publish, crm_note_write]
+
+  # Bleed guard: a genuine send-and-schedule email goal stays on
+  # email_calendar_assistant (calendar_*/optional_email_send lift its recall
+  # above the draft-only triage set) — morning_email_triage must not claim it.
+  - id: send_schedule_email_not_triage_playbook
+    goal: "Read my email, draft replies, send them after I approve, and schedule any meetings the emails request on my calendar."
+    via: plan
+    forbidden_playbook: [morning_email_triage]
+
+  # Bleed guard: the lead→CRM goal stays on email_lead_to_crm — no triage/classify
+  # signal and crm_note_write lifts the lead playbook. morning_email_triage must
+  # not claim it.
+  - id: email_lead_not_triage_playbook
+    goal: "Read inbound email, detect sales leads, write a CRM note, and draft a follow-up for my approval"
+    via: plan
+    forbidden_playbook: [morning_email_triage]

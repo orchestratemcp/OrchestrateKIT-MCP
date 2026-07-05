@@ -1210,6 +1210,10 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
       "Playbook guidance: avoid when — bulk outreach or marketing send sequences",
       "[text]",
       "[text]",
+      "[text]",
+      "[text]",
+      "[text]",
+      "[text]",
     ],
     "evals": [
       "[user_goal_intake] goal parsing accuracy on diverse test inputs",
@@ -1360,6 +1364,7 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
   "confidence": 0.72,
   "matched_playbook_ids": [
     "email_lead_to_crm",
+    "morning_email_triage",
     "email_calendar_assistant",
   ],
   "next_recommended_tools": [
