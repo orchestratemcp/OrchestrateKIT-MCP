@@ -34,6 +34,10 @@ states them, and they materially affect the plan:
   must it run fully automatically with no approval step?
 - Outbound sends: is the agent allowed to send email, post to Slack, or
   publish externally — or must it stay internal / draft-only?
+- Monitoring & output: how does the user want to monitor this agent once it
+  runs, and where does its output land (e.g. "HubSpot notes + Gmail drafts",
+  "a Slack channel", "a Postgres table")? This does not change the route, but
+  \`export_build_brief\` records it in the agent.manifest.json for DASH.
 
 Fold the user's answers into the plain-English goal you pass to
 \`plan_workflow\`, in the user's own words.

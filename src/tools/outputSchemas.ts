@@ -78,6 +78,17 @@ export const PlanWorkflowOutputShape = z
       })
       .passthrough()
       .optional(),
+    // advisory DASH-v1 observability guidance — event set + gate compliance (MAR-296)
+    observability: z
+      .object({
+        recommended_events: z.array(z.string()),
+        gate_events_required_for: z.array(z.string()),
+        endpoint_env: z.string(),
+        token_env: z.string(),
+        note: z.string(),
+      })
+      .passthrough()
+      .optional(),
     // design notes from edge control_flow_note annotations + structural advisories (MAR-211/212)
     design_notes: z.array(z.string()).optional(),
     // concrete integration needs derived from route components (MAR-208 / MAR-124)

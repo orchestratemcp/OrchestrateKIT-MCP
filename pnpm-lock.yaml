@@ -24,6 +24,12 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.20
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.20.0)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)

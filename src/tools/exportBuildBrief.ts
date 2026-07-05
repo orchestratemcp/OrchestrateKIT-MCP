@@ -14,6 +14,11 @@
  *   §6 Do-NOT-add      — negative scope (avoid_when + forbidden)
  *   §7 Review loop-back — evals + what to check before shipping
  *   §8 Definition of Done — gate checklist derived from safety + clearance
+ *   §9 Observability wiring — DASH run-event wiring (MAR-296 / DASH-02)
+ *
+ * Also emits a deterministic `agent.manifest.json` (`agent_manifest`) conforming
+ * to orchestratedash's DASH-01 telemetry contract — data in the brief, never
+ * sent anywhere.
  *
  * STATELESS CONTRACT: stores nothing, makes no network calls. The brief is the
  * paste-ready artifact; the human takes it to their IDE or Lab.
@@ -23,6 +28,14 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import { detectConstraintSignals } from "../lib/constraintSignals.js";
+import { registryContentFingerprint } from "../registry/loadRegistryBundled.js";
+import {
+  buildAgentManifest,
+  DASH_ENDPOINT_ENV,
+  DASH_TOKEN_ENV,
+  type AgentManifest,
+  type ManifestBuildTarget,
+} from "../lib/observabilityContract.js";
 
 // ──────────────────────────────── input ────────────────────────────────
 
@@ -163,6 +176,30 @@ export const InputShape = {
       "'linear' = Linear issue description, 'obsidian' = Obsidian note. " +
       "Defaults to prompt only.",
     ),
+  // ── MAR-296 / DASH-02: agent.manifest.json inputs (all optional) ──
+  playbook_id: z
+    .string()
+    .default("")
+    .describe("plan_workflow.playbook.id when plan_source is 'playbook'; '' when composed."),
+  route_id: z
+    .string()
+    .default("")
+    .describe("plan_workflow.playbook.route_id when plan_source is 'playbook'; '' when composed."),
+  build_target: z
+    .enum(["cowork", "cursor", "chatgpt_gpt", "code"])
+    .default("code")
+    .describe("Where the agent will be BUILT — recorded in the DASH manifest. Defaults to 'code'."),
+  output_location: z
+    .string()
+    .default("")
+    .describe(
+      "Where this agent's output lands (from the plan-time monitoring question), " +
+      "echoed into the DASH manifest. Free text, e.g. 'HubSpot notes + Gmail drafts'.",
+    ),
+  agent_name: z
+    .string()
+    .optional()
+    .describe("Override the manifest agent slug. Defaults to a slug of the playbook id or goal."),
 };
 
 // ──────────────────────────────── output ───────────────────────────────
@@ -181,12 +218,21 @@ export type BuildBriefOutput = {
     s6_do_not_add: string;
     s7_review_loopback: string;
     s8_definition_of_done: string;
+    /** §9 event-wiring instructions for a DASH-monitored build (MAR-296). */
+    s9_observability: string;
   };
   handoffs: {
     prompt?: string;
     linear?: string;
     obsidian?: string;
   };
+  /**
+   * The `agent.manifest.json` for this plan (MAR-296 / DASH-02) — deterministic,
+   * conforms to orchestratedash `contracts/agent.manifest.schema.json`. Write it
+   * next to the built agent and import it into DASH. The MCP never sends it
+   * anywhere; it is data in the brief.
+   */
+  agent_manifest: AgentManifest;
   provenance_tag: "registry-grounded";
   grounding_note: string;
 };
@@ -494,6 +540,45 @@ function s8DefinitionOfDone(
   return lines.join("\n");
 }
 
+/**
+ * §9 — DASH observability wiring (MAR-296 / DASH-02).
+ *
+ * Instructs the building LLM to emit run events per the DASH-v1 contract. Renders
+ * for every build_target (env-var endpoint/token are build-target-agnostic). The
+ * manifest itself is the structured `agent_manifest` output field; this section
+ * is the human/agent-readable wiring recipe. No PII, non-fatal, env-var config.
+ */
+function s9Observability(manifest: AgentManifest): string {
+  const irreversible = manifest.safety_contract.irreversible_components;
+  const lines = [
+    "**§9 Observability wiring** _(DASH telemetry contract v1 — 🟢 grounded, advisory to wire)_",
+    "",
+    `This plan ships with an \`agent.manifest.json\` (the \`agent_manifest\` field of this ` +
+      `result). Write it beside the built agent and import it into DASH — the agent card ` +
+      `appears with this planned route. Then have the agent POST run events as it executes:`,
+    "",
+    `- **Endpoint / token:** read from env — \`${DASH_ENDPOINT_ENV}\` and \`${DASH_TOKEN_ENV}\` ` +
+      `(static bearer token per agent). \`POST {${DASH_ENDPOINT_ENV}}/api/events\` with ` +
+      `\`Authorization: Bearer {${DASH_TOKEN_ENV}}\`.`,
+    `- **Events (build_target: \`${manifest.agent.build_target}\`):** emit \`run_started\` → ` +
+      `\`step_started\`/\`step_completed\` per step → \`run_completed\` (or \`run_failed\`). ` +
+      `Include \`run_id\`, a monotonic \`seq\`, \`ts\`, and the planned \`component_id\`.`,
+    `- **Fire-and-forget:** wrap every emit in a non-fatal try/catch — an unreachable DASH ` +
+      `must never break the agent run.`,
+    `- **No secrets, no PII:** events carry ids, statuses, counts, costs — never message ` +
+      `bodies, tokens, or credentials. Keep \`detail\` a short, PII-free hint.`,
+  ];
+  if (irreversible.length > 0) {
+    lines.push(
+      `- **Gate compliance:** before each irreversible step ` +
+        `(${irreversible.map((c) => `\`${c}\``).join(", ")}) emit \`gate_requested\` then ` +
+        `\`gate_resolved\`. DASH flags an irreversible \`step_started\` with no preceding ` +
+        `resolved gate as a red badge.`,
+    );
+  }
+  return lines.join("\n");
+}
+
 // ─────────────────────────── handoff formatters ───────────────────────────
 
 function buildPromptHandoff(goal: string, sections: BuildBriefOutput["sections"]): string {
@@ -507,6 +592,7 @@ function buildPromptHandoff(goal: string, sections: BuildBriefOutput["sections"]
     sections.s6_do_not_add,
     sections.s7_review_loopback,
     sections.s8_definition_of_done,
+    sections.s9_observability,
   ]
     .filter((s): s is string => s !== null)
     .join("\n\n---\n\n");
@@ -594,8 +680,39 @@ export function exportBuildBrief(input: {
   } | null;
   approval_gate_advisory?: { gate: string; write_components: string[]; reason: string } | null;
   handoff_targets: ("prompt" | "linear" | "obsidian")[];
+  // ── MAR-296 / DASH-02 (all optional; sensible deterministic defaults) ──
+  playbook_id?: string;
+  route_id?: string;
+  build_target?: ManifestBuildTarget;
+  output_location?: string;
+  agent_name?: string;
+  /** Registry fingerprint for manifest provenance; defaults to the bundle's. */
+  registry_fingerprint?: string;
+  /** Manifest timestamp; injectable so tests/snapshots stay deterministic. */
+  generated_at?: string;
 }): BuildBriefOutput {
   const routeComponents = input.recommended_route.map((s) => s.component_id);
+
+  // MAR-296: deterministic agent.manifest.json for DASH (no network, no LLM).
+  const agent_manifest = buildAgentManifest({
+    goal: input.goal,
+    plan_source: input.plan_source,
+    playbook_id: input.playbook_id ?? "",
+    route_id: input.route_id ?? "",
+    build_target: input.build_target ?? "code",
+    route_steps: input.recommended_route.map((s) => ({
+      step: s.step,
+      component_id: s.component_id,
+      risk_level: s.risk_level,
+      model_tier: s.model_tier,
+    })),
+    automation_clearance: input.automation_clearance.level,
+    enforced_approval_gates: input.enforced_approval_gates,
+    output_location: input.output_location ?? "",
+    registry_fingerprint: input.registry_fingerprint ?? registryContentFingerprint(),
+    agent_name: input.agent_name,
+    generated_at: input.generated_at,
+  });
 
   const sections: BuildBriefOutput["sections"] = {
     s0_constraints: s0Constraints(input.goal, input.approval_gate_advisory),
@@ -623,6 +740,7 @@ export function exportBuildBrief(input: {
       input.untested_edges,
       input.enforced_approval_gates,
     ),
+    s9_observability: s9Observability(agent_manifest),
   };
 
   const sectionList = [
@@ -635,6 +753,7 @@ export function exportBuildBrief(input: {
     sections.s6_do_not_add,
     sections.s7_review_loopback,
     sections.s8_definition_of_done,
+    sections.s9_observability,
   ]
     .filter((s): s is string => s !== null)
     .join("\n\n---\n\n");
@@ -667,6 +786,7 @@ export function exportBuildBrief(input: {
     brief_markdown,
     sections,
     handoffs,
+    agent_manifest,
     provenance_tag: "registry-grounded",
     grounding_note:
       "OrchestrateMCP makes no LLM calls. Every component ID, edge relation, safety " +
@@ -684,9 +804,10 @@ export function registerExportBuildBrief(server: McpServer): void {
       title: "Export Build Brief",
       description:
         "Takes a plan_workflow result and emits a provenance-tagged Build Brief — " +
-        "a self-contained handoff document (§0 Constraints → §8 Definition of Done) " +
+        "a self-contained handoff document (§0 Constraints → §9 Observability wiring) " +
         "ready to paste into an IDE agent prompt, a Linear issue, or an Obsidian note. " +
-        "Stateless: stores nothing, makes no network calls. " +
+        "Also emits a deterministic agent.manifest.json (agent_manifest) for DASH " +
+        "monitoring. Stateless: stores nothing, makes no network calls. " +
         "Call after plan_workflow to get the agent-ready build spec.",
       inputSchema: InputShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
@@ -709,6 +830,11 @@ export function registerExportBuildBrief(server: McpServer): void {
           loop_guidance: input.loop_guidance as { playbook_id: string; worker_sequence: string[]; loop_contract: z.infer<typeof LoopContractShape>; guardrail_checklist: string[] } | undefined,
           approval_gate_advisory: input.approval_gate_advisory as { gate: string; write_components: string[]; reason: string } | undefined,
           handoff_targets: input.handoff_targets,
+          playbook_id: input.playbook_id,
+          route_id: input.route_id,
+          build_target: input.build_target,
+          output_location: input.output_location,
+          agent_name: input.agent_name,
         });
 
         logger.debug(
