@@ -207,14 +207,14 @@
       "goal": "Check 5 competitor product pages every hour; detect price changes; send an internal Slack alert with a one-line summary when price drops below a configurable threshold; unattended scheduled run; read-only on all external sites; deduplicate alerts; log every check.",
       "domain": "monitoring",
       "must_have": [
-        "scheduled_trigger",
-        "page_monitor",
-        "state_store",
+        "audit_log",
         "deduplication",
+        "page_monitor",
+        "scheduled_trigger",
         "schema_validation",
-        "threshold_router",
         "slack_notification",
-        "audit_log"
+        "state_store",
+        "threshold_router"
       ],
       "nice_to_have": [
         "auth_failure_handler",
@@ -372,11 +372,11 @@
       "goal": "Design a read-only PR review agent triggered by a new PR webhook; scans changed code, runs the test suite, posts a summary for human reviewers; no auto-merge, no commits, no approvals.",
       "domain": "code_agent",
       "must_have": [
-        "webhook_trigger",
         "codebase_scan",
         "pr_summary",
         "reviewer_notification",
-        "test_runner"
+        "test_runner",
+        "webhook_trigger"
       ],
       "nice_to_have": [
         "human_approval_gate"
