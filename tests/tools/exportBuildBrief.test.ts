@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { exportBuildBrief } from "../../src/tools/exportBuildBrief.js";
+import { z } from "zod";
+import { exportBuildBrief, InputShape } from "../../src/tools/exportBuildBrief.js";
 import { loadRegistry } from "../../src/registry/registryLoader.js";
 import { planWorkflow } from "../../src/tools/planWorkflow.js";
 
 const registry = loadRegistry();
+const InputSchema = z.object(InputShape);
 
 /** Run plan_workflow and pipe result straight into export_build_brief. */
 function planAndBrief(
@@ -56,6 +58,59 @@ describe("export_build_brief — structure (MAR-205)", () => {
     const b = planAndBrief("read emails, detect leads and write a note to the CRM for each lead");
     expect(b.grounding_note).toContain("no LLM calls");
     expect(b.grounding_note).toContain("🟢");
+  });
+});
+
+/**
+ * MCP tool ZOD schema regression (found live, 2026-07-05, deployed build
+ * 555705d0). `exportBuildBrief()` the core function is called directly by
+ * every test above — it bypasses the InputShape validation the MCP tool
+ * wrapper (registerExportBuildBrief) actually enforces on the wire. That gap
+ * let a real incompatibility ship: MAR-256 made plan_workflow.worker_pipeline
+ * `null` at guided/brief/standard depth (not just omitted), but MAR-255's
+ * exportBuildBrief input schema only accepted an object or `undefined` —
+ * a straight pass-through of a default-depth plan into export_build_brief
+ * failed with "Expected object, received null" on live. Assert against the
+ * ACTUAL exported zod schema so this class of gap can't recur silently.
+ */
+describe("export_build_brief — input schema accepts plan_workflow's literal outputs (MAR-256/255 integration)", () => {
+  it("accepts worker_pipeline: null (the default-depth plan_workflow shape)", () => {
+    const plan = planWorkflow(
+      { goal: "read emails, detect leads and write a note to the CRM for each lead", must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    expect(plan.worker_pipeline).toBeNull(); // sanity: default depth is null (MAR-256)
+    const parsed = InputSchema.safeParse({
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates,
+      untested_edges: plan.untested_edges,
+      avoid_when_violations: plan.avoid_when_violations,
+      evals_to_add: plan.evals_to_add,
+      design_notes: plan.design_notes,
+      worker_pipeline: plan.worker_pipeline,
+      loop_guidance: plan.loop_guidance,
+      approval_gate_advisory: plan.approval_gate_advisory,
+      handoff_targets: ["prompt"],
+    });
+    expect(parsed.success, parsed.success ? "" : JSON.stringify((parsed as { error: unknown }).error)).toBe(true);
+  });
+
+  it("still accepts worker_pipeline entirely omitted (back-compat)", () => {
+    const parsed = InputSchema.safeParse({
+      goal: "x".repeat(10),
+      plan_source: "composed",
+      route_status: "candidate",
+      recommended_route: [{ step: 1, component_id: "email_read" }],
+      safety_review: { status: "pass", risk_score: 0 },
+      automation_clearance: { level: "L0", autonomous_allowed: true, reason: "x" },
+      handoff_targets: ["prompt"],
+    });
+    expect(parsed.success).toBe(true);
   });
 });
 

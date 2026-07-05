@@ -82,7 +82,11 @@ const LoopContractShape = z
   })
   .passthrough();
 
-const InputShape = {
+// Exported (MAR-256/255 regression) so tests can validate against the ACTUAL
+// zod schema the MCP tool wrapper enforces — calling exportBuildBrief() the
+// core function directly bypasses this layer entirely, which is exactly how
+// the worker_pipeline-null rejection shipped undetected (live audit, 2026-07-05).
+export const InputShape = {
   goal: z.string().min(5).describe("The original workflow goal — verbatim from plan_workflow."),
   plan_source: z
     .enum(["playbook", "composed"])
@@ -122,8 +126,13 @@ const InputShape = {
       feedback_loops: z.array(z.object({}).passthrough()).default([]),
     })
     .passthrough()
+    .nullable()
     .optional()
-    .describe("plan_workflow.worker_pipeline — build team (optional)."),
+    .describe(
+      "plan_workflow.worker_pipeline — build team (optional). Nullable since MAR-256: " +
+      "plan_workflow returns null at guided/brief/standard depth, not just omission — " +
+      "a straight pass-through of that field must not fail validation.",
+    ),
   loop_guidance: z
     .object({
       playbook_id: z.string(),
