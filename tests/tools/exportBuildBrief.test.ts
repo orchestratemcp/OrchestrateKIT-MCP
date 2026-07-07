@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { exportBuildBrief, InputShape } from "../../src/tools/exportBuildBrief.js";
+import {
+  ARTIFACT_ISSUE_FIELD_ORDER,
+  exportBuildBrief,
+  InputShape,
+} from "../../src/tools/exportBuildBrief.js";
+import { ExportBuildBriefOutputShape } from "../../src/tools/outputSchemas.js";
 import { loadRegistry } from "../../src/registry/registryLoader.js";
 import { planWorkflow } from "../../src/tools/planWorkflow.js";
 
@@ -351,5 +356,56 @@ describe("export_build_brief — handoff targets (MAR-205)", () => {
     expect(b.handoffs.prompt).toBeTruthy();
     expect(b.handoffs.linear).toBeTruthy();
     expect(b.handoffs.obsidian).toBeTruthy();
+  });
+});
+
+describe("export_build_brief - Tier 2 artifact compiler (MAR-249)", () => {
+  it("emits epic -> milestones -> Linear issue templates with the full field set", () => {
+    const b = planAndBrief(
+      "Build an agent that reads new leads from Gmail, drafts a reply, updates CRM, and alerts sales in Slack after approval.",
+      ["prompt", "linear"],
+    );
+    const pkg = b.artifact_package;
+
+    expect(pkg.compiler).toBe("export_build_brief.artifact_compiler.v1");
+    expect(() => ExportBuildBriefOutputShape.parse(b)).not.toThrow();
+    expect(pkg.status).toBe("compiled");
+    expect(pkg.epic.title).toContain("Build workflow");
+    expect(pkg.milestones.map((m) => m.id)).toEqual(["M1", "M2", "M3"]);
+    expect(pkg.linear_issue_templates.length).toBeGreaterThan(2);
+    expect(pkg.field_order).toEqual([...ARTIFACT_ISSUE_FIELD_ORDER]);
+
+    for (const issue of pkg.linear_issue_templates) {
+      expect(Object.keys(issue.fields).sort()).toEqual([...ARTIFACT_ISSUE_FIELD_ORDER].sort());
+      expect(issue.markdown).toContain("### Claude-Code/Cursor prompt");
+      expect(issue.markdown).toContain("### Acceptance criteria");
+      expect(issue.markdown).toContain("### Files likely affected");
+    }
+  });
+
+  it("includes build-ready prompt and paste-ready Linear templates without external writes", () => {
+    const b = planAndBrief(
+      "Scan a GitHub PR, summarize risks, and draft a reviewer notification for human approval.",
+      ["prompt", "linear", "obsidian"],
+    );
+
+    expect(b.artifact_package.build_prompt).toContain("You are implementing a confirmed OrchestrateMCP plan");
+    expect(b.artifact_package.linear_issue_template_markdown).toContain("## ISSUE-001");
+    expect(b.artifact_package.few_shot_example.markdown).toContain("EXAMPLE-001");
+    expect(b.handoffs.prompt).toContain("Use these Linear-style issue templates as the execution plan");
+    expect(b.handoffs.linear).toContain("no Linear write was performed");
+    expect(b.handoffs.obsidian).toContain("tags: [orchestratekit");
+    expect(b.brief_markdown).toContain("Tier 2 artifact compiler");
+    expect(b.brief_markdown).toContain("did not write to Linear, Obsidian");
+  });
+
+  it("directs client LLMs to clarify, confirm scope, and mark unknowns instead of guessing", () => {
+    const b = planAndBrief("Read emails and draft CRM follow-ups", ["linear"]);
+    const directives = b.artifact_package.directives.join("\n");
+
+    expect(directives).toContain("Ask at least 3 targeted clarifying questions");
+    expect(directives).toContain("Do not emit final implementation issues until the human confirms the scope");
+    expect(directives).toContain("write UNKNOWN and ask the human");
+    expect(directives).toContain("Do not write to Linear, Obsidian");
   });
 });
