@@ -250,6 +250,24 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     "human_approval_gate",
   ],
   "goal": "scan a codebase, plan changes, edit code, run tests and write a PR summary",
+  "hosting_and_monitoring": {
+    "hosting": {
+      "alternatives": [],
+      "reason": "",
+      "recommended": {
+        "id": "manual_local",
+        "label": "Manual, on-demand run from your own environment",
+      },
+    },
+    "monitoring": {
+      "alternatives": [],
+      "reason": "",
+      "recommended": {
+        "id": "dash_import",
+        "label": "Import the manifest into DASH (LAB Agents module)",
+      },
+    },
+  },
   "loop_guidance": null,
   "model_tier_profile": {
     "frontier": [
@@ -299,6 +317,16 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "action": "record_session_feedback({ ... })",
       "id": "log_feedback",
       "label": "Record how the build went (feeds the evidence library)",
+    },
+    {
+      "action": "see:hosting_and_monitoring.hosting",
+      "id": "choose_hosting",
+      "label": "Choose hosting (recommended: manual run)",
+    },
+    {
+      "action": "see:hosting_and_monitoring.monitoring",
+      "id": "wire_monitoring",
+      "label": "Wire monitoring (recommended: DASH import)",
     },
   ],
   "next_steps": [
@@ -353,6 +381,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "design_notes": "grounded",
       "enforced_approval_gates": "computed",
       "execution_order": "computed",
+      "hosting_and_monitoring": "computed",
       "loop_guidance": "grounded",
       "model_tier_profile": "grounded",
       "next_action_menu": "advisory",
@@ -590,6 +619,24 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     "audit_log",
   ],
   "goal": "[text]",
+  "hosting_and_monitoring": {
+    "hosting": {
+      "alternatives": [],
+      "reason": "",
+      "recommended": {
+        "id": "local_cron",
+        "label": "Local scheduled task / cron",
+      },
+    },
+    "monitoring": {
+      "alternatives": [],
+      "reason": "",
+      "recommended": {
+        "id": "dash_import",
+        "label": "Import the manifest into DASH (LAB Agents module)",
+      },
+    },
+  },
   "loop_guidance": null,
   "model_tier_profile": {
     "frontier": [
@@ -640,6 +687,16 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "action": "record_session_feedback({ ... })",
       "id": "log_feedback",
       "label": "Record how the build went (feeds the evidence library)",
+    },
+    {
+      "action": "see:hosting_and_monitoring.hosting",
+      "id": "choose_hosting",
+      "label": "Choose hosting (recommended: local cron)",
+    },
+    {
+      "action": "see:hosting_and_monitoring.monitoring",
+      "id": "wire_monitoring",
+      "label": "Wire monitoring (recommended: DASH import)",
     },
   ],
   "next_steps": [
@@ -693,6 +750,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "design_notes": "grounded",
       "enforced_approval_gates": "computed",
       "execution_order": "computed",
+      "hosting_and_monitoring": "computed",
       "loop_guidance": "grounded",
       "model_tier_profile": "grounded",
       "next_action_menu": "advisory",
@@ -1059,6 +1117,24 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     "human_approval_gate",
   ],
   "goal": "scan a codebase, plan changes, edit code, run tests and write a PR summary",
+  "hosting_and_monitoring": {
+    "hosting": {
+      "alternatives": [],
+      "reason": "",
+      "recommended": {
+        "id": "manual_local",
+        "label": "Manual, on-demand run from your own environment",
+      },
+    },
+    "monitoring": {
+      "alternatives": [],
+      "reason": "",
+      "recommended": {
+        "id": "dash_import",
+        "label": "Import the manifest into DASH (LAB Agents module)",
+      },
+    },
+  },
   "loop_guidance": null,
   "model_tier_profile": {
     "frontier": [
@@ -1108,6 +1184,16 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "action": "record_session_feedback({ ... })",
       "id": "log_feedback",
       "label": "Record how the build went (feeds the evidence library)",
+    },
+    {
+      "action": "see:hosting_and_monitoring.hosting",
+      "id": "choose_hosting",
+      "label": "Choose hosting (recommended: manual run)",
+    },
+    {
+      "action": "see:hosting_and_monitoring.monitoring",
+      "id": "wire_monitoring",
+      "label": "Wire monitoring (recommended: DASH import)",
     },
   ],
   "next_steps": [
@@ -1162,6 +1248,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "design_notes": "grounded",
       "enforced_approval_gates": "computed",
       "execution_order": "computed",
+      "hosting_and_monitoring": "computed",
       "loop_guidance": "grounded",
       "model_tier_profile": "grounded",
       "next_action_menu": "advisory",
