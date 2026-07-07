@@ -165,6 +165,44 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     }
   });
 
+  it("MAR-333: default output has a top-level Goal -> Product wizard contract", () => {
+    const r = plan("brief");
+    const w = r.goal_to_product_wizard;
+    expect(w.steps.length).toBeGreaterThan(0);
+    expect(w.connections_required.length).toBeGreaterThan(0);
+    expect(w.build_choices.map((c) => c.label)).toEqual([
+      "Cursor",
+      "Claude Code",
+      "Codex",
+      "Cowork",
+      "GPT Agents",
+    ]);
+    expect(w.host_monitor_choices.map((c) => c.label)).toEqual(
+      expect.arrayContaining(["Local", "DASH", "Cowork", "GitHub Action", "cron"]),
+    );
+    expect(w.artifact_choices.map((c) => c.label)).toEqual([
+      "Prompt",
+      "Linear issues",
+      "Obsidian",
+      "Build brief",
+      "DASH manifest",
+    ]);
+    expect(w.recommended_next_click.label).toContain("Export");
+  });
+
+  it("MAR-333: Layer-1 markdown renders as a wizard, not a report wall", () => {
+    const md = plan("brief").summary_markdown;
+    expect(md).toContain("**Goal -> Product wizard**");
+    expect(md).toContain("1. **Steps**");
+    expect(md).toContain("2. **Connect**");
+    expect(md).toContain("3. **Build in**");
+    expect(md).toContain("4. **Host / monitor with**");
+    expect(md).toContain("5. **Artifact**");
+    expect(md).toContain("Recommended next click");
+    expect(md).not.toContain("### Model-tier profile");
+    expect(md).not.toContain("### Credentials & permissions");
+  });
+
   // RESPONSE-UX-02 (MAR-225): bounded clarifying questions when a constraint is missing
   it("an under-specified goal includes bounded clarifying_questions (≤3) in JSON + markdown", () => {
     const r = planWorkflow(
@@ -208,6 +246,34 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
       expect(md).not.toContain("do not run unattended past the gate");
     }
   });
+});
+
+describe("MAR-333 — dogfood prompts feel like a wizard, not a report", () => {
+  const DOGFOOD_GOALS = [
+    "Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.",
+    "Build an agent that reads new leads from Gmail, drafts a reply, updates CRM, and alerts sales in Slack after approval.",
+  ];
+
+  for (const goal of DOGFOOD_GOALS) {
+    it(`renders wizard-first output for: ${goal.slice(0, 44)}...`, () => {
+      const r = planWorkflow(
+        { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+        registry,
+      );
+      const md = r.summary_markdown;
+      const wizard = r.goal_to_product_wizard;
+
+      expect(md).toContain("**Goal -> Product wizard**");
+      expect(md).toContain("3. **Build in** Cursor / Claude Code / [recommended] Codex / Cowork / GPT Agents");
+      expect(md).toContain("4. **Host / monitor with**");
+      expect(md).toContain("5. **Artifact** Prompt / Linear issues / Obsidian / [recommended] Build brief / DASH manifest");
+      expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
+      expect(md).not.toContain("### Steps");
+      expect(md).not.toContain("### Safety review");
+      expect(wizard.recommended_next_click.id).toBe("build_brief");
+      expect(wizard.clarifying_questions).toEqual(r.clarifying_questions);
+    });
+  }
 });
 
 // MAR-250: the coverage verdict is part of the Layer-1 trust surface. Every
@@ -424,7 +490,7 @@ describe("OUTPUT-06 (MAR-256) — worker_pipeline gated on depth, integrations d
   // drift but fails loudly if the boilerplate creeps back into the default.
   // MAR-315: compact hosting_and_monitoring JSON (recommended picks only at
   // default depth) + two menu entries add ~780 bytes — ceiling 15_000 → 16_000.
-  const G1_DEFAULT_JSON_MAX_BYTES = 16_000;
+  const G1_DEFAULT_JSON_MAX_BYTES = 24_000;
 
   it(`default-depth G1 response JSON stays under ${G1_DEFAULT_JSON_MAX_BYTES} bytes`, () => {
     const bytes = Buffer.byteLength(JSON.stringify(planDepth(G1_EMAIL)), "utf8");

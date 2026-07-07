@@ -502,6 +502,52 @@ export type HostingAndMonitoring = {
   };
 };
 
+export type WizardChoiceKind = "build" | "host_monitor" | "artifact";
+
+export type WizardChoice = {
+  id: string;
+  label: string;
+  kind: WizardChoiceKind;
+  best_for: string;
+  tradeoffs: string;
+  recommended: boolean;
+  action: string;
+};
+
+export type WizardStep = {
+  step: number;
+  label: string;
+  detail: string;
+  component_id: string;
+};
+
+export type WizardConnectionGroup = {
+  id: "sources" | "destinations" | "state" | "approval" | "secrets";
+  label: string;
+  items: string[];
+};
+
+/**
+ * MAR-333: the top-level Goal -> Product wizard contract. This is the concise,
+ * menu-shaped surface clients should render by default. It is deterministic
+ * data only: plain-English route steps, grouped connection needs, build choices,
+ * host/monitor choices, artifact choices, bounded questions, and one best next
+ * click. Deep/technical fields remain available elsewhere in the same payload.
+ */
+export type GoalToProductWizard = {
+  steps: WizardStep[];
+  connections_required: WizardConnectionGroup[];
+  build_choices: WizardChoice[];
+  host_monitor_choices: WizardChoice[];
+  artifact_choices: WizardChoice[];
+  clarifying_questions: ClarifyingQuestion[];
+  recommended_next_click: {
+    id: string;
+    label: string;
+    action: string;
+  };
+};
+
 export type ProvenanceTag = "grounded" | "computed" | "advisory";
 
 export type ProvenanceModel = {
@@ -609,6 +655,13 @@ export type PlanWorkflowOutput = {
    * never null. Registry/route-shape derived — no LLM, no network call.
    */
   hosting_and_monitoring: HostingAndMonitoring;
+  /**
+   * MAR-333: concise Goal -> Product wizard contract. Clients should prefer
+   * this for default rendering instead of reconstructing a wizard from
+   * `summary_markdown`, `what_you_need`, `next_action_menu`, and
+   * `hosting_and_monitoring`.
+   */
+  goal_to_product_wizard: GoalToProductWizard;
   /**
    * Advisory multi-worker BUILD pipeline (MAR-166): the specialist workers
    * (planner → coder → reviewer → tester) recommended to implement this plan in
@@ -1890,6 +1943,290 @@ function renderHostingAndMonitoringFull(hm: HostingAndMonitoring): string[] {
   return lines;
 }
 
+function wizardStepLabel(step: RouteStep): string {
+  return step.purpose || step.component_name || step.component_id;
+}
+
+function connectionGroupFor(componentId: string): WizardConnectionGroup["id"] {
+  if (
+    componentId.includes("read") ||
+    componentId.includes("lookup") ||
+    componentId.includes("retrieval") ||
+    componentId.includes("scraper") ||
+    componentId.includes("monitor") ||
+    componentId.includes("trigger")
+  ) {
+    return "sources";
+  }
+  if (
+    componentId.includes("notification") ||
+    componentId.includes("send") ||
+    componentId.includes("publish") ||
+    componentId.includes("draft") ||
+    componentId.includes("crm")
+  ) {
+    return "destinations";
+  }
+  if (
+    componentId.includes("state") ||
+    componentId.includes("store") ||
+    componentId.includes("db") ||
+    componentId.includes("file") ||
+    componentId.includes("audit")
+  ) {
+    return "state";
+  }
+  if (componentId.includes("approval") || componentId.includes("reviewer")) {
+    return "approval";
+  }
+  return "secrets";
+}
+
+function groupConnections(whatYouNeed: IntegrationNeed[], enforcedGates: string[]): WizardConnectionGroup[] {
+  const labels: Record<WizardConnectionGroup["id"], string> = {
+    sources: "Data sources",
+    destinations: "Destinations",
+    state: "State / storage",
+    approval: "Approval",
+    secrets: "Secrets",
+  };
+  const groups = new Map<WizardConnectionGroup["id"], Set<string>>();
+  const add = (id: WizardConnectionGroup["id"], item: string) => {
+    if (!groups.has(id)) groups.set(id, new Set());
+    groups.get(id)!.add(item);
+  };
+
+  for (const need of whatYouNeed) {
+    const name = need.product_examples[0] || need.label;
+    add(connectionGroupFor(need.component_id), name);
+    if (need.required_scopes.length > 0 || need.scopes.length > 0) {
+      add("secrets", `${name} credentials`);
+    }
+  }
+  if (enforcedGates.includes("human_approval_gate")) {
+    add("approval", "Human approval checkpoint");
+  }
+  if (groups.size === 0) {
+    add("secrets", "No external connections required");
+  }
+
+  return Array.from(groups.entries()).map(([id, items]) => ({
+    id,
+    label: labels[id],
+    items: Array.from(items),
+  }));
+}
+
+function buildChoiceRecommended(target: BuildTarget | undefined, choiceId: string): boolean {
+  if (!target) return choiceId === "codex";
+  if (target === "cowork") return choiceId === "cowork";
+  if (target === "chatgpt_gpt") return choiceId === "gpt_agents";
+  if (target === "cursor") return choiceId === "cursor";
+  return choiceId === "codex";
+}
+
+function buildWizardChoices(buildTarget: BuildTarget | undefined): WizardChoice[] {
+  return [
+    {
+      id: "cursor",
+      label: "Cursor",
+      kind: "build",
+      best_for: "IDE-first implementation with project files open.",
+      tradeoffs: "Fast for repo edits; needs a clear build brief.",
+      recommended: buildChoiceRecommended(buildTarget, "cursor"),
+      action: "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+    },
+    {
+      id: "claude_code",
+      label: "Claude Code",
+      kind: "build",
+      best_for: "Terminal-first code generation and refactors.",
+      tradeoffs: "Great for implementation; keep the route and tests explicit.",
+      recommended: false,
+      action: "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+    },
+    {
+      id: "codex",
+      label: "Codex",
+      kind: "build",
+      best_for: "Agentic repo work with tests, commits, and PR handoff.",
+      tradeoffs: "Best once the scope is locked; answer clarifying questions first.",
+      recommended: buildChoiceRecommended(buildTarget, "codex"),
+      action: "export_build_brief({ handoff_targets: ['prompt'], build_target: 'code' })",
+    },
+    {
+      id: "cowork",
+      label: "Cowork",
+      kind: "build",
+      best_for: "No-code assistant configuration and human-in-the-loop operation.",
+      tradeoffs: "Less control over custom runtime details.",
+      recommended: buildChoiceRecommended(buildTarget, "cowork"),
+      action: "assistant:generate_cowork_prompt",
+    },
+    {
+      id: "gpt_agents",
+      label: "GPT Agents",
+      kind: "build",
+      best_for: "ChatGPT-hosted assistant with Actions-style integrations.",
+      tradeoffs: "Good UX; hosting/runtime control is more constrained.",
+      recommended: buildChoiceRecommended(buildTarget, "gpt_agents"),
+      action: "assistant:generate_chatgpt_gpt",
+    },
+  ];
+}
+
+function buildHostMonitorChoices(hm: HostingAndMonitoring): WizardChoice[] {
+  const hosting = hm.hosting.recommended.id;
+  return [
+    {
+      id: "local",
+      label: "Local",
+      kind: "host_monitor",
+      best_for: "Manual or developer-operated runs.",
+      tradeoffs: "Simple to start; uptime and alerts are on you.",
+      recommended: hosting === "manual_local",
+      action: "choose_hosting:local",
+    },
+    {
+      id: "cron",
+      label: "cron",
+      kind: "host_monitor",
+      best_for: "Scheduled jobs that do not need an inbound endpoint.",
+      tradeoffs: "Requires logs and retry handling.",
+      recommended: hosting === "local_cron" || hosting === "hosted_cron",
+      action: "choose_hosting:cron",
+    },
+    {
+      id: "github_action",
+      label: "GitHub Action",
+      kind: "host_monitor",
+      best_for: "Repo-bound scheduled or webhook workflows.",
+      tradeoffs: "Convenient CI logs; less ideal for long-running jobs.",
+      recommended: false,
+      action: "choose_hosting:github_action",
+    },
+    {
+      id: "cowork",
+      label: "Cowork",
+      kind: "host_monitor",
+      best_for: "Assistant-in-client workflows.",
+      tradeoffs: "Depends on the client session and connected tools.",
+      recommended: hosting === "in_client",
+      action: "choose_hosting:cowork",
+    },
+    {
+      id: "dash",
+      label: "DASH",
+      kind: "host_monitor",
+      best_for: "Monitoring runs, steps, approval gates, and failures.",
+      tradeoffs: "Monitoring target, not the execution runtime.",
+      recommended: hm.monitoring.recommended.id === "dash_import",
+      action: "export_build_brief({ handoff_targets: ['prompt'] }) -> use agent_manifest",
+    },
+  ];
+}
+
+function buildArtifactChoices(): WizardChoice[] {
+  return [
+    {
+      id: "prompt",
+      label: "Prompt",
+      kind: "artifact",
+      best_for: "Paste into a builder immediately.",
+      tradeoffs: "Fastest artifact; less structured than issues.",
+      recommended: false,
+      action: "export_build_brief({ handoff_targets: ['prompt'] })",
+    },
+    {
+      id: "linear_issues",
+      label: "Linear issues",
+      kind: "artifact",
+      best_for: "Turning the plan into tracked implementation work.",
+      tradeoffs: "plan_workflow does not write to Linear; export text only.",
+      recommended: false,
+      action: "export_build_brief({ handoff_targets: ['linear'] })",
+    },
+    {
+      id: "obsidian",
+      label: "Obsidian",
+      kind: "artifact",
+      best_for: "Keeping the plan in a local knowledge base.",
+      tradeoffs: "plan_workflow does not write notes; export markdown only.",
+      recommended: false,
+      action: "export_build_brief({ handoff_targets: ['obsidian'] })",
+    },
+    {
+      id: "build_brief",
+      label: "Build brief",
+      kind: "artifact",
+      best_for: "Handing a locked scope to Cursor, Claude Code, or Codex.",
+      tradeoffs: "Longer artifact; best after quick questions are answered.",
+      recommended: true,
+      action: "export_build_brief({ handoff_targets: ['prompt'] })",
+    },
+    {
+      id: "dash_manifest",
+      label: "DASH manifest",
+      kind: "artifact",
+      best_for: "Importing the planned agent into DASH monitoring.",
+      tradeoffs: "Ships inside the build brief; not a standalone write.",
+      recommended: false,
+      action: "export_build_brief({ handoff_targets: ['prompt'] }) -> agent_manifest",
+    },
+  ];
+}
+
+function pickRecommendedNextClick(
+  clarifyingQuestions: ClarifyingQuestion[],
+  buildChoices: WizardChoice[],
+  artifactChoices: WizardChoice[],
+): GoalToProductWizard["recommended_next_click"] {
+  if (clarifyingQuestions.length > 0) {
+    return {
+      id: "answer_clarifying_questions",
+      label: "Answer the quick questions",
+      action: "assistant:ask_clarifying_questions",
+    };
+  }
+  const build = buildChoices.find((c) => c.recommended) ?? buildChoices[0];
+  const artifact = artifactChoices.find((c) => c.recommended) ?? artifactChoices[0];
+  return {
+    id: artifact.id,
+    label: `Export ${artifact.label} for ${build.label}`,
+    action: artifact.action,
+  };
+}
+
+function buildGoalToProductWizard(input: {
+  steps: RouteStep[];
+  whatYouNeed: IntegrationNeed[];
+  enforcedGates: string[];
+  buildTarget: BuildTarget | undefined;
+  hostingAndMonitoring: HostingAndMonitoring;
+  clarifyingQuestions: ClarifyingQuestion[];
+}): GoalToProductWizard {
+  const buildChoices = buildWizardChoices(input.buildTarget);
+  const artifactChoices = buildArtifactChoices();
+  return {
+    steps: input.steps.map((s) => ({
+      step: s.step,
+      label: wizardStepLabel(s),
+      detail: riskStepNote(s.risk_level),
+      component_id: s.component_id,
+    })),
+    connections_required: groupConnections(input.whatYouNeed, input.enforcedGates),
+    build_choices: buildChoices,
+    host_monitor_choices: buildHostMonitorChoices(input.hostingAndMonitoring),
+    artifact_choices: artifactChoices,
+    clarifying_questions: input.clarifyingQuestions,
+    recommended_next_click: pickRecommendedNextClick(
+      input.clarifyingQuestions,
+      buildChoices,
+      artifactChoices,
+    ),
+  };
+}
+
 /**
  * MAR-101: scannable front-matter status block prepended to every
  * `summary_markdown`, regardless of `output_depth`. It surfaces the four facts
@@ -2066,6 +2403,7 @@ function buildGuidedPlanMarkdown(
   clarifyingQuestions: ClarifyingQuestion[],
   coverage: Coverage,
   hostingAndMonitoring: HostingAndMonitoring,
+  goalToProductWizard: GoalToProductWizard,
   /**
    * MAR-224: when true (`standard` depth) the recommended route is rendered as a
    * full numbered step list with per-step risk instead of the one-line chain —
@@ -2075,6 +2413,10 @@ function buildGuidedPlanMarkdown(
   fullSteps: boolean,
 ): string {
   const lines: string[] = [];
+  const recommendedBuild = goalToProductWizard.build_choices.find((c) => c.recommended);
+  const recommendedHost = goalToProductWizard.host_monitor_choices.filter((c) => c.recommended);
+  const choiceLabels = (choices: WizardChoice[]) =>
+    choices.map((c) => `${c.recommended ? "[recommended] " : ""}${c.label}`).join(" / ");
 
   // (1) what you want — bound the echo so the brevity cap holds for any goal
   // length (the full goal is always in the JSON `goal` field).
@@ -2082,12 +2424,6 @@ function buildGuidedPlanMarkdown(
   lines.push(`**You want:** ${shownGoal}`, ``);
 
   // (2) what we recommend — one line, not 10 step blocks
-  const MAX_NODES = 10;
-  const names = steps.map((s) => s.component_name ?? s.component_id);
-  const chain =
-    names.length > MAX_NODES
-      ? `${names.slice(0, MAX_NODES).join(" → ")} → … (+${names.length - MAX_NODES})`
-      : names.join(" → ");
   if (planSource === "playbook" && playbook) {
     lines.push(
       `**Recommended:** validated playbook \`${playbook.id}\` — ${playbook.title} (${steps.length} steps)`,
@@ -2106,20 +2442,36 @@ function buildGuidedPlanMarkdown(
     }
     lines.push(``);
   } else {
-    lines.push(`> ${chain}`, ``);
+    lines.push(``);
   }
+
+  lines.push(`**Goal -> Product wizard**`);
+  lines.push(`1. **Steps**`);
+  for (const step of goalToProductWizard.steps.slice(0, fullSteps ? 12 : 5)) {
+    lines.push(`   - ${step.label}`);
+  }
+  if (!fullSteps && goalToProductWizard.steps.length > 5) {
+    lines.push(`   - ...and ${goalToProductWizard.steps.length - 5} more`);
+  }
+  lines.push(`2. **Connect**`);
+  for (const group of goalToProductWizard.connections_required.slice(0, 4)) {
+    lines.push(`   - ${group.label}: ${group.items.slice(0, 4).join(", ")}`);
+  }
+  lines.push(`3. **Build in** ${choiceLabels(goalToProductWizard.build_choices)}`);
+  lines.push(`   - Best next build choice: ${recommendedBuild?.label ?? "Codex"}`);
+  lines.push(`4. **Host / monitor with** ${choiceLabels(goalToProductWizard.host_monitor_choices)}`);
+  if (recommendedHost.length > 0) {
+    lines.push(`   - Recommended: ${recommendedHost.map((c) => c.label).join(" + ")}`);
+  }
+  lines.push(`5. **Artifact** ${choiceLabels(goalToProductWizard.artifact_choices)}`);
+  lines.push(`   - Recommended next click: ${goalToProductWizard.recommended_next_click.label}`);
+  lines.push(``);
 
   // (2b) MAR-250: coverage gaps — what the registry does NOT carry, before the
   // connect list, so the reader never mistakes a partial plan for a complete one.
   lines.push(...renderCoverageBlock(coverage));
 
   // (3) what to connect — integration NAMES only, no scopes / gotchas (those are Layer 2)
-  if (whatYouNeed.length > 0) {
-    lines.push(`**To connect:** ${whatYouNeed.map((n) => n.label).join(", ")}`, ``);
-  } else {
-    lines.push(`**To connect:** nothing external — all steps are internal / deterministic`, ``);
-  }
-
   // (4) key safeguard — approval boundary + irreversible-write note, plain language.
   // MAR-252: the waived-gate copy must agree with the clearance instead of
   // telling the user to "re-enable it to run unattended" (they waived it BECAUSE
@@ -2180,15 +2532,16 @@ function buildGuidedPlanMarkdown(
   // (5) standardized next-action menu (RESPONSE-UX-03 / MAR-226)
   if (nextActionMenu.length > 0) {
     lines.push(`**Next — pick one:**`);
-    lines.push(...renderNextActionMenu(nextActionMenu));
+    lines.push(`- ${goalToProductWizard.recommended_next_click.label}`);
+    const tech = nextActionMenu.find((a) => a.id === "show_technical_plan");
+    if (tech) lines.push(`- ${tech.label}`);
     lines.push(``);
   }
 
   // one-line provenance + depth hint (the full provenance block is Layer 2)
   lines.push(
-    `> 🟢 Route, safety and autonomy above are registry-grounded (no LLM). Anything you add is ` +
-      `🔵 suggested — don't present it as a registry fact. For the full step-by-step plan, model ` +
-      `tiers, credentials and build team, call again with \`output_depth: "technical"\`.`,
+    `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +
+      `For full details, call \`output_depth: "technical"\`.`,
   );
 
   return lines.join("\n");
@@ -2213,6 +2566,7 @@ function buildPlanMarkdown(
   clarifyingQuestions: ClarifyingQuestion[],
   coverage: Coverage,
   hostingAndMonitoring: HostingAndMonitoring,
+  goalToProductWizard: GoalToProductWizard,
 ): string {
   const lines: string[] = [];
 
@@ -2492,6 +2846,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       next_action_menu: "advisory", // MAR-226: standardized action menu
       clarifying_questions: "advisory", // MAR-225: bounded constraint questions
       hosting_and_monitoring: "computed", // MAR-315: deterministic route-shape derivation
+      goal_to_product_wizard: "advisory", // MAR-333: deterministic menu contract for clients
       next_steps: "advisory",
     },
     grounding_note:
@@ -2750,6 +3105,14 @@ export function planWorkflow(
 
   // ── MAR-225: bounded clarifying questions for missing architecture constraints ──
   const clarifying_questions = buildClarifyingQuestions(input.goal, routeComponentIds);
+  const goal_to_product_wizard = buildGoalToProductWizard({
+    steps,
+    whatYouNeed: what_you_need,
+    enforcedGates: enforced_approval_gates,
+    buildTarget: input.build_target,
+    hostingAndMonitoring: hosting_and_monitoring,
+    clarifyingQuestions: clarifying_questions,
+  });
 
   // ── Step 6: fused markdown ──
   // MAR-101: every depth leads with the same scannable status front-matter so
@@ -2783,6 +3146,7 @@ export function planWorkflow(
       clarifying_questions,
       coverage,
       hosting_and_monitoring,
+      goal_to_product_wizard,
       outputDepth === "standard", // fullSteps: standard is the superset layer
     );
   } else {
@@ -2805,6 +3169,7 @@ export function planWorkflow(
       clarifying_questions,
       coverage,
       hosting_and_monitoring,
+      goal_to_product_wizard,
     );
   }
   const summary_markdown = `${statusHeader}\n\n${body}`;
@@ -2836,6 +3201,7 @@ export function planWorkflow(
     next_action_menu,
     clarifying_questions,
     hosting_and_monitoring,
+    goal_to_product_wizard,
     worker_pipeline,
     worker_pipeline_pointer,
     loop_guidance,
@@ -3056,6 +3422,7 @@ export function registerPlanWorkflow(server: McpServer): void {
             risk_level: input.risk_level,
             local_or_hosted: input.local_or_hosted,
             output_depth: input.output_depth,
+            build_target: input.build_target,
           },
           registry,
         );
