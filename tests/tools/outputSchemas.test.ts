@@ -38,7 +38,7 @@ afterAll(async () => {
 });
 
 /** Fields whose value is non-deterministic across clones/time (file mtimes). */
-const VOLATILE_KEYS = new Set(["last_updated", "freshness"]);
+const VOLATILE_KEYS = new Set(["last_updated", "freshness", "generated_at"]);
 
 /**
  * Normalize structuredContent for a stable golden snapshot: drop volatile fields,
@@ -61,6 +61,26 @@ function normalize(value: unknown): unknown {
   return value;
 }
 
+function normalizeExportBuildBrief(value: unknown): unknown {
+  const out = normalize(value) as Record<string, unknown>;
+  const pkg = out.artifact_package as Record<string, unknown> | undefined;
+  const templates = pkg?.linear_issue_templates;
+  if (pkg && Array.isArray(templates)) {
+    pkg.linear_issue_templates = templates.map((template) => {
+      const t = template as Record<string, unknown>;
+      const fields = t.fields as Record<string, unknown> | undefined;
+      return {
+        id: t.id,
+        milestone_id: t.milestone_id,
+        title: t.title,
+        field_keys: Object.keys(fields ?? {}).sort().join("|"),
+        markdown: t.markdown,
+      };
+    });
+  }
+  return out;
+}
+
 async function structured(
   name: string,
   args: Record<string, unknown>,
@@ -75,6 +95,8 @@ async function structured(
 
 const PLAYBOOK_GOAL =
   "scan a codebase, plan changes, edit code, run tests and write a PR summary";
+const EXPORT_BRIEF_GOAL =
+  "read emails, detect leads and write a note to the CRM for each lead";
 // The composed golden must match no published playbook. MAR-303 gave the
 // Postgres→report→Slack shape its own playbook, so this uses the analytics-API
 // variant (no DB-source token → scheduled_data_report's gate does not fire).
@@ -111,6 +133,38 @@ describe("MAR-163 — plan_workflow output schema", () => {
     expect(sc.status).toBe("needs_goal");
     expect(sc.plan_source).toBeUndefined();
     expect(normalize(sc)).toMatchSnapshot();
+  });
+});
+
+describe("MAR-249 — export_build_brief output schema", () => {
+  it("runtime structuredContent conforms + golden snapshot", async () => {
+    const plan = await structured("plan_workflow", {
+      goal: EXPORT_BRIEF_GOAL,
+      output_depth: "technical",
+    });
+    const sc = await structured("export_build_brief", {
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates ?? [],
+      untested_edges: plan.untested_edges ?? [],
+      avoid_when_violations: plan.avoid_when_violations ?? [],
+      evals_to_add: plan.evals_to_add ?? [],
+      design_notes: plan.design_notes ?? [],
+      worker_pipeline: plan.worker_pipeline ?? null,
+      loop_guidance: plan.loop_guidance ?? null,
+      approval_gate_advisory: plan.approval_gate_advisory ?? null,
+      handoff_targets: ["prompt", "linear"],
+    });
+
+    const pkg = sc.artifact_package as Record<string, unknown>;
+    expect(pkg.compiler).toBe("export_build_brief.artifact_compiler.v1");
+    expect(pkg.status).toBe("compiled");
+    expect(sc.provenance_tag).toBe("registry-grounded");
+    expect(normalizeExportBuildBrief(sc)).toMatchSnapshot();
   });
 });
 
