@@ -213,6 +213,17 @@ describe("health_check tool", () => {
     expect(lower).toMatch(/natural phrasing|user actually phrases|plain language/);
   });
 
+  it("SERVER_INSTRUCTIONS describe the stateless scope compiler handoff (MAR-249)", () => {
+    const lower = SERVER_INSTRUCTIONS.toLowerCase();
+    expect(lower).toContain("export_build_brief");
+    expect(lower).toContain("scope compiler");
+    expect(lower).toContain("does not call an llm");
+    expect(lower).toContain("does not write to");
+    expect(lower).toContain("linear");
+    expect(lower).toContain("obsidian");
+    expect(lower).toContain("unknown");
+  });
+
   it("result is JSON-serialisable and round-trips cleanly", () => {
     const result = buildHealthCheckResult();
     expect(() => JSON.stringify(result)).not.toThrow();

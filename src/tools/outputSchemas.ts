@@ -311,3 +311,65 @@ export const ReviewWorkflowDesignOutputShape = z
     next_recommended_tools: z.array(z.string()),
   })
   .passthrough();
+
+const ArtifactIssueFieldsShape = z
+  .object({
+    title: z.union([z.string(), z.array(z.string())]),
+    goal: z.union([z.string(), z.array(z.string())]),
+    user_story: z.union([z.string(), z.array(z.string())]),
+    context: z.union([z.string(), z.array(z.string())]),
+    inputs: z.union([z.string(), z.array(z.string())]),
+    outputs: z.union([z.string(), z.array(z.string())]),
+    required_tools: z.union([z.string(), z.array(z.string())]),
+    data_model: z.union([z.string(), z.array(z.string())]),
+    step_by_step_implementation: z.union([z.string(), z.array(z.string())]),
+    edge_cases: z.union([z.string(), z.array(z.string())]),
+    failure_modes: z.union([z.string(), z.array(z.string())]),
+    security: z.union([z.string(), z.array(z.string())]),
+    approval_gates: z.union([z.string(), z.array(z.string())]),
+    acceptance_criteria: z.union([z.string(), z.array(z.string())]),
+    test_cases: z.union([z.string(), z.array(z.string())]),
+    definition_of_done: z.union([z.string(), z.array(z.string())]),
+    claude_code_cursor_prompt: z.union([z.string(), z.array(z.string())]),
+    files_likely_affected: z.union([z.string(), z.array(z.string())]),
+    non_goals: z.union([z.string(), z.array(z.string())]),
+  })
+  .passthrough();
+
+/** export_build_brief — canonical build handoff plus MAR-249 artifact package. */
+export const ExportBuildBriefOutputShape = z
+  .object({
+    brief_markdown: z.string(),
+    sections: z.object({}).passthrough(),
+    handoffs: z.object({}).passthrough(),
+    artifact_package: z
+      .object({
+        compiler: z.literal("export_build_brief.artifact_compiler.v1"),
+        status: z.literal("compiled"),
+        directives: z.array(z.string()),
+        field_order: z.array(z.string()),
+        epic: z.object({ title: z.string(), goal: z.string() }).passthrough(),
+        milestones: z.array(
+          z.object({ id: z.string(), title: z.string(), issue_ids: z.array(z.string()) }).passthrough(),
+        ),
+        linear_issue_templates: z.array(
+          z
+            .object({
+              id: z.string(),
+              milestone_id: z.string(),
+              title: z.string(),
+              fields: ArtifactIssueFieldsShape,
+              markdown: z.string(),
+            })
+            .passthrough(),
+        ),
+        few_shot_example: z.object({ title: z.string(), markdown: z.string() }).passthrough(),
+        build_prompt: z.string(),
+        linear_issue_template_markdown: z.string(),
+      })
+      .passthrough(),
+    agent_manifest: z.object({}).passthrough(),
+    provenance_tag: z.literal("registry-grounded"),
+    grounding_note: z.string(),
+  })
+  .passthrough();

@@ -60,6 +60,22 @@ natural phrasing; gaming its vocabulary produces worse, less honest plans.
 3. Browse validated workflow patterns with \`list_known_routes\` and retrieve
    details with \`get_route\`.
 
+## Scope compiler handoff
+
+Use \`export_build_brief\` only after the user has confirmed the scope or after
+you have folded their answers into a fresh \`plan_workflow\` call. The tool is
+stateless and deterministic: it compiles templates, prompts, issue fields,
+milestones, and guardrails, but it does not call an LLM and does not write to
+Linear, Obsidian, Slack, email, CRM, GitHub, or any other external system.
+
+Before locking scope, ask at least 3 targeted clarifying questions when the
+runtime, write permission, outbound behavior, deployment target, tracking
+target, or output destination is ambiguous. Do not emit implementation issues
+until the human confirms the scope. When using \`export_build_brief\`, preserve
+every Linear issue template field. If a field cannot be filled from the
+confirmed scope or repository context, mark it UNKNOWN and ask the human rather
+than guessing.
+
 ## Important constraints
 
 - Before calling \`plan_workflow\`, always ask the user for their specific
