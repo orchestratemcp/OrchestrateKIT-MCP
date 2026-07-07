@@ -648,14 +648,15 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
   it("the Layer-1 markdown renders the menu under 'Next — pick one'", () => {
     const r = plan("read emails and draft a reply for approval");
     expect(r.summary_markdown).toContain("**Next — pick one:**");
-    for (const a of r.next_action_menu) {
-      expect(r.summary_markdown).toContain(a.label);
-    }
+    expect(r.summary_markdown).toContain(r.goal_to_product_wizard.recommended_next_click.label);
+    expect(r.summary_markdown).toContain("Show the full technical plan");
+    expect(r.next_action_menu.length).toBeGreaterThan(2);
   });
 
   it("menu is tagged advisory; legacy suggested_next_actions stays for back-compat", () => {
     const r = plan("read emails and draft a reply for approval");
     expect(r.provenance.field_tags.next_action_menu).toBe("advisory");
+    expect(r.provenance.field_tags.goal_to_product_wizard).toBe("advisory");
     expect(Array.isArray(r.suggested_next_actions)).toBe(true);
     expect(r.suggested_next_actions.length).toBeGreaterThan(0);
   });

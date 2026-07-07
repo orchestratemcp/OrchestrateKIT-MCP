@@ -164,6 +164,59 @@ export const PlanWorkflowOutputShape = z
       .passthrough()
       .optional(),
     // coverage accounting — unmatched demand / unsupported supply (MAR-250)
+    goal_to_product_wizard: z
+      .object({
+        steps: z.array(
+          z.object({ step: z.number(), label: z.string(), detail: z.string() }).passthrough(),
+        ),
+        connections_required: z.array(
+          z.object({ id: z.string(), label: z.string(), items: z.array(z.string()) }).passthrough(),
+        ),
+        build_choices: z.array(
+          z
+            .object({
+              id: z.string(),
+              label: z.string(),
+              best_for: z.string(),
+              tradeoffs: z.string(),
+              recommended: z.boolean(),
+              action: z.string(),
+            })
+            .passthrough(),
+        ),
+        host_monitor_choices: z.array(
+          z
+            .object({
+              id: z.string(),
+              label: z.string(),
+              best_for: z.string(),
+              tradeoffs: z.string(),
+              recommended: z.boolean(),
+              action: z.string(),
+            })
+            .passthrough(),
+        ),
+        artifact_choices: z.array(
+          z
+            .object({
+              id: z.string(),
+              label: z.string(),
+              best_for: z.string(),
+              tradeoffs: z.string(),
+              recommended: z.boolean(),
+              action: z.string(),
+            })
+            .passthrough(),
+        ),
+        clarifying_questions: z.array(
+          z.object({ id: z.string(), question: z.string(), options: z.array(z.string()) }).passthrough(),
+        ),
+        recommended_next_click: z
+          .object({ id: z.string(), label: z.string(), action: z.string() })
+          .passthrough(),
+      })
+      .passthrough()
+      .optional(),
     coverage: z
       .object({
         matched: z.array(
