@@ -422,7 +422,9 @@ describe("OUTPUT-06 (MAR-256) — worker_pipeline gated on depth, integrations d
   // byte-identical worker_pipeline block alone is 3,393 bytes; the audit's
   // "~60%" estimate overcounted it). The ceiling has headroom for legitimate
   // drift but fails loudly if the boilerplate creeps back into the default.
-  const G1_DEFAULT_JSON_MAX_BYTES = 15_000;
+  // MAR-315: compact hosting_and_monitoring JSON (recommended picks only at
+  // default depth) + two menu entries add ~780 bytes — ceiling 15_000 → 16_000.
+  const G1_DEFAULT_JSON_MAX_BYTES = 16_000;
 
   it(`default-depth G1 response JSON stays under ${G1_DEFAULT_JSON_MAX_BYTES} bytes`, () => {
     const bytes = Buffer.byteLength(JSON.stringify(planDepth(G1_EMAIL)), "utf8");

@@ -446,7 +446,10 @@ export type NextActionId =
   | "wire_integrations"
   | "open_playbook"
   | "review_after_build"
-  | "log_feedback";
+  | "log_feedback"
+  // MAR-315: hosting + monitoring picks — gated, see buildNextActionMenu.
+  | "choose_hosting"
+  | "wire_monitoring";
 
 /**
  * MAR-226: one entry in the standardized next-action menu. `id` is stable so a
@@ -458,6 +461,45 @@ export type NextAction = {
   id: NextActionId;
   label: string;
   action: string;
+};
+
+/**
+ * MAR-315: stable ids for the hosting recommendation, derived from route
+ * shape (trigger component present) rather than free text — a client can
+ * switch on `id` without string-matching `label`.
+ */
+export type HostingOptionId =
+  | "local_cron"
+  | "hosted_cron"
+  | "hosted_endpoint"
+  | "in_client"
+  | "manual_local";
+
+/** MAR-315: stable ids for the monitoring recommendation. */
+export type MonitoringOptionId = "dash_import" | "log_to_file" | "manual_none";
+
+export type HostingOption = { id: HostingOptionId; label: string };
+export type MonitoringOption = { id: MonitoringOptionId; label: string };
+
+/**
+ * MAR-315: deterministic hosting + monitoring guidance ("where does this
+ * run, who watches it") — the last unbuilt T1 scope-compiler menu. Derived
+ * purely from the route's trigger shape (+ the `local_or_hosted` override);
+ * no LLM, no network call. `recommended` is always index-0-equivalent — one
+ * pick, never a ranked list — with `alternatives` covering the other
+ * realistic options, MAR-226 menu style (stable id + label per entry).
+ */
+export type HostingAndMonitoring = {
+  hosting: {
+    recommended: HostingOption;
+    alternatives: HostingOption[];
+    reason: string;
+  };
+  monitoring: {
+    recommended: MonitoringOption;
+    alternatives: MonitoringOption[];
+    reason: string;
+  };
 };
 
 export type ProvenanceTag = "grounded" | "computed" | "advisory";
@@ -559,6 +601,14 @@ export type PlanWorkflowOutput = {
    * Empty when the goal already states its constraints (no nagging).
    */
   clarifying_questions: ClarifyingQuestion[];
+  /**
+   * Deterministic hosting + monitoring recommendation (MAR-315): where this
+   * plan should run, derived from the route's trigger shape, and how to watch
+   * it once it runs (DASH import is the recommended monitoring option — the
+   * manifest already ships in `export_build_brief`). Present on every plan;
+   * never null. Registry/route-shape derived — no LLM, no network call.
+   */
+  hosting_and_monitoring: HostingAndMonitoring;
   /**
    * Advisory multi-worker BUILD pipeline (MAR-166): the specialist workers
    * (planner → coder → reviewer → tester) recommended to implement this plan in
@@ -1393,8 +1443,11 @@ export function buildNextActionMenu(
   playbook: PlanPlaybook | null,
   buildTarget: BuildTarget | undefined,
   whatYouNeed: IntegrationNeed[],
+  goal: string,
+  hostingAndMonitoring: HostingAndMonitoring,
 ): NextAction[] {
   const menu: NextAction[] = [];
+  const g = goal.toLowerCase();
 
   // Drill into the full plan — links the MAR-224 depth layers.
   menu.push({
@@ -1475,6 +1528,24 @@ export function buildNextActionMenu(
     label: "Record how the build went (feeds the evidence library)",
     action: "record_session_feedback({ ... })",
   });
+
+  // MAR-315: hosting + monitoring picks — never shown when the goal already
+  // states its own hosting / monitoring plan (same never-nag rule as
+  // buildClarifyingQuestions).
+  if (!anySignal(g, HOSTING_STATED_SIGNALS)) {
+    menu.push({
+      id: "choose_hosting",
+      label: `Choose hosting (recommended: ${HOSTING_MENU_SHORT[hostingAndMonitoring.hosting.recommended.id]})`,
+      action: "see:hosting_and_monitoring.hosting",
+    });
+  }
+  if (!anySignal(g, MONITORING_STATED_SIGNALS)) {
+    menu.push({
+      id: "wire_monitoring",
+      label: `Wire monitoring (recommended: ${MONITORING_MENU_SHORT[hostingAndMonitoring.monitoring.recommended.id]})`,
+      action: "see:hosting_and_monitoring.monitoring",
+    });
+  }
 
   return menu;
 }
@@ -1612,6 +1683,210 @@ function renderClarifyingQuestions(questions: ClarifyingQuestion[]): string[] {
     lines.push(`- ${q.question} — ${q.options.join(" · ")}`);
   }
   if (lines.length > 0) lines.push(``);
+  return lines;
+}
+
+// ─────────────────────── MAR-315: hosting + monitoring ───────────────────────
+
+/**
+ * MAR-315: fixed catalogue of hosting recommendation labels, keyed by id.
+ * Kept concise (MAR-256 payload-diet discipline: this block ships on every
+ * plan at every depth, unlike worker_pipeline) — the "why" lives in `reason`,
+ * not duplicated across every label.
+ */
+const HOSTING_OPTION_LABELS: Record<HostingOptionId, string> = {
+  local_cron: "Local scheduled task / cron",
+  hosted_cron: "Hosted scheduled function (cron-triggered)",
+  hosted_endpoint: "Always-on endpoint (serverless function or small VPS)",
+  in_client: "Runs inside the client (CoWork / ChatGPT GPT)",
+  manual_local: "Manual, on-demand run from your own environment",
+};
+
+/** MAR-315: realistic alternatives per recommended id (excludes itself). */
+const HOSTING_ALTERNATIVES: Record<HostingOptionId, HostingOptionId[]> = {
+  local_cron: ["hosted_cron", "hosted_endpoint"],
+  hosted_cron: ["local_cron", "hosted_endpoint"],
+  hosted_endpoint: ["hosted_cron", "local_cron"],
+  in_client: ["hosted_endpoint"],
+  manual_local: ["local_cron", "hosted_cron"],
+};
+
+const MONITORING_OPTION_LABELS: Record<MonitoringOptionId, string> = {
+  dash_import: "Import the manifest into DASH (LAB Agents module)",
+  log_to_file: "Log runs to a file or table you already have",
+  manual_none: "None — run it manually and check the results yourself",
+};
+
+/** MAR-315: terse tags for next_action_menu labels (MAR-256 payload diet). */
+const HOSTING_MENU_SHORT: Record<HostingOptionId, string> = {
+  local_cron: "local cron",
+  hosted_cron: "hosted cron",
+  hosted_endpoint: "always-on endpoint",
+  in_client: "in the client",
+  manual_local: "manual run",
+};
+const MONITORING_MENU_SHORT: Record<MonitoringOptionId, string> = {
+  dash_import: "DASH import",
+  log_to_file: "log to file",
+  manual_none: "manual only",
+};
+
+function hostingOption(id: HostingOptionId): HostingOption {
+  return { id, label: HOSTING_OPTION_LABELS[id] };
+}
+function monitoringOption(id: MonitoringOptionId): MonitoringOption {
+  return { id, label: MONITORING_OPTION_LABELS[id] };
+}
+
+/** Goal phrases that already STATE where/how this will be hosted (never-nag). */
+const HOSTING_STATED_SIGNALS = [
+  "on my server", "on our server", "on my own server", "on our own server",
+  "on a vps", "self-host", "self hosted", "self-hosted", "already deployed",
+  "already hosted", "already running on", "runs locally", "run it locally",
+  "on my machine", "on my laptop", "in the cloud already", "as a github action",
+  "in cowork", "as a custom gpt", "inside chatgpt", "inside claude",
+];
+
+/** Goal phrases that already STATE how the agent will be watched (never-nag). */
+const MONITORING_STATED_SIGNALS = [
+  "in dash", "into dash", "via dash", "using dash", "dash import",
+  "log to a file", "log to a table", "logging to", "log file",
+  "no monitoring", "won't monitor it", "will not monitor it", "manual runs only",
+  "check it manually", "watch the logs", "check the logs",
+];
+
+/**
+ * MAR-315: deterministic hosting recommendation from the route's trigger
+ * shape — no LLM, no network call. Priority mirrors the ticket's own rule
+ * order: an inbound webhook/PR event needs a reachable always-on endpoint
+ * regardless of what else is in the route; a bare schedule only needs a
+ * timer; a chat trigger runs inside the client session; no trigger at all
+ * means the builder runs it manually. `local_or_hosted` (an explicit user
+ * preference, not a route fact) can only move the LOCAL/HOSTED axis for the
+ * schedule case — it cannot make a webhook receiver "local" (still needs a
+ * reachable endpoint) or add hosting to something that already runs
+ * in-client.
+ */
+function deriveHostingBase(routeComponentIds: string[]): HostingOptionId {
+  const hasWebhookish =
+    routeComponentIds.includes("webhook_trigger") || routeComponentIds.includes("github_trigger");
+  const hasScheduled = routeComponentIds.includes("scheduled_trigger");
+  const hasChat = routeComponentIds.includes("chat_trigger");
+  if (hasWebhookish) return "hosted_endpoint";
+  if (hasScheduled) return "local_cron";
+  if (hasChat) return "in_client";
+  return "manual_local";
+}
+
+function buildHostingBlock(
+  routeComponentIds: string[],
+  localOrHosted: "local" | "hosted" | "either" | undefined,
+): HostingAndMonitoring["hosting"] {
+  const base = deriveHostingBase(routeComponentIds);
+  const hasWebhookish =
+    routeComponentIds.includes("webhook_trigger") || routeComponentIds.includes("github_trigger");
+  const hasScheduled = routeComponentIds.includes("scheduled_trigger");
+  const hasChat = routeComponentIds.includes("chat_trigger");
+
+  let recommendedId: HostingOptionId = base;
+  let overrideNote = "";
+  if (localOrHosted === "hosted" && base === "local_cron") {
+    recommendedId = "hosted_cron";
+    overrideNote = " You asked for a hosted stack — a cron-triggered function avoids an always-on server.";
+  } else if (localOrHosted === "local" && base === "hosted_endpoint") {
+    overrideNote = " You asked for local, but this route needs a reachable endpoint — tunnel it (e.g. ngrok) if you want it on your own machine.";
+  }
+
+  let reason: string;
+  if (hasWebhookish) {
+    reason = "Reacts to an inbound webhook/PR event — needs a reachable, always-on endpoint.";
+  } else if (hasScheduled) {
+    reason = "Runs on a fixed schedule with no inbound trigger — a timer is enough, no server to keep up.";
+  } else if (hasChat) {
+    reason = "Chat-triggered — runs inside the client session; nothing separate to host.";
+  } else {
+    reason = "No trigger in this route (manual/on-demand) — run it from your own environment when needed.";
+  }
+  reason += overrideNote;
+
+  const alternatives = HOSTING_ALTERNATIVES[recommendedId]
+    .filter((id) => id !== recommendedId)
+    .map(hostingOption);
+
+  return { recommended: hostingOption(recommendedId), alternatives, reason };
+}
+
+/**
+ * MAR-315: monitoring recommendation — import-to-DASH is always the
+ * recommended pick (the manifest already ships in `export_build_brief`, per
+ * MAR-296). When the goal already states its own monitoring answer (the
+ * SERVER_INSTRUCTIONS constraint-gathering question), that statement is
+ * echoed in `reason` instead of the recommendation silently ignoring it.
+ */
+function buildMonitoringBlock(goal: string): HostingAndMonitoring["monitoring"] {
+  const stated = anySignal(goal.toLowerCase(), MONITORING_STATED_SIGNALS);
+  const reason = stated
+    ? "Your goal already describes a monitoring approach — DASH import (ships free in the build brief) is still recommended."
+    : "Default: import the shipped agent.manifest.json into DASH for full run/step/gate visibility, no extra wiring.";
+  return {
+    recommended: monitoringOption("dash_import"),
+    alternatives: [monitoringOption("log_to_file"), monitoringOption("manual_none")],
+    reason,
+  };
+}
+
+/** MAR-315: the full hosting + monitoring block for a plan. Never null. */
+function buildHostingAndMonitoring(
+  goal: string,
+  routeComponentIds: string[],
+  localOrHosted: "local" | "hosted" | "either" | undefined,
+  outputDepth: "guided" | "brief" | "standard" | "technical" | "deep",
+): HostingAndMonitoring {
+  const full: HostingAndMonitoring = {
+    hosting: buildHostingBlock(routeComponentIds, localOrHosted),
+    monitoring: buildMonitoringBlock(goal),
+  };
+  // MAR-256 payload diet: at Layer-1 depths the JSON carries only the
+  // recommended picks — alternatives + reason prose ship at technical/deep
+  // (same discipline as worker_pipeline). Markdown still shows the compact
+  // one-liner at every shallow depth.
+  if (outputDepth === "technical" || outputDepth === "deep") return full;
+  return {
+    hosting: { recommended: full.hosting.recommended, alternatives: [], reason: "" },
+    monitoring: { recommended: full.monitoring.recommended, alternatives: [], reason: "" },
+  };
+}
+
+/**
+ * MAR-315: compact one-line-per-axis render for Layer 1 (guided/brief/standard) —
+ * recommendation only, no reason/alternatives (those are Layer 2). Every line
+ * is provenance-tagged 🟢 (route-shape-derived, no LLM).
+ */
+function renderHostingAndMonitoringCompact(hm: HostingAndMonitoring): string[] {
+  return [
+    `**Hosting:** 🟢 ${hm.hosting.recommended.label}. ` +
+      `**Monitoring:** 🟢 ${hm.monitoring.recommended.label}.`,
+    ``,
+  ];
+}
+
+/**
+ * MAR-315: full render for Layer 2 (technical/deep) — recommended pick,
+ * reason, and alternatives for both axes. Every line is provenance-tagged 🟢.
+ */
+function renderHostingAndMonitoringFull(hm: HostingAndMonitoring): string[] {
+  const lines: string[] = [`### Hosting & monitoring`, ``];
+  lines.push(`- 🟢 **Hosting (recommended):** ${hm.hosting.recommended.label}`);
+  lines.push(`- 🟢 ${hm.hosting.reason}`);
+  if (hm.hosting.alternatives.length > 0) {
+    lines.push(`- 🟢 **Alternatives:** ${hm.hosting.alternatives.map((a) => a.label).join(" · ")}`);
+  }
+  lines.push(`- 🟢 **Monitoring (recommended):** ${hm.monitoring.recommended.label}`);
+  lines.push(`- 🟢 ${hm.monitoring.reason}`);
+  if (hm.monitoring.alternatives.length > 0) {
+    lines.push(`- 🟢 **Alternatives:** ${hm.monitoring.alternatives.map((a) => a.label).join(" · ")}`);
+  }
+  lines.push(``);
   return lines;
 }
 
@@ -1790,6 +2065,7 @@ function buildGuidedPlanMarkdown(
   nextActionMenu: NextAction[],
   clarifyingQuestions: ClarifyingQuestion[],
   coverage: Coverage,
+  hostingAndMonitoring: HostingAndMonitoring,
   /**
    * MAR-224: when true (`standard` depth) the recommended route is rendered as a
    * full numbered step list with per-step risk instead of the one-line chain —
@@ -1890,6 +2166,10 @@ function buildGuidedPlanMarkdown(
       : "human in the loop by default";
   lines.push(`**Autonomy:** ${clearance.level} — ${autoText}.`, ``);
 
+  // MAR-315: compact hosting + monitoring line (full reasoning/alternatives
+  // are Layer 2 — see buildPlanMarkdown's "### Hosting & monitoring" section).
+  lines.push(...renderHostingAndMonitoringCompact(hostingAndMonitoring));
+
   // MAR-225: bounded clarifying questions (only when an architecture-affecting
   // constraint is missing) — placed before the next-action menu.
   if (clarifyingQuestions.length > 0) {
@@ -1932,6 +2212,7 @@ function buildPlanMarkdown(
   nextActionMenu: NextAction[],
   clarifyingQuestions: ClarifyingQuestion[],
   coverage: Coverage,
+  hostingAndMonitoring: HostingAndMonitoring,
 ): string {
   const lines: string[] = [];
 
@@ -2135,6 +2416,10 @@ function buildPlanMarkdown(
     lines.push(``);
   }
 
+  // MAR-315: full hosting + monitoring recommendation (recommended pick,
+  // reason, and alternatives — Layer 1 carries the compact one-liner only).
+  lines.push(...renderHostingAndMonitoringFull(hostingAndMonitoring));
+
   // MAR-225: bounded clarifying questions (architecture-affecting only).
   if (clarifyingQuestions.length > 0) {
     lines.push(`### Quick checks to pin down the plan`, ``);
@@ -2206,6 +2491,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       suggested_next_actions: "advisory",
       next_action_menu: "advisory", // MAR-226: standardized action menu
       clarifying_questions: "advisory", // MAR-225: bounded constraint questions
+      hosting_and_monitoring: "computed", // MAR-315: deterministic route-shape derivation
       next_steps: "advisory",
     },
     grounding_note:
@@ -2438,12 +2724,28 @@ export function planWorkflow(
     input.build_target,
     what_you_need,
   );
+  // ── MAR-315: deterministic hosting + monitoring recommendation ──
+  const localOrHosted: "local" | "hosted" | "either" =
+    input.local_or_hosted === "local"
+      ? "local"
+      : input.local_or_hosted === "hosted"
+      ? "hosted"
+      : "either";
+  const hosting_and_monitoring = buildHostingAndMonitoring(
+    input.goal,
+    routeComponentIds,
+    localOrHosted,
+    outputDepth,
+  );
+
   // ── MAR-226: standardized, machine-consumable next-action menu ──
   const next_action_menu = buildNextActionMenu(
     planSource,
     playbook,
     input.build_target,
     what_you_need,
+    input.goal,
+    hosting_and_monitoring,
   );
 
   // ── MAR-225: bounded clarifying questions for missing architecture constraints ──
@@ -2480,6 +2782,7 @@ export function planWorkflow(
       next_action_menu,
       clarifying_questions,
       coverage,
+      hosting_and_monitoring,
       outputDepth === "standard", // fullSteps: standard is the superset layer
     );
   } else {
@@ -2501,6 +2804,7 @@ export function planWorkflow(
       next_action_menu,
       clarifying_questions,
       coverage,
+      hosting_and_monitoring,
     );
   }
   const summary_markdown = `${statusHeader}\n\n${body}`;
@@ -2531,6 +2835,7 @@ export function planWorkflow(
     suggested_next_actions,
     next_action_menu,
     clarifying_questions,
+    hosting_and_monitoring,
     worker_pipeline,
     worker_pipeline_pointer,
     loop_guidance,

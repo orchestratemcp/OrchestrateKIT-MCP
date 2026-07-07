@@ -143,6 +143,26 @@ export const PlanWorkflowOutputShape = z
           .passthrough(),
       )
       .optional(),
+    // deterministic hosting + monitoring recommendation (MAR-315)
+    hosting_and_monitoring: z
+      .object({
+        hosting: z
+          .object({
+            recommended: z.object({ id: z.string(), label: z.string() }).passthrough(),
+            alternatives: z.array(z.object({ id: z.string(), label: z.string() }).passthrough()),
+            reason: z.string(),
+          })
+          .passthrough(),
+        monitoring: z
+          .object({
+            recommended: z.object({ id: z.string(), label: z.string() }).passthrough(),
+            alternatives: z.array(z.object({ id: z.string(), label: z.string() }).passthrough()),
+            reason: z.string(),
+          })
+          .passthrough(),
+      })
+      .passthrough()
+      .optional(),
     // coverage accounting — unmatched demand / unsupported supply (MAR-250)
     coverage: z
       .object({
