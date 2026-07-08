@@ -399,6 +399,18 @@ describe("export_build_brief - Tier 2 artifact compiler (MAR-249)", () => {
     expect(b.brief_markdown).toContain("did not write to Linear, Obsidian");
   });
 
+  it("embeds the exact artifact compiler package in builder handoffs", () => {
+    const b = planAndBrief(
+      "Scan a GitHub PR, summarize risks, and draft a reviewer notification for human approval.",
+      ["prompt", "linear"],
+    );
+
+    expect(b.handoffs.prompt).toBeDefined();
+    expect(b.handoffs.linear).toBeDefined();
+    expect(b.handoffs.prompt).toContain(b.artifact_package.build_prompt);
+    expect(b.handoffs.linear).toContain(b.artifact_package.linear_issue_template_markdown);
+  });
+
   it("directs client LLMs to clarify, confirm scope, and mark unknowns instead of guessing", () => {
     const b = planAndBrief("Read emails and draft CRM follow-ups", ["linear"]);
     const directives = b.artifact_package.directives.join("\n");
