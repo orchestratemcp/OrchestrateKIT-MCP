@@ -12,6 +12,10 @@ import { planWorkflow } from "../../src/tools/planWorkflow.js";
 const registry = loadRegistry();
 const InputSchema = z.object(InputShape);
 
+function cloneForSchemaMutation<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 /** Run plan_workflow and pipe result straight into export_build_brief. */
 function planAndBrief(
   goal: string,
@@ -407,5 +411,26 @@ describe("export_build_brief - Tier 2 artifact compiler (MAR-249)", () => {
     expect(directives).toContain("Do not emit final implementation issues until the human confirms the scope");
     expect(directives).toContain("write UNKNOWN and ask the human");
     expect(directives).toContain("Do not write to Linear, Obsidian");
+  });
+
+  it("output schema locks compiler metadata clients rely on", () => {
+    const b = planAndBrief("Read emails and draft CRM follow-ups", ["linear"]);
+
+    expect(ExportBuildBriefOutputShape.safeParse(b).success).toBe(true);
+
+    const withoutScopeConfirmation = cloneForSchemaMutation(b);
+    delete (withoutScopeConfirmation.artifact_package as Partial<typeof b.artifact_package>).scope_confirmation;
+    expect(ExportBuildBriefOutputShape.safeParse(withoutScopeConfirmation).success).toBe(false);
+
+    const withBadFieldOrder = cloneForSchemaMutation(b);
+    withBadFieldOrder.artifact_package.field_order = [
+      ...withBadFieldOrder.artifact_package.field_order,
+      "made_up_field",
+    ] as typeof b.artifact_package.field_order;
+    expect(ExportBuildBriefOutputShape.safeParse(withBadFieldOrder).success).toBe(false);
+
+    const withoutFewShotNote = cloneForSchemaMutation(b);
+    delete (withoutFewShotNote.artifact_package.few_shot_example as Partial<typeof b.artifact_package.few_shot_example>).note;
+    expect(ExportBuildBriefOutputShape.safeParse(withoutFewShotNote).success).toBe(false);
   });
 });
