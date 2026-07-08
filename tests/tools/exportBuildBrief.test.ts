@@ -436,6 +436,25 @@ describe("export_build_brief - Tier 2 artifact compiler (MAR-249)", () => {
     }
   });
 
+  it("keeps milestone issue ids in sync with generated artifact templates", () => {
+    const b = planAndBrief(
+      "Build an agent that reads new leads from Gmail, drafts a reply, updates CRM, and alerts sales in Slack after approval.",
+      ["linear"],
+    );
+    const templates = b.artifact_package.linear_issue_templates;
+
+    for (const milestone of b.artifact_package.milestones) {
+      expect(milestone.issue_ids).toEqual(
+        templates
+          .filter((template) => template.milestone_id === milestone.id)
+          .map((template) => template.id),
+      );
+    }
+    expect(b.artifact_package.milestones.flatMap((milestone) => milestone.issue_ids)).toEqual(
+      templates.map((template) => template.id),
+    );
+  });
+
   it("includes build-ready prompt and paste-ready Linear templates without external writes", () => {
     const b = planAndBrief(
       "Scan a GitHub PR, summarize risks, and draft a reviewer notification for human approval.",
