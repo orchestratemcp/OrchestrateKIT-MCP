@@ -383,6 +383,40 @@ describe("export_build_brief - Tier 2 artifact compiler (MAR-249)", () => {
     }
   });
 
+  it("renders issue Markdown headings in the canonical artifact field order", () => {
+    const b = planAndBrief(
+      "Build an agent that reads new leads from Gmail, drafts a reply, updates CRM, and alerts sales in Slack after approval.",
+      ["linear"],
+    );
+    const expectedHeadings = [
+      "Title",
+      "Goal",
+      "User story",
+      "Context",
+      "Inputs",
+      "Outputs",
+      "Required tools",
+      "Data model",
+      "Step-by-step implementation",
+      "Edge cases",
+      "Failure modes",
+      "Security",
+      "Approval gates",
+      "Acceptance criteria",
+      "Test cases",
+      "Definition of Done",
+      "Claude-Code/Cursor prompt",
+      "Files likely affected",
+      "Non-goals",
+    ];
+
+    expect(b.artifact_package.field_order).toEqual([...ARTIFACT_ISSUE_FIELD_ORDER]);
+    for (const issue of b.artifact_package.linear_issue_templates) {
+      const headings = [...issue.markdown.matchAll(/^### (.+)$/gm)].map((match) => match[1]);
+      expect(headings).toEqual(expectedHeadings);
+    }
+  });
+
   it("includes build-ready prompt and paste-ready Linear templates without external writes", () => {
     const b = planAndBrief(
       "Scan a GitHub PR, summarize risks, and draft a reviewer notification for human approval.",
