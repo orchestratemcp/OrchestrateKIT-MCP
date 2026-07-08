@@ -571,6 +571,22 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
     expect(qs.map((q) => q.id)).not.toContain("run_trigger");
   });
 
+  it("buildClarifyingQuestions: a partially under-specified goal is topped up to 3 scope-lock questions", () => {
+    const qs = buildClarifyingQuestions(
+      "automate checking product page changes and alert me",
+      ["page_monitor", "slack_notification"],
+    );
+    expect(qs.length).toBe(3);
+    expect(qs.map((q) => q.id)).toEqual([
+      "run_trigger",
+      "build_surface",
+      "hosting_monitoring",
+    ]);
+    for (const q of qs) {
+      expect(q.options[q.options.length - 1].toLowerCase()).toContain("not sure");
+    }
+  });
+
   it("a fully-specified goal yields empty clarifying_questions on the real plan", () => {
     const r = plan(
       "Read new leads from my email inbox, draft a reply, update the CRM, notify Slack — a human must approve before anything is sent externally.",
@@ -578,10 +594,9 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
     expect(r.clarifying_questions).toEqual([]);
   });
 
-  it("an under-specified goal yields ≤3 questions and surfaces them in the markdown", () => {
+  it("an under-specified goal yields 3 questions and surfaces them in the markdown", () => {
     const r = plan("go through my inbox and handle the sales leads automatically");
-    expect(r.clarifying_questions.length).toBeGreaterThan(0);
-    expect(r.clarifying_questions.length).toBeLessThanOrEqual(3);
+    expect(r.clarifying_questions.length).toBe(3);
     // each question appears in the Layer-1 markdown
     for (const q of r.clarifying_questions) {
       expect(r.summary_markdown).toContain(q.question);

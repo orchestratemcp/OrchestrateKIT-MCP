@@ -214,8 +214,7 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
       },
       registry,
     );
-    expect(r.clarifying_questions.length).toBeGreaterThan(0);
-    expect(r.clarifying_questions.length).toBeLessThanOrEqual(3);
+    expect(r.clarifying_questions.length).toBe(3);
     expect(r.summary_markdown).toContain("Quick checks to pin down the plan");
   });
 
@@ -270,7 +269,9 @@ describe("MAR-333 — dogfood prompts feel like a wizard, not a report", () => {
       expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
       expect(md).not.toContain("### Steps");
       expect(md).not.toContain("### Safety review");
-      expect(wizard.recommended_next_click.id).toBe("build_brief");
+      expect(wizard.recommended_next_click.id).toBe(
+        wizard.clarifying_questions.length > 0 ? "answer_clarifying_questions" : "build_brief",
+      );
       expect(wizard.clarifying_questions).toEqual(r.clarifying_questions);
     });
   }
