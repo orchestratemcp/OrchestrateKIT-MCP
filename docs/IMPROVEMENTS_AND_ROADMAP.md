@@ -13,8 +13,8 @@ This document consolidates benchmark takeaways, near-term MCP work, OrchestrateL
 
 | Layer | Status |
 |-------|--------|
-| **OrchestrateKit MCP** | Local stdio server · 12 tools · `pnpm verify` green |
-| **Registry** | 31 components · 50 edges · 14 tested · 5 routes · 5 playbooks · 1 stack |
+| **OrchestrateKit MCP** | Local stdio server · 18 tools · `pnpm verify` green |
+| **Registry** | Hosted `health_check`: 64 components · 151 edges · 12 routes · 12 playbooks · 1 stack |
 | **Graph tools** | `compose_workflow_route`, `get_route`, `get_playbook`, `review_workflow_design`, etc. |
 | **Safety** | Deterministic augmenter (approval gates, audit_log) · do-not-build rules |
 | **Benchmark** | 7 prompts · gate passed · results in `benchmarks/results-2026-06-09.md` |
@@ -232,7 +232,7 @@ The graph is large; models need **progressive disclosure**, not a registry dump.
 2. **Edge vocabulary in prose** — every warning names `from__relation__to` so the model can cite graph law.
 3. **Separate execution order** — always return `execution_order[]` distinct from `recommended_route[]` (topological artifact).
 4. **Untested edges as checklist** — type + severity + one-line test action (benchmark’s highest-value format).
-5. **Component on demand** — `get_graph_component({ id, include_edges: true })` for drill-down; never inline all 31 components in compose.
+5. **Component on demand** — `get_graph_component({ id, include_edges: true })` for drill-down; never inline the whole component registry in compose.
 6. **Stack last** — prompt Condition C setup to call `get_stack_recommendation` after route is settled.
 7. **Docs index by tag** — `get_relevant_docs({ tags: ["approval", "publish"] })` not full index.
 

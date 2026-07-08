@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-16
 **Author:** Opus (strategic session for Henrik)
-**Status of code:** 47 components / 78 edges / 33 probes / 707 tests green · 17 MCP tools · stdio + HTTP transports · **11 commits unpushed on local master**
+**Status of code at the time of the retro:** the registry and test suite had reached the then-current public floor, with stdio + HTTP transports and local commits still ahead of remote.
 
 ---
 

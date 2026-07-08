@@ -1,7 +1,7 @@
 /**
  * MAR-111: OrchestrateMCP — HTTP (Streamable HTTP) transport server.
  *
- * Exposes the same 17 tools as the stdio server over the MCP Streamable HTTP
+ * Exposes the same 18 tools as the stdio server over the MCP Streamable HTTP
  * protocol so remote clients (ChatGPT Actions, Claude Cowork, Cursor remote,
  * etc.) can connect without a local process spawn.
  *

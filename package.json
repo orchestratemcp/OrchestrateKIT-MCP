@@ -15,6 +15,8 @@
     "test": "vitest run",
     "registry:lint": "tsx scripts/registry-lint.ts",
     "export:obsidian": "tsx scripts/export-obsidian.ts",
+    "export:safe": "tsx scripts/export-safe.ts",
+    "export:safe:check": "tsx scripts/check-safe-export.ts",
     "probe": "tsx scripts/node-probes.ts",
     "demo": "tsx scripts/smoke-demo.ts",
     "smoke": "vitest run tests/smoke",

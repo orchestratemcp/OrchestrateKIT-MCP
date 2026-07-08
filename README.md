@@ -2,7 +2,7 @@
 
 An evidence-backed **workflow-design advisor** for AI agents. Connect it to ChatGPT, Claude (web), Cursor, or Claude Desktop and it plans safer, more grounded AI workflows — grounded in a registry of tested components, edges, and golden-path playbooks. Read-only, stateless, holds no secrets.
 
-**Status:** registry of 47 components, 78 edges, 4 workers, 1 stack, 6 routes, 6 playbooks; 17 tools; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`).
+**Status:** hosted `health_check` reports 64 components, 151 edges, 4 workers, 1 stack, 12 routes, 12 playbooks, and 18 tools; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`).
 
 ---
 
@@ -31,10 +31,18 @@ When a user describes a workflow goal, the MCP can:
 
 ## What works right now
 
-- MCP server runs on stdio (Cursor, Claude Desktop) and over Streamable HTTP / a Cloudflare Worker (ChatGPT, claude.ai) — 17 registered tools.
-- `health_check` returns `{ name, version, registry: { component_count, edge_count, stack_count, route_count, playbook_count, untested_edge_pct } }`.
-- Registry loaded from YAML: 47 components, 78 edges, 1 stack, 5 routes, 5 playbooks.
+- MCP server runs on stdio (Cursor, Claude Desktop) and over Streamable HTTP / a Cloudflare Worker (ChatGPT, claude.ai) — 18 registered tools.
+- `health_check` returns `{ name, version, registry: { component_count, edge_count, stack_count, route_count, playbook_count, worker_count, untested_edge_pct } }`.
+- Hosted registry: 64 components, 151 edges, 1 stack, 12 routes, 12 playbooks, 4 workers.
+- Coverage accounting reports unmatched demand and unsupported supply instead of silently pretending the graph covers everything.
+- Corpus regression tests and release-trust floors ratchet the registry forward in CI.
 - `pnpm verify` (typecheck + lint + tests) passes from a clean clone and install.
+
+---
+
+## Why trust this
+
+OrchestrateMCP is stateless, read-only, holds no secrets, and makes no LLM calls inside its tools. Plans are composed from registry YAML, provenance tags mark computed fields, coverage accounting calls out unsupported pieces, and corpus contracts plus release-trust checks run in CI to catch drift.
 
 ---
 
@@ -126,7 +134,12 @@ holds a credential.
 | `pnpm build` | Compile to `dist/` with tsup |
 | `pnpm typecheck` | TypeScript type-check only (no emit) |
 | `pnpm test` | Run unit tests with vitest |
+| `pnpm export:safe` | Create a source-only review zip at `exports/orchestratekit-mcp-source.zip` |
 | `pnpm verify` | Run `typecheck` then `test` |
+
+For source review packages, never zip the working folder directly. Use
+`pnpm export:safe`; see **[docs/SAFE_EXPORT.md](docs/SAFE_EXPORT.md)** for the
+forbidden paths and archive inspection command.
 
 ---
 
@@ -138,7 +151,7 @@ orchestratekit-mcp/
     server.ts               Entry point — wires MCP server to stdio transport
     config.ts               Server name and version constants
     tools/
-      index.ts              Tool registration (17 tools: health_check + 16 graph/advisor tools)
+      index.ts              Tool registration (18 tools: health_check + 17 graph/advisor tools)
       composeWorkflowRoute.ts
       listGraphComponents.ts / getGraphComponent.ts
       listGraphEdges.ts / getGraphEdge.ts
@@ -195,7 +208,7 @@ orchestratekit-mcp/
 ```
 MAR-35  ✅  Scaffold — done
 MAR-37  ✅  Graph registry schemas: components, edges, stacks, routes, playbooks
-MAR-38  ✅  Seed workflow graph: 30 components, 47 edges, 1 stack, 5 playbooks
+MAR-38  ✅  Seed workflow graph baseline
 MAR-77  ✅  Graph lookup tools: list/get components, edges, stacks, routes
 MAR-78  ✅  compose_workflow_route — deterministic route composer
 MAR-49  ✅  Benchmark setup — see docs/BENCHMARKING.md

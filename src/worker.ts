@@ -1,7 +1,7 @@
 /**
  * OrchestrateMCP — Cloudflare Worker entry (Streamable HTTP, stateless).
  *
- * Same 17 tools as the Node servers, served from a filesystem-free runtime.
+ * Same 18 tools as the Node servers, served from a filesystem-free runtime.
  * The registry and docs index are baked into the bundle at build time
  * (see scripts/gen-registry-bundle.ts) and injected into the providers below,
  * so no module in this import graph touches node:fs.
