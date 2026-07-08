@@ -433,7 +433,13 @@ export { hasExplicitApprovalRequirement, hasUnattendedWaiver } from "../lib/cons
  * user and folds the answers into a re-call's goal — the MCP is stateless.
  */
 export type ClarifyingQuestion = {
-  id: "run_trigger" | "write_permission" | "outbound_send";
+  id:
+    | "run_trigger"
+    | "write_permission"
+    | "outbound_send"
+    | "build_surface"
+    | "hosting_monitoring"
+    | "artifact_target";
   question: string;
   options: string[];
 };
@@ -1649,6 +1655,7 @@ const AUTOMATION_INTENT_SIGNALS = [
   "automatic", "automate", "autonomous", "ongoing", "continuous", "recurring",
   "every time", "whenever", "monitor", "watch for", "on a schedule", "scheduled",
   "periodically", "unattended", "hands-off", "hands off", "keep it running",
+  "build an agent", "ai agent", "agent that",
 ];
 /** Goal phrases that already NAME a concrete trigger (skip the trigger question). */
 const TRIGGER_SPECIFIED_SIGNALS = [
@@ -1657,6 +1664,19 @@ const TRIGGER_SPECIFIED_SIGNALS = [
   "when an email", "when a new", "on receiving", "on receipt", "manually",
   "on demand", "i run", "button", "in chat", "mention", "arrives", "is received",
   "incoming",
+];
+
+/** Goal phrases that already choose where the user wants to build. */
+const BUILD_SURFACE_STATED_SIGNALS = [
+  "cursor", "claude code", "codex", "cowork", "co-work", "custom gpt",
+  "gpt agent", "gpt agents", "chatgpt", "vscode", "vs code",
+];
+
+/** Goal phrases that already choose the artifact/tracking handoff. */
+const ARTIFACT_STATED_SIGNALS = [
+  "linear issue", "linear issues", "linear epic", "obsidian", "build brief",
+  "dash manifest", "agent.manifest", "manifest", "paste-ready prompt",
+  "implementation prompt", "cursor prompt", "claude-code prompt",
 ];
 
 function anySignal(goal: string, signals: string[]): boolean {
@@ -1722,18 +1742,52 @@ export function buildClarifyingQuestions(
     });
   }
 
+  if (questions.length === 0) {
+    return [];
+  }
+
+  const addIfNeeded = (question: ClarifyingQuestion) => {
+    if (questions.length >= 3) return;
+    if (questions.some((q) => q.id === question.id)) return;
+    questions.push(question);
+  };
+
+  if (!anySignal(g, BUILD_SURFACE_STATED_SIGNALS)) {
+    addIfNeeded({
+      id: "build_surface",
+      question: "Where do you want to build this after scope is locked?",
+      options: ["Codex", "Cursor / Claude Code", "Cowork / GPT Agent", "Not sure yet"],
+    });
+  }
+
+  if (!anySignal(g, HOSTING_STATED_SIGNALS) || !anySignal(g, MONITORING_STATED_SIGNALS)) {
+    addIfNeeded({
+      id: "hosting_monitoring",
+      question: "Where should it run, and how should you monitor runs and approvals?",
+      options: ["Local/cron + DASH", "Hosted endpoint/job + DASH", "Inside the client + manual checks", "Not sure yet"],
+    });
+  }
+
+  if (!anySignal(g, ARTIFACT_STATED_SIGNALS)) {
+    addIfNeeded({
+      id: "artifact_target",
+      question: "What build artifact should I prepare after you confirm scope?",
+      options: ["Build brief prompt", "Linear epic + issues", "Obsidian note + DASH manifest", "Not sure yet"],
+    });
+  }
+
   return questions.slice(0, 3);
 }
 
 /**
  * MAR-225: compact, brevity-safe render of clarifying questions (bullets only;
- * the call site supplies the heading). Each line is one question + its inline
- * options, kept short so Layer-1 stays under the brevity bound.
+ * the call site supplies the heading). Options stay in structuredContent so
+ * Layer-1 stays under the brevity bound.
  */
 function renderClarifyingQuestions(questions: ClarifyingQuestion[]): string[] {
   const lines: string[] = [];
   for (const q of questions) {
-    lines.push(`- ${q.question} — ${q.options.join(" · ")}`);
+    lines.push(`- ${q.question}`);
   }
   if (lines.length > 0) lines.push(``);
   return lines;
@@ -2447,11 +2501,12 @@ function buildGuidedPlanMarkdown(
 
   lines.push(`**Goal -> Product wizard**`);
   lines.push(`1. **Steps**`);
-  for (const step of goalToProductWizard.steps.slice(0, fullSteps ? 12 : 5)) {
+  const layer1StepLimit = clarifyingQuestions.length > 0 ? 3 : 5;
+  for (const step of goalToProductWizard.steps.slice(0, fullSteps ? 12 : layer1StepLimit)) {
     lines.push(`   - ${step.label}`);
   }
-  if (!fullSteps && goalToProductWizard.steps.length > 5) {
-    lines.push(`   - ...and ${goalToProductWizard.steps.length - 5} more`);
+  if (!fullSteps && goalToProductWizard.steps.length > layer1StepLimit) {
+    lines.push(`   - ...and ${goalToProductWizard.steps.length - layer1StepLimit} more`);
   }
   lines.push(`2. **Connect**`);
   for (const group of goalToProductWizard.connections_required.slice(0, 4)) {

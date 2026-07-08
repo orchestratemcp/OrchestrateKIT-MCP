@@ -217,6 +217,9 @@ describe("health_check tool", () => {
     const lower = SERVER_INSTRUCTIONS.toLowerCase();
     expect(lower).toContain("export_build_brief");
     expect(lower).toContain("scope compiler");
+    expect(lower).toContain("clarify");
+    expect(lower).toContain("confirm scope");
+    expect(lower).toContain("compile artifacts");
     expect(lower).toContain("does not call an llm");
     expect(lower).toContain("does not write to");
     expect(lower).toContain("linear");
