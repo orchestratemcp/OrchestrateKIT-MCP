@@ -93,6 +93,12 @@ async function structured(
   return result.structuredContent as Record<string, unknown>;
 }
 
+async function rawToolResult(name: string, args: Record<string, unknown>) {
+  const result = await client.callTool({ name, arguments: args });
+  expect(result.isError ?? false, `${name} returned isError`).toBe(false);
+  return result;
+}
+
 const PLAYBOOK_GOAL =
   "scan a codebase, plan changes, edit code, run tests and write a PR summary";
 const EXPORT_BRIEF_GOAL =
@@ -126,6 +132,23 @@ describe("MAR-163 — plan_workflow output schema", () => {
     });
     expect(sc.plan_source).toBe("playbook");
     expect(normalize(sc)).toMatchSnapshot();
+  });
+
+  it("MAR-345: text content is summary_markdown, not JSON for clients to re-render", async () => {
+    const result = await rawToolResult("plan_workflow", {
+      goal: "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.",
+      output_depth: "brief",
+    });
+    const text = (result.content as Array<{ type: string; text?: string }>).find(
+      (c) => c.type === "text",
+    )?.text;
+    const sc = result.structuredContent as Record<string, unknown>;
+    expect(text).toBe(sc.summary_markdown);
+    expect(text).toContain("**Route:**");
+    expect(text).toContain("**How it works**");
+    expect(sc.next_action_menu).toBeDefined();
+    expect(text).not.toContain('"recommended_route"');
+    expect(text).not.toContain('"next_action_menu"');
   });
 
   it("needs_goal nudge conforms + golden snapshot (MAR-162)", async () => {

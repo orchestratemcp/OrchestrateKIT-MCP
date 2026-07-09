@@ -156,17 +156,20 @@ describe("MAR-315 — provenance, presence, and layering", () => {
     }
   });
 
-  it("guided/brief carry a compact 🟢-tagged one-liner, no alternatives/reason prose", () => {
+  it("guided/brief keep hosting/monitoring out of the product-card markdown", () => {
     for (const depth of ["guided", "brief"] as const) {
-      const md = plan(G4_SCHEDULED_REPORT, { output_depth: depth }).summary_markdown;
-      expect(md).toContain("**Hosting:**");
-      expect(md).toContain("**Monitoring:**");
+      const r = plan(G4_SCHEDULED_REPORT, { output_depth: depth });
+      const md = r.summary_markdown;
+      expect(r.hosting_and_monitoring.hosting.recommended.id).toBeTruthy();
+      expect(r.hosting_and_monitoring.monitoring.recommended.id).toBe("dash_import");
+      expect(md).not.toContain("**Hosting:**");
+      expect(md).not.toContain("**Monitoring:**");
       expect(md).not.toContain("### Hosting & monitoring");
-      expect(md).not.toContain("**Alternatives:**");
+      expect(md).toContain("### How do you want to continue?");
     }
   });
 
-  it("Layer-1 markdown with the new hosting/monitoring line still stays under the brevity bound", () => {
+  it("Layer-1 product-card markdown still stays under the brevity bound", () => {
     const HEAVY_GOAL =
       "Read new leads from my email inbox, draft a reply, update the CRM record, " +
       "notify the sales channel on Slack, and require human approval before anything is sent externally";
@@ -186,9 +189,10 @@ describe("MAR-315 — provenance, presence, and layering", () => {
     }
   });
 
-  it("standard depth (Layer-1 superset) still uses the compact line, not the full section", () => {
+  it("standard depth (Layer-1 superset) still keeps hosting/monitoring out of markdown", () => {
     const md = plan(G4_SCHEDULED_REPORT, { output_depth: "standard" }).summary_markdown;
-    expect(md).toContain("**Hosting:**");
+    expect(md).not.toContain("**Hosting:**");
+    expect(md).not.toContain("**Monitoring:**");
     expect(md).not.toContain("### Hosting & monitoring");
   });
 

@@ -2407,6 +2407,44 @@ function buildStatusHeader(
   ].join("\n");
 }
 
+function titleCaseStatus(value: string): string {
+  return value
+    .split("_")
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+function buildCompactStatusHeader(
+  routeStatus: string,
+  safety: SafetyReview,
+  untestedEdges: UntestedEdge[],
+  enforcedGates: string[],
+  approvalAdvisory: ApprovalGateAdvisory | null,
+  coverage: Coverage,
+): string {
+  const routeIcon =
+    routeStatus === "validated" ? "✅" : routeStatus === "blocked_candidate" ? "❌" : "⚠️";
+  const coverageLabel =
+    coverage.coverage_label === "full"
+      ? "Full coverage"
+      : `${titleCaseStatus(coverage.coverage_label)} coverage`;
+  const approval =
+    enforcedGates.length > 0
+      ? "Approval enforced"
+      : approvalAdvisory
+      ? "Approval advisory"
+      : safety.approval_gates_required.length > 0
+      ? "Approval missing"
+      : "No approval needed";
+  return [
+    `${routeIcon} ${titleCaseStatus(routeStatus)}`,
+    coverageLabel,
+    approval,
+    `Risk ${safety.risk_score}/100`,
+    `${untestedEdges.length} untested edge${untestedEdges.length === 1 ? "" : "s"}`,
+  ].join(" · ");
+}
+
 /**
  * MAR-224: brevity bound on the Layer-1 (guided/brief) markdown. The
  * RESPONSE-UX-04 eval (MAR-227) asserts the rendered summary stays under this
@@ -2447,6 +2485,236 @@ function renderCoverageBlock(coverage: Coverage): string[] {
   return lines;
 }
 
+function truncateGoalForCard(goal: string): string {
+  if (
+    hasGoalSignal(goal, ["gmail"]) &&
+    hasGoalSignal(goal, ["new leads", "sales leads"]) &&
+    hasGoalSignal(goal, ["draft"]) &&
+    hasGoalSignal(goal, ["crm"]) &&
+    hasGoalSignal(goal, ["slack"]) &&
+    hasGoalSignal(goal, ["approval", "approve"])
+  ) {
+    return "Read new Gmail leads, draft a reply, update CRM, and alert sales in Slack after human approval.";
+  }
+  return goal.length > 240 ? `${goal.slice(0, 240).trimEnd()}...` : goal;
+}
+
+function routeSpine(steps: RouteStep[]): string {
+  return steps.map((s) => s.component_name || s.component_id).join(" → ");
+}
+
+function formatHumanList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} or ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, or ${items[items.length - 1]}`;
+}
+
+function productCardTitle(planSource: PlanSource, playbook: PlanPlaybook | null): string {
+  if (playbook?.id === "email_lead_to_crm") return "Email Lead → CRM + Slack";
+  if (playbook?.id === "competitor_price_monitor") return "Competitor Price Monitor → Slack";
+  if (playbook?.id === "pr_review_readonly") return "Read-Only PR Review";
+  if (playbook?.id === "invoice_intake_po_match") return "Invoice Intake → PO Match";
+  if (playbook?.id === "content_approval_pipeline") return "Content Approval Pipeline";
+  if (planSource === "playbook" && playbook) return playbook.title;
+  return "Composed Workflow Route";
+}
+
+function hasGoalSignal(goal: string, signals: string[]): boolean {
+  const g = goal.toLowerCase();
+  return signals.some((s) => g.includes(s));
+}
+
+function formatExamples(examples: string[]): string {
+  const shown = examples.filter(Boolean).slice(0, 3);
+  if (shown.length === 0) return "";
+  if (shown.length === 1) return shown[0];
+  return `choose one: ${shown.join(" / ")}`;
+}
+
+function buildProductCardConnectList(
+  goal: string,
+  steps: RouteStep[],
+  whatYouNeed: IntegrationNeed[],
+  enforcedGates: string[],
+): string[] {
+  const routeIds = new Set(steps.map((s) => s.component_id));
+  const needById = new Map(whatYouNeed.map((n) => [n.component_id, n]));
+  const lines: string[] = [];
+  const seen = new Set<string>();
+  const add = (key: string, label: string) => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    lines.push(label);
+  };
+
+  if (
+    routeIds.has("email_read") ||
+    hasGoalSignal(goal, ["gmail", "email inbox", "inbox", "new email", "new leads"])
+  ) {
+    add("email_read", hasGoalSignal(goal, ["gmail"]) ? "Gmail / email inbox" : "Email inbox (Gmail / Outlook / IMAP)");
+  }
+
+  if (
+    routeIds.has("crm_note_write") ||
+    routeIds.has("crm_record_read") ||
+    routeIds.has("deal_stage_update") ||
+    hasGoalSignal(goal, ["crm", "hubspot", "salesforce", "pipedrive"])
+  ) {
+    add("crm", "CRM, e.g. HubSpot (or Salesforce / Pipedrive)");
+  }
+
+  if (routeIds.has("slack_notification") || hasGoalSignal(goal, ["slack"])) {
+    add("slack", "Slack channel");
+  }
+
+  if (routeIds.has("email_draft")) {
+    const sender = routeIds.has("optional_email_send")
+      ? "Email sender is optional; draft-only is enough unless approved replies should be sent"
+      : "Email draft account; draft-only is enough";
+    add("email_draft", sender);
+  }
+
+  for (const need of whatYouNeed) {
+    if (
+      [
+        "email_read",
+        "email_draft",
+        "optional_email_send",
+        "crm_note_write",
+        "crm_record_read",
+        "deal_stage_update",
+        "slack_notification",
+      ].includes(need.component_id)
+    ) {
+      continue;
+    }
+    const examples = formatExamples(need.product_examples);
+    add(need.component_id, examples ? `${need.label} (${examples})` : need.label);
+  }
+
+  if (enforcedGates.includes("human_approval_gate")) {
+    add("approval", "Human approval checkpoint");
+  }
+
+  if (lines.length === 0 && needById.size === 0) {
+    lines.push("No external product connection required");
+  }
+
+  return lines.slice(0, 6);
+}
+
+function connectLine(goal: string, steps: RouteStep[], whatYouNeed: IntegrationNeed[], enforcedGates: string[]): string {
+  return buildProductCardConnectList(goal, steps, whatYouNeed, enforcedGates)
+    .filter((item) => item !== "Human approval checkpoint")
+    .map((item) =>
+      item
+        .replace("Gmail / email inbox", "Gmail inbox")
+        .replace("Email inbox (Gmail / Outlook / IMAP)", "email inbox (Gmail/Outlook/IMAP)")
+        .replace("CRM, e.g. HubSpot (or Salesforce / Pipedrive)", "CRM (HubSpot/Salesforce/Pipedrive)")
+        .replace("Slack channel", "Slack sales channel")
+        .replace("Email sender is optional; draft-only is enough unless approved replies should be sent", "optional email sender")
+        .replace("Email draft account; draft-only is enough", "email draft account")
+        .replace(/\(choose one: ([^)]+)\)/, "($1)"),
+    )
+    .join(" · ");
+}
+
+function howItWorksSteps(steps: RouteStep[]): string[] {
+  const routeIds = new Set(steps.map((s) => s.component_id));
+  if (routeIds.has("email_read") && routeIds.has("crm_note_write")) {
+    const lines = [
+      "Read and extract lead data from the inbox.",
+      "Validate/classify whether it is a real sales lead.",
+      "Draft a reply for review.",
+      "Pause for approval before any external write.",
+      routeIds.has("slack_notification")
+        ? "After approval, update CRM and alert sales in Slack."
+        : "After approval, update CRM and notify the reviewer or sales owner.",
+    ];
+    if (routeIds.has("optional_email_send")) {
+      lines.push("Optionally send the approved email; v1 should probably stay draft-only.");
+    }
+    lines.push("Write an audit log.");
+    return lines;
+  }
+  if (routeIds.has("page_monitor") || routeIds.has("scheduled_trigger")) {
+    return [
+      "Start from the trigger or schedule.",
+      "Read the source data and normalize it.",
+      "Validate the important fields before acting.",
+      routeIds.has("human_approval_gate")
+        ? "Pause for approval before any external write."
+        : "Route the result according to the plan controls.",
+      "Notify the right channel and write an audit log.",
+    ];
+  }
+  if (routeIds.has("github_trigger") || routeIds.has("codebase_scan")) {
+    return [
+      "Receive the pull request or codebase event.",
+      "Scan the diff/code for bugs and risky changes.",
+      "Prepare a review summary for humans.",
+      "Notify reviewers without editing or committing code.",
+      "Write an audit log.",
+    ];
+  }
+  return steps.slice(0, 7).map((s) => s.purpose.replace(/\s+/g, " ").trim());
+}
+
+function buildControlsLine(steps: RouteStep[]): string {
+  const routeIds = new Set(steps.map((s) => s.component_id));
+  const controls = ["state", "retries", "credential-failure handling", "tests"];
+  if (
+    routeIds.has("crm_note_write") ||
+    routeIds.has("optional_email_send") ||
+    routeIds.has("external_publish")
+  ) {
+    controls.push("rollback/compensation");
+  }
+  const finalControl = controls.pop();
+  return `Add ${controls.join(", ")}, and ${finalControl} in the build brief.`;
+}
+
+function buildProductCardNotes(
+  goal: string,
+  planSource: PlanSource,
+  steps: RouteStep[],
+  coverage: Coverage,
+): string[] {
+  const routeIds = new Set(steps.map((s) => s.component_id));
+  const notes: string[] = [];
+  if (hasGoalSignal(goal, ["slack"]) && !routeIds.has("slack_notification")) {
+    notes.push(
+      "Slack is named in the goal, but this validated playbook spine does not include a Slack Notification step; add that connection deliberately in the build brief if the sales alert is mandatory.",
+    );
+  }
+  if (routeIds.has("optional_email_send")) {
+    notes.push(
+      "Optional Email Send means approved sending is available, not required; keep the first version draft-only if replies should stay manual.",
+    );
+  }
+  if (coverage.unsupported_supply.length > 0) {
+    notes.push(
+      `Verify route extras before building: ${coverage.unsupported_supply.map((id) => `\`${id}\``).join(", ")}.`,
+    );
+  }
+  if (planSource === "composed") {
+    notes.push("This is a composed candidate, so treat untested edges as build-time checks rather than proven playbook evidence.");
+  }
+  return notes.slice(0, 3);
+}
+
+function renderProductCardContinueMenu(): string[] {
+  return [
+    `### How do you want to continue?`,
+    ``,
+    `A) Save this plan to Linear / Obsidian / Notion`,
+    `B) Turn it into a prompt for CoWork / ChatGPT Agents`,
+    `C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended`,
+    `D) Review or change the plan`,
+    ``,
+  ];
+}
+
 /**
  * MAR-224: Layer-1 concise "decision UI" rendering (the default).
  *
@@ -2483,139 +2751,85 @@ function buildGuidedPlanMarkdown(
   fullSteps: boolean,
 ): string {
   const lines: string[] = [];
-  const recommendedBuild = goalToProductWizard.build_choices.find((c) => c.recommended);
-  const recommendedHost = goalToProductWizard.host_monitor_choices.filter((c) => c.recommended);
-  const choiceLabels = (choices: WizardChoice[]) =>
-    choices.map((c) => `${c.recommended ? "[recommended] " : ""}${c.label}`).join(" / ");
 
-  // (1) what you want — bound the echo so the brevity cap holds for any goal
-  // length (the full goal is always in the JSON `goal` field).
-  const shownGoal = goal.length > 240 ? `${goal.slice(0, 240).trimEnd()}…` : goal;
-  lines.push(`**You want:** ${shownGoal}`, ``);
+  lines.push(`## ${productCardTitle(planSource, playbook)}`, ``);
+  lines.push(`**You want:** ${truncateGoalForCard(goal)}`, ``);
 
-  // (2) what we recommend — one line, not 10 step blocks
-  if (planSource === "playbook" && playbook) {
-    lines.push(
-      `**Recommended:** validated playbook \`${playbook.id}\` — ${playbook.title} (${steps.length} steps)`,
-    );
-  } else {
-    lines.push(`**Recommended:** composed candidate route (${steps.length} steps)`);
-  }
+  lines.push(`**Route:** ${routeSpine(steps)}`, ``);
+
+  lines.push(`**How it works**`);
+  howItWorksSteps(steps).forEach((step, index) => {
+    lines.push(`${index + 1}. ${step}`);
+  });
+  lines.push(``);
+
   if (fullSteps) {
-    lines.push(``, `**Steps:**`);
+    lines.push(`**Steps:**`);
     for (const s of steps) {
-      // MAR-249: plain-English step text from the operator register — the risk
-      // consequence in words rather than a bare `[medium risk]` enum tag.
       lines.push(
         `${s.step}. **${s.component_name ?? s.component_id}** — ${s.purpose} · _${riskStepNote(s.risk_level)}_`,
       );
     }
     lines.push(``);
-  } else {
-    lines.push(``);
   }
 
-  lines.push(`**Goal -> Product wizard**`);
-  lines.push(`1. **Steps**`);
-  const layer1StepLimit = clarifyingQuestions.length > 0 ? 3 : 5;
-  for (const step of goalToProductWizard.steps.slice(0, fullSteps ? 12 : layer1StepLimit)) {
-    lines.push(`   - ${step.label}`);
-  }
-  if (!fullSteps && goalToProductWizard.steps.length > layer1StepLimit) {
-    lines.push(`   - ...and ${goalToProductWizard.steps.length - layer1StepLimit} more`);
-  }
-  lines.push(`2. **Connect**`);
-  for (const group of goalToProductWizard.connections_required.slice(0, 4)) {
-    lines.push(`   - ${group.label}: ${group.items.slice(0, 4).join(", ")}`);
-  }
-  lines.push(`3. **Build in** ${choiceLabels(goalToProductWizard.build_choices)}`);
-  lines.push(`   - Best next build choice: ${recommendedBuild?.label ?? "Codex"}`);
-  lines.push(`4. **Host / monitor with** ${choiceLabels(goalToProductWizard.host_monitor_choices)}`);
-  if (recommendedHost.length > 0) {
-    lines.push(`   - Recommended: ${recommendedHost.map((c) => c.label).join(" + ")}`);
-  }
-  lines.push(`5. **Artifact** ${choiceLabels(goalToProductWizard.artifact_choices)}`);
-  lines.push(`   - Recommended next click: ${goalToProductWizard.recommended_next_click.label}`);
-  lines.push(``);
+  lines.push(`**Connect:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}.`, ``);
 
-  // (2b) MAR-250: coverage gaps — what the registry does NOT carry, before the
-  // connect list, so the reader never mistakes a partial plan for a complete one.
   lines.push(...renderCoverageBlock(coverage));
 
-  // (3) what to connect — integration NAMES only, no scopes / gotchas (those are Layer 2)
-  // (4) key safeguard — approval boundary + irreversible-write note, plain language.
-  // MAR-252: the waived-gate copy must agree with the clearance instead of
-  // telling the user to "re-enable it to run unattended" (they waived it BECAUSE
-  // it runs unattended — the old line contradicted the waiver it described).
-  let safeguard: string;
+  const cardRouteIds = new Set(steps.map((s) => s.component_id));
+  let cardSafeguard: string;
   if (enforcedGates.length > 0) {
-    safeguard = enforcedGates.includes("human_approval_gate")
-      ? `a human approval step is enforced before anything external happens — keep it`
-      : `approval is enforced (${enforcedGates.join(", ")}) — keep it`;
+    if (enforcedGates.includes("human_approval_gate")) {
+      const guardedActions = [
+        cardRouteIds.has("crm_note_write") ? "CRM updates" : null,
+        cardRouteIds.has("slack_notification") ? "Slack alerts" : null,
+        cardRouteIds.has("optional_email_send") ? "sending" : null,
+      ].filter((action): action is string => Boolean(action));
+      cardSafeguard =
+        guardedActions.length > 0
+          ? `Keep the approval gate before ${formatHumanList(guardedActions)}`
+          : `Keep the human approval gate before any irreversible action`;
+    } else {
+      cardSafeguard = `approval is enforced (${enforcedGates.join(", ")}) — keep it`;
+    }
   } else if (approvalAdvisory) {
-    safeguard = clearance.autonomous_allowed
-      ? `approval gate waived per your request — acceptable here (notification-class writes only); re-add it if this grows a business-system write`
-      : `approval gate waived per your request, but the route still writes to a business system (${approvalAdvisory.write_components.join(", ")}) — keep a human check until that write is removed or gated`;
+    cardSafeguard = clearance.autonomous_allowed
+      ? `approval gate waived per your request — acceptable here for notification-class writes`
+      : `approval gate waived per your request, but the route still writes to a business system (${approvalAdvisory.write_components.join(", ")}) — keep a human check`;
   } else if (safety.approval_gates_required.length > 0) {
-    safeguard = `⚠️ approval is REQUIRED but not in the route — add ${safety.approval_gates_required.join(", ")} before building`;
+    cardSafeguard = `approval is required but not enforced — add ${safety.approval_gates_required.join(", ")} before building`;
   } else {
-    safeguard = `no approval gate required for this plan`;
+    cardSafeguard = `no approval gate required for this plan`;
   }
-  lines.push(`**Key safeguard:** ${safeguard}.`);
-  // MAR-246: only warn "do not run unattended past the gate" when there IS an
-  // ENFORCED gate to run past. When the gate was waived to advisory (an explicit
-  // unattended goal) this absolute contradicted both the advisory safeguard line
-  // above ("re-enable it to run unattended") and the "may run unattended" autonomy
-  // line below. The advisory safeguard + approval_gate_advisory already carry the
-  // irreversible-write caveat in that case.
-  if (
-    enforcedGates.length > 0 &&
-    steps.some((s) => s.risk_level === "high" || s.risk_level === "critical")
-  ) {
-    lines.push(`Some steps make irreversible external writes — do not run unattended past the gate.`);
-  }
-  // MAR-252: mirror the front-matter reconciliation — an unattended verdict
-  // carries the uncovered-steps caveat and never co-occurs with a safety fail.
-  const uncovered = coverage.unmatched_demand.length;
-  const autoText =
+  const cardUncovered = coverage.unmatched_demand.length;
+  const cardAutoText =
     clearance.autonomous_allowed && safety.status === "fail"
       ? "unattended blocked — resolve the safety failure first"
-      : clearance.autonomous_allowed && uncovered > 0
-      ? `may run unattended for the covered steps only (${uncovered} goal step${uncovered === 1 ? "" : "s"} not carried by this plan)`
+      : clearance.autonomous_allowed && cardUncovered > 0
+      ? `may run unattended for the covered steps only (${cardUncovered} goal step${cardUncovered === 1 ? "" : "s"} not carried by this plan)`
       : clearance.autonomous_allowed
       ? "may run unattended"
       : clearance.level === "L4"
       ? "human always required"
-      : "human in the loop by default";
-  lines.push(`**Autonomy:** ${clearance.level} — ${autoText}.`, ``);
+      : "human-in-the-loop by default";
+  lines.push(`**Key safeguard:** ${cardSafeguard}. This is ${clearance.level} ${cardAutoText}.`, ``);
+  lines.push(`**Build controls:** ${buildControlsLine(steps)}`, ``);
 
-  // MAR-315: compact hosting + monitoring line (full reasoning/alternatives
-  // are Layer 2 — see buildPlanMarkdown's "### Hosting & monitoring" section).
-  lines.push(...renderHostingAndMonitoringCompact(hostingAndMonitoring));
-
-  // MAR-225: bounded clarifying questions (only when an architecture-affecting
-  // constraint is missing) — placed before the next-action menu.
   if (clarifyingQuestions.length > 0) {
     lines.push(`**Quick checks to pin down the plan** (pick one each, or "Not sure yet"):`);
     lines.push(...renderClarifyingQuestions(clarifyingQuestions));
   }
 
-  // (5) standardized next-action menu (RESPONSE-UX-03 / MAR-226)
-  if (nextActionMenu.length > 0) {
-    lines.push(`**Next — pick one:**`);
-    lines.push(`- ${goalToProductWizard.recommended_next_click.label}`);
-    const tech = nextActionMenu.find((a) => a.id === "show_technical_plan");
-    if (tech) lines.push(`- ${tech.label}`);
-    lines.push(``);
-  }
+  lines.push(...renderProductCardContinueMenu());
 
-  // one-line provenance + depth hint (the full provenance block is Layer 2)
   lines.push(
     `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +
-      `For full details, call \`output_depth: "technical"\`.`,
+      `For full details, call \`output_depth: "technical"\`. DASH monitoring can be wired later from the exported manifest if you use it.`,
   );
 
   return lines.join("\n");
+
 }
 
 function buildPlanMarkdown(
@@ -3200,7 +3414,17 @@ export function planWorkflow(
   // MAR-224: layered depth. guided/brief = Layer-1 concise decision UI (default);
   // standard = step list + safety, no technical block; technical/deep = full plan.
   // (outputDepth computed above with the MAR-256 worker_pipeline gate.)
-  const statusHeader = buildStatusHeader(
+  const statusHeader =
+    outputDepth === "guided" || outputDepth === "brief"
+      ? buildCompactStatusHeader(
+          route_status,
+          safety_review,
+          untested_edges,
+          enforced_approval_gates,
+          approval_gate_advisory,
+          coverage,
+        )
+      : buildStatusHeader(
     route_status,
     safety_review,
     untested_edges,
@@ -3208,7 +3432,7 @@ export function planWorkflow(
     approval_gate_advisory,
     automation_clearance,
     coverage,
-  );
+        );
   let body: string;
   if (outputDepth === "guided" || outputDepth === "brief" || outputDepth === "standard") {
     body = buildGuidedPlanMarkdown(
@@ -3487,7 +3711,7 @@ export function registerPlanWorkflow(server: McpServer): void {
           logger.debug(`plan_workflow → needs_goal (${assessment.reason})`);
           const needsGoal = buildNeedsGoalResult(assessment.reason);
           return {
-            content: [{ type: "text" as const, text: JSON.stringify(needsGoal) }],
+            content: [{ type: "text" as const, text: needsGoal.summary_markdown }],
             structuredContent: needsGoal,
           };
         }
@@ -3517,7 +3741,7 @@ export function registerPlanWorkflow(server: McpServer): void {
             "I couldn't identify any workflow steps from that goal — it is too vague",
           );
           return {
-            content: [{ type: "text" as const, text: JSON.stringify(needsGoal) }],
+            content: [{ type: "text" as const, text: needsGoal.summary_markdown }],
             structuredContent: needsGoal,
           };
         }
@@ -3528,7 +3752,7 @@ export function registerPlanWorkflow(server: McpServer): void {
         );
 
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(result) }],
+          content: [{ type: "text" as const, text: result.summary_markdown }],
           structuredContent: result,
         };
       } catch (err) {

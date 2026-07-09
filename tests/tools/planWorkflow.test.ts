@@ -384,11 +384,10 @@ describe("planWorkflow — output shape", () => {
     expect(r.stack).toBeDefined();
   });
 
-  it("summary_markdown names the validated playbook on the playbook path (Layer-1)", () => {
+  it("summary_markdown names the product on the playbook path (Layer-1)", () => {
     const r = plan("start from a content brief, generate copy, design visuals, approve and publish");
-    // MAR-224: Layer-1 surfaces it as "Recommended: validated playbook `id`"
-    expect(r.summary_markdown).toContain("validated playbook");
-    expect(r.summary_markdown).toContain(r.playbook!.id);
+    expect(r.summary_markdown).toContain("## Content Approval Pipeline");
+    expect(r.playbook!.id).toBe("content_approval_pipeline");
   });
 
   it("technical depth leads with the full playbook banner", () => {
@@ -690,11 +689,19 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
     expect(composed.next_action_menu.find((a) => a.id === "open_playbook")).toBeUndefined();
   });
 
-  it("the Layer-1 markdown renders the menu under 'Next — pick one'", () => {
+  it("the Layer-1 markdown renders outcome choices while JSON keeps the full menu", () => {
     const r = plan("read emails and draft a reply for approval");
-    expect(r.summary_markdown).toContain("**Next — pick one:**");
-    expect(r.summary_markdown).toContain(r.goal_to_product_wizard.recommended_next_click.label);
-    expect(r.summary_markdown).toContain("Show the full technical plan");
+    expect(r.summary_markdown).toContain("### How do you want to continue?");
+    expect(r.summary_markdown).toContain("A) Save this plan to Linear / Obsidian / Notion");
+    expect(r.summary_markdown).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
+    expect(r.summary_markdown).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
+    expect(r.summary_markdown).toContain("D) Review or change the plan");
+    expect(r.summary_markdown.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(r.summary_markdown).not.toContain("**Alternatives:**");
+    expect(r.summary_markdown).not.toContain("**Next — pick one:**");
+    expect(r.summary_markdown).not.toContain("Show technical plan");
+    expect(r.summary_markdown).not.toContain("Open validated playbook");
+    expect(r.summary_markdown).not.toContain("Recommended next click");
     expect(r.next_action_menu.length).toBeGreaterThan(2);
   });
 
@@ -732,7 +739,7 @@ describe("planWorkflow — approval-gate field self-consistency (MAR-148)", () =
     ) {
       const header = g2.summary_markdown.split("\n\n")[0];
       // ... and the header names the gap explicitly rather than claiming "none".
-      expect(header).toContain("REQUIRED but NOT enforced");
+      expect(header).toContain("Approval missing");
       expect(header).not.toContain("approval:       ✅ none needed");
     }
   });
@@ -743,8 +750,8 @@ describe("planWorkflow — approval-gate field self-consistency (MAR-148)", () =
     );
     expect(r.enforced_approval_gates).toContain("human_approval_gate");
     const header = r.summary_markdown.split("\n\n")[0];
-    expect(header).toContain("✅ enforced — human_approval_gate");
-    expect(header).not.toContain("REQUIRED but NOT enforced");
+    expect(header).toContain("Approval enforced");
+    expect(header).not.toContain("Approval missing");
   });
 });
 
@@ -770,7 +777,8 @@ describe("planWorkflow — output_depth layering (MAR-224)", () => {
 
   it("brief shows the recommended route as a one-line chain, not numbered blocks", () => {
     const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
-    expect(r.summary_markdown).toContain("**Recommended:**");
+    expect(r.summary_markdown).toContain("**Route:**");
+    expect(r.summary_markdown).toContain("**How it works**");
     expect(r.summary_markdown).not.toContain("**Steps:**");
   });
 
@@ -783,10 +791,11 @@ describe("planWorkflow — output_depth layering (MAR-224)", () => {
     }
   });
 
-  it("brief on playbook path mentions the playbook id", () => {
+  it("brief on playbook path uses the product title, not the internal playbook id", () => {
     const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
     expect(r.plan_source).toBe("playbook");
-    expect(r.summary_markdown).toContain(r.playbook!.id);
+    expect(r.summary_markdown).toContain("## Content Approval Pipeline");
+    expect(r.summary_markdown).not.toContain(r.playbook!.id);
   });
 
   it("standard adds the numbered step list but withholds the technical block", () => {
@@ -811,13 +820,19 @@ describe("planWorkflow — status front-matter header (MAR-101)", () => {
   const composedGoal =
     "Every Monday at 8am, pull last week's signups from our analytics API, summarize them, and post to our team Slack channel.";
 
-  it("summary_markdown opens with a front-matter fence", () => {
+  it("summary_markdown opens with a compact status header", () => {
     const r = plan(playbookGoal);
-    expect(r.summary_markdown.startsWith("---\n")).toBe(true);
+    const header = r.summary_markdown.split("\n\n")[0];
+    expect(header).toContain("✅ Validated");
+    expect(header).toContain("Full coverage");
+    expect(header).toContain("Approval enforced");
   });
 
   it("header surfaces route_status, safety, blocking, approval, untested_edges", () => {
-    const r = plan(playbookGoal);
+    const r = planWorkflow(
+      { goal: playbookGoal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" },
+      registry,
+    );
     const header = r.summary_markdown.split("\n\n")[0];
     for (const key of [
       "route_status:",
@@ -831,14 +846,20 @@ describe("planWorkflow — status front-matter header (MAR-101)", () => {
   });
 
   it("header route_status matches the output route_status field", () => {
-    const r = plan(playbookGoal);
+    const r = planWorkflow(
+      { goal: playbookGoal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" },
+      registry,
+    );
     const header = r.summary_markdown.split("\n\n")[0];
     expect(header).toContain(`route_status:`);
     expect(header).toContain(r.route_status);
   });
 
   it("header untested_edges count matches the output array length", () => {
-    const r = plan(composedGoal);
+    const r = planWorkflow(
+      { goal: composedGoal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" },
+      registry,
+    );
     const header = r.summary_markdown.split("\n\n")[0];
     expect(header).toContain(`untested_edges:`);
     expect(header).toMatch(new RegExp(`untested_edges:\\s+\\S+\\s+${r.untested_edges.length}\\b`));
@@ -848,7 +869,7 @@ describe("planWorkflow — status front-matter header (MAR-101)", () => {
     const r = plan(composedGoal);
     expect(r.plan_source).toBe("composed");
     const header = r.summary_markdown.split("\n\n")[0];
-    expect(header).toContain("route_status:");
+    expect(header).toContain("Candidate");
     expect(header).not.toMatch(/route_status:\s+✅ validated/);
   });
 
@@ -857,8 +878,10 @@ describe("planWorkflow — status front-matter header (MAR-101)", () => {
       { goal: playbookGoal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
       registry,
     );
-    expect(r.summary_markdown.startsWith("---\n")).toBe(true);
-    expect(r.summary_markdown.split("\n\n")[0]).toContain("route_status:");
+    const header = r.summary_markdown.split("\n\n")[0];
+    expect(header).toContain("Validated");
+    expect(header).toContain("Full coverage");
+    expect(header).toContain("Risk ");
   });
 });
 

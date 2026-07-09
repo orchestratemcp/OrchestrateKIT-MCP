@@ -10,7 +10,7 @@
  * Assertions over plan_workflow markdown:
  *  - guided/brief default MUST NOT include the full step list / per-integration
  *    gotchas+scopes / worker pipeline / model-tier section / full provenance block.
- *  - Default output MUST end with a next-action menu (RESPONSE-UX-03).
+ *  - Default output MUST show one primary CTA while keeping next_action_menu in JSON.
  *  - A measurable brevity bound on Layer-1 markdown (LAYER1_MAX_CHARS).
  *  - Markdown does not duplicate the JSON payload.
  *  - Technical details appear ONLY in technical/deep.
@@ -45,6 +45,36 @@ const TECHNICAL_MARKERS = [
   "**Provenance:**", // the full provenance BLOCK (the one-line note is different)
 ];
 
+function expectTargetProductCard(md: string) {
+  const header = md.split("\n\n")[0];
+  expect(header).toMatch(/coverage/i);
+  expect(header).toContain("Risk ");
+  expect(md).toMatch(/\n## [^\n]+/);
+  expect(md).toContain("**You want:**");
+  expect(md).toContain("**Route:**");
+  expect(md).toContain("**How it works**");
+  expect(md).toMatch(/^1\. /m);
+  expect(md).toContain("**Connect:**");
+  expect(md).toContain("**Key safeguard:**");
+  expect(md).toContain("**Build controls:**");
+  expect(md).toContain("### How do you want to continue?");
+  expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+  expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
+  expect(md).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
+  expect(md).toMatch(/^C\) Turn it into a build prompt for Claude Code \/ Codex \/ Cursor .+ Recommended$/m);
+  expect(md).toContain("D) Review or change the plan");
+  expect(md).not.toContain("**Route spine:**");
+  expect(md).not.toContain("**Recommended playbook:**");
+  expect(md).not.toContain("**Next — pick one:**");
+  expect(md).not.toContain("**Next:");
+  expect(md).not.toContain("Show technical plan");
+  expect(md).not.toContain("Open validated playbook");
+  expect(md).not.toContain("Recommended next click");
+  expect(md).not.toMatch(/^- J\. /m);
+  expect(md).not.toContain('"recommended_route"');
+  expect(md).not.toContain('"next_action_menu"');
+}
+
 describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a report", () => {
   it("default output_depth is the guided Layer-1 shape (no full step list)", () => {
     const def = plan();
@@ -74,17 +104,24 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     }
   });
 
-  it("Layer-1 ends with a next-action menu (RESPONSE-UX-03)", () => {
+  it("Layer-1 shows a user-facing continuation menu, with structured menu kept in JSON", () => {
     const md = plan("guided").summary_markdown;
-    expect(md).toContain("**Next — pick one:**");
-    // the menu sits near the end — only the one-line provenance note follows it
-    const idx = md.indexOf("**Next — pick one:**");
-    const tail = md.slice(idx);
-    expect(tail).toMatch(/^- /m); // at least one menu item
-    // nothing technical re-appears after the menu
+    expect(md).toContain("### How do you want to continue?");
+    expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
+    expect(md).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
+    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
+    expect(md).toContain("D) Review or change the plan");
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(md).not.toContain("**Alternatives:**");
+    expect(md).not.toContain("**Next — pick one:**");
+    expect(md).not.toContain("Show technical plan");
+    expect(md).not.toContain("Open validated playbook");
+    expect(md).not.toContain("Recommended next click");
+    const tail = md.slice(md.indexOf("### How do you want to continue?"));
     for (const marker of TECHNICAL_MARKERS) {
       expect(tail).not.toContain(marker);
     }
+    expect(plan("guided").next_action_menu.length).toBeGreaterThan(3);
   });
 
   // RESPONSE-UX-03 (MAR-226): the menu is a stable, machine-consumable set
@@ -151,8 +188,14 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     }
   });
 
-  it("every depth still leads with the scannable status front-matter (MAR-101 invariant)", () => {
-    for (const depth of ["guided", "brief", "standard", "technical", "deep"] as const) {
+  it("every depth still leads with a scannable status header (MAR-101 invariant)", () => {
+    for (const depth of ["guided", "brief"] as const) {
+      const header = plan(depth).summary_markdown.split("\n\n")[0];
+      expect(header, depth).toMatch(/coverage/i);
+      expect(header, depth).toContain("Approval enforced");
+      expect(header, depth).toContain("Risk ");
+    }
+    for (const depth of ["standard", "technical", "deep"] as const) {
       expect(plan(depth).summary_markdown.startsWith("---\n"), depth).toBe(true);
     }
   });
@@ -190,15 +233,22 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     expect(w.recommended_next_click.label).toContain("Export");
   });
 
-  it("MAR-333: Layer-1 markdown renders as a wizard, not a report wall", () => {
+  it("MAR-345: Layer-1 markdown renders as a product card, not a settings menu", () => {
     const md = plan("brief").summary_markdown;
-    expect(md).toContain("**Goal -> Product wizard**");
-    expect(md).toContain("1. **Steps**");
-    expect(md).toContain("2. **Connect**");
-    expect(md).toContain("3. **Build in**");
-    expect(md).toContain("4. **Host / monitor with**");
-    expect(md).toContain("5. **Artifact**");
-    expect(md).toContain("Recommended next click");
+    expectTargetProductCard(md);
+    expect(md).toContain("## ");
+    expect(md).toContain("**Route:**");
+    expect(md).toContain("**How it works**");
+    expect(md).toContain("**Connect:**");
+    expect(md).toContain("**Build controls:**");
+    expect(md).toContain("### How do you want to continue?");
+    expect(md).not.toContain("**Goal -> Product wizard**");
+    expect(md).not.toContain("3. **Build in**");
+    expect(md).not.toContain("4. **Host / monitor with**");
+    expect(md).not.toContain("5. **Artifact**");
+    expect(md).not.toContain("Show technical plan");
+    expect(md).not.toContain("Open validated playbook");
+    expect(md).not.toContain("Recommended next click");
     expect(md).not.toContain("### Model-tier profile");
     expect(md).not.toContain("### Credentials & permissions");
   });
@@ -247,7 +297,7 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
   });
 });
 
-describe("MAR-333 — dogfood prompts feel like a wizard, not a report", () => {
+describe("MAR-345 — dogfood prompts feel like a product card, not a report", () => {
   const DOGFOOD_GOALS = [
     "Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.",
     "Build an agent that reads new leads from Gmail, drafts a reply, updates CRM, and alerts sales in Slack after approval.",
@@ -255,7 +305,7 @@ describe("MAR-333 — dogfood prompts feel like a wizard, not a report", () => {
   ];
 
   for (const goal of DOGFOOD_GOALS) {
-    it(`renders wizard-first output for: ${goal.slice(0, 44)}...`, () => {
+    it(`renders product-card output for: ${goal.slice(0, 44)}...`, () => {
       const r = planWorkflow(
         { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
         registry,
@@ -263,13 +313,19 @@ describe("MAR-333 — dogfood prompts feel like a wizard, not a report", () => {
       const md = r.summary_markdown;
       const wizard = r.goal_to_product_wizard;
 
-      expect(md).toContain("**Goal -> Product wizard**");
-      expect(md).toContain("3. **Build in** Cursor / Claude Code / [recommended] Codex / Cowork / GPT Agents");
-      expect(md).toContain("4. **Host / monitor with**");
-      expect(md).toContain("5. **Artifact** Prompt / Linear issues / Obsidian / [recommended] Build brief / DASH manifest");
+      expectTargetProductCard(md);
+      expect(md).toContain("**Route:**");
+      expect(md).toContain("**How it works**");
+      expect(md).toContain("**Connect:**");
+      expect(md).toContain("**Build controls:**");
+      expect(md).toContain("### How do you want to continue?");
       expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
       expect(md).not.toContain("### Steps");
       expect(md).not.toContain("### Safety review");
+      expect(md).not.toContain("3. **Build in**");
+      expect(md).not.toContain("5. **Artifact**");
+      expect(md).not.toContain("Show technical plan");
+      expect(md).not.toContain("Open validated playbook");
       expect(wizard.recommended_next_click.id).toBe(
         wizard.clarifying_questions.length > 0 ? "answer_clarifying_questions" : "build_brief",
       );
@@ -286,6 +342,7 @@ describe("MAR-333 — dogfood prompts feel like a wizard, not a report", () => {
     );
     const md = r.summary_markdown;
 
+    expectTargetProductCard(md);
     expect(r.plan_source).toBe("playbook");
     expect(r.playbook?.id).toBe("email_lead_to_crm");
     expect(r.coverage.coverage_label).toBe("full");
@@ -303,9 +360,32 @@ describe("MAR-333 — dogfood prompts feel like a wizard, not a report", () => {
     expect(r.recommended_route.map((s) => s.component_id)).not.toContain(
       "reviewer_notification",
     );
-    expect(md).toContain("**Recommended:** validated playbook `email_lead_to_crm`");
-    expect(md).toContain("coverage:       ✅ full");
-    expect(md).toContain("Recommended next click: Export Build brief for Codex");
+    expect(md).toContain("## Email Lead → CRM + Slack");
+    expect(md).toContain("**You want:** Read new Gmail leads, draft a reply, update CRM, and alert sales in Slack after human approval.");
+    expect(md).toMatch(
+      /\*\*Route:\*\* .*Schema Validation.*Email Draft.*Human Approval Gate.*Slack Notification.*CRM Note Write.*Audit Log/,
+    );
+    expect(md).toContain("**How it works**");
+    expect(md).toContain("1. Read and extract lead data from the inbox.");
+    expect(md).toContain("5. After approval, update CRM and alert sales in Slack.");
+    expect(md).toContain("**Connect:** Gmail inbox · CRM (HubSpot/Salesforce/Pipedrive) · Slack sales channel · optional email sender.");
+    expect(md).toContain("v1 should probably stay draft-only");
+    expect(md).toContain("**Build controls:** Add state, retries, credential-failure handling, tests, and rollback/compensation in the build brief.");
+    expect(md).toContain("### How do you want to continue?");
+    expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
+    expect(md).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
+    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
+    expect(md).toContain("D) Review or change the plan");
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(md).not.toContain("**Next — pick one:**");
+    expect(md).not.toContain("**Next:");
+    expect(md).not.toContain("Show technical plan");
+    expect(md).not.toContain("Open validated playbook");
+    expect(md).not.toContain("Recommended next click");
+    expect(md).not.toMatch(/^- J\. /m);
+    expect(md.split("\n\n")[1]).toMatch(/^## /);
+    expect(r.next_action_menu.length).toBeGreaterThan(3);
+    expect(md.split("\n\n")[0]).toContain("Full coverage");
     expect(md).not.toContain("Quick checks to pin down the plan");
     expect(md).not.toContain("In the route but not asked for");
     expect(md).not.toContain("Not covered by the registry");
@@ -337,7 +417,7 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
   ];
 
   for (const starter of STARTER_GOALS) {
-    it(`${starter.title}: default output is short, wizard-shaped, and action-oriented`, () => {
+    it(`${starter.title}: default output is short, product-card shaped, and action-oriented`, () => {
       const r = planWorkflow(
         {
           goal: starter.goal,
@@ -350,18 +430,26 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
       const md = r.summary_markdown;
       const wizard = r.goal_to_product_wizard;
 
+      expectTargetProductCard(md);
       expect(md.length, `${starter.title} must fit Layer-1`).toBeLessThanOrEqual(
         LAYER1_MAX_CHARS,
       );
-      expect(md).toContain("**Goal -> Product wizard**");
-      expect(md).toContain("1. **Steps**");
-      expect(md).toContain("2. **Connect**");
-      expect(md).toContain("3. **Build in**");
-      expect(md).toContain("4. **Host / monitor with**");
-      expect(md).toContain("5. **Artifact**");
+      expect(md).toContain("## ");
+      expect(md).toContain("**You want:**");
+      expect(md).toContain("**Route:**");
+      expect(md).toContain("**How it works**");
+      expect(md).toContain("**Connect:**");
       expect(md).toContain("**Key safeguard:**");
-      expect(md).toContain("**Next — pick one:**");
-      expect(md).toContain(wizard.recommended_next_click.label);
+      expect(md).toContain("**Build controls:**");
+      expect(md).toContain("### How do you want to continue?");
+      expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+      expect(md).not.toContain("**Next — pick one:**");
+      expect(md).not.toContain("**Next:");
+      expect(md).not.toContain("Show technical plan");
+      expect(md).not.toContain("Open validated playbook");
+      expect(md).not.toContain("Recommended next click");
+      expect(md).not.toContain("3. **Build in**");
+      expect(md).not.toContain("5. **Artifact**");
 
       expect(wizard.steps.length).toBeGreaterThan(0);
       expect(wizard.connections_required.length).toBeGreaterThan(0);
@@ -394,8 +482,12 @@ describe("MAR-250 — coverage honesty in the rendered output", () => {
   const UNSUPPORTED_EXTRA_GOAL =
     "Summarize our monthly sales performance and post the summary to our team Slack channel.";
 
-  it("every depth carries a coverage: line in the front-matter", () => {
-    for (const depth of ["guided", "brief", "standard", "technical", "deep"] as const) {
+  it("every depth carries a coverage verdict in the status header", () => {
+    for (const depth of ["guided", "brief"] as const) {
+      const md = plan(depth).summary_markdown;
+      expect(md.split("\n\n")[0], `${depth} must carry compact coverage`).toMatch(/coverage/i);
+    }
+    for (const depth of ["standard", "technical", "deep"] as const) {
       const md = plan(depth).summary_markdown;
       expect(md, `${depth} must carry coverage front-matter`).toMatch(/^coverage: {7}/m);
     }
@@ -508,7 +600,7 @@ describe("MAR-252 — verdict coherence in the rendered output", () => {
   it("enforced-gate plans keep the original copy (bleed-guard)", () => {
     const r = planGoal(HEAVY_GOAL);
     expect(r.enforced_approval_gates).toContain("human_approval_gate");
-    expect(r.summary_markdown).toContain("a human approval step is enforced");
+    expect(r.summary_markdown).toContain("Keep the approval gate before");
     expect(r.summary_markdown).not.toContain("waived per your request");
   });
 });

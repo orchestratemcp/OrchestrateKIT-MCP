@@ -105,11 +105,12 @@ describe("plan_workflow — automation_clearance on every plan (MAR-168)", () =>
     const r = plan("read emails, detect leads and write a note to the CRM for each lead");
     expect(r.automation_clearance).toBeDefined();
     expect(r.automation_clearance.level).toBe("L3");
-    // MAR-224: Layer-1 surfaces clearance via the status header (`automation:`)
-    // and the plain-language `**Autonomy:**` line; the full "Automation
-    // clearance" section is a technical-depth detail.
-    expect(r.summary_markdown).toContain("automation:");
-    expect(r.summary_markdown).toContain("**Autonomy:**");
+    // MAR-345: Layer-1 surfaces clearance in the compact card, not the full
+    // detailed header. The full "Automation clearance" section remains a
+    // technical-depth detail.
+    expect(r.summary_markdown.split("\n\n")[0]).toContain("Approval enforced");
+    expect(r.summary_markdown).toContain("This is L3 human-in-the-loop by default.");
+    expect(r.summary_markdown).toContain("**Key safeguard:**");
   });
 
   it("a public-publish goal is L4 / human always required", () => {
