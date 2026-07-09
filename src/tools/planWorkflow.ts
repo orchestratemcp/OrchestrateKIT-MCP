@@ -362,6 +362,21 @@ function playbookSignalGatePassed(playbookId: string, goal: string): boolean {
   }
 }
 
+const REVIEWER_NOTIFICATION_SIGNAL =
+  /\breviewer(s)?\b|\breview request\b|\bnotify (the )?reviewer(s)?\b|send (it|them|draft|copy|brief|artifact) to (a )?reviewer/;
+
+function shouldIgnoreReviewerNotificationForLeadSlack(
+  goal: string,
+  componentIds: Set<string>,
+): boolean {
+  return (
+    hasLeadCrmSignal(goal) &&
+    componentIds.has("slack_notification") &&
+    componentIds.has("reviewer_notification") &&
+    !REVIEWER_NOTIFICATION_SIGNAL.test(goal.toLowerCase())
+  );
+}
+
 /**
  * Explicit "read-only / no-write" constraint phrases (MAR-142). When present in
  * a goal that was routed to a playbook containing write components, surface a
@@ -1663,7 +1678,8 @@ const TRIGGER_SPECIFIED_SIGNALS = [
   "each morning", "each day", "cron", "webhook", "on push", "pull request",
   "when an email", "when a new", "on receiving", "on receipt", "manually",
   "on demand", "i run", "button", "in chat", "mention", "arrives", "is received",
-  "incoming",
+  "incoming", "new lead", "new leads", "new email", "new emails", "new message",
+  "new messages", "new gmail",
 ];
 
 /** Goal phrases that already choose where the user wants to build. */
@@ -2921,7 +2937,15 @@ export function planWorkflow(
 
   // ── Step 2: plan_workflow's own precision-aware playbook routing (MAR-98) ──
   const composedIds = new Set(composed.recommended_route.map((s) => s.component_id));
-  const bestOverlap = findOverlappingPlaybooks(composedIds, registry.playbooks, 0.3)[0];
+  const overlapIds = new Set(composedIds);
+  // MAR-344: "alerts sales in Slack after approval" names the Slack egress, not
+  // an internal reviewer handoff. Keep compose's flag-only reviewer noise intact,
+  // but don't let it depress the email_lead_to_crm playbook precision or append
+  // an unasked reviewer step to the product-card path.
+  if (shouldIgnoreReviewerNotificationForLeadSlack(input.goal, overlapIds)) {
+    overlapIds.delete("reviewer_notification");
+  }
+  const bestOverlap = findOverlappingPlaybooks(overlapIds, registry.playbooks, 0.3)[0];
   // MAR-142 (generalized MAR-265): gated playbooks also require a strong
   // domain token in the goal — the precision floor alone (0.72) is not
   // sufficient when generic tokens like "read" happen to score above it on an

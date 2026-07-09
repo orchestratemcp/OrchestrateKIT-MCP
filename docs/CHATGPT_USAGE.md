@@ -96,6 +96,30 @@ Give it your goal in plain English and it returns:
 - Whether a tested pattern already exists for your goal
 - Which step connections are unproven
 
+### Try this first
+
+Copy one of these into a connected chat. They are tuned for the current
+validated playbooks and should return a concise wizard/product-card response,
+not a long report.
+
+```text
+Use the orchestratekit MCP tools.
+
+Goal: Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.
+
+Call plan_workflow with this goal and show the recommended next action.
+```
+
+```text
+Use the orchestratekit MCP tools.
+
+Goal: Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.
+
+Call plan_workflow with this goal and show the recommended next action.
+```
+
+More copy-paste starters: **[FIRST_RUN_STARTERS.md](FIRST_RUN_STARTERS.md)**.
+
 **Template prompt:**
 
 ```

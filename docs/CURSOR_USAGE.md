@@ -13,6 +13,23 @@ chat in the workspace.
 
 ---
 
+## First-run path
+
+For a new workflow, start with `plan_workflow`. It returns the route, safety
+summary, connections, host/monitor guidance, and next action in one concise
+response.
+
+```
+Use the orchestratekit MCP tools.
+
+Goal: When a pull request opens on GitHub, review the diff for bugs and risky changes, notify reviewers with a summary, and never edit or commit code.
+
+Call plan_workflow with this goal first. Show the concise product-card response
+and the recommended next action before writing code.
+```
+
+---
+
 ## Which tools to call first for architecture planning
 
 Call these tools **before writing any code** when designing a new AI workflow:

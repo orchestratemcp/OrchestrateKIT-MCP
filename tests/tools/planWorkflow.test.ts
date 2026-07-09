@@ -121,6 +121,36 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
   // without citation_checker + source_freshness_check fails the safety
   // review), so a goal explicitly asking for company research composes a
   // route that includes it instead.
+  it("MAR-344: exact Gmail dogfood routes to email_lead_to_crm and appends Slack cleanly", () => {
+    const r = plan(
+      "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.",
+    );
+    const ids = r.recommended_route.map((s) => s.component_id);
+
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("email_lead_to_crm");
+    expect(r.route_status).toBe("validated");
+    expect(r.coverage.coverage_label).toBe("full");
+    expect(r.coverage.unmatched_demand).toEqual([]);
+    expect(r.coverage.unsupported_supply).toEqual([]);
+    expect(r.clarifying_questions).toEqual([]);
+    expect(r.goal_to_product_wizard.recommended_next_click.id).toBe("build_brief");
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "email_read",
+        "intent_classifier",
+        "email_draft",
+        "human_approval_gate",
+        "crm_note_write",
+        "slack_notification",
+        "audit_log",
+      ]),
+    );
+    expect(ids).not.toContain("reviewer_notification");
+    expect(ids).not.toContain("calendar_lookup");
+    expect(ids).not.toContain("calendar_write");
+  });
+
   it("keeps the research-flavored lead goal on the composed path", () => {
     const r = plan(
       "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",

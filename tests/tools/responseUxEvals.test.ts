@@ -251,6 +251,7 @@ describe("MAR-333 — dogfood prompts feel like a wizard, not a report", () => {
   const DOGFOOD_GOALS = [
     "Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.",
     "Build an agent that reads new leads from Gmail, drafts a reply, updates CRM, and alerts sales in Slack after approval.",
+    "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.",
   ];
 
   for (const goal of DOGFOOD_GOALS) {
@@ -273,6 +274,107 @@ describe("MAR-333 — dogfood prompts feel like a wizard, not a report", () => {
         wizard.clarifying_questions.length > 0 ? "answer_clarifying_questions" : "build_brief",
       );
       expect(wizard.clarifying_questions).toEqual(r.clarifying_questions);
+    });
+  }
+
+  it("MAR-344: exact Gmail dogfood is a clean validated product card", () => {
+    const goal =
+      "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.";
+    const r = planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+    const md = r.summary_markdown;
+
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("email_lead_to_crm");
+    expect(r.coverage.coverage_label).toBe("full");
+    expect(r.clarifying_questions).toEqual([]);
+    expect(r.goal_to_product_wizard.recommended_next_click.id).toBe("build_brief");
+    expect(r.recommended_route.map((s) => s.component_id)).toEqual(
+      expect.arrayContaining([
+        "email_read",
+        "email_draft",
+        "crm_note_write",
+        "human_approval_gate",
+        "slack_notification",
+      ]),
+    );
+    expect(r.recommended_route.map((s) => s.component_id)).not.toContain(
+      "reviewer_notification",
+    );
+    expect(md).toContain("**Recommended:** validated playbook `email_lead_to_crm`");
+    expect(md).toContain("coverage:       ✅ full");
+    expect(md).toContain("Recommended next click: Export Build brief for Codex");
+    expect(md).not.toContain("Quick checks to pin down the plan");
+    expect(md).not.toContain("In the route but not asked for");
+    expect(md).not.toContain("Not covered by the registry");
+  });
+});
+
+describe("MAR-344 — first-run showcase prompts render as concise product cards", () => {
+  const STARTER_GOALS = [
+    {
+      title: "Competitor price monitor",
+      goal: "Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.",
+    },
+    {
+      title: "Gmail lead to CRM",
+      goal: "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.",
+    },
+    {
+      title: "Read-only PR reviewer",
+      goal: "When a pull request opens on GitHub, review the diff for bugs and risky changes, notify reviewers with a summary, and never edit or commit code.",
+    },
+    {
+      title: "Invoice intake and PO match",
+      goal: "When a PDF invoice arrives in the shared AP Gmail inbox, extract totals and line items, match against purchase orders, notify AP in Slack for discrepancies, and hold every invoice for human approval before accounting.",
+    },
+    {
+      title: "Content repurposing with approval",
+      goal: "Use a content brief to generate social copy variants and a design brief, send it to a reviewer for approval, then publish externally only after approval.",
+    },
+  ];
+
+  for (const starter of STARTER_GOALS) {
+    it(`${starter.title}: default output is short, wizard-shaped, and action-oriented`, () => {
+      const r = planWorkflow(
+        {
+          goal: starter.goal,
+          must_have_capabilities: [],
+          must_avoid: [],
+          output_depth: "brief",
+        },
+        registry,
+      );
+      const md = r.summary_markdown;
+      const wizard = r.goal_to_product_wizard;
+
+      expect(md.length, `${starter.title} must fit Layer-1`).toBeLessThanOrEqual(
+        LAYER1_MAX_CHARS,
+      );
+      expect(md).toContain("**Goal -> Product wizard**");
+      expect(md).toContain("1. **Steps**");
+      expect(md).toContain("2. **Connect**");
+      expect(md).toContain("3. **Build in**");
+      expect(md).toContain("4. **Host / monitor with**");
+      expect(md).toContain("5. **Artifact**");
+      expect(md).toContain("**Key safeguard:**");
+      expect(md).toContain("**Next — pick one:**");
+      expect(md).toContain(wizard.recommended_next_click.label);
+
+      expect(wizard.steps.length).toBeGreaterThan(0);
+      expect(wizard.connections_required.length).toBeGreaterThan(0);
+      expect(wizard.build_choices.some((c) => c.recommended)).toBe(true);
+      expect(wizard.host_monitor_choices.some((c) => c.recommended)).toBe(true);
+      expect(wizard.recommended_next_click.label.length).toBeGreaterThan(0);
+
+      expect(md).not.toContain("```json");
+      expect(md).not.toContain('"recommended_route"');
+      expect(md).not.toContain('"safety_review"');
+      expect(md).not.toMatch(/^`?[a-z0-9_]+`?\s*(->|→)/);
+      expect(md).not.toContain("### Model-tier profile");
+      expect(md).not.toContain("### Credentials & permissions");
     });
   }
 });

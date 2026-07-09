@@ -115,6 +115,30 @@ Full walkthrough (ChatGPT Developer-Mode connector + claude.ai): **[docs/CHATGPT
 
 ---
 
+## Try This First
+
+After connecting, paste one of these goals and ask the client to call
+`plan_workflow`. The default response should be a short product card: steps,
+connections, build target, host/monitor recommendation, safety note, and one
+obvious next action.
+
+```text
+Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.
+```
+
+```text
+Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.
+```
+
+```text
+When a pull request opens on GitHub, review the diff for bugs and risky changes, notify reviewers with a summary, and never edit or commit code.
+```
+
+More first-run starters and expected output shapes:
+**[docs/FIRST_RUN_STARTERS.md](docs/FIRST_RUN_STARTERS.md)**.
+
+---
+
 ## Connecting your workflow's services
 
 Connecting the MCP to your client takes no auth (it's a read-only advisor). But

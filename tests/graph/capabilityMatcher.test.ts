@@ -22,6 +22,12 @@ describe("matchCapabilities", () => {
     expect(ids).toContain("email_draft");
   });
 
+  it("treats Gmail as an email mailbox source", () => {
+    const ids = matchedIds("Read new leads from Gmail and draft a reply.");
+    expect(ids).toContain("email_read");
+    expect(ids).toContain("email_draft");
+  });
+
   it("matches research components for a research goal", () => {
     const { matches } = matchCapabilities("research and summarize a topic with citations", [], [], components);
     const ids = matches.map((m) => m.component.id);

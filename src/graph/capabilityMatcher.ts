@@ -199,6 +199,7 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
   ],
   email_calendar: [
     "email",
+    "gmail",
     "inbox",
     "mailbox",
     "reply",
@@ -420,6 +421,7 @@ const CHAT_OVERLAPPING_EMAIL_KEYWORDS = ["reply", "replies", "draft"];
  */
 const STRONG_EMAIL_CALENDAR_TOKENS = [
   "email",
+  "gmail",
   "inbox",
   "mailbox",
   "reply",
@@ -957,6 +959,7 @@ export function classifyGoalDomains(goal: string): Set<Domain> {
  */
 const KEYWORD_HINTS: Record<string, string[]> = {
   email: ["email_read", "email_draft", "optional_email_send"],
+  gmail: ["email_read"],
   inbox: ["email_read"],
   reply: ["email_draft"],
   draft: ["email_draft"],
