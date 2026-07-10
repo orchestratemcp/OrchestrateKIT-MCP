@@ -16,7 +16,19 @@ Verified on July 10, 2026 after worker deploy `4510137c-b96e-4d87-9309-bd0a2aa69
 
 ## ChatGPT
 
-Status: needs manual UI smoke in a custom GPT or agent with the hosted MCP URL.
+Status: smoke completed in the ChatGPT web UI on July 10, 2026.
+
+Observed:
+
+- ChatGPT discovered available tools.
+- ChatGPT called `list_resources`, then `plan_workflow`.
+- `plan_workflow` input used `output_depth: "brief"`.
+- The tool result contained `summary_markdown` with the full product card and A-D continuation menu.
+- The first visible ChatGPT answer paraphrased the card and omitted the A-D menu.
+- A stricter follow-up asking ChatGPT to render `summary_markdown` verbatim did show the A-D continuation menu.
+
+Docs note: ChatGPT first-run prompts should explicitly ask to render the returned
+`summary_markdown` verbatim, including the A) B) C) D) menu.
 
 Prompt to run:
 
@@ -25,7 +37,8 @@ Use the orchestratekit MCP tools.
 
 Goal: Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.
 
-Call plan_workflow with this goal and show the concise product-card response.
+Call plan_workflow with this goal and render the returned summary_markdown
+verbatim, including the A) B) C) D) continuation menu.
 ```
 
 Expected first screen:

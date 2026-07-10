@@ -126,7 +126,8 @@ Use the orchestratekit MCP tools.
 
 Goal: [paste one starter goal here]
 
-Call plan_workflow with this goal and show the concise product-card response.
+Call plan_workflow with this goal and render the returned summary_markdown
+verbatim, including the A) B) C) D) continuation menu.
 ```
 
 Starter goals:
