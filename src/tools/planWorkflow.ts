@@ -675,7 +675,7 @@ export type PlanWorkflowOutput = {
   /**
    * Deterministic hosting + monitoring recommendation (MAR-315): where this
    * plan should run, derived from the route's trigger shape, and how to watch
-   * it once it runs (DASH import is the recommended monitoring option — the
+   * it once it runs (simple logs are the recommended monitoring option — the
    * manifest already ships in `export_build_brief`). Present on every plan;
    * never null. Registry/route-shape derived — no LLM, no network call.
    */
@@ -1794,7 +1794,7 @@ export function buildClarifyingQuestions(
     addIfNeeded({
       id: "hosting_monitoring",
       question: "Where should it run, and how should you monitor runs and approvals?",
-      options: ["Local/cron + DASH", "Hosted endpoint/job + DASH", "Inside the client + manual checks", "Not sure yet"],
+      options: ["Local/cron + logs", "Hosted endpoint/job + logs", "Inside the client + manual checks", "Not sure yet"],
     });
   }
 
@@ -1802,7 +1802,7 @@ export function buildClarifyingQuestions(
     addIfNeeded({
       id: "artifact_target",
       question: "What build artifact should I prepare after you confirm scope?",
-      options: ["Build brief prompt", "Linear epic + issues", "Obsidian note + DASH manifest", "Not sure yet"],
+      options: ["Build brief prompt", "Linear epic + issues", "Obsidian note", "Not sure yet"],
     });
   }
 
@@ -1954,20 +1954,18 @@ function buildHostingBlock(
 }
 
 /**
- * MAR-315: monitoring recommendation — import-to-DASH is always the
- * recommended pick (the manifest already ships in `export_build_brief`, per
- * MAR-296). When the goal already states its own monitoring answer (the
- * SERVER_INSTRUCTIONS constraint-gathering question), that statement is
- * echoed in `reason` instead of the recommendation silently ignoring it.
+ * MAR-315: monitoring recommendation. Keep first-run monitoring immediately
+ * usable with logs/tables. When the goal already states its own monitoring
+ * answer, that statement is echoed in `reason` instead of being ignored.
  */
 function buildMonitoringBlock(goal: string): HostingAndMonitoring["monitoring"] {
   const stated = anySignal(goal.toLowerCase(), MONITORING_STATED_SIGNALS);
   const reason = stated
-    ? "Your goal already describes a monitoring approach — DASH import (ships free in the build brief) is still recommended."
-    : "Default: import the shipped agent.manifest.json into DASH for full run/step/gate visibility, no extra wiring.";
+    ? "Your goal already describes a monitoring approach; keep that and make failures visible in the build."
+    : "Default: log each run to a file or table you already have; keep monitoring simple until a dashboard is ready.";
   return {
-    recommended: monitoringOption("dash_import"),
-    alternatives: [monitoringOption("log_to_file"), monitoringOption("manual_none")],
+    recommended: monitoringOption("log_to_file"),
+    alternatives: [monitoringOption("manual_none")],
     reason,
   };
 }
@@ -2190,6 +2188,15 @@ function buildHostMonitorChoices(hm: HostingAndMonitoring): WizardChoice[] {
       action: "choose_hosting:github_action",
     },
     {
+      id: "hosted_endpoint",
+      label: "Hosted endpoint",
+      kind: "host_monitor",
+      best_for: "Webhook or PR-triggered workflows that need to be reachable.",
+      tradeoffs: "Requires deployment, logs, and failure alerts.",
+      recommended: hosting === "hosted_endpoint",
+      action: "choose_hosting:hosted_endpoint",
+    },
+    {
       id: "cowork",
       label: "Cowork",
       kind: "host_monitor",
@@ -2197,15 +2204,6 @@ function buildHostMonitorChoices(hm: HostingAndMonitoring): WizardChoice[] {
       tradeoffs: "Depends on the client session and connected tools.",
       recommended: hosting === "in_client",
       action: "choose_hosting:cowork",
-    },
-    {
-      id: "dash",
-      label: "DASH",
-      kind: "host_monitor",
-      best_for: "Monitoring runs, steps, approval gates, and failures.",
-      tradeoffs: "Monitoring target, not the execution runtime.",
-      recommended: hm.monitoring.recommended.id === "dash_import",
-      action: "export_build_brief({ handoff_targets: ['prompt'] }) -> use agent_manifest",
     },
   ];
 }
@@ -2247,15 +2245,6 @@ function buildArtifactChoices(): WizardChoice[] {
       tradeoffs: "Longer artifact; best after quick questions are answered.",
       recommended: true,
       action: "export_build_brief({ handoff_targets: ['prompt'] })",
-    },
-    {
-      id: "dash_manifest",
-      label: "DASH manifest",
-      kind: "artifact",
-      best_for: "Importing the planned agent into DASH monitoring.",
-      tradeoffs: "Ships inside the build brief; not a standalone write.",
-      recommended: false,
-      action: "export_build_brief({ handoff_targets: ['prompt'] }) -> agent_manifest",
     },
   ];
 }
@@ -2886,7 +2875,7 @@ function buildGuidedPlanMarkdown(
 
   lines.push(
     `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +
-      `For full details, call \`output_depth: "technical"\`. DASH monitoring can be wired later from the exported manifest if you use it.`,
+      `For full details, call \`output_depth: "technical"\`. The exported build brief includes setup and monitoring details.`,
   );
 
   return lines.join("\n");

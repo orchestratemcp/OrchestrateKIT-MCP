@@ -221,14 +221,14 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
       "GPT Agents",
     ]);
     expect(w.host_monitor_choices.map((c) => c.label)).toEqual(
-      expect.arrayContaining(["Local", "DASH", "Cowork", "GitHub Action", "cron"]),
+      expect.arrayContaining(["Local", "Cowork", "GitHub Action", "cron"]),
     );
+    expect(w.host_monitor_choices.map((c) => c.label)).not.toContain("DASH");
     expect(w.artifact_choices.map((c) => c.label)).toEqual([
       "Prompt",
       "Linear issues",
       "Obsidian",
       "Build brief",
-      "DASH manifest",
     ]);
     expect(w.recommended_next_click.label).toContain("Export");
   });
