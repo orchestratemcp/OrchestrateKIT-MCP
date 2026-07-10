@@ -2579,6 +2579,13 @@ function buildProductCardConnectList(
     add("slack", "Slack channel");
   }
 
+  if (
+    hasGoalSignal(goal, ["pull request", "pr opens", "github", "diff", "code review"]) &&
+    hasGoalSignal(goal, ["review", "risky"])
+  ) {
+    add("pr_source", "GitHub pull request / diff source");
+  }
+
   if (hasGoalSignal(goal, ["competitor"]) && hasGoalSignal(goal, ["price", "prices"])) {
     add("competitor_prices", "Competitor price sources");
   }
