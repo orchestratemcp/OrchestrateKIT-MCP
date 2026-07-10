@@ -392,6 +392,39 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
   });
 });
 
+describe("MAR-346 - first-run honesty for weak composed matches", () => {
+  it("does not call the competitor-price prompt full coverage when only the schedule matched", () => {
+    const goal =
+      "I want something that checks competitor prices every morning and tells sales if anything changed.";
+    const r = planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+    const md = r.summary_markdown;
+
+    expect(r.plan_source).toBe("composed");
+    expect(r.recommended_route.map((s) => s.component_id)).toEqual(["scheduled_trigger"]);
+    expect(r.coverage.coverage_label).toBe("poor");
+    expect(r.coverage.unmatched_demand).toEqual([
+      "I want something that checks competitor prices every morning",
+      "tells sales if anything changed",
+    ]);
+
+    expect(md.split("\n\n")[0]).toContain("Poor coverage");
+    expect(md.split("\n\n")[0]).not.toContain("Full coverage");
+    expect(md).toContain("## Competitor Price Monitor");
+    expect(md).toContain("**Route:** Scheduled Trigger");
+    expect(md).toContain("Competitor price sources");
+    expect(md).toContain("Sales notification channel");
+    expect(md).toContain("**Not covered by the registry:**");
+    expect(md).toContain('"I want something that checks competitor prices every morning"');
+    expect(md).toContain('"tells sales if anything changed"');
+    expect(md).not.toContain("No external product connection required");
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(r.next_action_menu.length).toBeGreaterThan(3);
+  });
+});
+
 describe("MAR-344 — first-run showcase prompts render as concise product cards", () => {
   const STARTER_GOALS = [
     {

@@ -50,6 +50,7 @@ const DEMAND_VERBS = new Set([
   "parse", "monitor", "watch", "alert", "notify", "summarize", "summarise",
   "enrich", "update", "write", "validate", "deduplicate", "scrape", "review",
   "approve", "upload", "download", "sync", "translate", "transcribe", "book",
+  "tell", "tells",
 ]);
 
 /**
@@ -65,7 +66,7 @@ const DEMAND_NOUNS = new Set([
   "email", "emails", "inbox", "slack", "discord", "telegram", "notion",
   "airtable", "stripe", "pdf", "spreadsheet", "csv", "crm", "calendar",
   "github", "webhook", "invoice", "invoices", "uptime", "logs", "metric",
-  "sources",
+  "sources", "competitor", "competitors", "price", "prices",
   // known-unknown systems/artifacts — not in the registry today; an unclaimed
   // hit here is exactly the gap the user must hear about
   "postgres", "postgresql", "mysql", "sqlite", "sql", "database", "warehouse",
