@@ -2528,6 +2528,12 @@ function productCardTitle(goal: string, planSource: PlanSource, playbook: PlanPl
   if (hasGoalSignal(goal, ["invoice", "invoices"]) && hasGoalSignal(goal, ["po", "purchase order"])) {
     return "Invoice Intake → PO Match";
   }
+  if (
+    hasGoalSignal(goal, ["content brief", "social copy", "copy variants", "design brief"]) &&
+    hasGoalSignal(goal, ["approval", "approve", "reviewer", "publish"])
+  ) {
+    return "Content Approval Pipeline";
+  }
   return "Composed Workflow Route";
 }
 
@@ -2579,6 +2585,10 @@ function buildProductCardConnectList(
     add("slack", "Slack channel");
   }
 
+  if (hasGoalSignal(goal, ["content brief"])) {
+    add("content_brief", "Content brief source");
+  }
+
   if (
     hasGoalSignal(goal, ["pull request", "pr opens", "github", "diff", "code review"]) &&
     hasGoalSignal(goal, ["review", "risky"])
@@ -2588,6 +2598,10 @@ function buildProductCardConnectList(
 
   if (hasGoalSignal(goal, ["competitor"]) && hasGoalSignal(goal, ["price", "prices"])) {
     add("competitor_prices", "Competitor price sources");
+  }
+
+  if (hasGoalSignal(goal, ["po", "purchase order", "purchase orders"])) {
+    add("po_source", "PO / ERP read source");
   }
 
   if (
@@ -2619,6 +2633,12 @@ function buildProductCardConnectList(
     ) {
       continue;
     }
+    if (
+      need.component_id === "github_trigger" &&
+      hasGoalSignal(goal, ["pull request", "pr opens", "diff", "code review"])
+    ) {
+      continue;
+    }
     const examples = formatExamples(need.product_examples);
     add(need.component_id, examples ? `${need.label} (${examples})` : need.label);
   }
@@ -2635,6 +2655,15 @@ function buildProductCardConnectList(
 }
 
 function connectLine(goal: string, steps: RouteStep[], whatYouNeed: IntegrationNeed[], enforcedGates: string[]): string {
+  const lowerGoal = goal.toLowerCase();
+  const mentionsApOrInvoice = /\b(ap|accounts payable|invoice|invoices)\b/.test(lowerGoal);
+  const slackLabel = hasGoalSignal(goal, ["sales", "lead", "leads", "crm"])
+    ? "Slack sales channel"
+    : mentionsApOrInvoice
+    ? "Slack/AP alert channel"
+    : hasGoalSignal(goal, ["competitor", "price", "prices", "summary"])
+    ? "Slack summary channel"
+    : "Slack channel";
   return buildProductCardConnectList(goal, steps, whatYouNeed, enforcedGates)
     .filter((item) => item !== "Human approval checkpoint")
     .map((item) =>
@@ -2642,7 +2671,7 @@ function connectLine(goal: string, steps: RouteStep[], whatYouNeed: IntegrationN
         .replace("Gmail / email inbox", "Gmail inbox")
         .replace("Email inbox (Gmail / Outlook / IMAP)", "email inbox (Gmail/Outlook/IMAP)")
         .replace("CRM, e.g. HubSpot (or Salesforce / Pipedrive)", "CRM (HubSpot/Salesforce/Pipedrive)")
-        .replace("Slack channel", "Slack sales channel")
+        .replace("Slack channel", slackLabel)
         .replace("Email sender is optional; draft-only is enough unless approved replies should be sent", "optional email sender")
         .replace("Email draft account; draft-only is enough", "email draft account")
         .replace(/\(choose one: ([^)]+)\)/, "($1)"),

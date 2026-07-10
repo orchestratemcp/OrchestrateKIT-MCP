@@ -120,6 +120,14 @@ Call plan_workflow with this goal and show the recommended next action.
 
 More copy-paste starters: **[FIRST_RUN_STARTERS.md](FIRST_RUN_STARTERS.md)**.
 
+The five current first-run starters are:
+
+- Competitor price monitor
+- Gmail lead to CRM
+- Read-only PR reviewer
+- Invoice intake / PO match
+- Content repurposing with approval
+
 **Template prompt:**
 
 ```

@@ -1,25 +1,25 @@
-# OrchestrateMCP — Cursor Usage Guide
+# OrchestrateMCP - Cursor Usage Guide
 
-How to use OrchestrateMCP effectively from Cursor to get graph-aware
-architecture recommendations, playbook guidance, and workflow safety reviews.
+How to use OrchestrateMCP from Cursor for graph-aware workflow planning before
+you write implementation code.
 
 ---
 
-## Connecting the MCP
+## Connecting The MCP
 
-See `docs/LOCAL_SETUP.md` for installation and connection instructions.  
+See `docs/LOCAL_SETUP.md` for installation and connection instructions.
 Once connected, the tools appear in Cursor's MCP panel and are callable from any
 chat in the workspace.
 
 ---
 
-## First-run path
+## First-Run Path
 
-For a new workflow, start with `plan_workflow`. It returns the route, safety
-summary, connections, host/monitor guidance, and next action in one concise
-response.
+For a new workflow, start with `plan_workflow`. It returns the product-card
+summary, route, connections, safety posture, coverage gaps, build controls, and
+next action in one concise response.
 
-```
+```text
 Use the orchestratekit MCP tools.
 
 Goal: When a pull request opens on GitHub, review the diff for bugs and risky changes, notify reviewers with a summary, and never edit or commit code.
@@ -28,77 +28,68 @@ Call plan_workflow with this goal first. Show the concise product-card response
 and the recommended next action before writing code.
 ```
 
----
-
-## Which tools to call first for architecture planning
-
-Call these tools **before writing any code** when designing a new AI workflow:
-
-1. **`list_known_routes`** — get an overview of tested workflow patterns in the
-   registry. Use this to orient yourself before asking for a composition.
-
-2. **`recommend_architecture`** — the primary planning tool. Provide your goal as
-   a short description. The tool composes a route, classifies steps (LLM-driven vs.
-   deterministic), checks for anti-patterns, and returns a structured recommendation.
-
-3. **`get_playbook`** — if a golden-path playbook exists for your workflow type, this
-   returns full implementation guidance including known failure modes, guardrails, and
-   ordered steps.
-
-4. **`review_workflow_design`** — once you have a rough design, run this to get a
-   safety check: missing approval gates, state management gaps, tool safety findings.
-
-5. **`get_relevant_docs`** — fetches documentation sources for the frameworks and
-   components involved in your workflow.
+More first-run starters: `docs/FIRST_RUN_STARTERS.md`.
 
 ---
 
-## Forcing Cursor to use the MCP
+## Which Tool To Call First
 
-Cursor will sometimes skip MCP tools and answer from its training data.
-To force it to use the tools, be explicit in your prompt:
+Call **`plan_workflow`** before writing code. It is the one-call planner for the
+first screen.
 
-```
-Use the orchestratekit MCP tools to recommend an architecture for this workflow.
-Start with recommend_architecture before writing any code.
+Use deeper graph tools only after the product card is visible:
+
+1. **`explain_component`** for any step the user does not recognise.
+2. **`list_known_routes`** to browse validated patterns.
+3. **`get_playbook`** when `plan_workflow` selects a playbook and you want full guidance.
+4. **`review_workflow_design`** when checking an implementation design against the registry.
+5. **`get_relevant_docs`** for framework or component documentation sources.
+
+---
+
+## Forcing Cursor To Use The MCP
+
+Cursor can skip tools and answer from training data. Be explicit:
+
+```text
+Use the orchestratekit MCP tools to plan this workflow.
+Start with plan_workflow before writing any code.
 ```
 
 Or more specifically:
 
-```
-Call recommend_architecture with goal="<your goal>" and return the full output
-before suggesting any implementation.
+```text
+Call plan_workflow with goal="<your goal>" and show the concise product-card
+response before suggesting any implementation.
 ```
 
 ---
 
-## Recommended prompt patterns
+## Recommended Prompt Patterns
 
-### Pattern 1 — Full planning session from scratch
+### Full planning session from scratch
 
-```
+```text
 I want to build an AI workflow that [describe goal].
 
-1. Call list_known_routes to show me what tested routes exist.
-2. Call recommend_architecture with my goal.
-3. If a playbook exists, call get_playbook to show me the golden-path steps.
-4. Call review_workflow_design on the proposed design.
-
-Do not start writing code until we have reviewed the workflow design.
+1. Call plan_workflow with my goal.
+2. Show the concise product-card response and recommended next action.
+3. Explain any unfamiliar components only after the first card is visible.
+4. Do not write code until I accept or adjust the plan.
 ```
 
-### Pattern 2 — Quick architecture check
+### Quick architecture check
 
-```
-Before implementing, call recommend_architecture with:
+```text
+Before implementing, call plan_workflow with:
   goal: "read inbound emails, classify intent, and draft a reply"
-  
-Show me the step classification and any do-not-build warnings.
+
+Show me the product-card response and any safety or coverage warnings.
 ```
 
-### Pattern 3 — Safety review of an existing design
+### Safety review of an existing design
 
-```
+```text
 I have this workflow design:
 [paste your design]
 
@@ -110,82 +101,32 @@ Call review_workflow_design with this design and highlight any:
 Return status, risk score, and top 3 recommendations.
 ```
 
-### Pattern 4 — Component deep-dive
+### Component deep-dive
 
-```
-Call get_graph_component for "human_approval_gate" and explain when it
-should be included in a workflow based on the edges in the registry.
-```
-
-### Pattern 5 — Stack recommendation
-
-```
-Call get_stack_recommendation for the default orchestratekit stack and
-suggest which parts I should swap out for [my constraints].
+```text
+Call explain_component for "human_approval_gate" and explain when it should be
+included in a workflow.
 ```
 
 ---
 
-## How to avoid Cursor skipping planning and jumping to code
+## Tips
 
-These patterns keep Cursor in planning mode:
-
-1. **Start every session with a planning prompt.** Ask for `recommend_architecture`
-   output before any implementation discussion.
-
-2. **Add a rule to your `.cursorrules` or Cursor system prompt:**
-   ```
-   For any AI workflow or agent feature, always call the orchestratekit MCP
-   recommend_architecture tool before writing implementation code.
-   ```
-
-3. **Use `review_workflow_design` as a gate.** Tell Cursor:
-   ```
-   Do not proceed to implementation until review_workflow_design returns
-   status="pass" or we have explicitly accepted all warnings.
-   ```
-
-4. **Ask for the full tool output, not a summary.** If Cursor paraphrases,
-   it is not using the registry data. Ask:
-   ```
-   Show me the raw recommend_architecture output, not a summary.
-   ```
+- Be specific about your goal. "send emails" matches differently from "draft and review outbound emails".
+- Mention constraints in the goal, such as "never send automatically" or "read-only".
+- Ask Cursor to show the `plan_workflow` product card before implementation.
+- Treat candidate routes as proposals. Validated playbooks have stronger evidence.
 
 ---
 
-## Tips for effective prompts
-
-- **Be specific about your goal.** The capability matcher scores against your goal
-  text. "send emails" matches differently from "draft and review outbound emails".
-
-- **Mention constraints.** Use `must_avoid` for components you don't want:
-  ```
-  Call recommend_architecture with goal="..." and must_avoid=["vector_store"].
-  ```
-
-- **Ask about untested edges.** If the route includes untested edges, ask:
-  ```
-  Which edges in this route are untested? What's the risk?
-  ```
-
-- **Ask about candidate vs. validated routes.** Candidate routes are graph
-  compositions without validated playbook coverage — treat them as proposals.
-
----
-
-## Tool reference summary
+## Tool Reference Summary
 
 | Tool | When to use |
 |------|-------------|
 | `health_check` | Verify server is connected and registry is loaded |
-| `list_graph_components` | Browse all available workflow building blocks |
-| `get_graph_component` | Deep-dive on one component: capabilities, edges, risk |
-| `list_graph_edges` | See all tested/untested relationships between components |
-| `list_known_routes` | Overview of validated and candidate workflow patterns |
-| `get_route` | Full details of a specific route |
-| `get_stack_recommendation` | Technology stack guidance for your context |
-| `compose_workflow_route` | Compose a custom route for an arbitrary goal |
-| `recommend_architecture` | **Primary planning tool** — wraps compose + classify + anti-patterns |
-| `get_playbook` | Golden-path implementation guidance for a workflow type |
+| `plan_workflow` | Primary first-run planner: product card, route, safety, coverage, next action |
+| `explain_component` | Explain one component in plain language |
+| `list_known_routes` | Browse validated and candidate workflow patterns |
+| `get_playbook` | Full guidance for a selected playbook |
+| `review_workflow_design` | Safety checker for an implementation design |
 | `get_relevant_docs` | Docs sources for components, frameworks, and topics |
-| `review_workflow_design` | Safety checker — approval gates, state, tool safety |

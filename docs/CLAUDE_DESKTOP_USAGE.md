@@ -1,131 +1,104 @@
-# OrchestrateMCP — Claude Desktop Usage Guide
+# OrchestrateMCP - Claude Desktop Usage Guide
 
-How to use OrchestrateMCP from Claude Desktop for workflow graph-assisted
-architecture planning and safety review.
+How to use OrchestrateMCP from Claude Desktop for workflow planning and safety
+review.
 
 ---
 
-## Connecting the MCP
+## Connecting The MCP
 
 See `docs/LOCAL_SETUP.md` for installation and connection instructions.
 
-Once connected, the 🔌 icon in the bottom-left of a Claude Desktop conversation
-shows the active MCP servers. Click it to verify **orchestratekit** is listed.
+Once connected, the plug icon in the bottom-left of a Claude Desktop
+conversation shows the active MCP servers. Click it to verify
+**orchestratekit** is listed.
 
 ---
 
-## Starting a planning session
+## First-Run Path
 
-Claude Desktop handles tool use differently from Cursor — it is more conversational
-and will reason step-by-step through tool calls when asked.
+For a new workflow, start with `plan_workflow`. It returns the product-card
+summary, route, connections, safety posture, coverage gaps, build controls, and
+next action in one concise response.
 
-A good session opener:
+```text
+Use the orchestratekit MCP tools.
 
+Goal: Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.
+
+Call plan_workflow with this goal first. Show the concise product-card response
+and the recommended next action.
 ```
-I want to design an AI workflow for [goal]. 
 
-Please start by calling the orchestratekit MCP tools:
-1. recommend_architecture with my goal
-2. If you find a matching playbook, call get_playbook
-3. Call review_workflow_design once we have a rough design
-
-Do not suggest implementation code until we have completed the safety review.
-```
+More first-run starters: `docs/FIRST_RUN_STARTERS.md`.
 
 ---
 
-## Recommended prompts
+## Recommended Prompts
 
-### Architecture planning
+### Plan a workflow
 
-```
-Using orchestratekit MCP, call recommend_architecture with:
-  goal: "process inbound support emails and draft replies using thread context"
+```text
+Use orchestratekit MCP.
 
-Show me:
-- the recommended steps with their classification (LLM vs deterministic)
-- any do-not-build warnings
-- whether a golden-path playbook exists for this workflow type
-```
+Goal: [describe the workflow in one or two sentences]
 
-### Playbook lookup
-
-```
-Call get_playbook with workflow_type="data extraction and enrichment" and
-include_graph=true so I can see the components, edges, and approval gates.
+Call plan_workflow with this goal. Show the product-card response first, then
+explain any unfamiliar component names in plain language.
 ```
 
-### Safety review
+### Explain a component
 
+```text
+Call explain_component for "human_approval_gate" and explain what can go wrong
+if I skip it.
 ```
+
+### Safety review of an existing design
+
+```text
 I'm planning this AI workflow:
 [describe your design]
 
 Call review_workflow_design with this design. Tell me:
-- the status (pass / warnings / fail)
+- the status
 - the risk score
 - the most critical findings with recommended fixes
 ```
 
-### Docs and references
+---
 
-```
-Call get_relevant_docs with frameworks=["openai-agents", "cursor"] and show me
-the documentation sources I should read before implementing this workflow.
-```
+## Typical Flow
 
-### Component exploration
+```text
+User: Use orchestratekit MCP. Goal: [workflow goal]. Call plan_workflow.
+Claude: [calls plan_workflow and shows the product card]
 
-```
-Call list_graph_components filtered to category="safety" and explain when each
-safety component should be added to a workflow.
+User: Explain the risky or unfamiliar steps.
+Claude: [calls explain_component for those steps]
+
+User: We will build this. Run a safety review on my implementation design.
+Claude: [calls review_workflow_design]
 ```
 
 ---
 
-## Tool call flow for architecture design
-
-A typical design session looks like this:
-
-```
-User:  → recommend_architecture
-Claude: [calls tool, returns route + classification + warnings]
-
-User:  → get_playbook (if playbook found)
-Claude: [calls tool, returns golden-path steps + sources + evals]
-
-User:  We'll use this design. Run a safety review.
-Claude: [calls review_workflow_design, returns findings]
-
-User:  Show me the docs for the frameworks involved.
-Claude: [calls get_relevant_docs]
-```
-
----
-
-## Differences from Cursor
+## Differences From Cursor
 
 | | Cursor | Claude Desktop |
 |---|---|---|
-| Tool invocation | Semi-automatic in agent mode | Requires explicit prompting |
-| Tool chaining | Automatic multi-step | Step-by-step with confirmation |
+| Tool invocation | Often automatic in agent mode | Better when prompted explicitly |
 | Code generation | After planning | After planning |
-| Best for | Active development | Architecture review, design sessions |
-
-Claude Desktop is especially good for **long-form architectural discussions** where
-you want to reason about each tool output before proceeding to the next step.
+| Best for | Active development | Architecture review and design sessions |
 
 ---
 
-## Known limitations
+## Known Limitations
 
-- Claude Desktop does not have file system access by default. The MCP tools return
-  all context as text — no files are written to disk.
-
-- If the tool icon shows but tools fail, check that the Node.js binary is on
-  the system `PATH`, not just your shell profile. See troubleshooting in
+- Claude Desktop does not have file system access by default. The MCP tools
+  return context as text; they do not write files.
+- If the tool icon shows but tools fail, check that the Node.js binary is on the
+  system `PATH`, not just your shell profile. See troubleshooting in
   `docs/LOCAL_SETUP.md`.
-
-- Candidate routes (status: `candidate_route`) are graph compositions not yet
-  backed by a validated playbook. Treat these as informed proposals.
-  Always run `review_workflow_design` before implementing a candidate route.
+- Candidate routes are graph compositions not yet backed by a validated
+  playbook. Treat them as informed proposals.

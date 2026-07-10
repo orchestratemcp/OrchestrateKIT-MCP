@@ -461,22 +461,32 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
     {
       title: "Competitor price monitor",
       goal: "Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.",
+      expectedTitle: "## Competitor Price Monitor → Slack",
+      expectedConnect: ["Slack summary channel", "Competitor price sources"],
     },
     {
       title: "Gmail lead to CRM",
       goal: "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.",
+      expectedTitle: "## Email Lead → CRM + Slack",
+      expectedConnect: ["Gmail inbox", "CRM (HubSpot/Salesforce/Pipedrive)", "Slack sales channel"],
     },
     {
       title: "Read-only PR reviewer",
       goal: "When a pull request opens on GitHub, review the diff for bugs and risky changes, notify reviewers with a summary, and never edit or commit code.",
+      expectedTitle: "## Read-Only PR Review",
+      expectedConnect: ["GitHub pull request / diff source", "Notification channel"],
     },
     {
       title: "Invoice intake and PO match",
       goal: "When a PDF invoice arrives in the shared AP Gmail inbox, extract totals and line items, match against purchase orders, notify AP in Slack for discrepancies, and hold every invoice for human approval before accounting.",
+      expectedTitle: "## Invoice Intake → PO Match",
+      expectedConnect: ["Gmail inbox", "PO / ERP read source", "Slack/AP alert channel"],
     },
     {
       title: "Content repurposing with approval",
       goal: "Use a content brief to generate social copy variants and a design brief, send it to a reviewer for approval, then publish externally only after approval.",
+      expectedTitle: "## Content Approval Pipeline",
+      expectedConnect: ["Content brief source", "Publishing platform"],
     },
   ];
 
@@ -499,10 +509,14 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
         LAYER1_MAX_CHARS,
       );
       expect(md).toContain("## ");
+      expect(md).toContain(starter.expectedTitle);
       expect(md).toContain("**You want:**");
       expect(md).toContain("**Route:**");
       expect(md).toContain("**How it works**");
       expect(md).toContain("**Connect:**");
+      for (const expectedConnect of starter.expectedConnect) {
+        expect(md).toContain(expectedConnect);
+      }
       expect(md).toContain("**Key safeguard:**");
       expect(md).toContain("**Build controls:**");
       expect(md).toContain("### How do you want to continue?");
