@@ -77,7 +77,14 @@ const DEMAND_NOUNS = new Set([
 ]);
 
 /** Multi-word demand phrases checked before single tokens. */
-const DEMAND_PHRASES = ["google drive", "google sheets", "pull request"];
+const DEMAND_PHRASES = [
+  "google drive",
+  "google sheets",
+  "pull request",
+  "pr opens",
+  "code review",
+  "risky changes",
+];
 
 /**
  * Clause boundaries: punctuation and step conjunctions. "and" is included so a

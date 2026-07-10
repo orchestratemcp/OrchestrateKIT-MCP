@@ -423,6 +423,37 @@ describe("MAR-346 - first-run honesty for weak composed matches", () => {
     expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(r.next_action_menu.length).toBeGreaterThan(3);
   });
+
+  it("names the missing PR review work when the route only found notification glue", () => {
+    const goal = "When a PR opens, review it for risky changes but don't edit anything.";
+    const r = planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+    const md = r.summary_markdown;
+
+    expect(r.plan_source).toBe("composed");
+    expect(r.recommended_route.map((s) => s.component_id)).toEqual([
+      "reviewer_notification",
+      "audit_log",
+    ]);
+    expect(r.coverage.coverage_label).toBe("poor");
+    expect(r.coverage.unmatched_demand).toEqual([
+      "When a PR opens",
+      "review it for risky changes but don't edit anything",
+    ]);
+
+    expect(md.split("\n\n")[0]).toContain("Poor coverage");
+    expect(md.split("\n\n")[0]).not.toContain("Full coverage");
+    expect(md).toContain("## Read-Only PR Review");
+    expect(md).toContain("**Route:** Reviewer Notification → Audit Log");
+    expect(md).toContain("GitHub pull request / diff source");
+    expect(md).toContain("**Not covered by the registry:**");
+    expect(md).toContain('"When a PR opens"');
+    expect(md).toContain('"review it for risky changes but don\'t edit anything"');
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(r.next_action_menu.length).toBeGreaterThan(3);
+  });
 });
 
 describe("MAR-344 — first-run showcase prompts render as concise product cards", () => {
