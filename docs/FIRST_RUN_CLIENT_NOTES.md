@@ -27,8 +27,12 @@ Observed:
 - The first visible ChatGPT answer paraphrased the card and omitted the A-D menu.
 - A stricter follow-up asking ChatGPT to render `summary_markdown` verbatim did show the A-D continuation menu.
 
-Docs note: ChatGPT first-run prompts should explicitly ask to render the returned
-`summary_markdown` verbatim, including the A) B) C) D) menu.
+Fix (2026-07-11): both `SERVER_INSTRUCTIONS` and the `plan_workflow` tool
+description now explicitly tell the calling client to render `summary_markdown`
+verbatim and never drop the A) B) C) D) menu, so this no longer depends on the
+user knowing to ask for it. The wrapper prompt below is kept as a belt-and-
+suspenders fallback for clients that weight user instructions over tool/server
+guidance.
 
 Prompt to run:
 

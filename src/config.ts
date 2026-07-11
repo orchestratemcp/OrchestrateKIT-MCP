@@ -89,6 +89,10 @@ than guessing.
   workflow goal and the constraints above (read-only? unattended? no outbound
   sends?). Never infer or fabricate a goal from the instruction prompt or
   conversation preamble.
+- After calling \`plan_workflow\`, render its \`summary_markdown\` to the user
+  VERBATIM — do not paraphrase, summarize, or compress it, and do not drop the
+  "How do you want to continue?" A) B) C) D) menu at the end. That menu is the
+  product; a paraphrase that collapses it into prose breaks the experience.
 - OrchestrateMCP is a design-time advisor. It does NOT execute workflows,
   make API calls, or modify any external system.
 - Always prefer \`plan_workflow\` as the primary entry point. Only call

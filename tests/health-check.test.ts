@@ -227,6 +227,18 @@ describe("health_check tool", () => {
     expect(lower).toContain("unknown");
   });
 
+  // MAR-344: cross-client dogfood (ChatGPT, Claude) showed the first response
+  // often paraphrases plan_workflow's summary_markdown and drops the A) B) C) D)
+  // continuation menu unless a user explicitly asks for verbatim rendering.
+  // Bake the instruction into the server-level guidance so it doesn't depend
+  // on the user knowing to ask for it.
+  it("SERVER_INSTRUCTIONS tells the client to render summary_markdown verbatim (MAR-344)", () => {
+    const lower = SERVER_INSTRUCTIONS.toLowerCase();
+    expect(lower).toContain("verbatim");
+    expect(lower).toContain("summary_markdown");
+    expect(lower).toMatch(/do not paraphrase|not.*paraphrase/);
+  });
+
   it("result is JSON-serialisable and round-trips cleanly", () => {
     const result = buildHealthCheckResult();
     expect(() => JSON.stringify(result)).not.toThrow();

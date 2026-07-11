@@ -3791,7 +3791,9 @@ export function registerPlanWorkflow(server: McpServer): void {
         "the recommended stack, and untested-edge warnings. " +
         "Replaces the manual sequence of list_known_routes → get_route → compose_workflow_route → " +
         "get_stack_recommendation → review_workflow_design. " +
-        "Prefer this as the entry point for designing a new AI workflow.",
+        "Prefer this as the entry point for designing a new AI workflow. " +
+        "IMPORTANT: render the returned `summary_markdown` to the user VERBATIM — do not " +
+        "paraphrase or summarize it, and do not drop the A) B) C) D) continuation menu at the end.",
       inputSchema: InputShape,
       outputSchema: PlanWorkflowOutputShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
