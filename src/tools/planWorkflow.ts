@@ -2512,7 +2512,12 @@ function formatHumanList(items: string[]): string {
   return `${items.slice(0, -1).join(", ")}, or ${items[items.length - 1]}`;
 }
 
-function productCardTitle(goal: string, planSource: PlanSource, playbook: PlanPlaybook | null): string {
+function productCardTitle(
+  goal: string,
+  planSource: PlanSource,
+  playbook: PlanPlaybook | null,
+  steps: RouteStep[],
+): string {
   if (playbook?.id === "email_lead_to_crm") return "Email Lead → CRM + Slack";
   if (playbook?.id === "competitor_price_monitor") return "Competitor Price Monitor → Slack";
   if (playbook?.id === "pr_review_readonly") return "Read-Only PR Review";
@@ -2522,10 +2527,17 @@ function productCardTitle(goal: string, planSource: PlanSource, playbook: PlanPl
   if (hasGoalSignal(goal, ["competitor"]) && hasGoalSignal(goal, ["price", "prices"])) {
     return "Competitor Price Monitor";
   }
-  if (hasGoalSignal(goal, ["pull request", "pr opens", "github"]) && hasGoalSignal(goal, ["review", "risky"])) {
+  // SAFE-03 (MAR-349): never label a route that actually edits code as
+  // read-only, even if the goal text mentions "pull request" and "review".
+  const editsCode = steps.some((s) => s.component_id === "code_editing");
+  if (
+    !editsCode &&
+    hasGoalSignal(goal, ["pull request", "pr opens", "github"]) &&
+    hasGoalSignal(goal, ["review", "risky"])
+  ) {
     return "Read-Only PR Review";
   }
-  if (hasGoalSignal(goal, ["invoice", "invoices"]) && hasGoalSignal(goal, ["po", "purchase order"])) {
+  if (hasGoalSignal(goal, ["invoice", "invoices"]) && hasGoalSignal(goal, ["purchase order", "purchase orders"])) {
     return "Invoice Intake → PO Match";
   }
   if (
@@ -2598,10 +2610,6 @@ function buildProductCardConnectList(
 
   if (hasGoalSignal(goal, ["competitor"]) && hasGoalSignal(goal, ["price", "prices"])) {
     add("competitor_prices", "Competitor price sources");
-  }
-
-  if (hasGoalSignal(goal, ["po", "purchase order", "purchase orders"])) {
-    add("po_source", "PO / ERP read source");
   }
 
   if (
@@ -2838,7 +2846,7 @@ function buildGuidedPlanMarkdown(
 ): string {
   const lines: string[] = [];
 
-  lines.push(`## ${productCardTitle(goal, planSource, playbook)}`, ``);
+  lines.push(`## ${productCardTitle(goal, planSource, playbook, steps)}`, ``);
   lines.push(`**You want:** ${truncateGoalForCard(goal)}`, ``);
 
   lines.push(`**Route:** ${routeSpine(steps)}`, ``);

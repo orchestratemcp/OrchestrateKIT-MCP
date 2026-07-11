@@ -63,7 +63,7 @@ When a PDF invoice arrives in the shared AP Gmail inbox, extract totals and line
 
 - Product title: Invoice Intake -> PO Match
 - Route: read invoice email -> extract PDF fields -> validate/normalize -> compare to PO -> notify AP -> require approval -> audit
-- Connections: shared Gmail inbox, PO/ERP read source, Slack/AP alert channel, approval checkpoint
+- Connections: shared Gmail inbox, Slack/AP alert channel, approval checkpoint (PO/ERP matching happens inside the build, not as a separate connection)
 - Build target: Codex, Cursor, or Claude Code via build brief
 - Host/monitor: local or hosted worker with logs/run history
 - Safety note: do not give the agent ledger-write credentials in v1; hand approved records to the operator-wired accounting step

@@ -480,7 +480,7 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
       title: "Invoice intake and PO match",
       goal: "When a PDF invoice arrives in the shared AP Gmail inbox, extract totals and line items, match against purchase orders, notify AP in Slack for discrepancies, and hold every invoice for human approval before accounting.",
       expectedTitle: "## Invoice Intake → PO Match",
-      expectedConnect: ["Gmail inbox", "PO / ERP read source", "Slack/AP alert channel"],
+      expectedConnect: ["Gmail inbox", "Slack/AP alert channel"],
     },
     {
       title: "Content repurposing with approval",
