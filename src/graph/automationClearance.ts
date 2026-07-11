@@ -56,9 +56,24 @@ const NOTIFICATION_COMPONENTS = new Set<string>([
   "reviewer_notification",
 ]);
 
+/**
+ * L3 — code / repository writes (MAR-349). `code_editing` applies changes to
+ * source files that get committed and opened as a pull request: an external
+ * write to a version-controlled system whose blast radius (a merged code change,
+ * a triggered CI/CD deploy) reaches well outside the process. Its registry
+ * category is `tool` writing only "local file system paths", so the generic
+ * external-write rule below (integration/output category) scored it as a
+ * reversible internal write (L1) — and a loop-coder-then-open-PR plan claimed
+ * "L2, may run unattended, external notification only" while the route edited
+ * code. That is the safety-critical overclaim SAFE-03 flagged. Treat a code
+ * write as an external write that needs a human by default.
+ */
+const CODE_WRITE_COMPONENTS = new Set<string>(["code_editing"]);
+
 /** The blast-radius action class (0–4) of a single component. */
 export function componentActionClass(c: Component): 0 | 1 | 2 | 3 | 4 {
   if (L4_COMPONENTS.has(c.id)) return 4;
+  if (CODE_WRITE_COMPONENTS.has(c.id)) return 3;
   if (NOTIFICATION_COMPONENTS.has(c.id)) return 2;
   const writesExternal =
     c.permissions.write.length > 0 &&

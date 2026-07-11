@@ -692,3 +692,160 @@ describe("OUTPUT-06 (MAR-256) — worker_pipeline gated on depth, integrations d
     expect(bytes).toBeLessThanOrEqual(G1_DEFAULT_JSON_MAX_BYTES);
   });
 });
+
+/** The numbered "How it works" narrative lines (order preserved). */
+function howItWorksLines(md: string): string[] {
+  const after = md.split("**How it works**")[1] ?? "";
+  const lines: string[] = [];
+  for (const raw of after.split("\n")) {
+    const m = raw.match(/^\d+\.\s+(.*)$/);
+    if (m) lines.push(m[1].trim());
+    else if (lines.length > 0 && raw.trim() === "") break;
+  }
+  return lines;
+}
+
+/** The single "Connect:" line body from the product card (empty when absent). */
+function connectLineBody(md: string): string {
+  return md.match(/\*\*Connect:\*\* (.+)/)?.[1] ?? "";
+}
+
+/**
+ * SAFE-03 (MAR-349) — narrative/route coherence, safety-critical.
+ *
+ * A loop-coder-then-open-PR goal must never render a "Read-Only PR Review"
+ * story while the grounded route contains code_editing + test_runner. The
+ * "How it works" narrative is derived ONLY from the actual composed components
+ * (howItWorksSteps), and automation_clearance classifies a code write as an
+ * external write (L3, human by default) — not "External notification only,
+ * L2 autonomous". This is the honesty story the product sells; it cannot ship
+ * into the demo path.
+ */
+describe("SAFE-03 (MAR-349) — code-edit route never narrates as read-only", () => {
+  const LOOP_CODER_PR_GOAL =
+    "Run a coder agent and a reviewer agent in a loop until all tests pass, " +
+    "maximum 5 iterations, then open a pull request for my approval.";
+
+  const plan349 = () =>
+    planWorkflow(
+      { goal: LOOP_CODER_PR_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "standard" },
+      registry,
+    );
+
+  it("the route actually edits code (the premise of the incoherence)", () => {
+    const ids = plan349().recommended_route.map((s) => s.component_id);
+    expect(ids).toContain("code_editing");
+    expect(ids).toContain("test_runner");
+  });
+
+  it("the headline is never the read-only PR-review template", () => {
+    const md = plan349().summary_markdown;
+    const title = md.match(/^## (.+)$/m)?.[1] ?? "";
+    expect(title).not.toBe("Read-Only PR Review");
+    expect(md).not.toContain("Read-Only PR Review");
+  });
+
+  it("'How it works' is derived from the real components — it edits, it does not claim read-only", () => {
+    const lines = howItWorksLines(plan349().summary_markdown);
+    const joined = lines.join(" ").toLowerCase();
+    // the safety-critical false claim from the probe must be gone…
+    expect(joined).not.toContain("without editing");
+    expect(joined).not.toContain("without committing");
+    expect(joined).not.toContain("notify reviewers without");
+    // …and the narrative must honestly describe the code write present in the route.
+    expect(joined).toContain("edit the code");
+    // golden snapshot: the full narrative, generated only from the step list.
+    expect(lines).toMatchInlineSnapshot(`
+      [
+        "Receive the GitHub event (push / pull request).",
+        "Iterate the coder/reviewer loop until it passes or the max rounds is reached.",
+        "Scan the codebase and diff for context.",
+        "Edit the code to apply the planned changes.",
+        "Run the test suite and check the results.",
+        "Prepare a pull request summary of the changes.",
+        "Notify the reviewer to check the changes.",
+        "Pause for human approval before opening the pull request or any other external write.",
+      ]
+    `);
+  });
+
+  it("automation_clearance treats the code write as external — L3, human by default", () => {
+    const r = plan349();
+    expect(r.automation_clearance.level).toBe("L3");
+    expect(r.automation_clearance.autonomous_allowed).toBe(false);
+    expect(r.automation_clearance.highest_action_components).toContain("code_editing");
+    expect(r.automation_clearance.reason.toLowerCase()).not.toContain(
+      "external notification only",
+    );
+    // the front-matter must not advertise an unattended run for a code editor.
+    expect(r.summary_markdown).not.toMatch(/automation: {5}✅ L2/);
+  });
+});
+
+/**
+ * UX (MAR-350) — the "PO / ERP read source" connection label was authored for
+ * invoice_intake_po_match and must never leak onto an unrelated goal just
+ * because a generic processing component (schema_validation) is in the route.
+ * Starter/probe Connect lines may only name integrations the goal implies.
+ */
+describe("MAR-350 — Connect line carries no invoice/ERP leak on unrelated goals", () => {
+  // Both probe goals from the 2026-07-11 session — each routes schema_validation
+  // yet has zero invoice / PO / ERP content.
+  const NON_INVOICE_GOALS = [
+    "Reply to each incoming customer support email in the shared inbox after my approval.",
+    "Every morning, pull yesterday's revenue from Stripe and post a summary to our Slack finance channel.",
+    "Summarize our monthly sales performance and post the summary to our team Slack channel.",
+  ];
+  // The invoice-scented labels that must not appear unless the goal earns them.
+  const INVOICE_SCENT = /\bERP\b|\bPO\b|purchase order|\binvoice|\breceipt|accounts payable/i;
+
+  for (const goal of NON_INVOICE_GOALS) {
+    it(`no invoice/ERP label leaks into: ${goal.slice(0, 44)}...`, () => {
+      const r = planWorkflow(
+        { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+        registry,
+      );
+      // the leak fired "whenever schema_validation is in the route" — prove the
+      // guard condition is present for this goal, then prove nothing leaks.
+      expect(r.recommended_route.map((s) => s.component_id)).toContain(
+        "schema_validation",
+      );
+      const connect = connectLineBody(r.summary_markdown);
+      expect(connect, `Connect line: ${connect}`).not.toMatch(INVOICE_SCENT);
+      const wizardItems = r.goal_to_product_wizard.connections_required
+        .flatMap((g) => g.items)
+        .join(" · ");
+      expect(wizardItems, `connections_required: ${wizardItems}`).not.toMatch(
+        INVOICE_SCENT,
+      );
+    });
+  }
+
+  it("even the genuine invoice goal's Connect line names only goal-implied integrations", () => {
+    // The invoice_intake_po_match playbook legitimately routes schema_validation
+    // + pdf_extraction — the exact shape the old label was authored for. The MAR-350
+    // fix removed the mislabeled connection outright (generic components contribute
+    // no connection), so this goal surfaces its integrations via the products it
+    // actually names (Gmail, Slack) and carries no stray "PO / ERP read source".
+    const r = planWorkflow(
+      {
+        goal:
+          "When a PDF invoice arrives in the shared AP Gmail inbox, extract totals and line items, " +
+          "match against purchase orders, notify AP in Slack for discrepancies, and hold every invoice " +
+          "for human approval before accounting.",
+        must_have_capabilities: [],
+        must_avoid: [],
+        output_depth: "brief",
+      },
+      registry,
+    );
+    expect(r.recommended_route.map((s) => s.component_id)).toContain("schema_validation");
+    const connect = connectLineBody(r.summary_markdown);
+    // Gmail + Slack are named in the goal → implied and present…
+    expect(connect.toLowerCase()).toContain("gmail");
+    expect(connect.toLowerCase()).toContain("slack");
+    // …and the authored-for-invoices label never appears as a bare "PO / ERP"
+    // connection even on the goal it was written for.
+    expect(connect).not.toMatch(/PO \/ ERP|ERP read source/i);
+  });
+});

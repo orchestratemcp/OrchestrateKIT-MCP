@@ -1,8 +1,29 @@
 {
   "generated_by": "OrchestrateLab LAB-03 (MAR-106) corpus export",
   "version": 1,
-  "goal_count": 35,
+  "goal_count": 42,
   "goals": [
+    {
+      "slug": "blog_social_variants_reviewer_notify",
+      "goal": "Take a finished blog post, generate 3 different social-media variants of it, have a human reviewer approve them, and notify that reviewer when they're ready to check.",
+      "domain": "content_publishing",
+      "must_have": [
+        "human_approval_gate",
+        "multi_variant_generator",
+        "reviewer_notification"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "auth_failure_handler",
+        "schema_validation",
+        "threshold_router"
+      ],
+      "forbidden": [],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
     {
       "slug": "code_bugfix_tests",
       "goal": "Understand the codebase, implement a bug fix, and run unit tests before opening a pull request.",
@@ -528,6 +549,32 @@
       "xfail": ""
     },
     {
+      "slug": "github_pr_devalerts_slack_notify",
+      "goal": "When a new GitHub PR is opened, post a summary to our #dev-alerts Slack channel. No email, no CRM, just Slack. Fully automated, no human review needed.",
+      "domain": "notification_bot",
+      "must_have": [
+        "github_trigger",
+        "slack_notification"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "auth_failure_handler",
+        "human_approval_gate",
+        "reviewer_notification",
+        "schema_validation"
+      ],
+      "forbidden": [
+        "crm_note_write",
+        "email_draft",
+        "email_read",
+        "optional_email_send"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
+    {
       "slug": "invoice_po_match",
       "goal": "Watch a shared email inbox for incoming PDF invoices, extract the line items and totals from each PDF, validate them against the matching purchase order, and hold every discrepancy for mandatory human review before anything is posted to the accounting system.",
       "domain": "data_etl",
@@ -807,6 +854,53 @@
       "xfail": ""
     },
     {
+      "slug": "postgres_sales_pdf_slack_daily",
+      "goal": "Every morning at 8am, pull yesterday's sales numbers from our Postgres database, turn them into a PDF summary, and post it to our team Slack channel.",
+      "domain": "data_etl",
+      "must_have": [
+        "db_read",
+        "report_generation",
+        "scheduled_trigger",
+        "slack_notification"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "auth_failure_handler",
+        "schema_validation"
+      ],
+      "forbidden": [
+        "data_scraper",
+        "pdf_extraction"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
+    {
+      "slug": "pr_diff_review_readonly_comment",
+      "goal": "When a pull request is opened on GitHub, review the diff for problems and post a summary comment. Never edit or commit any code — read-only.",
+      "domain": "code_agent",
+      "must_have": [
+        "codebase_scan",
+        "github_trigger",
+        "pr_summary",
+        "reviewer_notification"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "schema_validation"
+      ],
+      "forbidden": [
+        "code_editing",
+        "test_runner"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
+    {
       "slug": "research_cited_faq",
       "goal": "Retrieve documentation sources, check their freshness, and synthesize a cited FAQ.",
       "domain": "research",
@@ -852,6 +946,64 @@
       "xfail": ""
     },
     {
+      "slug": "revision_loop_coder_control",
+      "goal": "Run a coder agent and a reviewer agent in a loop until all tests pass, maximum 5 iterations, then open a pull request for my approval.",
+      "domain": "code_agent",
+      "must_have": [
+        "code_editing",
+        "codebase_scan",
+        "human_approval_gate",
+        "loop_controller",
+        "pr_summary",
+        "test_runner"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "github_trigger",
+        "reviewer_notification",
+        "schema_validation"
+      ],
+      "forbidden": [
+        "crm_note_write",
+        "design_brief_generation",
+        "email_draft",
+        "external_publish",
+        "research_synthesis"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
+    {
+      "slug": "revision_loop_reviewer_approve",
+      "goal": "For each new support ticket, draft a reply, have a separate reviewer agent critique it, and revise the draft until the reviewer approves it, maximum 3 rounds, then send after my approval.",
+      "domain": "email_calendar",
+      "must_have": [
+        "email_draft",
+        "human_approval_gate",
+        "loop_controller",
+        "optional_email_send",
+        "reviewer_notification"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "auth_failure_handler",
+        "schema_validation"
+      ],
+      "forbidden": [
+        "code_editing",
+        "crm_note_write",
+        "external_publish",
+        "page_monitor",
+        "research_synthesis"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
+    {
       "slug": "scheduled_data_report",
       "goal": "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.",
       "domain": "data_etl",
@@ -870,6 +1022,34 @@
         "crm_note_write",
         "loop_controller",
         "pdf_extraction"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
+    {
+      "slug": "stripe_revenue_slack_digest",
+      "goal": "Every day, read our Stripe dashboard data and post a revenue summary to a Slack channel. Read-only — never write anything, no database updates, no emails sent.",
+      "domain": "scheduled_reporting",
+      "must_have": [
+        "scheduled_trigger",
+        "slack_notification",
+        "stripe_data_read"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "auth_failure_handler",
+        "data_normalizer",
+        "human_approval_gate",
+        "schema_validation"
+      ],
+      "forbidden": [
+        "calendar_lookup",
+        "calendar_write",
+        "email_draft",
+        "email_read",
+        "optional_email_send"
       ],
       "missing_but_expected": [],
       "source": "dogfood",

@@ -873,6 +873,13 @@ const GENUINE_ITERATION_SIGNAL = [
   "one at a time",
   "until the tests pass",
   "until approved",
+  // MAR-348: revision-loop idioms are genuine iteration — keep loop_controller
+  // even when the goal also contains the "in the loop" idiom.
+  "revise until",
+  "keep improving",
+  "keep revising",
+  "back and forth",
+  "rounds",
 ];
 function suppressLoopControllerForIdiom(
   goalLower: string,
@@ -1146,6 +1153,20 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   // i-t-e-r-a-t-i-n-g differ at position 7), so it needs its own hint entry.
   iterating: ["loop_controller"],
   iteration: ["loop_controller"],
+  // MAR-348: implicit revision-loop phrasing. "Revise the draft until the
+  // reviewer approves it, max 3 rounds" is a bounded iterative loop, but it
+  // carried NONE of the loop tokens above, so an email/reviewer goal composed a
+  // LINEAR route with no loop_controller and null loop_guidance — the revise
+  // cycle silently flattened. These are the natural-language critique-and-revise
+  // phrasings; the "revise … until …"/"N rounds" shapes are handled by
+  // REVISION_LOOP_PATTERNS below (regex, since the two verbs are non-adjacent).
+  "keep improving": ["loop_controller"],
+  "keep revising": ["loop_controller"],
+  "keep iterating": ["loop_controller"],
+  "iterate on the draft": ["loop_controller"],
+  "back and forth": ["loop_controller"],
+  "revise and resubmit": ["loop_controller"],
+  "until it passes": ["loop_controller"],
   // MAR-214: "for each" removed — it fired loop_controller on fan-out / variant
   // goals ("for each variant", "for each item in the list") where the intent is
   // parallel batch dispatch, not bounded iterative retry. loop_controller is still
@@ -1319,6 +1340,50 @@ const SCHEDULE_TIME_PATTERNS: RegExp[] = [
 /** True when the goal states a recurring weekday/clock schedule (MAR-253). */
 export function hasScheduleTimeSignal(goalLower: string): boolean {
   return SCHEDULE_TIME_PATTERNS.some((p) => p.test(goalLower));
+}
+
+/**
+ * MAR-348: implicit revision-loop signals. A "draft → critique → revise until
+ * approved, max N rounds" flow is a bounded iterative loop, but its two verbs
+ * ("revise"/"improve" and "approves") are usually NON-ADJACENT ("revise the
+ * draft until the reviewer approves it"), so a single KEYWORD_HINT phrase can't
+ * catch it. These CONTEXTUAL patterns select loop_controller at hint strength.
+ *
+ * Deliberately precise, not bare tokens: each requires an explicit
+ * revise/refine/rework verb OR an explicit bounded count of rounds/iterations,
+ * so a plain approval GATE ("hold each invoice until approved") — which is NOT
+ * iteration — never trips loop_controller. The phrasing comes from the live
+ * state-of-project probe goal (2026-07-11): "…revise the draft until the
+ * reviewer approves it, maximum 3 rounds…".
+ */
+const REVISION_LOOP_PATTERNS: RegExp[] = [
+  // an explicit revise/refine/rework/redraft verb, then "until" in the clause
+  /\b(revis|refin|rework|redraft|redo|improv)\w*\b[^.?!]*\buntil\b/,
+  // a revise/improve verb paired with "approve(s)/approval" in the clause
+  /\b(revis|refin|rework|redraft|redo|improv)\w*\b[^.?!]*\bapprov(e|es|ed|al)\b/,
+  // an explicit bounded count of rounds/iterations/revisions/passes
+  /\b(max(imum)?\s+|up to\s+|at most\s+)?\d+\s*(rounds?|iterations?|revisions?|passes|attempts|cycles?)\b/,
+];
+
+/** True when the goal describes a bounded critique-and-revise loop (MAR-348). */
+export function hasRevisionLoopSignal(goalLower: string): boolean {
+  return REVISION_LOOP_PATTERNS.some((p) => p.test(goalLower));
+}
+
+/**
+ * MAR-348: extract an explicit iteration bound from a revision/loop goal, e.g.
+ * "maximum 3 rounds" → 3, "up to 5 iterations" → 5, "max 4 revisions" → 4.
+ * Returns the first plausible bound (1–50) or null when none is stated. Used to
+ * honour the user's stated cap in the loop_guidance contract rather than always
+ * echoing the playbook default.
+ */
+export function extractIterationBound(goalLower: string): number | null {
+  const m = goalLower.match(
+    /\b(?:max(?:imum)?\s+|up to\s+|at most\s+)?(\d{1,3})\s*(?:rounds?|iterations?|revisions?|passes|attempts|cycles?|times)\b/,
+  );
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n >= 1 && n <= 50 ? n : null;
 }
 
 /** Score penalty applied to the `to` component of a co-occurring avoid_when edge. */
@@ -1653,6 +1718,13 @@ export function matchCapabilities(
   // "Every Monday at 8am" selects scheduled_trigger exactly like "every morning".
   if (domainAllowed.has("scheduled_trigger") && hasScheduleTimeSignal(goalLower)) {
     bump("scheduled_trigger", 2, "schedule-time phrase", "hint");
+  }
+
+  // Pass 1c (MAR-348): implicit revision-loop signal — regex, hint-strength.
+  // "Revise the draft until the reviewer approves it, max 3 rounds" selects
+  // loop_controller even though it carries none of the literal loop tokens.
+  if (domainAllowed.has("loop_controller") && hasRevisionLoopSignal(goalLower)) {
+    bump("loop_controller", 2, "revision-loop phrase", "hint");
   }
 
   // Passes 2–4: per-component token matching (gated)
