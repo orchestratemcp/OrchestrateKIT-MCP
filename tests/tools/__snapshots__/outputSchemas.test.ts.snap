@@ -158,17 +158,20 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
 {
   "approval_gate_advisory": null,
   "automation_clearance": {
-    "autonomous_allowed": true,
+    "autonomous_allowed": false,
     "highest_action_components": [
       "code_editing",
-      "test_runner",
-      "state_store",
-      "human_approval_gate",
     ],
-    "level": "L1",
+    "level": "L3",
     "reason": "[text]",
     "required_controls": [
       "audit log — MISSING, add audit_log",
+      "rollback / compensation — MISSING, add saga_compensation",
+      "test coverage — all in-route edges tested",
+      "bounded permissions (least-privilege scopes)",
+      "dry-run / preview before any live action",
+      "idempotency (safe to retry)",
+      "kill switch (operator can halt the run)",
     ],
   },
   "avoid_when_violations": [],
@@ -1477,17 +1480,20 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
 {
   "approval_gate_advisory": null,
   "automation_clearance": {
-    "autonomous_allowed": true,
+    "autonomous_allowed": false,
     "highest_action_components": [
       "code_editing",
-      "test_runner",
-      "state_store",
-      "human_approval_gate",
     ],
-    "level": "L1",
+    "level": "L3",
     "reason": "[text]",
     "required_controls": [
       "audit log — MISSING, add audit_log",
+      "rollback / compensation — MISSING, add saga_compensation",
+      "test coverage — all in-route edges tested",
+      "bounded permissions (least-privilege scopes)",
+      "dry-run / preview before any live action",
+      "idempotency (safe to retry)",
+      "kill switch (operator can halt the run)",
     ],
   },
   "avoid_when_violations": [],

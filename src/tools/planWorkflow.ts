@@ -39,7 +39,11 @@ import {
   type AvoidViolation,
 } from "../graph/routeOrdering.js";
 import { ALWAYS_REQUIRES_GATE } from "../graph/safetyAugmenter.js";
-import { matchCapabilities, isNegatedInContext } from "../graph/capabilityMatcher.js";
+import {
+  matchCapabilities,
+  isNegatedInContext,
+  extractIterationBound,
+} from "../graph/capabilityMatcher.js";
 import { hasWriteConstraint, hasUnattendedWaiver } from "../lib/constraintSignals.js";
 import { computeCoverage, type Coverage } from "../graph/coverage.js";
 import { findOverlappingPlaybooks } from "../graph/playbookOverlap.js";
@@ -761,15 +765,25 @@ export type LoopGuidance = {
 export function buildLoopGuidance(
   routeComponentIds: string[],
   registry: RegistrySnapshot,
+  goal = "",
 ): LoopGuidance | null {
   if (!routeComponentIds.includes("loop_controller")) return null;
   if (routeComponentIds.includes("fan_out_collector")) return null; // MAR-209
   const pb = registry.playbooks.find((p) => p.loop_contract);
   if (!pb || !pb.loop_contract) return null;
+  // MAR-348: honour the user's stated bound ("maximum 3 rounds" → 3) instead of
+  // always echoing the playbook default. Clone the contract so we never mutate
+  // the shared registry object. Falls back to the playbook default when the goal
+  // states no explicit cap.
+  const bound = extractIterationBound(goal.toLowerCase());
+  const loop_contract =
+    bound !== null
+      ? { ...pb.loop_contract, max_iterations: bound }
+      : pb.loop_contract;
   return {
     playbook_id: pb.id,
     worker_sequence: pb.worker_sequence ?? [],
-    loop_contract: pb.loop_contract,
+    loop_contract,
     guardrail_checklist: pb.guardrails,
   };
 }
@@ -2637,6 +2651,41 @@ function howItWorksSteps(steps: RouteStep[]): string[] {
     lines.push("Write an audit log.");
     return lines;
   }
+  // MAR-349: derive the code-workflow narrative from the ACTUAL route
+  // components, never from a fixed read-only PR-review template. The old branch
+  // returned "Notify reviewers without editing or committing code." on ANY
+  // github/codebase route — even one containing code_editing + test_runner —
+  // so the headline promised a read-only reviewer while the grounded route
+  // edited code (SAFE-03). Each line is emitted only when its component is
+  // present and in route order, so the story can never contradict the step
+  // list. Checked before the monitor branch so a scheduled code loop is not
+  // mis-narrated as a data pipeline.
+  if (
+    routeIds.has("github_trigger") ||
+    routeIds.has("codebase_scan") ||
+    routeIds.has("code_editing")
+  ) {
+    const CODE_STEP_PHRASE: Record<string, string> = {
+      github_trigger: "Receive the GitHub event (push / pull request).",
+      scheduled_trigger: "Start on the schedule.",
+      loop_controller:
+        "Iterate the coder/reviewer loop until it passes or the max rounds is reached.",
+      codebase_scan: "Scan the codebase and diff for context.",
+      plan_generation: "Plan the changes to make.",
+      code_editing: "Edit the code to apply the planned changes.",
+      test_runner: "Run the test suite and check the results.",
+      pr_summary: "Prepare a pull request summary of the changes.",
+      reviewer_notification: "Notify the reviewer to check the changes.",
+      human_approval_gate:
+        "Pause for human approval before opening the pull request or any other external write.",
+      optional_email_send: "Send the notification only after approval.",
+      audit_log: "Write an audit log.",
+    };
+    const lines = steps
+      .map((s) => CODE_STEP_PHRASE[s.component_id])
+      .filter((p): p is string => Boolean(p));
+    if (lines.length > 0) return lines.slice(0, 8);
+  }
   if (routeIds.has("page_monitor") || routeIds.has("scheduled_trigger")) {
     return [
       "Start from the trigger or schedule.",
@@ -2646,15 +2695,6 @@ function howItWorksSteps(steps: RouteStep[]): string[] {
         ? "Pause for approval before any external write."
         : "Route the result according to the plan controls.",
       "Notify the right channel and write an audit log.",
-    ];
-  }
-  if (routeIds.has("github_trigger") || routeIds.has("codebase_scan")) {
-    return [
-      "Receive the pull request or codebase event.",
-      "Scan the diff/code for bugs and risky changes.",
-      "Prepare a review summary for humans.",
-      "Notify reviewers without editing or committing code.",
-      "Write an audit log.",
     ];
   }
   return steps.slice(0, 7).map((s) => s.purpose.replace(/\s+/g, " ").trim());
@@ -3355,7 +3395,7 @@ export function planWorkflow(
   // ── MAR-167: bounded-loop contract when the route is loop-shaped ──
   // Already plan-specific (null unless loop_controller is in the route), so it
   // needs no depth gating — a non-null value is never boilerplate.
-  const loop_guidance = buildLoopGuidance(routeComponentIds, registry);
+  const loop_guidance = buildLoopGuidance(routeComponentIds, registry, input.goal);
 
   // ── MAR-168: earned-by-evidence autonomy clearance (every plan) ──
   const automation_clearance = computeAutomationClearance(

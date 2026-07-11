@@ -1,7 +1,7 @@
 {
   "generated_by": "OrchestrateLab LAB-03 (MAR-106) corpus export",
   "version": 1,
-  "goal_count": 40,
+  "goal_count": 42,
   "goals": [
     {
       "slug": "blog_social_variants_reviewer_notify",
@@ -943,6 +943,64 @@
       "missing_but_expected": [],
       "source": "manual",
       "level": "raw",
+      "xfail": ""
+    },
+    {
+      "slug": "revision_loop_coder_control",
+      "goal": "Run a coder agent and a reviewer agent in a loop until all tests pass, maximum 5 iterations, then open a pull request for my approval.",
+      "domain": "code_agent",
+      "must_have": [
+        "code_editing",
+        "codebase_scan",
+        "human_approval_gate",
+        "loop_controller",
+        "pr_summary",
+        "test_runner"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "github_trigger",
+        "reviewer_notification",
+        "schema_validation"
+      ],
+      "forbidden": [
+        "crm_note_write",
+        "design_brief_generation",
+        "email_draft",
+        "external_publish",
+        "research_synthesis"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
+    {
+      "slug": "revision_loop_reviewer_approve",
+      "goal": "For each new support ticket, draft a reply, have a separate reviewer agent critique it, and revise the draft until the reviewer approves it, maximum 3 rounds, then send after my approval.",
+      "domain": "email_calendar",
+      "must_have": [
+        "email_draft",
+        "human_approval_gate",
+        "loop_controller",
+        "optional_email_send",
+        "reviewer_notification"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "auth_failure_handler",
+        "schema_validation"
+      ],
+      "forbidden": [
+        "code_editing",
+        "crm_note_write",
+        "external_publish",
+        "page_monitor",
+        "research_synthesis"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
       "xfail": ""
     },
     {
