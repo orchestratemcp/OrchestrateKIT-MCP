@@ -221,14 +221,14 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
       "GPT Agents",
     ]);
     expect(w.host_monitor_choices.map((c) => c.label)).toEqual(
-      expect.arrayContaining(["Local", "DASH", "Cowork", "GitHub Action", "cron"]),
+      expect.arrayContaining(["Local", "Cowork", "GitHub Action", "cron"]),
     );
+    expect(w.host_monitor_choices.map((c) => c.label)).not.toContain("DASH");
     expect(w.artifact_choices.map((c) => c.label)).toEqual([
       "Prompt",
       "Linear issues",
       "Obsidian",
       "Build brief",
-      "DASH manifest",
     ]);
     expect(w.recommended_next_click.label).toContain("Export");
   });
@@ -392,27 +392,101 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
   });
 });
 
+describe("MAR-346 - first-run honesty for weak composed matches", () => {
+  it("does not call the competitor-price prompt full coverage when only the schedule matched", () => {
+    const goal =
+      "I want something that checks competitor prices every morning and tells sales if anything changed.";
+    const r = planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+    const md = r.summary_markdown;
+
+    expect(r.plan_source).toBe("composed");
+    expect(r.recommended_route.map((s) => s.component_id)).toEqual(["scheduled_trigger"]);
+    expect(r.coverage.coverage_label).toBe("poor");
+    expect(r.coverage.unmatched_demand).toEqual([
+      "I want something that checks competitor prices every morning",
+      "tells sales if anything changed",
+    ]);
+
+    expect(md.split("\n\n")[0]).toContain("Poor coverage");
+    expect(md.split("\n\n")[0]).not.toContain("Full coverage");
+    expect(md).toContain("## Competitor Price Monitor");
+    expect(md).toContain("**Route:** Scheduled Trigger");
+    expect(md).toContain("Competitor price sources");
+    expect(md).toContain("Sales notification channel");
+    expect(md).toContain("**Not covered by the registry:**");
+    expect(md).toContain('"I want something that checks competitor prices every morning"');
+    expect(md).toContain('"tells sales if anything changed"');
+    expect(md).not.toContain("No external product connection required");
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(r.next_action_menu.length).toBeGreaterThan(3);
+  });
+
+  it("names the missing PR review work when the route only found notification glue", () => {
+    const goal = "When a PR opens, review it for risky changes but don't edit anything.";
+    const r = planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+    const md = r.summary_markdown;
+
+    expect(r.plan_source).toBe("composed");
+    expect(r.recommended_route.map((s) => s.component_id)).toEqual([
+      "reviewer_notification",
+      "audit_log",
+    ]);
+    expect(r.coverage.coverage_label).toBe("poor");
+    expect(r.coverage.unmatched_demand).toEqual([
+      "When a PR opens",
+      "review it for risky changes but don't edit anything",
+    ]);
+
+    expect(md.split("\n\n")[0]).toContain("Poor coverage");
+    expect(md.split("\n\n")[0]).not.toContain("Full coverage");
+    expect(md).toContain("## Read-Only PR Review");
+    expect(md).toContain("**Route:** Reviewer Notification → Audit Log");
+    expect(md).toContain("GitHub pull request / diff source");
+    expect(md).toContain("**Not covered by the registry:**");
+    expect(md).toContain('"When a PR opens"');
+    expect(md).toContain('"review it for risky changes but don\'t edit anything"');
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(r.next_action_menu.length).toBeGreaterThan(3);
+  });
+});
+
 describe("MAR-344 — first-run showcase prompts render as concise product cards", () => {
   const STARTER_GOALS = [
     {
       title: "Competitor price monitor",
       goal: "Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.",
+      expectedTitle: "## Competitor Price Monitor → Slack",
+      expectedConnect: ["Slack summary channel", "Competitor price sources"],
     },
     {
       title: "Gmail lead to CRM",
       goal: "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.",
+      expectedTitle: "## Email Lead → CRM + Slack",
+      expectedConnect: ["Gmail inbox", "CRM (HubSpot/Salesforce/Pipedrive)", "Slack sales channel"],
     },
     {
       title: "Read-only PR reviewer",
       goal: "When a pull request opens on GitHub, review the diff for bugs and risky changes, notify reviewers with a summary, and never edit or commit code.",
+      expectedTitle: "## Read-Only PR Review",
+      expectedConnect: ["GitHub pull request / diff source", "Notification channel"],
     },
     {
       title: "Invoice intake and PO match",
       goal: "When a PDF invoice arrives in the shared AP Gmail inbox, extract totals and line items, match against purchase orders, notify AP in Slack for discrepancies, and hold every invoice for human approval before accounting.",
+      expectedTitle: "## Invoice Intake → PO Match",
+      expectedConnect: ["Gmail inbox", "Slack/AP alert channel"],
     },
     {
       title: "Content repurposing with approval",
       goal: "Use a content brief to generate social copy variants and a design brief, send it to a reviewer for approval, then publish externally only after approval.",
+      expectedTitle: "## Content Approval Pipeline",
+      expectedConnect: ["Content brief source", "Publishing platform"],
     },
   ];
 
@@ -435,10 +509,14 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
         LAYER1_MAX_CHARS,
       );
       expect(md).toContain("## ");
+      expect(md).toContain(starter.expectedTitle);
       expect(md).toContain("**You want:**");
       expect(md).toContain("**Route:**");
       expect(md).toContain("**How it works**");
       expect(md).toContain("**Connect:**");
+      for (const expectedConnect of starter.expectedConnect) {
+        expect(md).toContain(expectedConnect);
+      }
       expect(md).toContain("**Key safeguard:**");
       expect(md).toContain("**Build controls:**");
       expect(md).toContain("### How do you want to continue?");

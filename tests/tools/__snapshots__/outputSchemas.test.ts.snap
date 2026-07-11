@@ -291,15 +291,6 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "recommended": true,
         "tradeoffs": "Longer artifact; best after quick questions are answered.",
       },
-      {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] }) -> agent_manifest",
-        "best_for": "Importing the planned agent into DASH monitoring.",
-        "id": "dash_manifest",
-        "kind": "artifact",
-        "label": "DASH manifest",
-        "recommended": false,
-        "tradeoffs": "Ships inside the build brief; not a standalone write.",
-      },
     ],
     "build_choices": [
       {
@@ -387,6 +378,15 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "tradeoffs": "Convenient CI logs; less ideal for long-running jobs.",
       },
       {
+        "action": "choose_hosting:hosted_endpoint",
+        "best_for": "Webhook or PR-triggered workflows that need to be reachable.",
+        "id": "hosted_endpoint",
+        "kind": "host_monitor",
+        "label": "Hosted endpoint",
+        "recommended": false,
+        "tradeoffs": "Requires deployment, logs, and failure alerts.",
+      },
+      {
         "action": "choose_hosting:cowork",
         "best_for": "Assistant-in-client workflows.",
         "id": "cowork",
@@ -394,15 +394,6 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "label": "Cowork",
         "recommended": false,
         "tradeoffs": "Depends on the client session and connected tools.",
-      },
-      {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] }) -> use agent_manifest",
-        "best_for": "Monitoring runs, steps, approval gates, and failures.",
-        "id": "dash",
-        "kind": "host_monitor",
-        "label": "DASH",
-        "recommended": true,
-        "tradeoffs": "Monitoring target, not the execution runtime.",
       },
     ],
     "recommended_next_click": {
@@ -474,8 +465,8 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "alternatives": [],
       "reason": "",
       "recommended": {
-        "id": "dash_import",
-        "label": "Import the manifest into DASH (LAB Agents module)",
+        "id": "log_to_file",
+        "label": "Log runs to a file or table you already have",
       },
     },
   },
@@ -537,7 +528,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     {
       "action": "see:hosting_and_monitoring.monitoring",
       "id": "wire_monitoring",
-      "label": "Wire monitoring (recommended: DASH import)",
+      "label": "Wire monitoring (recommended: log to file)",
     },
   ],
   "next_steps": [
@@ -869,15 +860,6 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "recommended": true,
         "tradeoffs": "Longer artifact; best after quick questions are answered.",
       },
-      {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] }) -> agent_manifest",
-        "best_for": "Importing the planned agent into DASH monitoring.",
-        "id": "dash_manifest",
-        "kind": "artifact",
-        "label": "DASH manifest",
-        "recommended": false,
-        "tradeoffs": "Ships inside the build brief; not a standalone write.",
-      },
     ],
     "build_choices": [
       {
@@ -981,6 +963,15 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "tradeoffs": "Convenient CI logs; less ideal for long-running jobs.",
       },
       {
+        "action": "choose_hosting:hosted_endpoint",
+        "best_for": "Webhook or PR-triggered workflows that need to be reachable.",
+        "id": "hosted_endpoint",
+        "kind": "host_monitor",
+        "label": "Hosted endpoint",
+        "recommended": false,
+        "tradeoffs": "Requires deployment, logs, and failure alerts.",
+      },
+      {
         "action": "choose_hosting:cowork",
         "best_for": "Assistant-in-client workflows.",
         "id": "cowork",
@@ -988,15 +979,6 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "label": "Cowork",
         "recommended": false,
         "tradeoffs": "Depends on the client session and connected tools.",
-      },
-      {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] }) -> use agent_manifest",
-        "best_for": "Monitoring runs, steps, approval gates, and failures.",
-        "id": "dash",
-        "kind": "host_monitor",
-        "label": "DASH",
-        "recommended": true,
-        "tradeoffs": "Monitoring target, not the execution runtime.",
       },
     ],
     "recommended_next_click": {
@@ -1086,8 +1068,8 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "alternatives": [],
       "reason": "",
       "recommended": {
-        "id": "dash_import",
-        "label": "Import the manifest into DASH (LAB Agents module)",
+        "id": "log_to_file",
+        "label": "Log runs to a file or table you already have",
       },
     },
   },
@@ -1150,7 +1132,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     {
       "action": "see:hosting_and_monitoring.monitoring",
       "id": "wire_monitoring",
-      "label": "Wire monitoring (recommended: DASH import)",
+      "label": "Wire monitoring (recommended: log to file)",
     },
   ],
   "next_steps": [
@@ -1613,15 +1595,6 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "recommended": true,
         "tradeoffs": "Longer artifact; best after quick questions are answered.",
       },
-      {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] }) -> agent_manifest",
-        "best_for": "Importing the planned agent into DASH monitoring.",
-        "id": "dash_manifest",
-        "kind": "artifact",
-        "label": "DASH manifest",
-        "recommended": false,
-        "tradeoffs": "Ships inside the build brief; not a standalone write.",
-      },
     ],
     "build_choices": [
       {
@@ -1709,6 +1682,15 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "tradeoffs": "Convenient CI logs; less ideal for long-running jobs.",
       },
       {
+        "action": "choose_hosting:hosted_endpoint",
+        "best_for": "Webhook or PR-triggered workflows that need to be reachable.",
+        "id": "hosted_endpoint",
+        "kind": "host_monitor",
+        "label": "Hosted endpoint",
+        "recommended": false,
+        "tradeoffs": "Requires deployment, logs, and failure alerts.",
+      },
+      {
         "action": "choose_hosting:cowork",
         "best_for": "Assistant-in-client workflows.",
         "id": "cowork",
@@ -1716,15 +1698,6 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "label": "Cowork",
         "recommended": false,
         "tradeoffs": "Depends on the client session and connected tools.",
-      },
-      {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] }) -> use agent_manifest",
-        "best_for": "Monitoring runs, steps, approval gates, and failures.",
-        "id": "dash",
-        "kind": "host_monitor",
-        "label": "DASH",
-        "recommended": true,
-        "tradeoffs": "Monitoring target, not the execution runtime.",
       },
     ],
     "recommended_next_click": {
@@ -1796,8 +1769,8 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "alternatives": [],
       "reason": "",
       "recommended": {
-        "id": "dash_import",
-        "label": "Import the manifest into DASH (LAB Agents module)",
+        "id": "log_to_file",
+        "label": "Log runs to a file or table you already have",
       },
     },
   },
@@ -1859,7 +1832,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     {
       "action": "see:hosting_and_monitoring.monitoring",
       "id": "wire_monitoring",
-      "label": "Wire monitoring (recommended: DASH import)",
+      "label": "Wire monitoring (recommended: log to file)",
     },
   ],
   "next_steps": [

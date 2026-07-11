@@ -675,7 +675,7 @@ export type PlanWorkflowOutput = {
   /**
    * Deterministic hosting + monitoring recommendation (MAR-315): where this
    * plan should run, derived from the route's trigger shape, and how to watch
-   * it once it runs (DASH import is the recommended monitoring option — the
+   * it once it runs (simple logs are the recommended monitoring option — the
    * manifest already ships in `export_build_brief`). Present on every plan;
    * never null. Registry/route-shape derived — no LLM, no network call.
    */
@@ -1794,7 +1794,7 @@ export function buildClarifyingQuestions(
     addIfNeeded({
       id: "hosting_monitoring",
       question: "Where should it run, and how should you monitor runs and approvals?",
-      options: ["Local/cron + DASH", "Hosted endpoint/job + DASH", "Inside the client + manual checks", "Not sure yet"],
+      options: ["Local/cron + logs", "Hosted endpoint/job + logs", "Inside the client + manual checks", "Not sure yet"],
     });
   }
 
@@ -1802,7 +1802,7 @@ export function buildClarifyingQuestions(
     addIfNeeded({
       id: "artifact_target",
       question: "What build artifact should I prepare after you confirm scope?",
-      options: ["Build brief prompt", "Linear epic + issues", "Obsidian note + DASH manifest", "Not sure yet"],
+      options: ["Build brief prompt", "Linear epic + issues", "Obsidian note", "Not sure yet"],
     });
   }
 
@@ -1954,20 +1954,18 @@ function buildHostingBlock(
 }
 
 /**
- * MAR-315: monitoring recommendation — import-to-DASH is always the
- * recommended pick (the manifest already ships in `export_build_brief`, per
- * MAR-296). When the goal already states its own monitoring answer (the
- * SERVER_INSTRUCTIONS constraint-gathering question), that statement is
- * echoed in `reason` instead of the recommendation silently ignoring it.
+ * MAR-315: monitoring recommendation. Keep first-run monitoring immediately
+ * usable with logs/tables. When the goal already states its own monitoring
+ * answer, that statement is echoed in `reason` instead of being ignored.
  */
 function buildMonitoringBlock(goal: string): HostingAndMonitoring["monitoring"] {
   const stated = anySignal(goal.toLowerCase(), MONITORING_STATED_SIGNALS);
   const reason = stated
-    ? "Your goal already describes a monitoring approach — DASH import (ships free in the build brief) is still recommended."
-    : "Default: import the shipped agent.manifest.json into DASH for full run/step/gate visibility, no extra wiring.";
+    ? "Your goal already describes a monitoring approach; keep that and make failures visible in the build."
+    : "Default: log each run to a file or table you already have; keep monitoring simple until a dashboard is ready.";
   return {
-    recommended: monitoringOption("dash_import"),
-    alternatives: [monitoringOption("log_to_file"), monitoringOption("manual_none")],
+    recommended: monitoringOption("log_to_file"),
+    alternatives: [monitoringOption("manual_none")],
     reason,
   };
 }
@@ -2190,6 +2188,15 @@ function buildHostMonitorChoices(hm: HostingAndMonitoring): WizardChoice[] {
       action: "choose_hosting:github_action",
     },
     {
+      id: "hosted_endpoint",
+      label: "Hosted endpoint",
+      kind: "host_monitor",
+      best_for: "Webhook or PR-triggered workflows that need to be reachable.",
+      tradeoffs: "Requires deployment, logs, and failure alerts.",
+      recommended: hosting === "hosted_endpoint",
+      action: "choose_hosting:hosted_endpoint",
+    },
+    {
       id: "cowork",
       label: "Cowork",
       kind: "host_monitor",
@@ -2197,15 +2204,6 @@ function buildHostMonitorChoices(hm: HostingAndMonitoring): WizardChoice[] {
       tradeoffs: "Depends on the client session and connected tools.",
       recommended: hosting === "in_client",
       action: "choose_hosting:cowork",
-    },
-    {
-      id: "dash",
-      label: "DASH",
-      kind: "host_monitor",
-      best_for: "Monitoring runs, steps, approval gates, and failures.",
-      tradeoffs: "Monitoring target, not the execution runtime.",
-      recommended: hm.monitoring.recommended.id === "dash_import",
-      action: "export_build_brief({ handoff_targets: ['prompt'] }) -> use agent_manifest",
     },
   ];
 }
@@ -2247,15 +2245,6 @@ function buildArtifactChoices(): WizardChoice[] {
       tradeoffs: "Longer artifact; best after quick questions are answered.",
       recommended: true,
       action: "export_build_brief({ handoff_targets: ['prompt'] })",
-    },
-    {
-      id: "dash_manifest",
-      label: "DASH manifest",
-      kind: "artifact",
-      best_for: "Importing the planned agent into DASH monitoring.",
-      tradeoffs: "Ships inside the build brief; not a standalone write.",
-      recommended: false,
-      action: "export_build_brief({ handoff_targets: ['prompt'] }) -> agent_manifest",
     },
   ];
 }
@@ -2523,13 +2512,40 @@ function formatHumanList(items: string[]): string {
   return `${items.slice(0, -1).join(", ")}, or ${items[items.length - 1]}`;
 }
 
-function productCardTitle(planSource: PlanSource, playbook: PlanPlaybook | null): string {
+function productCardTitle(
+  goal: string,
+  planSource: PlanSource,
+  playbook: PlanPlaybook | null,
+  steps: RouteStep[],
+): string {
   if (playbook?.id === "email_lead_to_crm") return "Email Lead → CRM + Slack";
   if (playbook?.id === "competitor_price_monitor") return "Competitor Price Monitor → Slack";
   if (playbook?.id === "pr_review_readonly") return "Read-Only PR Review";
   if (playbook?.id === "invoice_intake_po_match") return "Invoice Intake → PO Match";
   if (playbook?.id === "content_approval_pipeline") return "Content Approval Pipeline";
   if (planSource === "playbook" && playbook) return playbook.title;
+  if (hasGoalSignal(goal, ["competitor"]) && hasGoalSignal(goal, ["price", "prices"])) {
+    return "Competitor Price Monitor";
+  }
+  // SAFE-03 (MAR-349): never label a route that actually edits code as
+  // read-only, even if the goal text mentions "pull request" and "review".
+  const editsCode = steps.some((s) => s.component_id === "code_editing");
+  if (
+    !editsCode &&
+    hasGoalSignal(goal, ["pull request", "pr opens", "github"]) &&
+    hasGoalSignal(goal, ["review", "risky"])
+  ) {
+    return "Read-Only PR Review";
+  }
+  if (hasGoalSignal(goal, ["invoice", "invoices"]) && hasGoalSignal(goal, ["purchase order", "purchase orders"])) {
+    return "Invoice Intake → PO Match";
+  }
+  if (
+    hasGoalSignal(goal, ["content brief", "social copy", "copy variants", "design brief"]) &&
+    hasGoalSignal(goal, ["approval", "approve", "reviewer", "publish"])
+  ) {
+    return "Content Approval Pipeline";
+  }
   return "Composed Workflow Route";
 }
 
@@ -2581,6 +2597,29 @@ function buildProductCardConnectList(
     add("slack", "Slack channel");
   }
 
+  if (hasGoalSignal(goal, ["content brief"])) {
+    add("content_brief", "Content brief source");
+  }
+
+  if (
+    hasGoalSignal(goal, ["pull request", "pr opens", "github", "diff", "code review"]) &&
+    hasGoalSignal(goal, ["review", "risky"])
+  ) {
+    add("pr_source", "GitHub pull request / diff source");
+  }
+
+  if (hasGoalSignal(goal, ["competitor"]) && hasGoalSignal(goal, ["price", "prices"])) {
+    add("competitor_prices", "Competitor price sources");
+  }
+
+  if (
+    hasGoalSignal(goal, ["sales"]) &&
+    hasGoalSignal(goal, ["tell", "tells", "notify", "alert"]) &&
+    !routeIds.has("slack_notification")
+  ) {
+    add("sales_notification", "Sales notification channel");
+  }
+
   if (routeIds.has("email_draft")) {
     const sender = routeIds.has("optional_email_send")
       ? "Email sender is optional; draft-only is enough unless approved replies should be sent"
@@ -2602,6 +2641,12 @@ function buildProductCardConnectList(
     ) {
       continue;
     }
+    if (
+      need.component_id === "github_trigger" &&
+      hasGoalSignal(goal, ["pull request", "pr opens", "diff", "code review"])
+    ) {
+      continue;
+    }
     const examples = formatExamples(need.product_examples);
     add(need.component_id, examples ? `${need.label} (${examples})` : need.label);
   }
@@ -2618,6 +2663,15 @@ function buildProductCardConnectList(
 }
 
 function connectLine(goal: string, steps: RouteStep[], whatYouNeed: IntegrationNeed[], enforcedGates: string[]): string {
+  const lowerGoal = goal.toLowerCase();
+  const mentionsApOrInvoice = /\b(ap|accounts payable|invoice|invoices)\b/.test(lowerGoal);
+  const slackLabel = hasGoalSignal(goal, ["sales", "lead", "leads", "crm"])
+    ? "Slack sales channel"
+    : mentionsApOrInvoice
+    ? "Slack/AP alert channel"
+    : hasGoalSignal(goal, ["competitor", "price", "prices", "summary"])
+    ? "Slack summary channel"
+    : "Slack channel";
   return buildProductCardConnectList(goal, steps, whatYouNeed, enforcedGates)
     .filter((item) => item !== "Human approval checkpoint")
     .map((item) =>
@@ -2625,7 +2679,7 @@ function connectLine(goal: string, steps: RouteStep[], whatYouNeed: IntegrationN
         .replace("Gmail / email inbox", "Gmail inbox")
         .replace("Email inbox (Gmail / Outlook / IMAP)", "email inbox (Gmail/Outlook/IMAP)")
         .replace("CRM, e.g. HubSpot (or Salesforce / Pipedrive)", "CRM (HubSpot/Salesforce/Pipedrive)")
-        .replace("Slack channel", "Slack sales channel")
+        .replace("Slack channel", slackLabel)
         .replace("Email sender is optional; draft-only is enough unless approved replies should be sent", "optional email sender")
         .replace("Email draft account; draft-only is enough", "email draft account")
         .replace(/\(choose one: ([^)]+)\)/, "($1)"),
@@ -2792,7 +2846,7 @@ function buildGuidedPlanMarkdown(
 ): string {
   const lines: string[] = [];
 
-  lines.push(`## ${productCardTitle(planSource, playbook)}`, ``);
+  lines.push(`## ${productCardTitle(goal, planSource, playbook, steps)}`, ``);
   lines.push(`**You want:** ${truncateGoalForCard(goal)}`, ``);
 
   lines.push(`**Route:** ${routeSpine(steps)}`, ``);
@@ -2865,7 +2919,7 @@ function buildGuidedPlanMarkdown(
 
   lines.push(
     `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +
-      `For full details, call \`output_depth: "technical"\`. DASH monitoring can be wired later from the exported manifest if you use it.`,
+      `For full details, call \`output_depth: "technical"\`. The exported build brief includes setup and monitoring details.`,
   );
 
   return lines.join("\n");
@@ -3737,7 +3791,9 @@ export function registerPlanWorkflow(server: McpServer): void {
         "the recommended stack, and untested-edge warnings. " +
         "Replaces the manual sequence of list_known_routes → get_route → compose_workflow_route → " +
         "get_stack_recommendation → review_workflow_design. " +
-        "Prefer this as the entry point for designing a new AI workflow.",
+        "Prefer this as the entry point for designing a new AI workflow. " +
+        "IMPORTANT: render the returned `summary_markdown` to the user VERBATIM — do not " +
+        "paraphrase or summarize it, and do not drop the A) B) C) D) continuation menu at the end.",
       inputSchema: InputShape,
       outputSchema: PlanWorkflowOutputShape,
       annotations: { readOnlyHint: true, openWorldHint: false },

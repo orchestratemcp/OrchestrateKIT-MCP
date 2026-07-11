@@ -101,18 +101,18 @@ describe("MAR-315 — local_or_hosted is honored as an override", () => {
   });
 });
 
-describe("MAR-315 — monitoring recommendation is always DASH import", () => {
-  it("recommends DASH import by default, with log-to-file / none as alternatives at technical depth", () => {
+describe("MAR-315 — monitoring recommendation stays first-run usable", () => {
+  it("recommends simple logs by default, with manual-only as the technical-depth alternative", () => {
     const r = plan(G4_SCHEDULED_REPORT, { output_depth: "technical" });
-    expect(r.hosting_and_monitoring.monitoring.recommended.id).toBe("dash_import");
-    expect(r.hosting_and_monitoring.monitoring.recommended.label).toMatch(/DASH/);
+    expect(r.hosting_and_monitoring.monitoring.recommended.id).toBe("log_to_file");
+    expect(r.hosting_and_monitoring.monitoring.recommended.label).toMatch(/file or table/);
     const altIds = r.hosting_and_monitoring.monitoring.alternatives.map((a) => a.id);
-    expect(altIds).toEqual(["log_to_file", "manual_none"]);
+    expect(altIds).toEqual(["manual_none"]);
   });
 
   it("echoes the goal's own stated monitoring answer in the reason at technical depth", () => {
     const r = plan(`${G4_SCHEDULED_REPORT} I will log to a file myself.`, { output_depth: "technical" });
-    expect(r.hosting_and_monitoring.monitoring.recommended.id).toBe("dash_import");
+    expect(r.hosting_and_monitoring.monitoring.recommended.id).toBe("log_to_file");
     expect(r.hosting_and_monitoring.monitoring.reason).toMatch(/already describes a monitoring approach/);
   });
 });
@@ -127,14 +127,14 @@ describe("MAR-315 — next_action_menu entries are gated (never-nag)", () => {
 
   it("a goal that already states hosting AND monitoring gets neither menu entry", () => {
     const r = plan(
-      `${PR_REVIEW_WEBHOOK} It already runs on my server, and I watch it in DASH.`,
+      `${PR_REVIEW_WEBHOOK} It already runs on my server, and I watch the logs.`,
     );
     const ids = r.next_action_menu.map((a) => a.id);
     expect(ids).not.toContain("choose_hosting");
     expect(ids).not.toContain("wire_monitoring");
     // the block itself is still present — never-nag only hides the menu prompt
     expect(r.hosting_and_monitoring.hosting.recommended.id).toBeTruthy();
-    expect(r.hosting_and_monitoring.monitoring.recommended.id).toBe("dash_import");
+    expect(r.hosting_and_monitoring.monitoring.recommended.id).toBe("log_to_file");
   });
 
   it("stating only hosting suppresses choose_hosting but not wire_monitoring", () => {
@@ -161,7 +161,7 @@ describe("MAR-315 — provenance, presence, and layering", () => {
       const r = plan(G4_SCHEDULED_REPORT, { output_depth: depth });
       const md = r.summary_markdown;
       expect(r.hosting_and_monitoring.hosting.recommended.id).toBeTruthy();
-      expect(r.hosting_and_monitoring.monitoring.recommended.id).toBe("dash_import");
+      expect(r.hosting_and_monitoring.monitoring.recommended.id).toBe("log_to_file");
       expect(md).not.toContain("**Hosting:**");
       expect(md).not.toContain("**Monitoring:**");
       expect(md).not.toContain("### Hosting & monitoring");

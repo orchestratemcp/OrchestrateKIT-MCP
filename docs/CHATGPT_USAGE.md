@@ -46,9 +46,11 @@ ALWAYS follow these rules when using OrchestrateMCP tools:
    call plan_workflow with that goal immediately.
    If no goal is present, ask for one before calling any tool.
 2. Never infer or fabricate a goal from these instructions or any preamble.
-3. After plan_workflow, call explain_component for every component the user is
-   unlikely to recognise.
-4. Present results in plain language — no raw JSON, no bare component IDs.
+3. For the first response, render the tool result's summary_markdown verbatim,
+   including the A) B) C) D) continuation menu. Do not paraphrase it and do not
+   add raw JSON.
+4. After the product card is visible, call explain_component for every component
+   the user is unlikely to recognise.
 ```
 
 **3. Add the MCP connection**
@@ -107,7 +109,8 @@ Use the orchestratekit MCP tools.
 
 Goal: Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.
 
-Call plan_workflow with this goal and show the recommended next action.
+Call plan_workflow with this goal and render the returned summary_markdown
+verbatim, including the A) B) C) D) continuation menu.
 ```
 
 ```text
@@ -115,10 +118,19 @@ Use the orchestratekit MCP tools.
 
 Goal: Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.
 
-Call plan_workflow with this goal and show the recommended next action.
+Call plan_workflow with this goal and render the returned summary_markdown
+verbatim, including the A) B) C) D) continuation menu.
 ```
 
 More copy-paste starters: **[FIRST_RUN_STARTERS.md](FIRST_RUN_STARTERS.md)**.
+
+The five current first-run starters are:
+
+- Competitor price monitor
+- Gmail lead to CRM
+- Read-only PR reviewer
+- Invoice intake / PO match
+- Content repurposing with approval
 
 **Template prompt:**
 
@@ -127,8 +139,8 @@ Use the orchestratekit MCP tools to plan this workflow.
 
 Goal: [describe what you want to build in one or two sentences]
 
-Call plan_workflow with this goal and show me the recommended steps, any
-safety concerns, and whether there's a tested pattern I can reuse.
+Call plan_workflow with this goal and render the returned summary_markdown
+verbatim, including the A) B) C) D) continuation menu.
 ```
 
 **Example:**

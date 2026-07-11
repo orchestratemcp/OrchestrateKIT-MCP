@@ -2,7 +2,7 @@
 
 An evidence-backed **workflow-design advisor** for AI agents. Connect it to ChatGPT, Claude (web), Cursor, or Claude Desktop and it plans safer, more grounded AI workflows — grounded in a registry of tested components, edges, and golden-path playbooks. Read-only, stateless, holds no secrets.
 
-**Status:** hosted `health_check` reports 64 components, 151 edges, 4 workers, 1 stack, 12 routes, 12 playbooks, and 18 tools; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`).
+**Status:** hosted `health_check` reports 64 components, 151 edges, 4 workers, 1 stack, 13 routes, 14 playbooks, and 18 tools; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`).
 
 ---
 
@@ -33,7 +33,7 @@ When a user describes a workflow goal, the MCP can:
 
 - MCP server runs on stdio (Cursor, Claude Desktop) and over Streamable HTTP / a Cloudflare Worker (ChatGPT, claude.ai) — 18 registered tools.
 - `health_check` returns `{ name, version, registry: { component_count, edge_count, stack_count, route_count, playbook_count, worker_count, untested_edge_pct } }`.
-- Hosted registry: 64 components, 151 edges, 1 stack, 12 routes, 12 playbooks, 4 workers.
+- Hosted registry: 64 components, 151 edges, 1 stack, 13 routes, 14 playbooks, 4 workers.
 - Coverage accounting reports unmatched demand and unsupported supply instead of silently pretending the graph covers everything.
 - Corpus regression tests and release-trust floors ratchet the registry forward in CI.
 - `pnpm verify` (typecheck + lint + tests) passes from a clean clone and install.
@@ -117,10 +117,20 @@ Full walkthrough (ChatGPT Developer-Mode connector + claude.ai): **[docs/CHATGPT
 
 ## Try This First
 
-After connecting, paste one of these goals and ask the client to call
-`plan_workflow`. The default response should be a short product card: steps,
-connections, build target, host/monitor recommendation, safety note, and one
-obvious next action.
+After connecting, paste this wrapper plus one starter goal. The default response
+should be a short product card: title, route, steps, connections, safety note,
+build controls, and four continuation choices.
+
+```text
+Use the orchestratekit MCP tools.
+
+Goal: [paste one starter goal here]
+
+Call plan_workflow with this goal and render the returned summary_markdown
+verbatim, including the A) B) C) D) continuation menu.
+```
+
+Starter goals:
 
 ```text
 Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.
@@ -132,6 +142,14 @@ Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM,
 
 ```text
 When a pull request opens on GitHub, review the diff for bugs and risky changes, notify reviewers with a summary, and never edit or commit code.
+```
+
+```text
+When a PDF invoice arrives in the shared AP Gmail inbox, extract totals and line items, match against purchase orders, notify AP in Slack for discrepancies, and hold every invoice for human approval before accounting.
+```
+
+```text
+Use a content brief to generate social copy variants and a design brief, send it to a reviewer for approval, then publish externally only after approval.
 ```
 
 More first-run starters and expected output shapes:
@@ -159,7 +177,7 @@ holds a credential.
 | `pnpm typecheck` | TypeScript type-check only (no emit) |
 | `pnpm test` | Run unit tests with vitest |
 | `pnpm export:safe` | Create a source-only review zip at `exports/orchestratekit-mcp-source.zip` |
-| `pnpm verify` | Run `typecheck` then `test` |
+| `pnpm verify` | Generate bundles, typecheck, lint registry, run tests, and check release trust |
 
 For source review packages, never zip the working folder directly. Use
 `pnpm export:safe`; see **[docs/SAFE_EXPORT.md](docs/SAFE_EXPORT.md)** for the
@@ -198,11 +216,11 @@ orchestratekit-mcp/
       logger.ts             Stderr-only logger (stdout reserved for transport)
 
   registry/
-    components/             component YAML files (47 active)
-    edges/                  edge/relation YAML files (78 active)
+    components/             component YAML files (64 active)
+    edges/                  edge/relation YAML files (151 active)
     stacks/                 stack YAML files
-    routes/                 route YAML files (5 validated)
-    playbooks/              golden-path playbook YAML files (5)
+    routes/                 route YAML files (13)
+    playbooks/              golden-path playbook YAML files (14)
 
   docs-index/               Supplementary context documents
   examples/

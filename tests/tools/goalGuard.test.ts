@@ -34,6 +34,22 @@ async function plan(goal: string): Promise<Record<string, unknown>> {
   return r.structuredContent as Record<string, unknown>;
 }
 
+// MAR-344: cross-client dogfood (ChatGPT, Claude) showed the first response
+// often paraphrases plan_workflow's summary_markdown and drops the A) B) C) D)
+// continuation menu unless a user explicitly asks for verbatim rendering. The
+// tool description itself must carry that instruction so it doesn't depend on
+// server-level instructions being surfaced by every client.
+describe("plan_workflow tool description — verbatim rendering (MAR-344)", () => {
+  it("instructs the calling client to render summary_markdown verbatim", async () => {
+    const { tools } = await client.listTools();
+    const tool = tools.find((t) => t.name === "plan_workflow");
+    expect(tool).toBeDefined();
+    const description = (tool?.description ?? "").toLowerCase();
+    expect(description).toContain("verbatim");
+    expect(description).toContain("summary_markdown");
+  });
+});
+
 describe("plan_workflow needs_goal — handler (MAR-145)", () => {
   it("empty-route backstop: a goal that matches no components → needs_goal (not an empty plan)", async () => {
     // Passes the phrase guard (no marker, not a trivial pattern, >1 word) but
