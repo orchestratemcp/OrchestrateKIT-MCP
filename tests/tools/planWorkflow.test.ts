@@ -151,6 +151,37 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
     expect(ids).not.toContain("calendar_write");
   });
 
+  // MAR-347: Cursor's client-side expansion of the same starter adds an
+  // approval-gated prohibition ("must not send email or post to Slack until
+  // approved"). That clause is a GATE constraint on actions the goal already
+  // asks for — it must not establish content_publishing via "post to", pull
+  // external_publish, or drop the validated playbook match.
+  it("MAR-347: Cursor-expanded Gmail dogfood still routes to email_lead_to_crm", () => {
+    const r = plan(
+      "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales " +
+        "in Slack — but only after a human approves. The agent may read Gmail and draft replies internally; " +
+        "it must not send email or post to Slack until approved.",
+    );
+    const ids = r.recommended_route.map((s) => s.component_id);
+
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("email_lead_to_crm");
+    expect(r.route_status).toBe("validated");
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "email_read",
+        "email_draft",
+        "human_approval_gate",
+        "crm_note_write",
+        "slack_notification",
+        // the gated clause is NOT an absolute no-send — the gated send stays
+        "optional_email_send",
+      ]),
+    );
+    expect(ids).not.toContain("external_publish");
+    expect(ids).not.toContain("reviewer_notification");
+  });
+
   it("keeps the research-flavored lead goal on the composed path", () => {
     const r = plan(
       "read emails, detect leads, research the sender company, write a CRM note and draft a follow-up with approval",

@@ -1,5 +1,6 @@
 import type { Component } from "../registry/componentSchema.js";
 import type { Edge } from "../registry/edgeSchema.js";
+import { neutralizeApprovalGatedProhibitions } from "../lib/constraintSignals.js";
 
 /**
  * Which scoring pass produced a match token (MAR-250). "hint" and "segment" are
@@ -896,7 +897,11 @@ function suppressLoopControllerForIdiom(
  * are never blocked. Exported for unit testing.
  */
 export function classifyGoalDomains(goal: string): Set<Domain> {
-  const goalLower = goal.toLowerCase();
+  // MAR-347: an approval-gated prohibition ("must not post to Slack until
+  // approved") restates actions the goal already asked for — its verbs must not
+  // establish a domain ("post to" → content_publishing was the Cursor-expansion
+  // regression that dropped the email_lead_to_crm playbook).
+  const goalLower = neutralizeApprovalGatedProhibitions(goal.toLowerCase());
   const domains = new Set<Domain>(["generic_orchestration"]);
 
   for (const [domain, keywords] of Object.entries(DOMAIN_KEYWORDS) as [
@@ -1656,8 +1661,14 @@ export function matchCapabilities(
   components: Component[],
   edges: Edge[] = [],
 ): MatchResult {
-  const goalLower = goal.toLowerCase();
-  const goalTokens = tokenize(goal);
+  // MAR-347: strip approval-gated prohibition clauses ("must not send email or
+  // post to Slack until approved") before ANY string matching. The clause is a
+  // gate constraint on actions the goal already names affirmatively — left in
+  // place it both fires hints/domains as fresh demand ("post" → external_publish)
+  // and trips the absolute no-send suppression rules on a send the user wants.
+  const goalNeutralized = neutralizeApprovalGatedProhibitions(goal);
+  const goalLower = goalNeutralized.toLowerCase();
+  const goalTokens = tokenize(goalNeutralized);
   const tokenSet = new Set(goalTokens);
   const mustAvoidSet = new Set(mustAvoid.map((s) => s.toLowerCase()));
 

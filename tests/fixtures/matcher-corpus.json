@@ -1,7 +1,7 @@
 {
   "generated_by": "OrchestrateLab LAB-03 (MAR-106) corpus export",
   "version": 1,
-  "goal_count": 42,
+  "goal_count": 43,
   "goals": [
     {
       "slug": "blog_social_variants_reviewer_notify",
@@ -163,6 +163,32 @@
       "missing_but_expected": [],
       "source": "manual",
       "level": "raw",
+      "xfail": ""
+    },
+    {
+      "slug": "cursor_expanded_gmail_lead_gated_send",
+      "goal": "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack — but only after a human approves. The agent may read Gmail and draft replies internally; it must not send email or post to Slack until approved.",
+      "domain": "crm_sales",
+      "must_have": [
+        "crm_note_write",
+        "email_draft",
+        "email_read",
+        "human_approval_gate",
+        "optional_email_send",
+        "slack_notification"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "intent_classifier"
+      ],
+      "forbidden": [
+        "auth_failure_handler",
+        "external_publish",
+        "reviewer_notification"
+      ],
+      "missing_but_expected": [],
+      "source": "dogfood",
+      "level": "composed",
       "xfail": ""
     },
     {
