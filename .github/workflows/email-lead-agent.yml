@@ -1,0 +1,63 @@
+# Hosting choice for examples/email-lead-agent, picked from plan_workflow's
+# host_monitor_choices (local / cron / github_action / cowork / dash):
+#
+# GitHub Action over "local": a solo builder shouldn't need to keep their own
+# laptop on for a demo to look "hosted" — this runs on GitHub's infra and the
+# run history/logs are shareable via a URL.
+# GitHub Action over "cron": no server to provision or SSH into; secrets are
+# managed in one place (repo settings) instead of a machine's env.
+# GitHub Action over "dash"/"cowork": DASH is a monitoring target, not a
+# runtime, and this doesn't need a Cowork session running.
+#
+# Manual-dispatch only for now (no `schedule:` trigger) — this is a demo run
+# against bundled fixtures, not a live lead pipeline yet, so it shouldn't
+# burn Actions minutes every 30 minutes unattended. Add back a `schedule:`
+# cron once real Gmail/Slack/CRM credentials are wired in as repo secrets
+# and this is meant to run continuously.
+#
+# Runs in --auto-approve mode against the bundled fixtures (no live Gmail/
+# Slack/CRM credentials are configured as repo secrets) so it's a safe,
+# inspectable demo run out of the box. Wire GMAIL_*/SLACK_WEBHOOK_URL/
+# ANTHROPIC_API_KEY/DASH_INGEST_* as repo secrets and pass them through here
+# to go live — see examples/email-lead-agent/.env.example.
+name: email-lead-agent (demo)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run agent (auto-approve, fixture data)
+        run: npx tsx examples/email-lead-agent/src/run.ts --auto-approve
+        env:
+          # Uncomment once these exist as repo secrets to go live:
+          # GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          # GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          # GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          # DASH_INGEST_URL: ${{ secrets.DASH_INGEST_URL }}
+          # DASH_INGEST_TOKEN: ${{ secrets.DASH_INGEST_TOKEN }}
+          AUTO_APPROVE: "1"
+
+      - name: Upload run artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: email-lead-agent-runtime-${{ github.run_id }}
+          path: examples/email-lead-agent/runtime/
+          retention-days: 14

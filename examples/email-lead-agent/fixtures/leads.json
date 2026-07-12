@@ -1,0 +1,29 @@
+[
+  {
+    "id": "fixture-lead-001",
+    "threadId": "thread-001",
+    "from": "Priya Shah <priya.shah@northwind-robotics.com>",
+    "to": "sales@orchestratekit.dev",
+    "subject": "Pricing for a 40-seat rollout?",
+    "bodyText": "Hi, we're evaluating OrchestrateKit for our ops team (about 40 people). Could you send pricing for an annual plan and let me know if there's a demo we could book this week? Thanks, Priya",
+    "receivedAt": "2026-07-12T07:12:00Z"
+  },
+  {
+    "id": "fixture-lead-002",
+    "threadId": "thread-002",
+    "from": "Newsletter <no-reply@devtoolsweekly.com>",
+    "to": "sales@orchestratekit.dev",
+    "subject": "This week in dev tools: 12 things you missed",
+    "bodyText": "Unsubscribe anytime. Here's this week's roundup of dev tooling news...",
+    "receivedAt": "2026-07-12T06:40:00Z"
+  },
+  {
+    "id": "fixture-lead-003",
+    "threadId": "thread-003",
+    "from": "Marcus Lee <marcus@lee-consulting.io>",
+    "to": "sales@orchestratekit.dev",
+    "subject": "Quote request + a couple questions",
+    "bodyText": "We run a small consultancy and want to quote OrchestrateKit into a client proposal. Can we get on a call to talk through the CRM integration? Budget is roughly confirmed already.",
+    "receivedAt": "2026-07-12T05:58:00Z"
+  }
+]
