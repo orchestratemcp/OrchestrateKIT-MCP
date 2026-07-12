@@ -82,6 +82,11 @@ export const APPROVAL_REQUIRED_SIGNALS = [
   "approve before",
   "approval before",
   "review before",
+  // MAR-347: gate-ordering phrases from constraint-expanded goals ("only after a
+  // human approves", "must not send … until approved"). Both name an approval
+  // that must happen before an action — an ENFORCED gate, not a prohibition.
+  "until approved",
+  "human approves",
 ];
 
 /**
@@ -129,6 +134,40 @@ export function hasUnattendedWaiver(goal: string): boolean {
     }
     return true;
   });
+}
+
+// ────────────── approval-gated prohibition clauses (MAR-347) ──────────────
+
+/**
+ * "It must not send email or post to Slack until approved" is an APPROVAL-GATE
+ * constraint on actions the goal already asks for — not an absolute
+ * no-send/no-post request and not new capability demand. Cursor's client-side
+ * expansion of the first-run Gmail lead starter produces exactly this shape,
+ * and the raw clause (a) fired the "post" → external_publish hint and
+ * established content_publishing, dropping the validated email_lead_to_crm
+ * playbook below the precision floor, and (b) lets absolute no-send suppression
+ * phrases ("do not send") fire on a send the user DOES want, merely gated.
+ *
+ * A clause is gated when, within one sentence/clause, it reads:
+ *   negation → outbound verb → until/unless/before/without → approval word.
+ * The match stops at the approval word so trailing text ("… until approved by
+ * the sales manager") survives. True draft-only / no-send goals ("drafts only,
+ * do not send anything", "Must never auto-send.") carry no approval
+ * conjunction inside the clause and are untouched (MAR-161/MAR-219 behavior).
+ */
+const GATED_PROHIBITION_CLAUSE =
+  /\b(?:must not|may not|cannot|can't|cant|does not|doesn't|do not|don't|dont|will not|won't|wont|never|no)\s+(?:auto[- ]?)?(?:send|sends|sending|post|posts|posting|publish|publishes|publishing|email|emails|share|shares|sharing|notify|reply|respond)\b[^.!?;]{0,100}?\b(?:until|unless|before|without)\b[^.!?;]{0,60}?\b(?:approv\w*|review\w*|sign[- ]?off|signoff|confirm\w*)/gi;
+
+/**
+ * Replace every approval-gated prohibition clause with a space, so downstream
+ * string matching (domain classification, keyword hints, capability
+ * suppression) never reads a gated send as either fresh demand or an absolute
+ * prohibition. The ORIGINAL goal keeps flowing to the constraint predicates
+ * above — "until approved" is an APPROVAL_REQUIRED_SIGNALS entry, so the gate
+ * semantics are preserved where they belong. (MAR-347)
+ */
+export function neutralizeApprovalGatedProhibitions(goal: string): string {
+  return goal.replace(GATED_PROHIBITION_CLAUSE, " ");
 }
 
 // ───────────────────── §0 constraint detection (MAR-255) ─────────────────────

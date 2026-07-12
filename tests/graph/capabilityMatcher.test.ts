@@ -535,6 +535,41 @@ describe("matchCapabilities — MAR-161 broader-negation engine", () => {
     expect(ids).toContain("email_draft");
     expect(ids).toContain("optional_email_send");
   });
+
+  // ── MAR-347: approval-gated prohibitions are gate constraints, not no-sends ──
+  // "must not send … until approved" restates a send the goal already asked for,
+  // gated behind approval. It must neither suppress the send NOR let its verbs
+  // fire as fresh demand ("post to Slack" → content_publishing/external_publish
+  // was the Cursor-expansion regression that dropped the validated playbook).
+  it("MAR-347: 'must not send/post until approved' keeps the gated send, no external_publish", () => {
+    const ids = matchedIds(
+      "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales " +
+        "in Slack — but only after a human approves. The agent may read Gmail and draft replies internally; " +
+        "it must not send email or post to Slack until approved.",
+    );
+    expect(ids).toContain("email_read");
+    expect(ids).toContain("email_draft");
+    expect(ids).toContain("optional_email_send");
+    expect(ids).toContain("crm_note_write");
+    expect(ids).toContain("slack_notification");
+    expect(ids).not.toContain("external_publish");
+  });
+
+  it("MAR-347: 'do not send anything until I approve' is a gate, not a no-send", () => {
+    const ids = matchedIds(
+      "Read my inbox and draft a reply to each email, but do not send anything until I approve it.",
+    );
+    expect(ids).toContain("email_draft");
+    expect(ids).toContain("optional_email_send");
+  });
+
+  it("MAR-347: a prohibition WITHOUT an approval conjunction stays an honest no-send", () => {
+    const ids = matchedIds(
+      "Read my inbox and draft replies, but never auto-send — nothing gets sent, ever.",
+    );
+    expect(ids).toContain("email_draft");
+    expect(ids).not.toContain("optional_email_send");
+  });
 });
 
 describe("matchCapabilities — MAR-145 round-4 (ChatGPT dogfood)", () => {
