@@ -14,10 +14,10 @@ pnpm benchmark:check
 
 - Package: `orchestratekit-mcp@0.1.0`
 - Registry fingerprint: `26b95a7a03de9ffd`
-- Report fingerprint: `3bc3f5b805cad3fc`
+- Report fingerprint: `45440db283407509`
 - Public non-beta registry: 64 components / 151 edges / 12 routes / 12 playbooks / 4 workers
-- Prompt source SHA-256: `3a74bd6b24630f0dfc629a153b7dd8115592eaa4913b2269fd8373a798bade54`
-- False-positive fixture SHA-256: `aefa88ff34ebe8347505f9151dc5be833e03da36edac8ebb6881a7d6784f8e51`
+- Prompt source SHA-256: `7a1b47ce10f1db158810205984f7f956aaa95c0d87f9334080032ac7abb6d8f9`
+- False-positive fixture SHA-256: `5a2e8a3e5cabe5febb4eb9d9d5e5371a8e1c5458360a6b9be1e7e75364f51c25`
 
 ## Current result
 

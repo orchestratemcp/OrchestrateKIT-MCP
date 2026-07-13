@@ -128,6 +128,10 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+export function benchmarkSourceFingerprint(value: string): string {
+  return sha256(value.replace(/\r\n?/g, "\n"));
+}
+
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -277,8 +281,8 @@ export function buildPublicBenchmark(root = defaultRoot()): PublicBenchmarkRepor
         workers: registry.workers.length,
       },
       source_hashes: {
-        prompts_v2_sha256: sha256(promptsSource),
-        false_positives_v1_sha256: sha256(falsePositivesSource),
+        prompts_v2_sha256: benchmarkSourceFingerprint(promptsSource),
+        false_positives_v1_sha256: benchmarkSourceFingerprint(falsePositivesSource),
       },
       environment_contract: {
         node: pkg.engines?.node ?? "unknown",

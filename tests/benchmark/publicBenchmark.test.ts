@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildPublicBenchmark,
+  benchmarkSourceFingerprint,
   evaluateFixture,
   renderPublicBenchmarkMarkdown,
   serializePublicBenchmark,
@@ -13,6 +14,12 @@ import { readRawEntries } from "../../src/registry/registryLoader.js";
 const root = process.cwd();
 
 describe("public benchmark", () => {
+  it("fingerprints text identically across Windows and Unix line endings", () => {
+    expect(benchmarkSourceFingerprint("alpha\r\nbeta\r\n")).toBe(
+      benchmarkSourceFingerprint("alpha\nbeta\n"),
+    );
+  });
+
   it("evaluates required and forbidden fixture assertions", () => {
     const verdict = evaluateFixture(
       {
