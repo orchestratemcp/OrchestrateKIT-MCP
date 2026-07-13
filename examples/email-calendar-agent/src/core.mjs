@@ -39,6 +39,51 @@ export function toEmailMessage(message) {
   };
 }
 
+function meetingCandidateScore(message) {
+  const subject = String(message.subject ?? "").toLowerCase();
+  const body = String(message.bodyText ?? "").slice(0, 2400).toLowerCase();
+  const sender = String(message.fromMailbox?.email ?? message.from ?? "").toLowerCase();
+  let score = 0;
+  if (/\b(meet|meeting|calendar|schedule|availability|available|call|chat)\b/.test(subject)) score += 8;
+  if (/\b(meet|meeting|schedule|availability|available|call|chat)\b/.test(body)) score += 4;
+  if (/\b(can we|could we|would you|are you free|what time|which time|works for you)\b/.test(body)) score += 5;
+  if (/\b(no-?reply|notifications?)\b/.test(sender)) score -= 12;
+  if (/\b(invitation|event (?:updated|canceled)|newsletter|digest|receipt)\b/.test(subject)) score -= 8;
+  return score;
+}
+
+export function rankMeetingCandidates(messages, limit = 5) {
+  return messages
+    .map((message, index) => ({ message, index, score: meetingCandidateScore(message) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .slice(0, Math.max(1, limit));
+}
+
+export function buildFallbackDraft({ message, slots, timeZone }) {
+  if (!message?.fromMailbox?.email || !Array.isArray(slots) || slots.length !== 2) {
+    throw new Error("Fallback draft requires a sender and exactly two slots.");
+  }
+  const displayName = message.fromMailbox.name || message.fromMailbox.email;
+  const firstName = displayName.split(/\s+/)[0];
+  const subject = /^re:/i.test(message.subject ?? "") ? message.subject : `Re: ${message.subject || "Meeting request"}`;
+  return {
+    subject,
+    bodyText: [
+      `Hi ${firstName},`,
+      "",
+      "Thanks for reaching out. Would either of these times work for you?",
+      "",
+      ...slots.map((slot) => `- ${slot.label}`),
+      "",
+      `All times are in ${timeZone}.`,
+      "",
+      "Best,",
+      "Henri",
+    ].join("\n"),
+    eventTitle: `Meeting with ${displayName}`.slice(0, 120),
+  };
+}
+
 function timeZoneParts(date, timeZone) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,

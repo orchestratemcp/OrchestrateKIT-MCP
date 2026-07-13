@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error The deployable example intentionally stays dependency-free JavaScript.
-import { encodeRawEmail, findAvailableSlots, signApproval, toEmailMessage, verifyApproval } from "../examples/email-calendar-agent/src/core.mjs";
+import { buildFallbackDraft, encodeRawEmail, findAvailableSlots, rankMeetingCandidates, signApproval, toEmailMessage, verifyApproval } from "../examples/email-calendar-agent/src/core.mjs";
 
 describe("email-calendar-agent", () => {
   it("returns two weekday slots and excludes real busy intervals", () => {
@@ -66,5 +66,45 @@ describe("email-calendar-agent", () => {
     expect(decoded).toContain("Message-ID: <approval-1@orchestratekit.local>");
     expect(decoded).toContain("In-Reply-To: <source@example.com>");
     expect(decoded).toContain("\r\n\r\nYes.\r\n");
+  });
+
+  it("ranks a genuine meeting request ahead of automated inbox noise", () => {
+    const messages = [
+      {
+        from: "Calendar <notifications@google.com>",
+        fromMailbox: { name: "Calendar", email: "notifications@google.com" },
+        subject: "Event updated: Weekly digest",
+        bodyText: "Calendar notification",
+      },
+      {
+        from: "Ada <ada@example.com>",
+        fromMailbox: { name: "Ada", email: "ada@example.com" },
+        subject: "Can we schedule a meeting?",
+        bodyText: "Are you free for a call next week? What time works for you?",
+      },
+      {
+        from: "News <no-reply@example.com>",
+        fromMailbox: { name: "News", email: "no-reply@example.com" },
+        subject: "Newsletter",
+        bodyText: "Your weekly digest",
+      },
+    ];
+    expect(rankMeetingCandidates(messages)[0]).toMatchObject({ index: 1 });
+  });
+
+  it("builds a safe deterministic two-slot draft when the model times out", () => {
+    const fallback = buildFallbackDraft({
+      message: {
+        fromMailbox: { name: "Ada Lovelace", email: "ada@example.com" },
+        subject: "Can we meet?",
+      },
+      slots: [{ label: "tisdag 09:00" }, { label: "onsdag 10:30" }],
+      timeZone: "Europe/Stockholm",
+    });
+    expect(fallback.subject).toBe("Re: Can we meet?");
+    expect(fallback.bodyText).toContain("- tisdag 09:00");
+    expect(fallback.bodyText).toContain("- onsdag 10:30");
+    expect(fallback.bodyText).not.toMatch(/booked|scheduled/i);
+    expect(fallback.eventTitle).toBe("Meeting with Ada Lovelace");
   });
 });
