@@ -17,14 +17,23 @@ export type DashEventType =
   | "run_completed"
   | "run_failed";
 
+// Telemetry contract v1 (LAB/DASH contracts/run-event.schema.json):
+// event_version + agent + type are REQUIRED — events missing them are
+// rejected 400 by LAB's /api/events. Found live during the MAR-363 rehearsal
+// (the old shape used `event` and omitted both, and the fire-and-forget
+// emitter swallowed the rejections silently).
 export interface DashEvent {
+  event_version: 1;
+  agent: string;
   run_id: string;
   seq: number;
   ts: string;
-  event: DashEventType;
+  type: DashEventType;
   component_id?: string;
   detail?: string;
 }
+
+const AGENT_NAME = "email-lead-crm-slack-agent"; // agent.manifest.json agent.name
 
 let seqCounter = 0;
 
@@ -35,10 +44,12 @@ export async function emitDashEvent(
   detail?: string
 ): Promise<void> {
   const payload: DashEvent = {
+    event_version: 1,
+    agent: AGENT_NAME,
     run_id: runId,
     seq: ++seqCounter,
     ts: new Date().toISOString(),
-    event,
+    type: event,
     component_id: componentId,
     detail,
   };
@@ -48,7 +59,7 @@ export async function emitDashEvent(
 
   try {
     if (endpoint && token) {
-      await fetch(`${endpoint}/api/events`, {
+      const res = await fetch(`${endpoint}/api/events`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -56,6 +67,11 @@ export async function emitDashEvent(
         },
         body: JSON.stringify(payload),
       });
+      if (!res.ok) {
+        // Still non-fatal, but never silent — a rejected event means the
+        // /agents view is missing data and someone should know why.
+        console.warn(`[dash] ingest rejected ${payload.type} (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
+      }
     } else {
       appendJsonLine(PATHS.dashEvents, payload);
     }

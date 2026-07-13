@@ -48,14 +48,17 @@ jobs:
       - name: Run agent (auto-approve, fixture data)
         run: npx tsx examples/email-lead-agent/src/run.ts --auto-approve
         env:
-          # Uncomment once these exist as repo secrets to go live:
-          # GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
-          # GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
-          # GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
-          # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          # DASH_INGEST_URL: ${{ secrets.DASH_INGEST_URL }}
-          # DASH_INGEST_TOKEN: ${{ secrets.DASH_INGEST_TOKEN }}
+          # Wired through since MAR-364: scripts/connect.mjs --secrets pushes
+          # these via gh. Unset secrets resolve to "" and every step falls
+          # back to its fixture/dry-run path, so this is safe out of the box.
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          DASH_INGEST_URL: ${{ secrets.DASH_INGEST_URL }}
+          DASH_INGEST_TOKEN: ${{ secrets.DASH_INGEST_TOKEN }}
           AUTO_APPROVE: "1"
 
       - name: Upload run artifacts

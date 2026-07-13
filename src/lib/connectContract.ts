@@ -569,8 +569,11 @@ async function googleOauthLoopback(cred, envMap) {
 // ─── gh secret push ───
 
 function pushGithubSecrets(connected) {
-  const secrets = connected.filter(function (c) { return c.cred.secret && c.value; });
-  if (secrets.length === 0) { console.log('no secret vars to push.'); return; }
+  // Non-secret values (client ids, URLs) go up as Actions secrets too — the
+  // generated workflow reads everything from secrets.*, and gh has no
+  // separate cheap path for repo variables worth the extra branch here.
+  const secrets = connected.filter(function (c) { return c.value; });
+  if (secrets.length === 0) { console.log('no connected vars to push.'); return; }
   const ghCheck = spawnSync('gh', ['auth', 'status'], { stdio: 'ignore', shell: process.platform === 'win32' });
   if (ghCheck.error || ghCheck.status !== 0) {
     console.log('gh CLI not available/authenticated — skipping GitHub secrets push.');
