@@ -4,6 +4,9 @@ All notable public changes to OrchestrateMCP are recorded here.
 
 ## Unreleased
 
+- Added a public, no-network seven-prompt registry conformance benchmark with
+  stable provenance, machine-readable evidence, and a CI drift gate. Manual
+  LLM A/B/C claims remain explicitly held for isolated client reruns.
 - Prepared the public repository's MIT license, security policy, contribution
   guide, package metadata, and release-trust checks.
 - Updated the affected Hono, Wrangler/Miniflare, Undici, ws, esbuild, tsx, and

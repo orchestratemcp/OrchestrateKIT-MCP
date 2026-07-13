@@ -180,6 +180,8 @@ holds a credential.
 |--------|-------------|
 | `pnpm dev` | Run server directly with tsx (no build step) |
 | `pnpm build` | Compile to `dist/` with tsup |
+| `pnpm benchmark` | Reproduce the seven-prompt deterministic registry benchmark |
+| `pnpm benchmark:check` | Fail when committed benchmark evidence no longer matches the registry |
 | `pnpm typecheck` | TypeScript type-check only (no emit) |
 | `pnpm test` | Run unit tests with vitest |
 | `pnpm export:safe` | Create a source-only review zip at `exports/orchestratekit-mcp-source.zip` |
@@ -271,23 +273,30 @@ MAR-97  ✅  Docs truth pass — registry counts, tool count, verify path
 
 ## Benchmarking
 
-To validate that the workflow graph improves planning quality over vanilla Cursor/Claude,
-run the manual benchmark described in **[docs/BENCHMARKING.md](docs/BENCHMARKING.md)**.
-
-Quick start:
+Run the public, deterministic registry benchmark locally:
 
 ```bash
-# v2 protocol — print session guide for all 7 prompts
-pnpm tsx scripts/benchmark-template.ts --prompts benchmarks/prompts-v2.yaml --all
-
-# v2 — single prompt
-pnpm tsx scripts/benchmark-template.ts --prompts benchmarks/prompts-v2.yaml --prompt p6_email_lead_crm
-
-# v1 (legacy)
-pnpm tsx scripts/benchmark-template.ts
+pnpm benchmark
 ```
 
-Results go in `benchmarks/results-YYYY-MM-DD.md`.
+It runs seven fixed prompts with no LLM or network calls, checks required
+components and known false positives, fingerprints the inputs and registry, and
+prints every candidate status, untested edge, and compose-noise flag. See the
+current [machine-readable and human-readable results](benchmarks/public/README.md).
+
+This proves deterministic graph conformance, not model-quality uplift. The
+manual A/B/C protocol for comparing vanilla and MCP-assisted client responses
+remains available in **[benchmarks/PROTOCOL.md](benchmarks/PROTOCOL.md)**; its
+archived scores retain their original isolation caveats and are not a current
+public headline.
+
+Maintainers can intentionally refresh the committed result after reviewing a
+registry change:
+
+```bash
+pnpm benchmark:write
+pnpm benchmark:check
+```
 
 ---
 
