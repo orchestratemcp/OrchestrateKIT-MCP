@@ -134,6 +134,7 @@ const packageJson = JSON.parse(
   homepage?: string;
   repository?: { url?: string } | string;
   bugs?: { url?: string } | string;
+  scripts?: { build?: string };
 };
 
 if (packageJson.license !== "MIT") {
@@ -167,6 +168,12 @@ const bugsUrl =
 if (bugsUrl !== "https://github.com/orchestratemcp/OrchestrateKIT-MCP/issues") {
   failures.push(
     "package.json bugs URL must point to the public GitHub issue tracker.",
+  );
+}
+
+if (!packageJson.scripts?.build?.startsWith("pnpm gen:registry &&")) {
+  failures.push(
+    "package.json build must generate ignored registry bundles before compiling.",
   );
 }
 
