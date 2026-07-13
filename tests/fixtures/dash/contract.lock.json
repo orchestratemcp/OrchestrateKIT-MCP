@@ -1,0 +1,9 @@
+{
+  "contract": "orchestratedash.telemetry",
+  "version": 1,
+  "canonical_repository": "https://github.com/orchestratemcp/orchestratedash",
+  "schema_semantic_sha256": {
+    "agent.manifest.schema.json": "a3406def79f04067b06f7c75180df5b7b36cc7a2cbe877782fccf5ad00b747e5",
+    "run-event.schema.json": "890a64f290a09d5a94d4d8aff51acd28281511c370c48a334763867517e371a3"
+  }
+}

@@ -37,22 +37,39 @@ const AGENT_NAME = "email-lead-crm-slack-agent"; // agent.manifest.json agent.na
 
 let seqCounter = 0;
 
+export function buildDashEvent(
+  runId: string,
+  event: DashEventType,
+  seq: number,
+  componentId?: string,
+  detail?: string,
+  ts = new Date().toISOString(),
+): DashEvent {
+  return {
+    event_version: 1,
+    agent: AGENT_NAME,
+    run_id: runId,
+    seq,
+    ts,
+    type: event,
+    component_id: componentId,
+    detail,
+  };
+}
+
 export async function emitDashEvent(
   runId: string,
   event: DashEventType,
   componentId?: string,
   detail?: string
 ): Promise<void> {
-  const payload: DashEvent = {
-    event_version: 1,
-    agent: AGENT_NAME,
-    run_id: runId,
-    seq: ++seqCounter,
-    ts: new Date().toISOString(),
-    type: event,
-    component_id: componentId,
+  const payload = buildDashEvent(
+    runId,
+    event,
+    ++seqCounter,
+    componentId,
     detail,
-  };
+  );
 
   const endpoint = process.env.DASH_INGEST_URL;
   const token = process.env.DASH_INGEST_TOKEN;
