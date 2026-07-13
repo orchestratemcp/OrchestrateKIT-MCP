@@ -203,6 +203,13 @@ export type CoverageInput = {
    * accounting does not apply to it (the set is evidence-backed as a whole).
    */
   mode?: "composed" | "playbook";
+  /**
+   * Registry-grounded descriptions of a validated route/playbook. These let
+   * coverage credit semantics carried by the fixed route even when no single
+   * component matcher token names them (for example, "competitor pages" in the
+   * competitor-price playbook). Composed plans must not provide these claims.
+   */
+  groundedClaimTexts?: string[];
 };
 
 export function computeCoverage(input: CoverageInput): Coverage {
@@ -226,6 +233,11 @@ export function computeCoverage(input: CoverageInput): Coverage {
     for (const token of m.tokens) {
       claimedTokens.add(token);
       for (const w of tokenizeWords(token)) claimedTokens.add(w);
+    }
+  }
+  if (mode === "playbook") {
+    for (const claimText of input.groundedClaimTexts ?? []) {
+      for (const word of tokenizeWords(claimText)) claimedTokens.add(word);
     }
   }
 

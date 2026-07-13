@@ -401,6 +401,49 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
 });
 
 describe("MAR-346 - first-run honesty for weak composed matches", () => {
+  it("credits competitor-page work carried by the validated price-monitor playbook", () => {
+    const goal =
+      "Build an agent that checks 5 competitor pages every morning, alerts sales in Slack when a price changes, and keeps a change log for 30 days.";
+    const r = planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+    const md = r.summary_markdown;
+
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("competitor_price_monitor");
+    expect(r.recommended_route.map((s) => s.component_id)).toEqual(
+      expect.arrayContaining([
+        "scheduled_trigger",
+        "page_monitor",
+        "slack_notification",
+        "audit_log",
+      ]),
+    );
+    expect(r.coverage.coverage_label).toBe("full");
+    expect(r.coverage.unmatched_demand).toEqual([]);
+    expect(md.split("\n\n")[0]).toContain("Full coverage");
+    expect(md).not.toContain("**Not covered by the registry:**");
+  });
+
+  it("still flags a real integration gap on the validated price-monitor playbook", () => {
+    const goal =
+      "Build an agent that checks 5 competitor pages every morning, alerts sales in Slack when a price changes, keeps a change log for 30 days, and uploads a backup to Dropbox.";
+    const r = planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("competitor_price_monitor");
+    expect(r.coverage.coverage_label).toBe("partial");
+    expect(r.coverage.unmatched_demand).toEqual([
+      "uploads a backup to Dropbox",
+    ]);
+    expect(r.summary_markdown).toContain("**Not covered by the registry:**");
+    expect(r.summary_markdown).toContain('"uploads a backup to Dropbox"');
+  });
+
   it("does not call the competitor-price prompt full coverage when only the schedule matched", () => {
     const goal =
       "I want something that checks competitor prices every morning and tells sales if anything changed.";
