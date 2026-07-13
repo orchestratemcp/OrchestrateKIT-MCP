@@ -3276,6 +3276,7 @@ export function planWorkflow(
   let executionOrder: string[];
   let playbook: PlanPlaybook | null = null;
   let routeComponentIds: string[];
+  let playbookCoverageClaims: string[] = [];
 
   if (planSource === "playbook" && playbookMatch) {
     // Lead with the validated playbook's golden-path route (MAR-98).
@@ -3299,6 +3300,9 @@ export function planWorkflow(
     planningOrder = components.map((c) => c.id);
     executionOrder = ordered.map((c) => c.id);
     routeComponentIds = ordered.map((c) => c.id);
+    playbookCoverageClaims = [route?.summary, pb?.summary].filter(
+      (text): text is string => typeof text === "string",
+    );
     playbook = pb
       ? {
           id: pb.id,
@@ -3340,6 +3344,7 @@ export function planWorkflow(
       finalComponentIds: routeComponentIds,
       injectedComponentIds: new Set(),
       mode: "playbook",
+      groundedClaimTexts: playbookCoverageClaims,
     });
   } else {
     coverage = composed.coverage;
