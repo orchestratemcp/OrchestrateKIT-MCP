@@ -369,6 +369,30 @@ export const ExportBuildBriefOutputShape = z
       })
       .passthrough(),
     agent_manifest: z.object({}).passthrough(),
+    // MAR-364: fast-connect credential manifest + generated scripts/connect.mjs.
+    connect: z
+      .object({
+        script_path: z.literal("scripts/connect.mjs"),
+        credential_manifest: z.array(
+          z
+            .object({
+              env: z.string(),
+              provider: z.string(),
+              label: z.string(),
+              required: z.boolean(),
+              secret: z.boolean(),
+              required_by: z.array(z.string()),
+              mint_url: z.string(),
+              mint_hint: z.string(),
+              connect: z.enum(["paste", "google_oauth"]),
+              probe: z.object({ kind: z.enum(["http", "google_refresh", "none"]) }).passthrough(),
+            })
+            .passthrough(),
+        ),
+        connect_script: z.string(),
+        instructions: z.string(),
+      })
+      .passthrough(),
     provenance_tag: z.literal("registry-grounded"),
     grounding_note: z.string(),
   })

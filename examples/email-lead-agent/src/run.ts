@@ -1,3 +1,4 @@
+import "./env.js";
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import { readNewLeads } from "./steps/emailRead.js";
@@ -39,7 +40,7 @@ async function main(): Promise<void> {
   try {
     // Step 1: email_read
     await emitDashEvent(runId, "step_started", "email_read");
-    const rawMessages = readNewLeads();
+    const rawMessages = await readNewLeads();
     summary.total = rawMessages.length;
     recordAuditEvent({ runId, componentId: "email_read", eventType: "step_completed", detail: `${rawMessages.length} message(s) read`, actor: "system" });
     await emitDashEvent(runId, "step_completed", "email_read", `${rawMessages.length} messages`);
@@ -120,8 +121,8 @@ async function main(): Promise<void> {
         {
           componentId: "crm_note_write",
           run: async () => {
-            const note = writeCrmNote(lead, `Inbound lead reply drafted and approved. Subject: ${draft.subject}`);
-            return note.emailId;
+            const note = await writeCrmNote(lead, `Inbound lead reply drafted and approved. Subject: ${draft.subject}`);
+            return note.via === "hubspot" ? `hubspot contact ${note.contactEmail}` : note.emailId;
           },
         },
         {

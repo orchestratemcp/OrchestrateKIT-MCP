@@ -36,6 +36,7 @@ import {
   type AgentManifest,
   type ManifestBuildTarget,
 } from "../lib/observabilityContract.js";
+import { buildConnectArtifacts, s11Connect, type ConnectArtifacts } from "../lib/connectContract.js";
 import { ExportBuildBriefOutputShape } from "./outputSchemas.js";
 
 // ──────────────────────────────── input ────────────────────────────────
@@ -221,6 +222,9 @@ export type BuildBriefOutput = {
     s8_definition_of_done: string;
     /** §9 event-wiring instructions for a DASH-monitored build (MAR-296). */
     s9_observability: string;
+    /** §11 fast-connect credential setup (MAR-364). (§10 is the artifact
+     * compiler paragraph, rendered only in brief_markdown — no s10 key.) */
+    s11_connect: string;
   };
   handoffs: {
     prompt?: string;
@@ -235,6 +239,13 @@ export type BuildBriefOutput = {
    * anywhere; it is data in the brief.
    */
   agent_manifest: AgentManifest;
+  /**
+   * Fast-connect artifacts (MAR-364): per-env-var credential manifest (provider,
+   * mint deep-link, live-probe spec) + the full source of scripts/connect.mjs
+   * to write into the built repo. Deterministic; probes run on the user's
+   * machine, never here.
+   */
+  connect: ConnectArtifacts;
   provenance_tag: "registry-grounded";
   grounding_note: string;
 };
@@ -597,6 +608,7 @@ function s8DefinitionOfDone(
 
   // Always-present operational gates
   lines.push(
+    "- [ ] Credentials connected + live-probed (`node scripts/connect.mjs --check` green — §11)",
     "- [ ] Credentials scoped to least-privilege (bounded permissions)",
     "- [ ] Dry-run / preview tested before any live action",
     "- [ ] Idempotency verified (safe to retry)",
@@ -1180,6 +1192,7 @@ function buildPromptHandoff(
   goal: string,
   sections: BuildBriefOutput["sections"],
   artifactPackage: BuildArtifactPackage,
+  connect: ConnectArtifacts,
 ): string {
   const sectionList = [
     sections.s0_constraints,
@@ -1205,7 +1218,9 @@ function buildPromptHandoff(
     `re-running plan_workflow. Your elaborations are 🔵 suggested — do not present ` +
     `them as registry facts.\n\n` +
     `---\n\n${sectionList}\n\n---\n\n` +
-    `Work through §8 Definition of Done before shipping. Then use the Tier 2 ` +
+    `Work through §8 Definition of Done before shipping. Write the result's ` +
+    `\`connect.connect_script\` field verbatim to \`${connect.script_path}\` in the built repo ` +
+    `(§11 — fast credential setup; do not retype it). Then use the Tier 2 ` +
     `artifact compiler package below as the build execution prompt.\n\n` +
     `---\n\n${artifactPackage.build_prompt}\n\n---\n\n` +
     `When done, call \`record_session_feedback\` with the completed route and ratings.`
@@ -1322,6 +1337,16 @@ export function exportBuildBrief(input: {
     generated_at: input.generated_at,
   });
 
+  // MAR-364: credential manifest + connect.mjs source, derived from the route.
+  const connect = buildConnectArtifacts({
+    route_steps: input.recommended_route.map((s) => ({
+      component_id: s.component_id,
+      model_tier: s.model_tier,
+    })),
+    agent_name: agent_manifest.agent.name,
+    registry_fingerprint: input.registry_fingerprint ?? registryContentFingerprint(),
+  });
+
   const sections: BuildBriefOutput["sections"] = {
     s0_constraints: s0Constraints(input.goal, input.approval_gate_advisory),
     s1_summary: s1Summary(
@@ -1349,6 +1374,7 @@ export function exportBuildBrief(input: {
       input.enforced_approval_gates,
     ),
     s9_observability: s9Observability(agent_manifest),
+    s11_connect: s11Connect(connect),
   };
 
   const sectionList = [
@@ -1387,11 +1413,13 @@ export function exportBuildBrief(input: {
     `The structured \`artifact_package\` field contains the epic, milestones, ` +
     `build prompt, Linear issue templates, field order, directives, and few-shot ` +
     `example. OrchestrateMCP compiled these artifacts only; it did not write to ` +
-    `Linear, Obsidian, or any external system.`;
+    `Linear, Obsidian, or any external system.` +
+    `\n\n---\n\n` +
+    sections.s11_connect;
 
   const handoffs: BuildBriefOutput["handoffs"] = {};
   if (input.handoff_targets.includes("prompt")) {
-    handoffs.prompt = buildPromptHandoff(input.goal, sections, artifact_package);
+    handoffs.prompt = buildPromptHandoff(input.goal, sections, artifact_package, connect);
   }
   if (input.handoff_targets.includes("linear")) {
     handoffs.linear = buildLinearHandoff(input.goal, sections, artifact_package);
@@ -1412,6 +1440,7 @@ export function exportBuildBrief(input: {
     handoffs,
     artifact_package,
     agent_manifest,
+    connect,
     provenance_tag: "registry-grounded",
     grounding_note:
       "OrchestrateMCP makes no LLM calls. Every component ID, edge relation, safety " +
