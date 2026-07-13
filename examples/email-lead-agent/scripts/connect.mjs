@@ -283,20 +283,29 @@ function openBrowser(url) {
 
 function ask(question, mask) {
   return new Promise(function (resolve) {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY });
-    if (mask && process.stdin.isTTY) {
-      const write = rl._writeToOutput.bind(rl);
-      rl._writeToOutput = function (s) {
-        if (s.includes(question)) write(s);
-        else if (s === '\r\n' || s === '\n') write(s);
-        else write('*');
-      };
+    // Piped/non-TTY stdin can already be exhausted from an earlier prompt — a
+    // readline created on an ended stream never resolves its question, so Node
+    // would exit 0 with the summary (and the failure exit code) silently
+    // skipped. Treat exhausted stdin as an empty answer instead.
+    if (!process.stdin.isTTY && (process.stdin.readableEnded || process.stdin.destroyed)) {
+      process.stdout.write(question + '(stdin exhausted)\n');
+      resolve('');
+      return;
     }
-    rl.question(question, function (answer) {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY });
+    let done = false;
+    const finish = function (answer) {
+      if (done) return;
+      done = true;
       rl.close();
       if (mask && process.stdin.isTTY) process.stdout.write('\n');
       resolve(answer.trim());
-    });
+    };
+    // Piped/non-TTY stdin can be exhausted mid-run — without this, a pending
+    // question never resolves and Node exits 0 with the summary (and the
+    // failure exit code) silently skipped.
+    rl.on('close', function () { finish(''); });
+    rl.question(question, finish);
   });
 }
 
