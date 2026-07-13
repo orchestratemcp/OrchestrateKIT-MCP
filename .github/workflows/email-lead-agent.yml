@@ -42,6 +42,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Verify agent tests
+        run: pnpm test -- tests/email-lead-agent.test.ts
+
       - name: Run agent (auto-approve, fixture data)
         run: npx tsx examples/email-lead-agent/src/run.ts --auto-approve
         env:

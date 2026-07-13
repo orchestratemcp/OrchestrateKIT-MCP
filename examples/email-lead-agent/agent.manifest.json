@@ -1,12 +1,12 @@
 {
   "manifest_version": 1,
   "agent": {
-    "name": "email-lead-to-crm",
+    "name": "email-lead-crm-slack-agent",
     "goal": "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.",
     "plan_source": "playbook",
     "playbook_id": "email_lead_to_crm",
     "route_id": "email_lead_crm_route_v1",
-    "build_target": "cursor"
+    "build_target": "code"
   },
   "planned_route": [
     {
@@ -87,11 +87,11 @@
     ],
     "endpoint_env": "DASH_INGEST_URL",
     "token_env": "DASH_INGEST_TOKEN",
-    "output_location": "Local filesystem: leads.jsonl audit log + console/Slack notifications; CRM writes stubbed to a local JSON file for v1"
+    "output_location": "local repo"
   },
   "provenance": {
     "generated_by": "orchestratekit-mcp export_build_brief",
     "registry_fingerprint": "26b95a7a03de9ffd",
-    "generated_at": "2026-07-12T08:59:52.146Z"
+    "generated_at": "2026-07-12T18:28:52.110Z"
   }
 }

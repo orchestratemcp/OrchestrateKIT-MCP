@@ -29,8 +29,9 @@ that flips it:
 
 Also wired: a DASH-shaped observability emitter (`src/dash.ts`) that POSTs to
 `DASH_INGEST_URL`/`DASH_INGEST_TOKEN` if set, otherwise appends the same
-event shape to `runtime/dash_events.jsonl` — and an idempotency guard
-(`runtime/processed_ids.json`) plus a file-based kill switch
+event shape to `runtime/dash_events.jsonl` — and idempotency guards
+(`runtime/processed_ids.json` for leads and `runtime/effect_ids.json` for
+post-approval Slack/CRM/draft effects) plus a file-based kill switch
 (`runtime/KILL_SWITCH` — create that file to make the next run abort before
 any step executes).
 
@@ -44,10 +45,12 @@ npx tsx examples/email-lead-agent/src/run.ts --auto-approve
 Drop `--auto-approve` to get the interactive y/n prompt instead. Output
 lands in `examples/email-lead-agent/runtime/` (gitignored):
 `audit.jsonl`, `crm_notes.json`, `slack_outbox.jsonl`,
-`outbound_drafts.jsonl`, `dash_events.jsonl`, `processed_ids.json`.
+`outbound_drafts.jsonl`, `dash_events.jsonl`, `processed_ids.json`,
+`effect_ids.json`.
 
 Re-running is safe — leads already recorded in `processed_ids.json` are
-skipped rather than re-alerted/re-written.
+skipped rather than re-alerted/re-written. For clean benchmark runs, set
+`EMAIL_LEAD_AGENT_RUNTIME_DIR` to a temporary directory.
 
 ## Tests
 

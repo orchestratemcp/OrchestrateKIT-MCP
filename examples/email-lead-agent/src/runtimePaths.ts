@@ -4,7 +4,9 @@ import fs from "node:fs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const AGENT_ROOT = path.resolve(here, "..");
-export const RUNTIME_DIR = path.join(AGENT_ROOT, "runtime");
+export const RUNTIME_DIR = process.env.EMAIL_LEAD_AGENT_RUNTIME_DIR
+  ? path.resolve(process.env.EMAIL_LEAD_AGENT_RUNTIME_DIR)
+  : path.join(AGENT_ROOT, "runtime");
 export const FIXTURES_DIR = path.join(AGENT_ROOT, "fixtures");
 
 export const PATHS = {
@@ -16,6 +18,7 @@ export const PATHS = {
   outboundDrafts: path.join(RUNTIME_DIR, "outbound_drafts.jsonl"),
   approvals: path.join(RUNTIME_DIR, "approvals.json"),
   processedIds: path.join(RUNTIME_DIR, "processed_ids.json"),
+  effectIds: path.join(RUNTIME_DIR, "effect_ids.json"),
   killSwitch: path.join(RUNTIME_DIR, "KILL_SWITCH"),
 };
 

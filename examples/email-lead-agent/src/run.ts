@@ -33,6 +33,7 @@ async function main(): Promise<void> {
   }
 
   const processedIds = new Set(readJsonArray<string>(PATHS.processedIds));
+  const effectIds = new Set(readJsonArray<string>(PATHS.effectIds));
   const summary = { total: 0, notLeads: 0, alreadyProcessed: 0, approved: 0, rejected: 0, failed: 0 };
 
   try {
@@ -108,42 +109,59 @@ async function main(): Promise<void> {
       }
       summary.approved++;
 
-      // Steps 6-8 only run after "approved". Each wrapped individually so
-      // one failure doesn't silently skip the audit trail for the others.
-      try {
-        await emitDashEvent(runId, "step_started", "slack_notification", lead.emailId);
-        const slackResult = await notifySlack(lead, approval.reviewer);
-        recordAuditEvent({ runId, componentId: "slack_notification", eventType: "step_completed", detail: `via=${slackResult.via}`, actor: "system" });
-        await emitDashEvent(runId, "step_completed", "slack_notification", slackResult.via);
-      } catch (err) {
-        recordAuditEvent({ runId, componentId: "slack_notification", eventType: "step_failed", detail: (err as Error).message, actor: "system" });
-        await emitDashEvent(runId, "run_failed", "slack_notification", (err as Error).message);
-        console.error(`slack_notification failed: ${(err as Error).message}`);
+      const downstream = [
+        {
+          componentId: "slack_notification",
+          run: async () => {
+            const slackResult = await notifySlack(lead, approval.reviewer);
+            return `via=${slackResult.via}`;
+          },
+        },
+        {
+          componentId: "crm_note_write",
+          run: async () => {
+            const note = writeCrmNote(lead, `Inbound lead reply drafted and approved. Subject: ${draft.subject}`);
+            return note.emailId;
+          },
+        },
+        {
+          componentId: "optional_email_send",
+          run: async () => {
+            queueOutboundDraft(draft);
+            return "queued draft-only";
+          },
+        },
+      ] as const;
+
+      let downstreamFailed = false;
+      for (const step of downstream) {
+        const effectKey = `${lead.emailId}:${step.componentId}`;
+        if (effectIds.has(effectKey)) {
+          console.log(`${step.componentId} already completed in a prior run - skipping duplicate effect.`);
+          recordAuditEvent({ runId, componentId: step.componentId, eventType: "step_skipped_idempotent", detail: effectKey, actor: "system" });
+          await emitDashEvent(runId, "step_completed", step.componentId, "idempotent-skip");
+          continue;
+        }
+
+        try {
+          await emitDashEvent(runId, "step_started", step.componentId, lead.emailId);
+          const detail = await step.run();
+          recordAuditEvent({ runId, componentId: step.componentId, eventType: "step_completed", detail, actor: "system" });
+          await emitDashEvent(runId, "step_completed", step.componentId, detail);
+          markEffect(effectIds, effectKey);
+        } catch (err) {
+          downstreamFailed = true;
+          recordAuditEvent({ runId, componentId: step.componentId, eventType: "step_failed", detail: (err as Error).message, actor: "system" });
+          await emitDashEvent(runId, "run_failed", step.componentId, (err as Error).message);
+          console.error(`${step.componentId} failed: ${(err as Error).message}`);
+        }
       }
 
-      try {
-        await emitDashEvent(runId, "step_started", "crm_note_write", lead.emailId);
-        const note = writeCrmNote(lead, `Inbound lead reply drafted and approved. Subject: ${draft.subject}`);
-        recordAuditEvent({ runId, componentId: "crm_note_write", eventType: "step_completed", detail: note.emailId, actor: "system" });
-        await emitDashEvent(runId, "step_completed", "crm_note_write", note.emailId);
-      } catch (err) {
-        recordAuditEvent({ runId, componentId: "crm_note_write", eventType: "step_failed", detail: (err as Error).message, actor: "system" });
-        await emitDashEvent(runId, "run_failed", "crm_note_write", (err as Error).message);
-        console.error(`crm_note_write failed: ${(err as Error).message}`);
+      if (downstreamFailed) {
+        summary.failed++;
+      } else {
+        markProcessed(processedIds, raw.id);
       }
-
-      try {
-        await emitDashEvent(runId, "step_started", "optional_email_send", lead.emailId);
-        queueOutboundDraft(draft);
-        recordAuditEvent({ runId, componentId: "optional_email_send", eventType: "step_completed", detail: "queued draft-only", actor: "system" });
-        await emitDashEvent(runId, "step_completed", "optional_email_send", "queued");
-      } catch (err) {
-        recordAuditEvent({ runId, componentId: "optional_email_send", eventType: "step_failed", detail: (err as Error).message, actor: "system" });
-        await emitDashEvent(runId, "run_failed", "optional_email_send", (err as Error).message);
-        console.error(`optional_email_send failed: ${(err as Error).message}`);
-      }
-
-      markProcessed(processedIds, raw.id);
     }
 
     recordAuditEvent({ runId, componentId: "audit_log", eventType: "run_completed", detail: JSON.stringify(summary), actor: "system" });
@@ -167,6 +185,11 @@ async function main(): Promise<void> {
 function markProcessed(set: Set<string>, id: string): void {
   set.add(id);
   writeJson(PATHS.processedIds, Array.from(set));
+}
+
+function markEffect(set: Set<string>, id: string): void {
+  set.add(id);
+  writeJson(PATHS.effectIds, Array.from(set));
 }
 
 main();
