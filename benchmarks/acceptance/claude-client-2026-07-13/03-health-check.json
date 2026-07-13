@@ -1,0 +1,20 @@
+{
+  "mode": "single",
+  "status": 200,
+  "contentType": "text/event-stream",
+  "ms": 47,
+  "payload": {
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"name\":\"orchestratekit-mcp\",\"version\":\"0.1.0\",\"registry\":{\"component_count\":64,\"edge_count\":151,\"stack_count\":1,\"route_count\":12,\"playbook_count\":12,\"worker_count\":4,\"untested_edge_pct\":0,\"stale_component_count\":0},\"build\":{\"fingerprint\":\"885bacdd6a086b45\",\"newest_mtime\":\"2026-07-05T11:45:24.744Z\",\"built_at\":\"2026-07-13T11:46:34.729Z\",\"stale\":false,\"stale_files\":[],\"process_started_at\":\"1970-01-01T00:00:00.000Z\",\"process_stale\":false},\"safe_to_demo\":true,\"demo_blockers\":[]}"
+        }
+      ]
+    },
+    "jsonrpc": "2.0",
+    "id": 3
+  },
+  "parseError": "",
+  "rawLength": 629
+}

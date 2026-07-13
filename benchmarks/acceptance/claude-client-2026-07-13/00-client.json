@@ -1,0 +1,7 @@
+{
+  "client": "Claude Code (Claude Agent SDK harness, desktop app on Windows 11)",
+  "model": "claude-fable-5",
+  "endpoint": "https://mcp.orchestratemcp.dev/mcp",
+  "timestamp_utc": "2026-07-13T16:03:17.549Z",
+  "note": "Raw JSON-RPC over streamable HTTP (no MCP SDK client) for wire-level evidence; the same session also exercised the endpoint through Claude Code's native MCP connector."
+}

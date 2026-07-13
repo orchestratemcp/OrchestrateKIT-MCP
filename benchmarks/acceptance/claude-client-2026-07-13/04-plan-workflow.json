@@ -1,0 +1,799 @@
+{
+  "mode": "single",
+  "status": 200,
+  "contentType": "text/event-stream",
+  "ms": 58,
+  "payload": {
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "✅ Validated · Full coverage · Approval enforced · Risk 27/100 · 0 untested edges\n\n## Email Lead → CRM + Slack\n\n**You want:** Read new Gmail leads, draft a reply, update CRM, and alert sales in Slack after human approval.\n\n**Route:** Email Read → Schema Validation → Intent Classifier → Email Draft → Human Approval Gate → Slack Notification → CRM Note Write → Optional Email Send → Audit Log\n\n**How it works**\n1. Read and extract lead data from the inbox.\n2. Validate/classify whether it is a real sales lead.\n3. Draft a reply for review.\n4. Pause for approval before any external write.\n5. After approval, update CRM and alert sales in Slack.\n6. Optionally send the approved email; v1 should probably stay draft-only.\n7. Write an audit log.\n\n**Connect:** Gmail inbox · CRM (HubSpot/Salesforce/Pipedrive) · Slack sales channel · optional email sender.\n\n**Key safeguard:** Keep the approval gate before CRM updates, Slack alerts, or sending. This is L3 human-in-the-loop by default.\n\n**Build controls:** Add state, retries, credential-failure handling, tests, and rollback/compensation in the build brief.\n\n### How do you want to continue?\n\nA) Save this plan to Linear / Obsidian / Notion\nB) Turn it into a prompt for CoWork / ChatGPT Agents\nC) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended\nD) Review or change the plan\n\n> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. For full details, call `output_depth: \"technical\"`. The exported build brief includes setup and monitoring details."
+        }
+      ],
+      "structuredContent": {
+        "plan_source": "playbook",
+        "goal": "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.",
+        "summary_markdown": "✅ Validated · Full coverage · Approval enforced · Risk 27/100 · 0 untested edges\n\n## Email Lead → CRM + Slack\n\n**You want:** Read new Gmail leads, draft a reply, update CRM, and alert sales in Slack after human approval.\n\n**Route:** Email Read → Schema Validation → Intent Classifier → Email Draft → Human Approval Gate → Slack Notification → CRM Note Write → Optional Email Send → Audit Log\n\n**How it works**\n1. Read and extract lead data from the inbox.\n2. Validate/classify whether it is a real sales lead.\n3. Draft a reply for review.\n4. Pause for approval before any external write.\n5. After approval, update CRM and alert sales in Slack.\n6. Optionally send the approved email; v1 should probably stay draft-only.\n7. Write an audit log.\n\n**Connect:** Gmail inbox · CRM (HubSpot/Salesforce/Pipedrive) · Slack sales channel · optional email sender.\n\n**Key safeguard:** Keep the approval gate before CRM updates, Slack alerts, or sending. This is L3 human-in-the-loop by default.\n\n**Build controls:** Add state, retries, credential-failure handling, tests, and rollback/compensation in the build brief.\n\n### How do you want to continue?\n\nA) Save this plan to Linear / Obsidian / Notion\nB) Turn it into a prompt for CoWork / ChatGPT Agents\nC) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended\nD) Review or change the plan\n\n> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. For full details, call `output_depth: \"technical\"`. The exported build brief includes setup and monitoring details.",
+        "recommended_route": [
+          {
+            "step": 1,
+            "component_id": "email_read",
+            "component_name": "Email Read",
+            "purpose": "Reads emails from a mailbox (IMAP or API) and extracts structured message data",
+            "risk_level": "low",
+            "model_tier": "none",
+            "fallback_tier": "none",
+            "context_need": "minimal",
+            "compression_strategy": "none"
+          },
+          {
+            "step": 2,
+            "component_id": "schema_validation",
+            "component_name": "Schema Validation",
+            "purpose": "Validates records against a defined schema before they proceed to downstream …",
+            "risk_level": "low",
+            "model_tier": "none",
+            "fallback_tier": "none",
+            "context_need": "minimal",
+            "compression_strategy": "none"
+          },
+          {
+            "step": 3,
+            "component_id": "intent_classifier",
+            "component_name": "Intent Classifier",
+            "purpose": "Classifies a user goal or message into a structured intent category to route …",
+            "risk_level": "low",
+            "model_tier": "small",
+            "fallback_tier": "none",
+            "context_need": "minimal",
+            "compression_strategy": "none"
+          },
+          {
+            "step": 4,
+            "component_id": "email_draft",
+            "component_name": "Email Draft",
+            "purpose": "Composes a draft email response based on context, instructions and a prior me…",
+            "risk_level": "medium",
+            "model_tier": "standard",
+            "fallback_tier": "small",
+            "context_need": "moderate",
+            "compression_strategy": "summarise"
+          },
+          {
+            "step": 5,
+            "component_id": "human_approval_gate",
+            "component_name": "Human Approval Gate",
+            "purpose": "Pauses the workflow and requires explicit human approval before any irreversi…",
+            "risk_level": "low",
+            "model_tier": "none",
+            "fallback_tier": "none",
+            "context_need": "minimal",
+            "compression_strategy": "none"
+          },
+          {
+            "step": 6,
+            "component_id": "slack_notification",
+            "component_name": "Slack Notification",
+            "purpose": "Sends a structured notification message to a Slack channel or user via the Sl…",
+            "risk_level": "high",
+            "model_tier": "none",
+            "fallback_tier": "none",
+            "context_need": "minimal",
+            "compression_strategy": "none"
+          },
+          {
+            "step": 7,
+            "component_id": "crm_note_write",
+            "component_name": "CRM Note Write",
+            "purpose": "Writes a structured note or activity record to a CRM system after human approval",
+            "risk_level": "high",
+            "model_tier": "small",
+            "fallback_tier": "none",
+            "context_need": "minimal",
+            "compression_strategy": "none"
+          },
+          {
+            "step": 8,
+            "component_id": "optional_email_send",
+            "component_name": "Optional Email Send",
+            "purpose": "Sends a composed email draft after receiving explicit human approval",
+            "risk_level": "high",
+            "model_tier": "none",
+            "fallback_tier": "none",
+            "context_need": "minimal",
+            "compression_strategy": "none"
+          },
+          {
+            "step": 9,
+            "component_id": "audit_log",
+            "component_name": "Audit Log",
+            "purpose": "Records every sensitive or external action taken by the workflow with timesta…",
+            "risk_level": "low",
+            "model_tier": "none",
+            "fallback_tier": "none",
+            "context_need": "minimal",
+            "compression_strategy": "none"
+          }
+        ],
+        "planning_order": [
+          "email_read",
+          "intent_classifier",
+          "schema_validation",
+          "email_draft",
+          "human_approval_gate",
+          "crm_note_write",
+          "optional_email_send",
+          "audit_log",
+          "slack_notification"
+        ],
+        "execution_order": [
+          "email_read",
+          "schema_validation",
+          "intent_classifier",
+          "email_draft",
+          "human_approval_gate",
+          "slack_notification",
+          "crm_note_write",
+          "optional_email_send",
+          "audit_log"
+        ],
+        "model_tier_profile": {
+          "frontier": [],
+          "standard": [
+            "email_draft"
+          ],
+          "small": [
+            "intent_classifier",
+            "crm_note_write"
+          ],
+          "none": [
+            "email_read",
+            "schema_validation",
+            "human_approval_gate",
+            "slack_notification",
+            "optional_email_send",
+            "audit_log"
+          ]
+        },
+        "playbook": {
+          "id": "email_lead_to_crm",
+          "title": "Email Lead to CRM with Follow-up",
+          "route_id": "email_lead_crm_route_v1",
+          "confidence": 0.85,
+          "recall": 0.88,
+          "precision": 0.78
+        },
+        "route_status": "validated",
+        "route_score": 65,
+        "confidence_label": "medium",
+        "stack": {
+          "id": "default_orchestratekit_stack",
+          "name": "Default OrchestrateKit Stack",
+          "summary": "Opinionated, conservative stack for local AI workflow MVPs. Prioritises simplicity, zero-config local operation and easy migration to hosted when you actually need it.\n"
+        },
+        "safety_review": {
+          "status": "warnings",
+          "risk_score": 27,
+          "blocking_issues": [],
+          "warnings": [
+            "No evals or test cases mentioned in the workflow design.",
+            "Multi-step workflow has no persistent state store declared.",
+            "External API/network calls present without a retry policy.",
+            "External integration(s) `crm_note_write`, `optional_email_send` have no credential-failure path. They will die silently when a token expires or a scope is revoked."
+          ],
+          "approval_gates_required": []
+        },
+        "credential_advisory": {
+          "components_requiring_credentials": [
+            {
+              "component_id": "email_read",
+              "required_scopes": [
+                "mailbox read scope"
+              ]
+            },
+            {
+              "component_id": "crm_note_write",
+              "required_scopes": [
+                "CRM contact or lead record"
+              ]
+            },
+            {
+              "component_id": "optional_email_send",
+              "required_scopes": [
+                "external email send"
+              ]
+            }
+          ],
+          "secret_manager_recommendation": "Provision credentials via a named secret manager (1Password, Doppler, HashiCorp Vault, or env + OIDC) with least-privilege scopes. OrchestrateMCP is advisory and never stores credentials."
+        },
+        "untested_edges": [],
+        "avoid_when_violations": [],
+        "enforced_approval_gates": [
+          "human_approval_gate"
+        ],
+        "approval_gate_advisory": null,
+        "coverage": {
+          "matched": [
+            {
+              "component_id": "crm_note_write",
+              "tokens": [
+                "after",
+                "approval",
+                "crm",
+                "lead",
+                "sales"
+              ]
+            },
+            {
+              "component_id": "email_draft",
+              "tokens": [
+                "draft",
+                "reply"
+              ]
+            },
+            {
+              "component_id": "email_read",
+              "tokens": [
+                "gmail",
+                "reads"
+              ]
+            },
+            {
+              "component_id": "human_approval_gate",
+              "tokens": [
+                "approval"
+              ]
+            },
+            {
+              "component_id": "optional_email_send",
+              "tokens": [
+                "after",
+                "approval"
+              ]
+            },
+            {
+              "component_id": "slack_notification",
+              "tokens": [
+                "slack"
+              ]
+            }
+          ],
+          "unmatched_demand": [],
+          "unsupported_supply": [],
+          "coverage_label": "full"
+        },
+        "evals_to_add": [
+          "[email_read] parse accuracy on diverse email formats (HTML, plain text, multipart)",
+          "[schema_validation] rejection rate on known-invalid test records",
+          "[reviewer_notification] delivery confirmation rate on a test reviewer set",
+          "[email_draft] tone adherence on diverse instruction sets",
+          "[human_approval_gate] time-to-approval latency on test approval flows"
+        ],
+        "design_notes": [],
+        "what_you_need": [
+          {
+            "component_id": "email_read",
+            "label": "Email provider — read inbox",
+            "product_examples": [
+              "Gmail",
+              "Outlook",
+              "IMAP"
+            ],
+            "scopes": [
+              "mailbox read scope"
+            ],
+            "auth_model": "OAuth2 (user-delegated)",
+            "mcp_server": {
+              "availability": "official",
+              "package": "@modelcontextprotocol/server-gmail",
+              "transport": "stdio",
+              "note": "Google OAuth consent screen verification required for production; skip with a test user during dev"
+            },
+            "required_scopes": [
+              "https://www.googleapis.com/auth/gmail.readonly"
+            ],
+            "gotchas": [
+              "Rate limit: 250 quota units / second per user — batch list + fetch calls",
+              "Refresh tokens expire after 6 months of non-use; build a token-rotation flow",
+              "Gmail API returns a thread list, not individual messages — call messages.get per ID"
+            ]
+          },
+          {
+            "component_id": "email_draft",
+            "label": "Email provider — draft / send",
+            "product_examples": [
+              "Gmail",
+              "Outlook",
+              "SMTP"
+            ],
+            "scopes": [],
+            "auth_model": "OAuth2 (user-delegated)",
+            "mcp_server": {
+              "availability": "official",
+              "package": "@modelcontextprotocol/server-gmail",
+              "transport": "stdio"
+            },
+            "required_scopes": [
+              "https://www.googleapis.com/auth/gmail.compose",
+              "https://www.googleapis.com/auth/gmail.send"
+            ],
+            "gotchas": [
+              "gmail.send scope is required even when sending a draft — compose alone is not enough",
+              "Send-as restrictions apply if the user has multiple identities; validate the From address"
+            ]
+          },
+          {
+            "component_id": "slack_notification",
+            "label": "Slack — send messages",
+            "product_examples": [
+              "Slack"
+            ],
+            "scopes": [
+              "external Slack channel post"
+            ],
+            "auth_model": "OAuth2 (bot token — create a Slack App and install to workspace)",
+            "mcp_server": {
+              "availability": "official",
+              "package": "@modelcontextprotocol/server-slack",
+              "transport": "stdio"
+            },
+            "required_scopes": [
+              "chat:write",
+              "channels:read"
+            ],
+            "gotchas": [
+              "Use the channel ID (e.g. C12345678), not the name — names can change without the ID changing",
+              "Bot must be invited to private channels before it can post; joining is not automatic",
+              "Rate limit: Tier 3 — ~1 message / second per channel for most apps"
+            ]
+          },
+          {
+            "component_id": "crm_note_write",
+            "label": "CRM — write contacts / notes",
+            "product_examples": [
+              "HubSpot",
+              "Salesforce",
+              "Notion"
+            ],
+            "scopes": [
+              "CRM contact or lead record"
+            ],
+            "auth_model": "Private App token (HubSpot) / OAuth2 (Salesforce)",
+            "mcp_server": {
+              "availability": "community",
+              "transport": "stdio",
+              "note": "No official HubSpot or Salesforce MCP; community implementations available on npm"
+            },
+            "required_scopes": [
+              "crm.objects.contacts.read",
+              "crm.objects.contacts.write",
+              "crm.objects.notes.write"
+            ],
+            "gotchas": [
+              "Upsert contacts by email to avoid duplicates — HubSpot does not deduplicate by default",
+              "Notes must be associated to a Contact, Deal, or Company via the associations API after creation",
+              "HubSpot rate limit: 100 API requests / 10 seconds per token"
+            ]
+          },
+          {
+            "component_id": "optional_email_send",
+            "label": "Email sender (transactional)",
+            "product_examples": [
+              "SendGrid",
+              "Resend",
+              "Gmail SMTP"
+            ],
+            "scopes": [
+              "external email send"
+            ],
+            "auth_model": "API key (Authorization: Bearer)",
+            "mcp_server": {
+              "availability": "none",
+              "transport": "none",
+              "note": "No MCP server; use the REST API directly (SendGrid v3 or Resend SDK)"
+            },
+            "required_scopes": [
+              "Mail Send (SendGrid)"
+            ],
+            "gotchas": [
+              "Verify sender domain (SPF, DKIM) before production — unverified domains land in spam",
+              "SendGrid free tier: 100 emails / day; Resend free tier: 3 000 emails / month",
+              "Store the API key in a secret manager, never in source code"
+            ]
+          }
+        ],
+        "suggested_next_actions": [
+          "[a] Ask me to generate the CoWork system prompt for this plan — paste it into a Claude Project to configure an assistant",
+          "[b] Call `export_build_brief({ handoff_targets: ['prompt'] })` for the full Cursor / Claude Code build spec",
+          "[c] Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON",
+          "Wire up the integrations: Gmail, Slack, HubSpot + 1 more (see what_you_need)",
+          "Call `review_workflow_design(...)` after building to validate your implementation against the plan"
+        ],
+        "next_action_menu": [
+          {
+            "id": "show_technical_plan",
+            "label": "Show the full technical plan (steps, model tiers, credentials, build team)",
+            "action": "plan_workflow({ output_depth: \"technical\" })"
+          },
+          {
+            "id": "generate_prompt",
+            "label": "Generate the CoWork or ChatGPT system prompt for this plan",
+            "action": "assistant:generate_prompt"
+          },
+          {
+            "id": "export_build_brief",
+            "label": "Export the full build brief (Cursor / Claude Code)",
+            "action": "export_build_brief({ handoff_targets: ['prompt'] })"
+          },
+          {
+            "id": "wire_integrations",
+            "label": "Wire up the integrations: Gmail, Slack, HubSpot +1 more",
+            "action": "see:what_you_need"
+          },
+          {
+            "id": "open_playbook",
+            "label": "Open the validated playbook `email_lead_to_crm`",
+            "action": "get_playbook({ id: \"email_lead_to_crm\" })"
+          },
+          {
+            "id": "review_after_build",
+            "label": "Validate your build against this plan",
+            "action": "review_workflow_design({ ... })"
+          },
+          {
+            "id": "log_feedback",
+            "label": "Record how the build went (feeds the evidence library)",
+            "action": "record_session_feedback({ ... })"
+          },
+          {
+            "id": "choose_hosting",
+            "label": "Choose hosting (recommended: manual run)",
+            "action": "see:hosting_and_monitoring.hosting"
+          },
+          {
+            "id": "wire_monitoring",
+            "label": "Wire monitoring (recommended: log to file)",
+            "action": "see:hosting_and_monitoring.monitoring"
+          }
+        ],
+        "clarifying_questions": [],
+        "hosting_and_monitoring": {
+          "hosting": {
+            "recommended": {
+              "id": "manual_local",
+              "label": "Manual, on-demand run from your own environment"
+            },
+            "alternatives": [],
+            "reason": ""
+          },
+          "monitoring": {
+            "recommended": {
+              "id": "log_to_file",
+              "label": "Log runs to a file or table you already have"
+            },
+            "alternatives": [],
+            "reason": ""
+          }
+        },
+        "goal_to_product_wizard": {
+          "steps": [
+            {
+              "step": 1,
+              "label": "Reads emails from a mailbox (IMAP or API) and extracts structured message data",
+              "detail": "low risk — safe to run automatically",
+              "component_id": "email_read"
+            },
+            {
+              "step": 2,
+              "label": "Validates records against a defined schema before they proceed to downstream …",
+              "detail": "low risk — safe to run automatically",
+              "component_id": "schema_validation"
+            },
+            {
+              "step": 3,
+              "label": "Classifies a user goal or message into a structured intent category to route …",
+              "detail": "low risk — safe to run automatically",
+              "component_id": "intent_classifier"
+            },
+            {
+              "step": 4,
+              "label": "Composes a draft email response based on context, instructions and a prior me…",
+              "detail": "medium risk — check its output before it feeds a write step",
+              "component_id": "email_draft"
+            },
+            {
+              "step": 5,
+              "label": "Pauses the workflow and requires explicit human approval before any irreversi…",
+              "detail": "low risk — safe to run automatically",
+              "component_id": "human_approval_gate"
+            },
+            {
+              "step": 6,
+              "label": "Sends a structured notification message to a Slack channel or user via the Sl…",
+              "detail": "high risk — pair with a human approval step before it runs",
+              "component_id": "slack_notification"
+            },
+            {
+              "step": 7,
+              "label": "Writes a structured note or activity record to a CRM system after human approval",
+              "detail": "high risk — pair with a human approval step before it runs",
+              "component_id": "crm_note_write"
+            },
+            {
+              "step": 8,
+              "label": "Sends a composed email draft after receiving explicit human approval",
+              "detail": "high risk — pair with a human approval step before it runs",
+              "component_id": "optional_email_send"
+            },
+            {
+              "step": 9,
+              "label": "Records every sensitive or external action taken by the workflow with timesta…",
+              "detail": "low risk — safe to run automatically",
+              "component_id": "audit_log"
+            }
+          ],
+          "connections_required": [
+            {
+              "id": "sources",
+              "label": "Data sources",
+              "items": [
+                "Gmail"
+              ]
+            },
+            {
+              "id": "secrets",
+              "label": "Secrets",
+              "items": [
+                "Gmail credentials",
+                "Slack credentials",
+                "HubSpot credentials",
+                "SendGrid credentials"
+              ]
+            },
+            {
+              "id": "destinations",
+              "label": "Destinations",
+              "items": [
+                "Gmail",
+                "Slack",
+                "HubSpot",
+                "SendGrid"
+              ]
+            },
+            {
+              "id": "approval",
+              "label": "Approval",
+              "items": [
+                "Human approval checkpoint"
+              ]
+            }
+          ],
+          "build_choices": [
+            {
+              "id": "cursor",
+              "label": "Cursor",
+              "kind": "build",
+              "best_for": "IDE-first implementation with project files open.",
+              "tradeoffs": "Fast for repo edits; needs a clear build brief.",
+              "recommended": false,
+              "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })"
+            },
+            {
+              "id": "claude_code",
+              "label": "Claude Code",
+              "kind": "build",
+              "best_for": "Terminal-first code generation and refactors.",
+              "tradeoffs": "Great for implementation; keep the route and tests explicit.",
+              "recommended": false,
+              "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })"
+            },
+            {
+              "id": "codex",
+              "label": "Codex",
+              "kind": "build",
+              "best_for": "Agentic repo work with tests, commits, and PR handoff.",
+              "tradeoffs": "Best once the scope is locked; answer clarifying questions first.",
+              "recommended": true,
+              "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'code' })"
+            },
+            {
+              "id": "cowork",
+              "label": "Cowork",
+              "kind": "build",
+              "best_for": "No-code assistant configuration and human-in-the-loop operation.",
+              "tradeoffs": "Less control over custom runtime details.",
+              "recommended": false,
+              "action": "assistant:generate_cowork_prompt"
+            },
+            {
+              "id": "gpt_agents",
+              "label": "GPT Agents",
+              "kind": "build",
+              "best_for": "ChatGPT-hosted assistant with Actions-style integrations.",
+              "tradeoffs": "Good UX; hosting/runtime control is more constrained.",
+              "recommended": false,
+              "action": "assistant:generate_chatgpt_gpt"
+            }
+          ],
+          "host_monitor_choices": [
+            {
+              "id": "local",
+              "label": "Local",
+              "kind": "host_monitor",
+              "best_for": "Manual or developer-operated runs.",
+              "tradeoffs": "Simple to start; uptime and alerts are on you.",
+              "recommended": true,
+              "action": "choose_hosting:local"
+            },
+            {
+              "id": "cron",
+              "label": "cron",
+              "kind": "host_monitor",
+              "best_for": "Scheduled jobs that do not need an inbound endpoint.",
+              "tradeoffs": "Requires logs and retry handling.",
+              "recommended": false,
+              "action": "choose_hosting:cron"
+            },
+            {
+              "id": "github_action",
+              "label": "GitHub Action",
+              "kind": "host_monitor",
+              "best_for": "Repo-bound scheduled or webhook workflows.",
+              "tradeoffs": "Convenient CI logs; less ideal for long-running jobs.",
+              "recommended": false,
+              "action": "choose_hosting:github_action"
+            },
+            {
+              "id": "hosted_endpoint",
+              "label": "Hosted endpoint",
+              "kind": "host_monitor",
+              "best_for": "Webhook or PR-triggered workflows that need to be reachable.",
+              "tradeoffs": "Requires deployment, logs, and failure alerts.",
+              "recommended": false,
+              "action": "choose_hosting:hosted_endpoint"
+            },
+            {
+              "id": "cowork",
+              "label": "Cowork",
+              "kind": "host_monitor",
+              "best_for": "Assistant-in-client workflows.",
+              "tradeoffs": "Depends on the client session and connected tools.",
+              "recommended": false,
+              "action": "choose_hosting:cowork"
+            }
+          ],
+          "artifact_choices": [
+            {
+              "id": "prompt",
+              "label": "Prompt",
+              "kind": "artifact",
+              "best_for": "Paste into a builder immediately.",
+              "tradeoffs": "Fastest artifact; less structured than issues.",
+              "recommended": false,
+              "action": "export_build_brief({ handoff_targets: ['prompt'] })"
+            },
+            {
+              "id": "linear_issues",
+              "label": "Linear issues",
+              "kind": "artifact",
+              "best_for": "Turning the plan into tracked implementation work.",
+              "tradeoffs": "plan_workflow does not write to Linear; export text only.",
+              "recommended": false,
+              "action": "export_build_brief({ handoff_targets: ['linear'] })"
+            },
+            {
+              "id": "obsidian",
+              "label": "Obsidian",
+              "kind": "artifact",
+              "best_for": "Keeping the plan in a local knowledge base.",
+              "tradeoffs": "plan_workflow does not write notes; export markdown only.",
+              "recommended": false,
+              "action": "export_build_brief({ handoff_targets: ['obsidian'] })"
+            },
+            {
+              "id": "build_brief",
+              "label": "Build brief",
+              "kind": "artifact",
+              "best_for": "Handing a locked scope to Cursor, Claude Code, or Codex.",
+              "tradeoffs": "Longer artifact; best after quick questions are answered.",
+              "recommended": true,
+              "action": "export_build_brief({ handoff_targets: ['prompt'] })"
+            }
+          ],
+          "clarifying_questions": [],
+          "recommended_next_click": {
+            "id": "build_brief",
+            "label": "Export Build brief for Codex",
+            "action": "export_build_brief({ handoff_targets: ['prompt'] })"
+          }
+        },
+        "worker_pipeline": null,
+        "worker_pipeline_pointer": "Omitted at output_depth \"brief\" — re-call plan_workflow with output_depth: \"technical\" to include the build-team worker contracts.",
+        "loop_guidance": null,
+        "automation_clearance": {
+          "level": "L3",
+          "autonomous_allowed": false,
+          "reason": "External write to a business system — human approval by default. Drop the gate only after ALL controls below are in place AND the route has earned validated status from logged ships; a stateless advisor cannot confirm that for you.",
+          "required_controls": [
+            "audit log — present",
+            "rollback / compensation — MISSING, add saga_compensation",
+            "test coverage — all in-route edges tested",
+            "bounded permissions (least-privilege scopes)",
+            "dry-run / preview before any live action",
+            "idempotency (safe to retry)",
+            "kill switch (operator can halt the run)"
+          ],
+          "highest_action_components": [
+            "crm_note_write",
+            "optional_email_send"
+          ]
+        },
+        "observability": {
+          "recommended_events": [
+            "run_started",
+            "step_started",
+            "step_completed",
+            "gate_requested",
+            "gate_resolved",
+            "run_completed",
+            "run_failed"
+          ],
+          "gate_events_required_for": [
+            "slack_notification",
+            "crm_note_write",
+            "optional_email_send"
+          ],
+          "endpoint_env": "DASH_INGEST_URL",
+          "token_env": "DASH_INGEST_TOKEN",
+          "note": "Emit a gate_requested → gate_resolved pair before each irreversible step (slack_notification, crm_note_write, optional_email_send). DASH flags an irreversible step_started with no preceding resolved gate. Call export_build_brief to get the agent.manifest.json and the event-wiring section for this plan."
+        },
+        "next_steps": [
+          "get_playbook({ id: \"email_lead_to_crm\" })",
+          "get_route({ id: \"email_lead_crm_route_v1\", include_component_details: true })",
+          "get_graph_component"
+        ],
+        "provenance": {
+          "model": "registry-deterministic",
+          "all_fields_are_registry_derived": true,
+          "field_tags": {
+            "recommended_route": "grounded",
+            "planning_order": "grounded",
+            "execution_order": "computed",
+            "model_tier_profile": "grounded",
+            "playbook": "grounded",
+            "route_status": "grounded",
+            "route_score": "computed",
+            "confidence_label": "computed",
+            "stack": "grounded",
+            "safety_review": "computed",
+            "credential_advisory": "computed",
+            "untested_edges": "grounded",
+            "avoid_when_violations": "computed",
+            "enforced_approval_gates": "computed",
+            "approval_gate_advisory": "advisory",
+            "coverage": "computed",
+            "automation_clearance": "computed",
+            "worker_pipeline": "grounded",
+            "worker_pipeline_pointer": "advisory",
+            "loop_guidance": "grounded",
+            "observability": "advisory",
+            "design_notes": "grounded",
+            "what_you_need": "computed",
+            "suggested_next_actions": "advisory",
+            "next_action_menu": "advisory",
+            "clarifying_questions": "advisory",
+            "hosting_and_monitoring": "computed",
+            "goal_to_product_wizard": "advisory",
+            "next_steps": "advisory"
+          },
+          "grounding_note": "OrchestrateMCP makes no LLM calls. Every field above is computed deterministically from component/edge/playbook/route YAML files in the registry. The reading agent MUST NOT present its own elaborations as if they were registry-derived — those are 🔵 suggested; registry fields are 🟢 grounded."
+        }
+      }
+    },
+    "jsonrpc": "2.0",
+    "id": 4
+  },
+  "parseError": "",
+  "rawLength": 23478
+}
