@@ -40,7 +40,7 @@ const MANIFEST = [
       "optional_email_send"
     ],
     "mint_url": "https://console.cloud.google.com/apis/credentials",
-    "mint_hint": "Create an OAuth client ID of type 'Desktop app' (Desktop clients accept the loopback redirect connect.mjs uses). Enable the Gmail API for the project first: https://console.cloud.google.com/apis/library/gmail.googleapis.com",
+    "mint_hint": "Create an OAuth client ID of type 'Desktop app' (Desktop clients accept the loopback redirect connect.mjs uses). Enable the Gmail API for the project first. Gmail: https://console.cloud.google.com/apis/library/gmail.googleapis.com",
     "connect": "paste",
     "format_hint": "ends with .apps.googleusercontent.com",
     "format_pattern": "\\.apps\\.googleusercontent\\.com$",
@@ -362,7 +362,17 @@ async function probeGoogleRefresh(spec, value, envMap) {
     });
     const data = await res.json();
     if (!res.ok) return { ok: false, detail: 'profile HTTP ' + res.status };
-    return { ok: true, detail: String(data[spec.success_field] || 'connected') };
+    const details = ['Gmail=' + String(data[spec.success_field] || 'connected')];
+    for (const check of spec.checks || []) {
+      const checkRes = await fetch(check.url, {
+        headers: { authorization: 'Bearer ' + accessToken },
+        signal: AbortSignal.timeout(15000),
+      });
+      const checkData = await checkRes.json();
+      if (!checkRes.ok) return { ok: false, detail: check.label + ' HTTP ' + checkRes.status };
+      details.push(check.label + '=' + String(check.success_field ? checkData[check.success_field] : 'connected'));
+    }
+    return { ok: true, detail: details.join(', ') };
   } catch (err) {
     return { ok: false, detail: String(err && err.message || err) };
   }

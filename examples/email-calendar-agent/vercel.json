@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.mjs": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/health",
+      "destination": "/api/index.mjs?operation=health"
+    },
+    {
+      "source": "/api/scan",
+      "destination": "/api/index.mjs?operation=scan"
+    },
+    {
+      "source": "/api/approve",
+      "destination": "/api/index.mjs?operation=approve"
+    }
+  ]
+}
