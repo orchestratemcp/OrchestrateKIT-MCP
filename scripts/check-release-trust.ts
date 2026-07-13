@@ -1,7 +1,7 @@
 /**
  * Release-trust gate (MAR-220).
  *
- * Three checks, run in CI via `pnpm verify`:
+ * Four checks, run in CI via `pnpm verify`:
  *
  *   1. The generated registry/docs bundles are NOT tracked in git. They are
  *      gitignored build artifacts (like dist/) — committing them re-introduces
@@ -12,11 +12,13 @@
  *      generated from older source — a lying artifact.
  *   3. The source registry meets the published count floor (MIN_COMPONENTS /
  *      MIN_EDGES). Mirrors the health_check safe_to_demo floor.
+ *   4. Public release/legal files and package metadata remain present and
+ *      aligned with the GitHub repository and product site.
  *
  * Exit 1 on any failure with an actionable message.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readRawEntries, defaultRegistryDir } from "../src/registry/registryLoader.js";
 import { assembleRegistry, computeRegistryStatus } from "../src/registry/registryAssembly.js";
@@ -30,6 +32,13 @@ const GENERATED_BUNDLES = [
 ];
 
 const failures: string[] = [];
+const REQUIRED_PUBLIC_FILES = [
+  "LICENSE",
+  "SECURITY.md",
+  "CONTRIBUTING.md",
+  "CHANGELOG.md",
+  "docs/releases/v0.1.0.md",
+] as const;
 
 // ── 1. generated bundles must not be tracked in git ──
 function isTracked(relPath: string): boolean | null {
@@ -108,6 +117,56 @@ if (status.component_count < MIN_COMPONENTS) {
 if (status.edge_count < MIN_EDGES) {
   failures.push(
     `edge_count ${status.edge_count} is below the floor ${MIN_EDGES} (MAR-220).`,
+  );
+}
+
+// ── 4. release/legal metadata must remain aligned ──
+for (const rel of REQUIRED_PUBLIC_FILES) {
+  if (!existsSync(join(ROOT, rel))) {
+    failures.push(`required public release file is missing: ${rel}.`);
+  }
+}
+
+const packageJson = JSON.parse(
+  readFileSync(join(ROOT, "package.json"), "utf8"),
+) as {
+  license?: string;
+  homepage?: string;
+  repository?: { url?: string } | string;
+  bugs?: { url?: string } | string;
+};
+
+if (packageJson.license !== "MIT") {
+  failures.push(
+    `package.json license must be MIT (found ${packageJson.license ?? "missing"}).`,
+  );
+}
+if (packageJson.homepage !== "https://orchestratemcp.dev") {
+  failures.push(
+    `package.json homepage must be https://orchestratemcp.dev (found ${packageJson.homepage ?? "missing"}).`,
+  );
+}
+
+const repositoryUrl =
+  typeof packageJson.repository === "string"
+    ? packageJson.repository
+    : packageJson.repository?.url;
+if (
+  repositoryUrl !==
+  "git+https://github.com/orchestratemcp/OrchestrateKIT-MCP.git"
+) {
+  failures.push(
+    "package.json repository must point to orchestratemcp/OrchestrateKIT-MCP.",
+  );
+}
+
+const bugsUrl =
+  typeof packageJson.bugs === "string"
+    ? packageJson.bugs
+    : packageJson.bugs?.url;
+if (bugsUrl !== "https://github.com/orchestratemcp/OrchestrateKIT-MCP/issues") {
+  failures.push(
+    "package.json bugs URL must point to the public GitHub issue tracker.",
   );
 }
 

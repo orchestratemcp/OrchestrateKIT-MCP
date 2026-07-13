@@ -2,6 +2,22 @@
   "name": "orchestratekit-mcp",
   "version": "0.1.0",
   "description": "Local stdio MCP server for OrchestrateKit — evidence-backed playbooks for AI workflow design.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orchestratemcp/OrchestrateKIT-MCP.git"
+  },
+  "homepage": "https://orchestratemcp.dev",
+  "bugs": {
+    "url": "https://github.com/orchestratemcp/OrchestrateKIT-MCP/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "workflow-planning",
+    "workflow-automation"
+  ],
   "type": "module",
   "scripts": {
     "dev": "tsx src/server.ts",
