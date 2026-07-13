@@ -356,6 +356,22 @@ async function probeGoogleRefresh(spec, value, envMap) {
   if (!clientId || !clientSecret) return { ok: false, detail: 'needs ' + spec.client_id_env + ' + ' + spec.client_secret_env + ' first' };
   try {
     const accessToken = await googleAccessToken(clientId, clientSecret, value);
+    if ((spec.required_scopes || []).length > 0) {
+      const tokenInfoRes = await fetch(
+        'https://oauth2.googleapis.com/tokeninfo?access_token=' + encodeURIComponent(accessToken),
+        { signal: AbortSignal.timeout(15000) },
+      );
+      const tokenInfo = await tokenInfoRes.json();
+      if (!tokenInfoRes.ok) return { ok: false, detail: 'tokeninfo HTTP ' + tokenInfoRes.status };
+      const grantedScopes = new Set(String(tokenInfo.scope || '').split(/\s+/).filter(Boolean));
+      const missingScopes = spec.required_scopes.filter(function (scope) { return !grantedScopes.has(scope); });
+      if (missingScopes.length > 0) {
+        return {
+          ok: false,
+          detail: 'missing Google OAuth scope(s): ' + missingScopes.join(', ') + '; re-run connect.mjs to grant them',
+        };
+      }
+    }
     const res = await fetch(spec.profile_url, {
       headers: { authorization: 'Bearer ' + accessToken },
       signal: AbortSignal.timeout(15000),
