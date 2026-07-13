@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  benchmarkArtifactMatches,
   buildPublicBenchmark,
   benchmarkSourceFingerprint,
   evaluateFixture,
@@ -18,6 +19,13 @@ describe("public benchmark", () => {
     expect(benchmarkSourceFingerprint("alpha\r\nbeta\r\n")).toBe(
       benchmarkSourceFingerprint("alpha\nbeta\n"),
     );
+  });
+
+  it("matches CRLF benchmark artifacts without hiding content changes", () => {
+    const canonical = "alpha\nbeta\n";
+
+    expect(benchmarkArtifactMatches("alpha\r\nbeta\r\n", canonical)).toBe(true);
+    expect(benchmarkArtifactMatches("alpha\r\nchanged\r\n", canonical)).toBe(false);
   });
 
   it("evaluates required and forbidden fixture assertions", () => {
@@ -70,11 +78,17 @@ describe("public benchmark", () => {
 
   it("keeps committed public artifacts synchronized", () => {
     const report = buildPublicBenchmark(root);
-    expect(readFileSync(join(root, "benchmarks/public/latest.json"), "utf8")).toBe(
-      serializePublicBenchmark(report),
-    );
-    expect(readFileSync(join(root, "benchmarks/public/README.md"), "utf8")).toBe(
-      `${renderPublicBenchmarkMarkdown(report)}\n`,
-    );
+    expect(
+      benchmarkArtifactMatches(
+        readFileSync(join(root, "benchmarks/public/latest.json"), "utf8"),
+        serializePublicBenchmark(report),
+      ),
+    ).toBe(true);
+    expect(
+      benchmarkArtifactMatches(
+        readFileSync(join(root, "benchmarks/public/README.md"), "utf8"),
+        `${renderPublicBenchmarkMarkdown(report)}\n`,
+      ),
+    ).toBe(true);
   });
 });

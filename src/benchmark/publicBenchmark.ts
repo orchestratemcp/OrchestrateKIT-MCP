@@ -132,6 +132,10 @@ export function benchmarkSourceFingerprint(value: string): string {
   return sha256(value.replace(/\r\n?/g, "\n"));
 }
 
+export function benchmarkArtifactMatches(actual: string, expected: string): boolean {
+  return actual.replace(/\r\n/g, "\n") === expected.replace(/\r\n/g, "\n");
+}
+
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {
