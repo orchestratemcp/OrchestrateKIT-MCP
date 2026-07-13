@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  buildFallbackDraft,
   encodeRawEmail,
   findAvailableSlots,
+  rankMeetingCandidates,
   safeTokenEqual,
   signApproval,
   toEmailMessage,
@@ -68,6 +70,10 @@ async function googleJson(url, accessToken, options = {}) {
 
 async function openRouterJson(messages, schemaName, schema) {
   requireConfig(["OPENROUTER_API_KEY"]);
+  const configuredTimeout = Number(process.env.OPENROUTER_TIMEOUT_MS ?? 12000);
+  const timeoutMs = Number.isFinite(configuredTimeout)
+    ? Math.min(20000, Math.max(3000, configuredTimeout))
+    : 12000;
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -85,6 +91,7 @@ async function openRouterJson(messages, schemaName, schema) {
         json_schema: { name: schemaName, strict: true, schema },
       },
     }),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const data = await response.json();
   if (!response.ok) throw new Error(`OpenRouter ${response.status}: ${JSON.stringify(data).slice(0, 400)}`);
@@ -126,25 +133,37 @@ async function scanInbox() {
   audit(runId, "step_completed", "email_read", `${messages.length} messages`, ++seq);
 
   audit(runId, "step_started", "intent_classifier", "classifying inbox candidates", ++seq);
-  const classification = await openRouterJson([
-    {
-      role: "system",
-      content: "Select one genuine request to schedule a meeting. Ignore newsletters, automated mail, and existing calendar notifications. Return no_match when none qualifies.",
-    },
-    {
-      role: "user",
-      content: JSON.stringify(messages.map((message, index) => ({ index, from: message.from, subject: message.subject, body: message.bodyText.slice(0, 1800) }))),
-    },
-  ], "meeting_request", {
-    type: "object",
-    additionalProperties: false,
-    required: ["intent", "messageIndex", "reason"],
-    properties: {
-      intent: { enum: ["schedule_meeting", "no_match"] },
-      messageIndex: { type: "integer", minimum: -1, maximum: Math.max(-1, messages.length - 1) },
-      reason: { type: "string" },
-    },
-  });
+  const candidates = rankMeetingCandidates(messages);
+  let classification;
+  try {
+    classification = await openRouterJson([
+      {
+        role: "system",
+        content: "Select one genuine request to schedule a meeting. Ignore newsletters, automated mail, and existing calendar notifications. Return no_match when none qualifies.",
+      },
+      {
+        role: "user",
+        content: JSON.stringify(candidates.map(({ message, index }) => ({ index, from: message.from, subject: message.subject, body: message.bodyText.slice(0, 1200) }))),
+      },
+    ], "meeting_request", {
+      type: "object",
+      additionalProperties: false,
+      required: ["intent", "messageIndex", "reason"],
+      properties: {
+        intent: { enum: ["schedule_meeting", "no_match"] },
+        messageIndex: { type: "integer", minimum: -1, maximum: Math.max(-1, messages.length - 1) },
+        reason: { type: "string" },
+      },
+    });
+  } catch (error) {
+    const fallback = candidates.find((candidate) => candidate.score > 0);
+    if (!fallback) throw error;
+    classification = {
+      value: { intent: "schedule_meeting", messageIndex: fallback.index, reason: "deterministic meeting-request fallback" },
+      model: "deterministic-fallback",
+    };
+    audit(runId, "step_fallback", "intent_classifier", `OpenRouter unavailable: ${error.name ?? "error"}`, ++seq);
+  }
   if (classification.value.intent !== "schedule_meeting" || !messages[classification.value.messageIndex]) {
     throw new Error(`No meeting request found: ${classification.value.reason}`);
   }
@@ -168,25 +187,31 @@ async function scanInbox() {
   audit(runId, "step_completed", "calendar_lookup", slots.map((slot) => slot.label).join(" | "), ++seq);
 
   audit(runId, "step_started", "email_draft", message.id, ++seq);
-  const drafted = await openRouterJson([
-    {
-      role: "system",
-      content: "Draft a concise, warm reply offering exactly the two supplied slots. Do not claim anything is booked. Return plain text without markdown. Also propose a short calendar title.",
-    },
-    {
-      role: "user",
-      content: JSON.stringify({ sender: message.from, subject: message.subject, body: message.bodyText.slice(0, 3000), slots: slots.map((slot) => slot.label), timeZone }),
-    },
-  ], "meeting_reply", {
-    type: "object",
-    additionalProperties: false,
-    required: ["subject", "bodyText", "eventTitle"],
-    properties: {
-      subject: { type: "string" },
-      bodyText: { type: "string" },
-      eventTitle: { type: "string" },
-    },
-  });
+  let drafted;
+  try {
+    drafted = await openRouterJson([
+      {
+        role: "system",
+        content: "Draft a concise, warm reply offering exactly the two supplied slots. Do not claim anything is booked. Return plain text without markdown. Also propose a short calendar title.",
+      },
+      {
+        role: "user",
+        content: JSON.stringify({ sender: message.from, subject: message.subject, body: message.bodyText.slice(0, 3000), slots: slots.map((slot) => slot.label), timeZone }),
+      },
+    ], "meeting_reply", {
+      type: "object",
+      additionalProperties: false,
+      required: ["subject", "bodyText", "eventTitle"],
+      properties: {
+        subject: { type: "string" },
+        bodyText: { type: "string" },
+        eventTitle: { type: "string" },
+      },
+    });
+  } catch (error) {
+    drafted = { value: buildFallbackDraft({ message, slots, timeZone }), model: "deterministic-fallback" };
+    audit(runId, "step_fallback", "email_draft", `OpenRouter unavailable: ${error.name ?? "error"}`, ++seq);
+  }
   audit(runId, "step_completed", "email_draft", `model=${drafted.model}`, ++seq);
 
   const approvalId = randomUUID();
