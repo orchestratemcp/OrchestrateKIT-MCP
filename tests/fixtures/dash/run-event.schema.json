@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orchestratemcp.dev/orchestratedash/contracts/run-event.schema.json",
+  "title": "OrchestrateDASH run event v1",
+  "description": "POSTed by a running agent to {endpoint_env}/api/events with an Authorization: Bearer {token_env} header. One JSON object per event; the endpoint also accepts a JSON array for batching, each item validated independently against this schema. additionalProperties is intentionally left open per the contract's additive-versioning rule.",
+  "type": "object",
+  "required": ["event_version", "agent", "run_id", "seq", "ts", "type"],
+  "properties": {
+    "event_version": {
+      "const": 1
+    },
+    "agent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Must match agent.name in the manifest DASH imported for this run."
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Any unique-per-run string."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonically increasing within the run; DASH uses it to detect gaps/out-of-order delivery."
+    },
+    "ts": { "type": "string", "format": "date-time" },
+    "type": {
+      "enum": [
+        "run_started",
+        "step_started",
+        "step_completed",
+        "gate_requested",
+        "gate_resolved",
+        "run_completed",
+        "run_failed"
+      ]
+    },
+    "component_id": {
+      "type": "string",
+      "description": "planned_route component id when the step maps to one; a free string when the build drifted from the plan — DASH renders unmapped ids as drift."
+    },
+    "status": {
+      "enum": ["ok", "error", "skipped", "pending"]
+    },
+    "model": {
+      "type": "string",
+      "description": "OpenRouter model slug when an LLM ran this step, e.g. anthropic/claude-sonnet-4-6."
+    },
+    "tokens_in": { "type": "integer", "minimum": 0 },
+    "tokens_out": { "type": "integer", "minimum": 0 },
+    "cost_usd": { "type": "number", "minimum": 0 },
+    "detail": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "Short human hint. No message bodies, no PII, no secrets — the contract's no-secrets-in-events rule."
+    }
+  }
+}
