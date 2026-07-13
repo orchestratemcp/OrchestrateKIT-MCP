@@ -22,7 +22,7 @@ ChatGPT / Claude / Cursor uses. You should see:
 | Section | Proves | Issue |
 |---|---|---|
 | Tool discovery | 18 tools registered; 6 declare an output schema | MAR-163 |
-| `health_check` | 64 components · 151 edges · 12 playbooks · 4 workers; **151/151 (100%) edges validated** | MAR-164 |
+| `health_check` | 64 components · 151 connections · 12 published playbooks · 4 workers; **151/151 connections have registry test references** (not end-to-end production certification) | MAR-164 |
 | `plan_workflow` (real plan) | a composed route + the status-header block + `structuredContent` returned | MAR-101 / MAR-163 |
 | `plan_workflow` (guard) | echoed preamble → `status: needs_goal` instead of a fabricated plan | MAR-162 |
 | `plan_workflow` (negation) | "drafts only, … no email" → **no email steps leak** into the route | MAR-161 |
