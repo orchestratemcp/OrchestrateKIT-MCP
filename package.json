@@ -34,10 +34,13 @@
     "export:safe": "tsx scripts/export-safe.ts",
     "export:safe:check": "tsx scripts/check-safe-export.ts",
     "probe": "tsx scripts/node-probes.ts",
+    "benchmark": "pnpm gen:registry && tsx scripts/public-benchmark.ts",
+    "benchmark:write": "pnpm gen:registry && tsx scripts/public-benchmark.ts --write",
+    "benchmark:check": "pnpm gen:registry && tsx scripts/public-benchmark.ts --check",
     "demo": "tsx scripts/smoke-demo.ts",
     "smoke": "vitest run tests/smoke",
     "release:check": "tsx scripts/check-release-trust.ts",
-    "verify": "pnpm gen:registry && pnpm typecheck && pnpm registry:lint && pnpm test && pnpm release:check"
+    "verify": "pnpm gen:registry && pnpm typecheck && pnpm registry:lint && pnpm benchmark:check && pnpm test && pnpm release:check"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

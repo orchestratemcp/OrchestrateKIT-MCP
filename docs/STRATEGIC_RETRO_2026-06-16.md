@@ -15,7 +15,7 @@ You have built a genuinely good *advisory* product and an impressive amount of i
 ## 1. State of the project / retro (honest)
 
 ### What's genuinely strong
-- **The trust spine is real and differentiated.** Untested-edge honesty, deterministic safety augmenter, advisory approval gates, plain-language `explain_component`, credential advisory. The M2 benchmark (+4.7 C−B) showed the graph adds *specificity and honesty about what's unproven* — that's a real, rare value.
+- **The trust spine is real and differentiated.** Untested-edge honesty, deterministic safety augmenter, advisory approval gates, plain-language `explain_component`, credential advisory. The archived M2 benchmark reported +4.7 C−B and suggested the graph adds *specificity and honesty about what's unproven*; because the protocol later identified isolation flaws, treat that uplift as a hypothesis pending a clean rerun.
 - **The matcher-fix flywheel works end-to-end.** Dogfood session → Lab finding → Linear issue → node-probe (xfail) → fix → corpus-lock → CI gate. MAR-127/128/130/131/132/133/140/142 all came out of this loop. This is a mature engineering discipline most solo projects never reach.
 - **Discipline held where it mattered:** stateless/advisory founding constraint survived the credential question (MAR-117 → advisory, not vault). That was the right call and it's the moat.
 
@@ -51,7 +51,7 @@ A close second bottleneck, newly created: **the target user can't reach the prod
 You asked for one build-time USP and one in-loop USP. Here are the most defensible.
 
 ### Build-time USP: **"The planner that tells you what's unproven and where you'll get hurt."**
-Honest, graph-grounded, safety-aware planning in plain language. Untested-edge warnings + advisory approval gates + per-step risk + plain-English component explanations. This is defensible because it's *evidence-backed honesty* — competitors (generic GPT planning) confidently hallucinate; you flag what hasn't been validated and refuse to silently drop a safety gate. **This is your strongest, most ownable hook and it exists today.**
+Honest, graph-grounded, safety-aware planning in plain language. Untested-edge warnings + advisory approval gates + per-step risk + plain-English component explanations. The current implementation deterministically flags registry gaps and refuses to silently drop a safety gate. That behavior is the strongest, most ownable hook; comparative claims about other planners or model-quality uplift require a fresh controlled evaluation.
 
 ### In-loop USP: **the watchdog coworker + connection-context utility — NOT the vault, NOT runtime model-switching.**
 The defensible embedded hook is the thing only a *persistent companion* can do and that nobody bundles with planning: **"I know which keys each step needs, I can tell you what's still unconnected, and I'll warn you if your live flow stalls or starts doing something risky."** Health checks, drift/staleness warnings, connection-readiness. This keeps you in the loop without making you a credential custodian or a runtime engine.

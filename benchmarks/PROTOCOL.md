@@ -1,5 +1,10 @@
 # OrchestrateKit MCP — Benchmark Protocol v2
 
+> Public automation boundary: `pnpm benchmark` reproduces deterministic registry
+> conformance only. It does not run or score LLM conditions A/B/C. Current public
+> artifacts live in [`benchmarks/public/`](public/); model-quality comparisons
+> still require the isolated client procedure below.
+
 **Version:** 2.0  
 **Supersedes:** `docs/BENCHMARKING.md` (v0.1 running notes)  
 **Registry files:** `benchmarks/prompts-v2.yaml`, `benchmarks/rubric-v2.yaml`  
