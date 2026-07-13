@@ -359,6 +359,80 @@ describe("export_build_brief — handoff targets (MAR-205)", () => {
   });
 });
 
+describe("export_build_brief delivery contract (PKG-W0-BRIEF-SIZE)", () => {
+  const GOAL =
+    "Build an agent that reads new leads from Gmail, drafts a reply, updates CRM, and alerts sales in Slack after approval.";
+
+  function deliveryPair() {
+    const plan = planWorkflow(
+      { goal: GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "technical" },
+      registry,
+    );
+    const handoffTargets: ("prompt" | "linear" | "obsidian")[] = ["prompt", "linear", "obsidian"];
+    const input = {
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates,
+      untested_edges: plan.untested_edges,
+      avoid_when_violations: plan.avoid_when_violations,
+      evals_to_add: plan.evals_to_add,
+      design_notes: plan.design_notes,
+      worker_pipeline: plan.worker_pipeline,
+      loop_guidance: plan.loop_guidance,
+      approval_gate_advisory: plan.approval_gate_advisory,
+      handoff_targets: handoffTargets,
+      generated_at: "2026-07-13T00:00:00.000Z",
+    };
+    return {
+      omitted: exportBuildBrief(input),
+      compact: exportBuildBrief({ ...input, delivery_mode: "compact" }),
+      full: exportBuildBrief({ ...input, delivery_mode: "full" }),
+    };
+  }
+
+  it("keeps omission backward-compatible with full delivery", () => {
+    const { omitted, full } = deliveryPair();
+    expect(omitted.delivery.mode).toBe("full");
+    expect(omitted.artifact_package).toEqual(full.artifact_package);
+    expect(omitted.brief_markdown).toBe(full.brief_markdown);
+    expect(omitted.handoffs).toEqual(full.handoffs);
+  });
+
+  it("compact omits only the large artifact package and duplicated handoffs", () => {
+    const { compact, full } = deliveryPair();
+    expect(compact).not.toHaveProperty("artifact_package");
+    expect(compact.delivery.omitted_fields).toContain("artifact_package");
+    expect(compact.delivery.artifact_fingerprint).toBe(full.delivery.artifact_fingerprint);
+    expect(compact.delivery.artifact_bytes).toBe(full.delivery.artifact_bytes);
+    expect(compact.artifact_index).toEqual(full.artifact_index);
+    expect(compact.sections).toEqual(full.sections);
+    expect(compact.agent_manifest).toEqual(full.agent_manifest);
+    expect(compact.connect).toEqual(full.connect);
+  });
+
+  it("keeps safety, Definition of Done, Connect, and deterministic full replay inline", () => {
+    const { compact } = deliveryPair();
+    expect(compact.brief_markdown).toContain(compact.sections.s5_safety);
+    expect(compact.brief_markdown).toContain(compact.sections.s8_definition_of_done);
+    expect(compact.brief_markdown).toContain(compact.sections.s11_connect);
+    expect(compact.brief_markdown).toContain(compact.delivery.full_request.instruction);
+    expect(compact.connect.connect_script).toBeTruthy();
+    expect(compact.agent_manifest).toBeTruthy();
+  });
+
+  it("keeps the canonical compact response below 90 KB and at least 4x smaller", () => {
+    const { compact, full } = deliveryPair();
+    const compactBytes = new TextEncoder().encode(JSON.stringify(compact)).byteLength;
+    const fullBytes = new TextEncoder().encode(JSON.stringify(full)).byteLength;
+    expect(compactBytes).toBeLessThan(90 * 1024);
+    expect(fullBytes / compactBytes).toBeGreaterThan(4);
+  });
+});
+
 describe("export_build_brief - Tier 2 artifact compiler (MAR-249)", () => {
   it("emits epic -> milestones -> Linear issue templates with the full field set", () => {
     const b = planAndBrief(

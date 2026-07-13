@@ -699,7 +699,7 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
     expect(cowork.find((a) => a.id === "export_build_brief")).toBeUndefined();
 
     const cursor = at("read emails and draft a reply", "cursor").next_action_menu;
-    expect(cursor.find((a) => a.id === "export_build_brief")).toBeDefined();
+    expect(cursor.find((a) => a.id === "export_build_brief")!.action).toContain("delivery_mode: 'compact'");
     expect(cursor.find((a) => a.id === "generate_prompt")).toBeUndefined();
 
     const gpt = at("read emails and draft a reply", "chatgpt_gpt").next_action_menu;

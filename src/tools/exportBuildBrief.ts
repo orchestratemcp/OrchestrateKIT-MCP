@@ -24,6 +24,7 @@
  * paste-ready artifact; the human takes it to their IDE or Lab.
  */
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
@@ -178,6 +179,15 @@ export const InputShape = {
       "'linear' = Linear issue description, 'obsidian' = Obsidian note. " +
       "Defaults to prompt only.",
     ),
+  delivery_mode: z
+    .enum(["compact", "full"])
+    .optional()
+    .describe(
+      "Response size tier. 'compact' keeps the complete brief, safety controls, DASH manifest, " +
+      "and connect artifacts inline while indexing the large issue-template package. 'full' " +
+      "includes every generated issue template and rendered handoff. Omission preserves the " +
+      "legacy full response contract; the plan_workflow wizard requests compact explicitly.",
+    ),
   // ── MAR-296 / DASH-02: agent.manifest.json inputs (all optional) ──
   playbook_id: z
     .string()
@@ -206,7 +216,34 @@ export const InputShape = {
 
 // ──────────────────────────────── output ───────────────────────────────
 
+export type BuildBriefDelivery = {
+  contract: "export_build_brief.delivery.v1";
+  mode: "compact" | "full";
+  artifact_fingerprint: string;
+  artifact_bytes: number;
+  full_artifact_available: true;
+  full_request: {
+    tool: "export_build_brief";
+    reuse_same_arguments: true;
+    arguments_delta: { delivery_mode: "full" };
+    instruction: string;
+  };
+  omitted_fields: string[];
+};
+
+export type BuildArtifactIndex = {
+  compiler: "export_build_brief.artifact_compiler.v1";
+  status: "compiled";
+  artifact_fingerprint: string;
+  artifact_bytes: number;
+  epic: BuildArtifactPackage["epic"];
+  milestones: BuildArtifactPackage["milestones"];
+  issues: Array<{ id: string; milestone_id: string; title: string }>;
+  full_contains: string[];
+};
+
 export type BuildBriefOutput = {
+  delivery: BuildBriefDelivery & { mode: "full" };
   brief_markdown: string;
   sections: {
     s0_constraints: string;
@@ -231,6 +268,7 @@ export type BuildBriefOutput = {
     linear?: string;
     obsidian?: string;
   };
+  artifact_index: BuildArtifactIndex;
   artifact_package: BuildArtifactPackage;
   /**
    * The `agent.manifest.json` for this plan (MAR-296 / DASH-02) — deterministic,
@@ -249,6 +287,13 @@ export type BuildBriefOutput = {
   provenance_tag: "registry-grounded";
   grounding_note: string;
 };
+
+export type CompactBuildBriefOutput = Omit<BuildBriefOutput, "delivery" | "artifact_package"> & {
+  delivery: BuildBriefDelivery & { mode: "compact" };
+  artifact_package?: never;
+};
+
+export type AnyBuildBriefOutput = BuildBriefOutput | CompactBuildBriefOutput;
 
 type ArtifactFieldValue = string | string[];
 
@@ -314,6 +359,80 @@ export type BuildArtifactPackage = {
   build_prompt: string;
   linear_issue_template_markdown: string;
 };
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, child]) => [key, canonicalize(child)]),
+    );
+  }
+  return value;
+}
+
+export function canonicalArtifactJson(artifact: BuildArtifactPackage): string {
+  return JSON.stringify(canonicalize(artifact));
+}
+
+function artifactIdentity(artifact: BuildArtifactPackage): {
+  artifact_fingerprint: string;
+  artifact_bytes: number;
+} {
+  const canonical = canonicalArtifactJson(artifact);
+  return {
+    artifact_fingerprint: `sha256:${createHash("sha256").update(canonical).digest("hex")}`,
+    artifact_bytes: new TextEncoder().encode(canonical).byteLength,
+  };
+}
+
+function buildArtifactIndex(
+  artifact: BuildArtifactPackage,
+  identity: ReturnType<typeof artifactIdentity>,
+): BuildArtifactIndex {
+  return {
+    compiler: artifact.compiler,
+    status: artifact.status,
+    ...identity,
+    epic: artifact.epic,
+    milestones: artifact.milestones,
+    issues: artifact.linear_issue_templates.map(({ id, milestone_id, title }) => ({
+      id,
+      milestone_id,
+      title,
+    })),
+    full_contains: [
+      "scope confirmation and directives",
+      "complete structured fields for every implementation issue",
+      "rendered Linear issue Markdown",
+      "builder execution prompt",
+      "few-shot issue example",
+    ],
+  };
+}
+
+function buildDelivery(
+  mode: "compact" | "full",
+  identity: ReturnType<typeof artifactIdentity>,
+): BuildBriefDelivery {
+  return {
+    contract: "export_build_brief.delivery.v1",
+    mode,
+    ...identity,
+    full_artifact_available: true,
+    full_request: {
+      tool: "export_build_brief",
+      reuse_same_arguments: true,
+      arguments_delta: { delivery_mode: "full" },
+      instruction:
+        "Repeat this export_build_brief call with the same confirmed plan arguments and delivery_mode 'full'.",
+    },
+    omitted_fields: mode === "compact"
+      ? ["artifact_package", "full rendered prompt/Linear handoffs"]
+      : [],
+  };
+}
 
 // ────────────────────────────── helpers ────────────────────────────────
 
@@ -1188,6 +1307,39 @@ function buildArtifactPackage(input: {
 
 // ─────────────────────────── handoff formatters ───────────────────────────
 
+function buildCompactPromptHandoff(goal: string, delivery: BuildBriefDelivery): string {
+  return (
+    `Use the structured \`brief_markdown\` as the implementation-ready plan for:\n\n` +
+    `> ${goal}\n\n` +
+    `Preserve every safety control and Definition of Done item. Write ` +
+    `\`connect.connect_script\` verbatim to \`connect.script_path\`; do not retype credentials. ` +
+    `The large issue-template bundle is intentionally outside this compact response. ` +
+    `${delivery.full_request.instruction} Full artifact fingerprint: ` +
+    `\`${delivery.artifact_fingerprint}\`.`
+  );
+}
+
+function buildCompactLinearHandoff(
+  goal: string,
+  sections: BuildBriefOutput["sections"],
+  artifactIndex: BuildArtifactIndex,
+  delivery: BuildBriefDelivery,
+): string {
+  const issues = artifactIndex.issues
+    .map((issue) => `- \`${issue.id}\` (${issue.milestone_id}) — ${issue.title}`)
+    .join("\n");
+  return (
+    `## Build brief (compact delivery)\n\n` +
+    `**Goal:** ${goal}\n\n` +
+    `${sections.s1_summary}\n\n${sections.s2_route}\n\n` +
+    `${sections.s5_safety}\n\n${sections.s8_definition_of_done}\n\n` +
+    `## Planned issues\n\n${issues}\n\n` +
+    `The complete rendered issue descriptions are available in full mode. ` +
+    `${delivery.full_request.instruction} Artifact fingerprint: ` +
+    `\`${delivery.artifact_fingerprint}\`. No Linear write was performed.`
+  );
+}
+
 function buildPromptHandoff(
   goal: string,
   sections: BuildBriefOutput["sections"],
@@ -1282,7 +1434,7 @@ function buildObsidianHandoff(
 
 // ─────────────────────────── core ───────────────────────────
 
-export function exportBuildBrief(input: {
+export type ExportBuildBriefInput = {
   goal: string;
   plan_source: "playbook" | "composed";
   route_status: string;
@@ -1303,6 +1455,7 @@ export function exportBuildBrief(input: {
   } | null;
   approval_gate_advisory?: { gate: string; write_components: string[]; reason: string } | null;
   handoff_targets: ("prompt" | "linear" | "obsidian")[];
+  delivery_mode?: "compact" | "full";
   // ── MAR-296 / DASH-02 (all optional; sensible deterministic defaults) ──
   playbook_id?: string;
   route_id?: string;
@@ -1313,7 +1466,17 @@ export function exportBuildBrief(input: {
   registry_fingerprint?: string;
   /** Manifest timestamp; injectable so tests/snapshots stay deterministic. */
   generated_at?: string;
-}): BuildBriefOutput {
+};
+
+export function exportBuildBrief(
+  input: ExportBuildBriefInput & { delivery_mode: "compact" },
+): CompactBuildBriefOutput;
+export function exportBuildBrief(
+  input: ExportBuildBriefInput & { delivery_mode?: "full" },
+): BuildBriefOutput;
+export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOutput;
+export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOutput {
+  const deliveryMode = input.delivery_mode ?? "full";
   const routeComponents = input.recommended_route.map((s) => s.component_id);
 
   // MAR-296: deterministic agent.manifest.json for DASH (no network, no LLM).
@@ -1401,8 +1564,28 @@ export function exportBuildBrief(input: {
     enforced_approval_gates: input.enforced_approval_gates,
     untested_edges: input.untested_edges,
   });
+  const artifactIdentityValue = artifactIdentity(artifact_package);
+  const artifact_index = buildArtifactIndex(artifact_package, artifactIdentityValue);
+  const delivery = buildDelivery(deliveryMode, artifactIdentityValue);
 
-  const brief_markdown =
+  const artifactCompilerSection = deliveryMode === "compact"
+    ? (
+      `**§10 Tier 2 artifact compiler** _(compact delivery; deterministic, no writes)_\n\n` +
+      `The structured \`artifact_index\` lists the epic, milestones, and implementation ` +
+      `issues. The complete rendered issue fields and builder prompt are intentionally outside ` +
+      `this inline response, not truncated. ${delivery.full_request.instruction} ` +
+      `Artifact fingerprint: \`${delivery.artifact_fingerprint}\` ` +
+      `(${delivery.artifact_bytes} canonical bytes).`
+    )
+    : (
+      `**§10 Tier 2 artifact compiler** _(full delivery; deterministic, no writes)_\n\n` +
+      `The structured \`artifact_package\` field contains the epic, milestones, build prompt, ` +
+      `Linear issue templates, field order, directives, and few-shot example. ` +
+      `OrchestrateMCP compiled these artifacts only; it did not write to Linear, Obsidian, ` +
+      `or any external system. Artifact fingerprint: \`${delivery.artifact_fingerprint}\`.`
+    );
+
+  const legacyBriefMarkdown =
     `# Build Brief — ${input.goal.slice(0, 80)}${input.goal.length > 80 ? "…" : ""}\n\n` +
     `> **Provenance:** All component IDs, edge relations, safety findings, and clearance ` +
     `levels are 🟢 **registry-grounded** (deterministic, no LLM calls). ` +
@@ -1416,12 +1599,23 @@ export function exportBuildBrief(input: {
     `Linear, Obsidian, or any external system.` +
     `\n\n---\n\n` +
     sections.s11_connect;
+  const artifactSectionStart = legacyBriefMarkdown.indexOf("**§10 Tier 2 artifact compiler**");
+  const artifactSectionEnd = legacyBriefMarkdown.indexOf("\n\n---\n\n", artifactSectionStart);
+  const brief_markdown = artifactSectionStart >= 0 && artifactSectionEnd > artifactSectionStart
+    ? legacyBriefMarkdown.slice(0, artifactSectionStart) +
+      artifactCompilerSection +
+      legacyBriefMarkdown.slice(artifactSectionEnd)
+    : legacyBriefMarkdown;
 
   const handoffs: BuildBriefOutput["handoffs"] = {};
-  if (input.handoff_targets.includes("prompt")) {
+  if (deliveryMode === "compact" && input.handoff_targets.includes("prompt")) {
+    handoffs.prompt = buildCompactPromptHandoff(input.goal, delivery);
+  } else if (input.handoff_targets.includes("prompt")) {
     handoffs.prompt = buildPromptHandoff(input.goal, sections, artifact_package, connect);
   }
-  if (input.handoff_targets.includes("linear")) {
+  if (deliveryMode === "compact" && input.handoff_targets.includes("linear")) {
+    handoffs.linear = buildCompactLinearHandoff(input.goal, sections, artifact_index, delivery);
+  } else if (input.handoff_targets.includes("linear")) {
     handoffs.linear = buildLinearHandoff(input.goal, sections, artifact_package);
   }
   if (input.handoff_targets.includes("obsidian")) {
@@ -1434,10 +1628,29 @@ export function exportBuildBrief(input: {
     );
   }
 
+  if (deliveryMode === "compact") {
+    return {
+      delivery: delivery as CompactBuildBriefOutput["delivery"],
+      brief_markdown,
+      sections,
+      handoffs,
+      artifact_index,
+      agent_manifest,
+      connect,
+      provenance_tag: "registry-grounded",
+      grounding_note:
+        "OrchestrateMCP makes no LLM calls. Every component ID, edge relation, safety " +
+        "finding, and clearance level in this brief is computed deterministically from " +
+        "registry YAML files. Treat all agent elaborations as suggested, not grounded.",
+    };
+  }
+
   return {
+    delivery: delivery as BuildBriefOutput["delivery"],
     brief_markdown,
     sections,
     handoffs,
+    artifact_index,
     artifact_package,
     agent_manifest,
     connect,
@@ -1461,7 +1674,9 @@ export function registerExportBuildBrief(server: McpServer): void {
         "a self-contained handoff document (§0 Constraints → §9 Observability wiring) " +
         "ready to paste into an IDE agent prompt, a Linear issue, or an Obsidian note. " +
         "Also emits a deterministic agent.manifest.json (agent_manifest) for DASH " +
-        "monitoring. Stateless: stores nothing, makes no network calls. " +
+        "monitoring. The plan_workflow wizard uses compact delivery for Claude-safe inline " +
+        "results; request full delivery for the complete rendered issue bundle. " +
+        "Stateless: stores nothing, makes no network calls. " +
         "Call after plan_workflow to get the agent-ready build spec.",
       inputSchema: InputShape,
       outputSchema: ExportBuildBriefOutputShape,
@@ -1485,6 +1700,7 @@ export function registerExportBuildBrief(server: McpServer): void {
           loop_guidance: input.loop_guidance as { playbook_id: string; worker_sequence: string[]; loop_contract: z.infer<typeof LoopContractShape>; guardrail_checklist: string[] } | undefined,
           approval_gate_advisory: input.approval_gate_advisory as { gate: string; write_components: string[]; reason: string } | undefined,
           handoff_targets: input.handoff_targets,
+          delivery_mode: input.delivery_mode,
           playbook_id: input.playbook_id,
           route_id: input.route_id,
           build_target: input.build_target,
@@ -1494,11 +1710,16 @@ export function registerExportBuildBrief(server: McpServer): void {
 
         logger.debug(
           `export_build_brief → ${result.sections ? "ok" : "error"} ` +
-          `sections=${Object.keys(result.sections).length}`,
+          `sections=${Object.keys(result.sections).length} delivery=${result.delivery.mode}`,
         );
 
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(result) }],
+          content: [{
+            type: "text" as const,
+            text: result.delivery.mode === "compact"
+              ? result.brief_markdown
+              : JSON.stringify(result),
+          }],
           structuredContent: result,
         };
       } catch (err) {
