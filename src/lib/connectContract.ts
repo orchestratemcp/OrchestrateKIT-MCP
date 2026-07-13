@@ -45,6 +45,12 @@ export type CredentialProbe =
       profile_url: string;
       /** Response field echoed to the user as proof (e.g. "emailAddress"). */
       success_field: string;
+      /** Additional provider endpoints that must also succeed. */
+      checks?: Array<{
+        label: string;
+        url: string;
+        success_field?: string;
+      }>;
     }
   | { kind: "none"; note: string };
 
@@ -86,6 +92,8 @@ type RouteStepLike = {
   model_tier?: string;
 };
 
+export type LlmProvider = "anthropic" | "openrouter";
+
 // ─────────────────────── component → credential catalog ───────────────────────
 
 const GMAIL_OAUTH_SCOPES = [
@@ -95,11 +103,29 @@ const GMAIL_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/gmail.compose",
 ];
 
+const CALENDAR_READ_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
+const CALENDAR_WRITE_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+
 const GMAIL_COMPONENTS = ["email_read", "optional_email_send", "email_send"];
+const CALENDAR_COMPONENTS = ["calendar_lookup", "calendar_write"];
 const SLACK_COMPONENTS = ["slack_notification"];
 const CRM_COMPONENTS = ["crm_note_write", "crm_update"];
 
-function gmailCredentials(requiredBy: string[]): CredentialRequirement[] {
+function googleWorkspaceCredentials(
+  requiredBy: string[],
+  calendarComponents: string[],
+): CredentialRequirement[] {
+  const scopes = [...GMAIL_OAUTH_SCOPES];
+  if (calendarComponents.includes("calendar_lookup")) scopes.push(CALENDAR_READ_SCOPE);
+  if (calendarComponents.includes("calendar_write")) scopes.push(CALENDAR_WRITE_SCOPE);
+  const apiNames = calendarComponents.length > 0 ? "Gmail and Google Calendar APIs" : "Gmail API";
+  const calendarChecks = calendarComponents.length > 0
+    ? [{
+        label: "Google Calendar",
+        url: "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1",
+        success_field: "kind",
+      }]
+    : undefined;
   return [
     {
       env: "GMAIL_CLIENT_ID",
@@ -111,8 +137,11 @@ function gmailCredentials(requiredBy: string[]): CredentialRequirement[] {
       mint_url: "https://console.cloud.google.com/apis/credentials",
       mint_hint:
         "Create an OAuth client ID of type 'Desktop app' (Desktop clients accept the loopback " +
-        "redirect connect.mjs uses). Enable the Gmail API for the project first: " +
-        "https://console.cloud.google.com/apis/library/gmail.googleapis.com",
+        `redirect connect.mjs uses). Enable the ${apiNames} for the project first. ` +
+        "Gmail: https://console.cloud.google.com/apis/library/gmail.googleapis.com" +
+        (calendarComponents.length > 0
+          ? " Calendar: https://console.cloud.google.com/apis/library/calendar-json.googleapis.com"
+          : ""),
       connect: "paste",
       format_hint: "ends with .apps.googleusercontent.com",
       format_pattern: "\\.apps\\.googleusercontent\\.com$",
@@ -149,10 +178,12 @@ function gmailCredentials(requiredBy: string[]): CredentialRequirement[] {
       mint_hint:
         "connect.mjs mints this itself: it opens the Google consent screen and receives the " +
         "token on a localhost loopback — no copy-paste. (Fallback: paste an existing refresh " +
-        "token with gmail.readonly + gmail.compose scope.)",
+        (calendarComponents.length > 0
+          ? `token with the route scopes: ${scopes.join(", ")}.)`
+          : "token with gmail.readonly + gmail.compose scope.)"),
       connect: "google_oauth",
       oauth: {
-        scopes: GMAIL_OAUTH_SCOPES,
+        scopes,
         client_id_env: "GMAIL_CLIENT_ID",
         client_secret_env: "GMAIL_CLIENT_SECRET",
       },
@@ -162,6 +193,7 @@ function gmailCredentials(requiredBy: string[]): CredentialRequirement[] {
         client_secret_env: "GMAIL_CLIENT_SECRET",
         profile_url: "https://gmail.googleapis.com/gmail/v1/users/me/profile",
         success_field: "emailAddress",
+        ...(calendarChecks ? { checks: calendarChecks } : {}),
       },
     },
   ];
@@ -185,6 +217,29 @@ function anthropicCredential(requiredBy: string[]): CredentialRequirement {
       method: "GET",
       url: "https://api.anthropic.com/v1/models",
       headers: { "x-api-key": "{{VALUE}}", "anthropic-version": "2023-06-01" },
+      ok_statuses: [200],
+    },
+  };
+}
+
+function openRouterCredential(requiredBy: string[]): CredentialRequirement {
+  return {
+    env: "OPENROUTER_API_KEY",
+    provider: "openrouter",
+    label: "OpenRouter API key",
+    required: true,
+    secret: true,
+    required_by: requiredBy,
+    mint_url: "https://openrouter.ai/settings/keys",
+    mint_hint: "Create a key for this agent. You can set the model separately with OPENROUTER_MODEL.",
+    connect: "paste",
+    format_hint: "starts with sk-or-v1-",
+    format_pattern: "^sk-or-v1-",
+    probe: {
+      kind: "http",
+      method: "GET",
+      url: "https://openrouter.ai/api/v1/models",
+      headers: { authorization: "Bearer {{VALUE}}" },
       ok_statuses: [200],
     },
   };
@@ -280,24 +335,35 @@ function dashCredentials(): CredentialRequirement[] {
 
 /**
  * Derive the credential manifest from the planned route. Deterministic:
- * fixed catalog order (gmail → anthropic → slack → hubspot → dash), one entry
+ * fixed catalog order (Google Workspace → selected LLM → Slack → HubSpot → DASH), one entry
  * per env var, `required_by` merged across steps.
  */
-export function buildCredentialManifest(routeSteps: RouteStepLike[]): CredentialRequirement[] {
+export function buildCredentialManifest(
+  routeSteps: RouteStepLike[],
+  options: { llm_provider?: LlmProvider } = {},
+): CredentialRequirement[] {
   const byComponent = (ids: string[]) =>
     routeSteps.filter((s) => ids.includes(s.component_id)).map((s) => s.component_id);
 
   const manifest: CredentialRequirement[] = [];
 
   const gmailBy = byComponent(GMAIL_COMPONENTS);
-  if (gmailBy.length > 0) manifest.push(...gmailCredentials(gmailBy));
+  const calendarBy = byComponent(CALENDAR_COMPONENTS);
+  const googleBy = [...gmailBy, ...calendarBy.filter((id) => !gmailBy.includes(id))];
+  if (googleBy.length > 0) manifest.push(...googleWorkspaceCredentials(googleBy, calendarBy));
 
-  // Any step with a real model tier is an LLM call — the built agents call
-  // the Claude API directly, so one Anthropic key covers all of them.
+  // Any step with a real model tier is an LLM call. One key from the selected
+  // provider covers every model-backed step; Anthropic remains the default.
   const llmBy = routeSteps
     .filter((s) => s.model_tier !== undefined && s.model_tier !== "none")
     .map((s) => s.component_id);
-  if (llmBy.length > 0) manifest.push(anthropicCredential(llmBy));
+  if (llmBy.length > 0) {
+    manifest.push(
+      (options.llm_provider ?? "anthropic") === "openrouter"
+        ? openRouterCredential(llmBy)
+        : anthropicCredential(llmBy),
+    );
+  }
 
   const slackBy = byComponent(SLACK_COMPONENTS);
   if (slackBy.length > 0) manifest.push(slackCredential(slackBy));
@@ -494,7 +560,17 @@ async function probeGoogleRefresh(spec, value, envMap) {
     });
     const data = await res.json();
     if (!res.ok) return { ok: false, detail: 'profile HTTP ' + res.status };
-    return { ok: true, detail: String(data[spec.success_field] || 'connected') };
+    const details = ['Gmail=' + String(data[spec.success_field] || 'connected')];
+    for (const check of spec.checks || []) {
+      const checkRes = await fetch(check.url, {
+        headers: { authorization: 'Bearer ' + accessToken },
+        signal: AbortSignal.timeout(15000),
+      });
+      const checkData = await checkRes.json();
+      if (!checkRes.ok) return { ok: false, detail: check.label + ' HTTP ' + checkRes.status };
+      details.push(check.label + '=' + String(check.success_field ? checkData[check.success_field] : 'connected'));
+    }
+    return { ok: true, detail: details.join(', ') };
   } catch (err) {
     return { ok: false, detail: String(err && err.message || err) };
   }
@@ -714,8 +790,11 @@ export function buildConnectArtifacts(input: {
   route_steps: RouteStepLike[];
   agent_name: string;
   registry_fingerprint: string;
+  llm_provider?: LlmProvider;
 }): ConnectArtifacts {
-  const credential_manifest = buildCredentialManifest(input.route_steps);
+  const credential_manifest = buildCredentialManifest(input.route_steps, {
+    llm_provider: input.llm_provider,
+  });
   const connect_script = buildConnectScript(credential_manifest, {
     agent_name: input.agent_name,
     registry_fingerprint: input.registry_fingerprint,

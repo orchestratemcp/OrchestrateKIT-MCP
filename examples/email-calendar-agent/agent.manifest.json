@@ -1,0 +1,37 @@
+{
+  "manifest_version": 1,
+  "agent": {
+    "name": "email-calendar-assistant",
+    "goal": "Read my Gmail inbox, classify meeting requests, check my Google Calendar, draft replies with two available time options, and only create the calendar invite after approval.",
+    "plan_source": "playbook",
+    "playbook_id": "email_calendar_assistant",
+    "route_id": "email_calendar_route_v1",
+    "build_target": "code"
+  },
+  "planned_route": [
+    { "step": 1, "component_id": "email_read", "risk_level": "low", "model_tier": "none" },
+    { "step": 2, "component_id": "calendar_lookup", "risk_level": "low", "model_tier": "none" },
+    { "step": 3, "component_id": "intent_classifier", "risk_level": "low", "model_tier": "small" },
+    { "step": 4, "component_id": "email_draft", "risk_level": "medium", "model_tier": "standard" },
+    { "step": 5, "component_id": "human_approval_gate", "risk_level": "low", "model_tier": "none" },
+    { "step": 6, "component_id": "calendar_write", "risk_level": "high", "model_tier": "none" },
+    { "step": 7, "component_id": "optional_email_send", "risk_level": "high", "model_tier": "none" },
+    { "step": 8, "component_id": "audit_log", "risk_level": "low", "model_tier": "none" }
+  ],
+  "safety_contract": {
+    "automation_clearance": "L3",
+    "enforced_approval_gates": ["human_approval_gate"],
+    "irreversible_components": ["calendar_write"]
+  },
+  "monitoring": {
+    "events": ["run_started", "step_started", "step_completed", "gate_requested", "gate_resolved", "run_completed", "run_failed"],
+    "endpoint_env": "DASH_INGEST_URL",
+    "token_env": "DASH_INGEST_TOKEN",
+    "output_location": "Vercel structured logs; optional LAB ingest"
+  },
+  "provenance": {
+    "generated_by": "orchestratekit-mcp export_build_brief",
+    "registry_fingerprint": "26b95a7a03de9ffd",
+    "generated_at": "2026-07-13T21:30:00.000Z"
+  }
+}

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Email & Calendar Assistant</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="eyebrow">OrchestrateKit · validated playbook</div>
+        <h1>Turn a meeting request into a ready-to-review plan.</h1>
+        <p>Reads Gmail, checks your real calendar, and pauses before creating anything.</p>
+      </header>
+
+      <section class="card" id="access-card">
+        <div class="step">01 · Connect</div>
+        <h2>Unlock this private demo</h2>
+        <label for="access-token">Demo access code</label>
+        <div class="row">
+          <input id="access-token" type="password" autocomplete="current-password" placeholder="Stored only in this browser tab" />
+          <button id="scan">Scan Gmail</button>
+        </div>
+        <div id="health" class="health">Checking deployment…</div>
+      </section>
+
+      <section class="card hidden" id="proposal-card">
+        <div class="step">02 · Review</div>
+        <div class="gate">Human approval required</div>
+        <h2 id="request-title">Meeting request</h2>
+        <p id="request-from" class="muted"></p>
+        <details>
+          <summary>Show original email</summary>
+          <pre id="request-body"></pre>
+        </details>
+
+        <h3>Choose one available slot</h3>
+        <div id="slots" class="slots"></div>
+
+        <h3>Calendar event</h3>
+        <div id="event-preview" class="preview"></div>
+
+        <h3>Gmail draft</h3>
+        <div class="preview">
+          <div><strong>To:</strong> <span id="draft-to"></span></div>
+          <div><strong>Subject:</strong> <span id="draft-subject"></span></div>
+          <pre id="draft-body"></pre>
+        </div>
+
+        <p class="safety">Nothing has been written yet. Approval creates one Calendar event and one Gmail draft; it never sends the email.</p>
+        <button id="approve" class="approve">Approve selected slot</button>
+      </section>
+
+      <section class="card hidden success" id="result-card">
+        <div class="step">03 · Complete</div>
+        <h2>Calendar event created. Gmail reply saved as a draft.</h2>
+        <p id="result-copy"></p>
+        <a id="calendar-link" target="_blank" rel="noreferrer">Open the Calendar event ↗</a>
+      </section>
+
+      <div id="status" role="status" aria-live="polite"></div>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

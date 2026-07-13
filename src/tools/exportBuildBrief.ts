@@ -212,6 +212,12 @@ export const InputShape = {
     .string()
     .optional()
     .describe("Override the manifest agent slug. Defaults to a slug of the playbook id or goal."),
+  llm_provider: z
+    .enum(["anthropic", "openrouter"])
+    .default("anthropic")
+    .describe(
+      "LLM credential provider for model-tier steps. Defaults to Anthropic for backwards compatibility.",
+    ),
 };
 
 // ──────────────────────────────── output ───────────────────────────────
@@ -1462,6 +1468,7 @@ export type ExportBuildBriefInput = {
   build_target?: ManifestBuildTarget;
   output_location?: string;
   agent_name?: string;
+  llm_provider?: "anthropic" | "openrouter";
   /** Registry fingerprint for manifest provenance; defaults to the bundle's. */
   registry_fingerprint?: string;
   /** Manifest timestamp; injectable so tests/snapshots stay deterministic. */
@@ -1508,6 +1515,7 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
     })),
     agent_name: agent_manifest.agent.name,
     registry_fingerprint: input.registry_fingerprint ?? registryContentFingerprint(),
+    llm_provider: input.llm_provider,
   });
 
   const sections: BuildBriefOutput["sections"] = {

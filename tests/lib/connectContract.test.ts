@@ -31,6 +31,17 @@ const EMAIL_LEAD_ROUTE = [
   { component_id: "audit_log", model_tier: "none" },
 ];
 
+const EMAIL_CALENDAR_ROUTE = [
+  { component_id: "email_read", model_tier: "none" },
+  { component_id: "calendar_lookup", model_tier: "none" },
+  { component_id: "intent_classifier", model_tier: "small" },
+  { component_id: "email_draft", model_tier: "standard" },
+  { component_id: "human_approval_gate", model_tier: "none" },
+  { component_id: "calendar_write", model_tier: "none" },
+  { component_id: "optional_email_send", model_tier: "none" },
+  { component_id: "audit_log", model_tier: "none" },
+];
+
 describe("buildCredentialManifest", () => {
   it("derives the full email-lead-agent credential set in catalog order", () => {
     const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE);
@@ -61,6 +72,31 @@ describe("buildCredentialManifest", () => {
     expect(refresh?.oauth?.scopes).toContain("https://www.googleapis.com/auth/gmail.readonly");
     // draft-only contract: never request gmail.send
     expect(refresh?.oauth?.scopes.join(" ")).not.toContain("gmail.send");
+  });
+
+  it("supports OpenRouter and proves both Gmail and Calendar for the calendar route", () => {
+    const manifest = buildCredentialManifest(EMAIL_CALENDAR_ROUTE, {
+      llm_provider: "openrouter",
+    });
+    expect(manifest.map((c) => c.env)).toEqual([
+      "GMAIL_CLIENT_ID",
+      "GMAIL_CLIENT_SECRET",
+      "GMAIL_REFRESH_TOKEN",
+      "OPENROUTER_API_KEY",
+      "DASH_INGEST_URL",
+      "DASH_INGEST_TOKEN",
+    ]);
+    const refresh = manifest.find((c) => c.env === "GMAIL_REFRESH_TOKEN");
+    expect(refresh?.oauth?.scopes).toContain("https://www.googleapis.com/auth/calendar.readonly");
+    expect(refresh?.oauth?.scopes).toContain("https://www.googleapis.com/auth/calendar.events");
+    expect(refresh?.probe.kind).toBe("google_refresh");
+    if (refresh?.probe.kind === "google_refresh") {
+      expect(refresh.probe.checks?.map((check) => check.label)).toEqual(["Google Calendar"]);
+    }
+    expect(manifest.find((c) => c.env === "OPENROUTER_API_KEY")?.required_by).toEqual([
+      "intent_classifier",
+      "email_draft",
+    ]);
   });
 
   it("marks CRM and DASH credentials optional (local fallbacks exist)", () => {
