@@ -1,5 +1,9 @@
 # OrchestrateMCP
 
+[![CI](https://github.com/orchestratemcp/OrchestrateKIT-MCP/actions/workflows/ci.yml/badge.svg)](https://github.com/orchestratemcp/OrchestrateKIT-MCP/actions/workflows/ci.yml)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Website](https://img.shields.io/badge/website-orchestratemcp.dev-7c3aed.svg)](https://orchestratemcp.dev)
+
 An evidence-backed **workflow-design advisor** for AI agents. Connect it to ChatGPT, Claude (web), Cursor, or Claude Desktop and it plans safer, more grounded AI workflows — grounded in a registry of tested components, edges, and golden-path playbooks. Read-only, stateless, holds no secrets.
 
 **Status:** hosted `health_check` reports 64 components, 151 edges, 4 workers, 1 stack, 13 routes, 14 playbooks, and 18 tools; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`).
@@ -50,6 +54,8 @@ OrchestrateMCP is stateless, read-only, holds no secrets, and makes no LLM calls
 
 - Node.js ≥ 20
 - pnpm
+
+Project policies: **[Contributing](CONTRIBUTING.md)** · **[Security](SECURITY.md)** · **[Changelog](CHANGELOG.md)**
 
 ---
 
@@ -282,3 +288,9 @@ pnpm tsx scripts/benchmark-template.ts
 ```
 
 Results go in `benchmarks/results-YYYY-MM-DD.md`.
+
+---
+
+## License
+
+OrchestrateMCP is available under the **[MIT License](LICENSE)**.

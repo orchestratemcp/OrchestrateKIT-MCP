@@ -2,12 +2,28 @@
   "name": "orchestratekit-mcp",
   "version": "0.1.0",
   "description": "Local stdio MCP server for OrchestrateKit — evidence-backed playbooks for AI workflow design.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orchestratemcp/OrchestrateKIT-MCP.git"
+  },
+  "homepage": "https://orchestratemcp.dev",
+  "bugs": {
+    "url": "https://github.com/orchestratemcp/OrchestrateKIT-MCP/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "workflow-planning",
+    "workflow-automation"
+  ],
   "type": "module",
   "scripts": {
     "dev": "tsx src/server.ts",
     "start:http": "tsx src/server-http.ts",
     "start": "node dist/server-http.js",
-    "build": "tsup src/server.ts src/server-http.ts --format esm --out-dir dist --clean && node -e \"const{cpSync,writeFileSync}=require('fs');cpSync('registry','dist/registry',{recursive:true});writeFileSync('dist/registry/_build_manifest.json',JSON.stringify({built_at:new Date().toISOString()}));console.log('registry/ copied to dist/registry/ with build manifest')\"",
+    "build": "pnpm gen:registry && tsup src/server.ts src/server-http.ts --format esm --out-dir dist --clean && node -e \"const{cpSync,writeFileSync}=require('fs');cpSync('registry','dist/registry',{recursive:true});writeFileSync('dist/registry/_build_manifest.json',JSON.stringify({built_at:new Date().toISOString()}));console.log('registry/ copied to dist/registry/ with build manifest')\"",
     "typecheck": "tsc --noEmit",
     "gen:registry": "tsx scripts/gen-registry-bundle.ts",
     "dev:worker": "pnpm gen:registry && wrangler dev",
@@ -34,10 +50,16 @@
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "tsup": "^8.5.1",
-    "tsx": "^4.22.4",
+    "tsx": "^4.23.1",
     "typescript": "^5.8.0",
-    "vitest": "^4.1.0",
-    "wrangler": "^4.0.0"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.110.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild@>=0.27.3 <0.28.1": "0.28.1",
+      "hono@<4.12.25": "4.12.30"
+    }
   },
   "engines": {
     "node": ">=20.0.0"
