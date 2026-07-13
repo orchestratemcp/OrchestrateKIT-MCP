@@ -1,7 +1,7 @@
 # OrchestrateKit — Improvements, State & Roadmap
 
 **Updated:** 2026-06-10  
-**Context:** M2 MCP complete · Manual benchmark passed (avg C−B **+4.7**) · OrchestrateLab **GO**
+**Historical context:** M2 MCP complete · the archived manual benchmark reported avg C−B **+4.7**, but its isolation flaws prevent public citation · OrchestrateLab **GO**
 
 This document consolidates benchmark takeaways, near-term MCP work, OrchestrateLab expectations, and a proposal for the **component brain schema** — how each puzzle piece is documented, connected, and kept current.
 
@@ -22,7 +22,7 @@ This document consolidates benchmark takeaways, near-term MCP work, OrchestrateL
 
 ### What the benchmark proved
 
-- **Condition C (full graph) beats B (playbooks only) by +4.7 on average** — the graph adds real planning value, not just vocabulary.
+- **The archived run reported Condition C ahead of B by +4.7 on average.** Treat this as a hypothesis, not public proof, until the isolated protocol is rerun.
 - **Highest-value C outputs:** untested-edge checklists, candidate-vs-validated disclaimers, compose noise rejection, registry gap detection.
 - **Vanilla models are already strong** on safety basics (approval before send/publish). The graph wins on **specificity and honesty about what is unproven**.
 - **Compose is a draft generator, not a blueprint.** Topological sort order misleads; matcher injects cross-domain noise; safety augmenter misses some playbook invariants (`schema_validation`).
@@ -274,4 +274,4 @@ The graph is large; models need **progressive disclosure**, not a registry dump.
 
 ## 9. One-paragraph summary
 
-OrchestrateKit MCP is **working and benchmark-validated**: the workflow graph measurably improves architecture advice (+4.7 C−B). M2 delivered tools and a coherent registry; the benchmark exposed **matcher noise**, **thin component metadata**, and **low tested-edge coverage** as the main gaps. **OrchestrateLab** should run real sessions, prove edges with integration tests, and promote playbooks back into the registry. The **component brain schema** (identity → safety → connections → operations → lifecycle) is the standard for keeping each puzzle piece documented and MCP-friendly. Fix P0 matcher/augmenter issues in parallel with Lab v1; re-benchmark after registry hardening to confirm the gate holds.
+OrchestrateKit MCP has working deterministic tools and a coherent registry. The archived manual benchmark suggested a +4.7 C−B advantage, but the current protocol documents isolation flaws, so model-quality uplift remains a hypothesis until fresh isolated runs reproduce it. That run still exposed useful engineering gaps: **matcher noise**, **thin component metadata**, and **low tested-edge coverage**. **OrchestrateLab** should run real sessions, prove edges with integration tests, and promote playbooks back into the registry. The **component brain schema** (identity → safety → connections → operations → lifecycle) is the standard for keeping each puzzle piece documented and MCP-friendly. Fix P0 matcher/augmenter issues in parallel with Lab v1; re-benchmark after registry hardening before making a public uplift claim.

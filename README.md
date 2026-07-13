@@ -4,9 +4,9 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Website](https://img.shields.io/badge/website-orchestratemcp.dev-7c3aed.svg)](https://orchestratemcp.dev)
 
-An evidence-backed **workflow-design advisor** for AI agents. Connect it to ChatGPT, Claude (web), Cursor, or Claude Desktop and it plans safer, more grounded AI workflows — grounded in a registry of tested components, edges, and golden-path playbooks. Read-only, stateless, holds no secrets.
+An evidence-backed **workflow-design advisor** for AI agents. Connect it to ChatGPT, Claude (web), Cursor, or Claude Desktop and it plans safer, more grounded AI workflows from a documented component graph and published playbooks. Read-only, stateless, holds no secrets.
 
-**Status:** hosted `health_check` reports 64 components, 151 edges, 4 workers, 1 stack, 13 routes, 14 playbooks, and 18 tools; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`).
+**Status:** hosted `health_check` reports 64 components, 151 connections, 4 workers, 1 reference stack, 12 published routes, and 12 published playbooks; available over stdio and as a free hosted endpoint (`https://mcp.orchestratemcp.dev/mcp`). See the [public claim ledger](docs/PUBLIC_CLAIM_LEDGER.md) for definitions, evidence, and held claims.
 
 ---
 
@@ -16,17 +16,17 @@ OrchestrateMCP exposes a structured registry of:
 
 ```
 components  →  the building blocks of AI workflows
-edges       →  tested relations between components (requires, safer_with, conflicts_with, …)
+edges       →  documented relations between components (requires, safer_with, conflicts_with, …)
 stacks      →  opinionated technology choices for different deployment contexts
-routes      →  tested paths through the component graph
-playbooks   →  golden-path routes with full implementation guidance
+routes      →  published or candidate paths through the component graph
+playbooks   →  published patterns with implementation guidance
 ```
 
 When a user describes a workflow goal, the MCP can:
 
 1. Match the goal to required capabilities and components.
-2. Traverse tested component relationships.
-3. Reuse sections of known golden-path playbooks.
+2. Traverse documented component relationships and surface their evidence state.
+3. Reuse sections of known published playbooks.
 4. Compose a candidate route when no exact playbook exists.
 5. Score route confidence (coverage, tested edges, stack fit, safety, simplicity).
 6. Return the route as structured implementation context for Cursor or Claude.
@@ -37,7 +37,7 @@ When a user describes a workflow goal, the MCP can:
 
 - MCP server runs on stdio (Cursor, Claude Desktop) and over Streamable HTTP / a Cloudflare Worker (ChatGPT, claude.ai) — 18 registered tools.
 - `health_check` returns `{ name, version, registry: { component_count, edge_count, stack_count, route_count, playbook_count, worker_count, untested_edge_pct } }`.
-- Hosted registry: 64 components, 151 edges, 1 stack, 13 routes, 14 playbooks, 4 workers.
+- Hosted registry: 64 components, 151 connections, 1 reference stack, 12 published routes, 12 published playbooks, 4 workers.
 - Coverage accounting reports unmatched demand and unsupported supply instead of silently pretending the graph covers everything.
 - Corpus regression tests and release-trust floors ratchet the registry forward in CI.
 - `pnpm verify` (typecheck + lint + tests) passes from a clean clone and install.
@@ -46,7 +46,7 @@ When a user describes a workflow goal, the MCP can:
 
 ## Why trust this
 
-OrchestrateMCP is stateless, read-only, holds no secrets, and makes no LLM calls inside its tools. Plans are composed from registry YAML, provenance tags mark computed fields, coverage accounting calls out unsupported pieces, and corpus contracts plus release-trust checks run in CI to catch drift.
+OrchestrateMCP is stateless, read-only, holds no secrets, and makes no LLM calls inside its tools. Plans are composed from registry YAML, provenance tags mark computed fields, coverage accounting calls out unsupported pieces, and corpus contracts plus release-trust checks run in CI to catch drift. Registry evidence is not a promise that a proposed workflow is production-ready; see the [claim ledger](docs/PUBLIC_CLAIM_LEDGER.md).
 
 ---
 
