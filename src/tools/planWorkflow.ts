@@ -1479,7 +1479,7 @@ function buildSuggestedNextActions(
   whatYouNeed: IntegrationNeed[],
 ): string[] {
   const COWORK = "Ask me to generate the CoWork system prompt for this plan — paste it into a Claude Project to configure an assistant";
-  const CURSOR  = "Call `export_build_brief({ handoff_targets: ['prompt'] })` for the full Cursor / Claude Code build spec";
+  const CURSOR  = "Call `export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })` for the Claude-safe inline build spec; request full mode only for the rendered issue bundle";
   const GPT     = "Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON";
   const REVIEW  = "Call `review_workflow_design(...)` after building to validate your implementation against the plan";
 
@@ -1564,8 +1564,8 @@ export function buildNextActionMenu(
     case "code":
       menu.push({
         id: "export_build_brief",
-        label: "Export the full Cursor / Claude Code build brief",
-        action: "export_build_brief({ handoff_targets: ['prompt'] })",
+        label: "Export the Claude-safe Cursor / Claude Code build brief",
+        action: "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
       });
       break;
     default:
@@ -1577,8 +1577,8 @@ export function buildNextActionMenu(
       });
       menu.push({
         id: "export_build_brief",
-        label: "Export the full build brief (Cursor / Claude Code)",
-        action: "export_build_brief({ handoff_targets: ['prompt'] })",
+        label: "Export the Claude-safe build brief (Cursor / Claude Code)",
+        action: "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
       });
   }
 
@@ -2116,7 +2116,7 @@ function buildWizardChoices(buildTarget: BuildTarget | undefined): WizardChoice[
       best_for: "IDE-first implementation with project files open.",
       tradeoffs: "Fast for repo edits; needs a clear build brief.",
       recommended: buildChoiceRecommended(buildTarget, "cursor"),
-      action: "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+      action: "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor', delivery_mode: 'compact' })",
     },
     {
       id: "claude_code",
@@ -2125,7 +2125,7 @@ function buildWizardChoices(buildTarget: BuildTarget | undefined): WizardChoice[
       best_for: "Terminal-first code generation and refactors.",
       tradeoffs: "Great for implementation; keep the route and tests explicit.",
       recommended: false,
-      action: "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+      action: "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor', delivery_mode: 'compact' })",
     },
     {
       id: "codex",
@@ -2134,7 +2134,7 @@ function buildWizardChoices(buildTarget: BuildTarget | undefined): WizardChoice[
       best_for: "Agentic repo work with tests, commits, and PR handoff.",
       tradeoffs: "Best once the scope is locked; answer clarifying questions first.",
       recommended: buildChoiceRecommended(buildTarget, "codex"),
-      action: "export_build_brief({ handoff_targets: ['prompt'], build_target: 'code' })",
+      action: "export_build_brief({ handoff_targets: ['prompt'], build_target: 'code', delivery_mode: 'compact' })",
     },
     {
       id: "cowork",
@@ -2217,7 +2217,7 @@ function buildArtifactChoices(): WizardChoice[] {
       best_for: "Paste into a builder immediately.",
       tradeoffs: "Fastest artifact; less structured than issues.",
       recommended: false,
-      action: "export_build_brief({ handoff_targets: ['prompt'] })",
+      action: "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
     },
     {
       id: "linear_issues",
@@ -2226,7 +2226,7 @@ function buildArtifactChoices(): WizardChoice[] {
       best_for: "Turning the plan into tracked implementation work.",
       tradeoffs: "plan_workflow does not write to Linear; export text only.",
       recommended: false,
-      action: "export_build_brief({ handoff_targets: ['linear'] })",
+      action: "export_build_brief({ handoff_targets: ['linear'], delivery_mode: 'full' })",
     },
     {
       id: "obsidian",
@@ -2235,7 +2235,7 @@ function buildArtifactChoices(): WizardChoice[] {
       best_for: "Keeping the plan in a local knowledge base.",
       tradeoffs: "plan_workflow does not write notes; export markdown only.",
       recommended: false,
-      action: "export_build_brief({ handoff_targets: ['obsidian'] })",
+      action: "export_build_brief({ handoff_targets: ['obsidian'], delivery_mode: 'compact' })",
     },
     {
       id: "build_brief",
@@ -2244,7 +2244,7 @@ function buildArtifactChoices(): WizardChoice[] {
       best_for: "Handing a locked scope to Cursor, Claude Code, or Codex.",
       tradeoffs: "Longer artifact; best after quick questions are answered.",
       recommended: true,
-      action: "export_build_brief({ handoff_targets: ['prompt'] })",
+      action: "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
     },
   ];
 }

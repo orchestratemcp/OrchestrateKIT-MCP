@@ -339,9 +339,43 @@ const ArtifactIssueFieldsShape = z
 /** export_build_brief — canonical build handoff plus MAR-249 artifact package. */
 export const ExportBuildBriefOutputShape = z
   .object({
+    delivery: z
+      .object({
+        contract: z.literal("export_build_brief.delivery.v1"),
+        mode: z.enum(["compact", "full"]),
+        artifact_fingerprint: z.string(),
+        artifact_bytes: z.number().int().positive(),
+        full_artifact_available: z.literal(true),
+        full_request: z
+          .object({
+            tool: z.literal("export_build_brief"),
+            reuse_same_arguments: z.literal(true),
+            arguments_delta: z.object({ delivery_mode: z.literal("full") }),
+            instruction: z.string(),
+          })
+          .passthrough(),
+        omitted_fields: z.array(z.string()),
+      })
+      .passthrough(),
     brief_markdown: z.string(),
     sections: z.object({}).passthrough(),
     handoffs: z.object({}).passthrough(),
+    artifact_index: z
+      .object({
+        compiler: z.literal("export_build_brief.artifact_compiler.v1"),
+        status: z.literal("compiled"),
+        artifact_fingerprint: z.string(),
+        artifact_bytes: z.number().int().positive(),
+        epic: z.object({ title: z.string(), goal: z.string() }).passthrough(),
+        milestones: z.array(
+          z.object({ id: z.string(), title: z.string(), issue_ids: z.array(z.string()) }).passthrough(),
+        ),
+        issues: z.array(
+          z.object({ id: z.string(), milestone_id: z.string(), title: z.string() }),
+        ),
+        full_contains: z.array(z.string()),
+      })
+      .passthrough(),
     artifact_package: z
       .object({
         compiler: z.literal("export_build_brief.artifact_compiler.v1"),
@@ -367,7 +401,8 @@ export const ExportBuildBriefOutputShape = z
         build_prompt: z.string(),
         linear_issue_template_markdown: z.string(),
       })
-      .passthrough(),
+      .passthrough()
+      .optional(),
     agent_manifest: z.object({}).passthrough(),
     // MAR-364: fast-connect credential manifest + generated scripts/connect.mjs.
     connect: z

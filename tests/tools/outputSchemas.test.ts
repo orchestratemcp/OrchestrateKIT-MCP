@@ -17,6 +17,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { registerTools } from "../../src/tools/index.js";
+import { ExportBuildBriefOutputShape } from "../../src/tools/outputSchemas.js";
 
 let server: McpServer;
 let client: Client;
@@ -188,6 +189,74 @@ describe("MAR-249 — export_build_brief output schema", () => {
     expect(pkg.status).toBe("compiled");
     expect(sc.provenance_tag).toBe("registry-grounded");
     expect(normalizeExportBuildBrief(sc)).toMatchSnapshot();
+  });
+
+  it("compact structuredContent conforms and text content is brief_markdown", async () => {
+    const plan = await structured("plan_workflow", {
+      goal: EXPORT_BRIEF_GOAL,
+      output_depth: "technical",
+    });
+    const result = await rawToolResult("export_build_brief", {
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates ?? [],
+      untested_edges: plan.untested_edges ?? [],
+      avoid_when_violations: plan.avoid_when_violations ?? [],
+      evals_to_add: plan.evals_to_add ?? [],
+      design_notes: plan.design_notes ?? [],
+      worker_pipeline: plan.worker_pipeline ?? null,
+      loop_guidance: plan.loop_guidance ?? null,
+      approval_gate_advisory: plan.approval_gate_advisory ?? null,
+      handoff_targets: ["prompt", "linear"],
+      delivery_mode: "compact",
+    });
+    const sc = result.structuredContent as Record<string, unknown>;
+    const text = (result.content as Array<{ type: string; text?: string }>).find(
+      (item) => item.type === "text",
+    )?.text;
+
+    expect(() => ExportBuildBriefOutputShape.parse(sc)).not.toThrow();
+    expect((sc.delivery as Record<string, unknown>).mode).toBe("compact");
+    expect(sc.artifact_package).toBeUndefined();
+    expect(text).toBe(sc.brief_markdown);
+    expect(normalizeExportBuildBrief(sc)).toMatchSnapshot();
+  });
+
+  it("explicit full delivery keeps artifact_package and legacy JSON text", async () => {
+    const plan = await structured("plan_workflow", {
+      goal: EXPORT_BRIEF_GOAL,
+      output_depth: "technical",
+    });
+    const result = await rawToolResult("export_build_brief", {
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates ?? [],
+      untested_edges: plan.untested_edges ?? [],
+      avoid_when_violations: plan.avoid_when_violations ?? [],
+      evals_to_add: plan.evals_to_add ?? [],
+      design_notes: plan.design_notes ?? [],
+      worker_pipeline: plan.worker_pipeline ?? null,
+      loop_guidance: plan.loop_guidance ?? null,
+      approval_gate_advisory: plan.approval_gate_advisory ?? null,
+      handoff_targets: ["prompt", "linear"],
+      delivery_mode: "full",
+    });
+    const sc = result.structuredContent as Record<string, unknown>;
+    const text = (result.content as Array<{ type: string; text?: string }>).find(
+      (item) => item.type === "text",
+    )?.text;
+
+    expect((sc.delivery as Record<string, unknown>).mode).toBe("full");
+    expect(sc.artifact_package).toBeDefined();
+    expect(JSON.parse(text ?? "null")).toEqual(sc);
   });
 });
 

@@ -230,6 +230,14 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
       "Obsidian",
       "Build brief",
     ]);
+    for (const choice of w.build_choices.filter((c) => ["cursor", "claude_code", "codex"].includes(c.id))) {
+      expect(choice.action).toContain("delivery_mode: 'compact'");
+    }
+    expect(w.artifact_choices.find((c) => c.id === "linear_issues")!.action)
+      .toContain("delivery_mode: 'full'");
+    for (const choice of w.artifact_choices.filter((c) => c.id !== "linear_issues")) {
+      expect(choice.action).toContain("delivery_mode: 'compact'");
+    }
     expect(w.recommended_next_click.label).toContain("Export");
   });
 

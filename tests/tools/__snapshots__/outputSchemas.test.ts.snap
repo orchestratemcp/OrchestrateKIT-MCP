@@ -256,7 +256,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
   "goal_to_product_wizard": {
     "artifact_choices": [
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+        "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
         "best_for": "Paste into a builder immediately.",
         "id": "prompt",
         "kind": "artifact",
@@ -265,7 +265,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "tradeoffs": "Fastest artifact; less structured than issues.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['linear'] })",
+        "action": "export_build_brief({ handoff_targets: ['linear'], delivery_mode: 'full' })",
         "best_for": "Turning the plan into tracked implementation work.",
         "id": "linear_issues",
         "kind": "artifact",
@@ -274,7 +274,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "tradeoffs": "plan_workflow does not write to Linear; export text only.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['obsidian'] })",
+        "action": "export_build_brief({ handoff_targets: ['obsidian'], delivery_mode: 'compact' })",
         "best_for": "Keeping the plan in a local knowledge base.",
         "id": "obsidian",
         "kind": "artifact",
@@ -283,7 +283,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "tradeoffs": "plan_workflow does not write notes; export markdown only.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+        "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
         "best_for": "Handing a locked scope to Cursor, Claude Code, or Codex.",
         "id": "build_brief",
         "kind": "artifact",
@@ -294,7 +294,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     ],
     "build_choices": [
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+        "action": "[text]",
         "best_for": "IDE-first implementation with project files open.",
         "id": "cursor",
         "kind": "build",
@@ -303,7 +303,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "tradeoffs": "Fast for repo edits; needs a clear build brief.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+        "action": "[text]",
         "best_for": "Terminal-first code generation and refactors.",
         "id": "claude_code",
         "kind": "build",
@@ -312,7 +312,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "tradeoffs": "Great for implementation; keep the route and tests explicit.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'code' })",
+        "action": "[text]",
         "best_for": "Agentic repo work with tests, commits, and PR handoff.",
         "id": "codex",
         "kind": "build",
@@ -397,7 +397,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       },
     ],
     "recommended_next_click": {
-      "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+      "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
       "id": "build_brief",
       "label": "Export Build brief for Codex",
     },
@@ -501,9 +501,9 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "label": "Generate the CoWork or ChatGPT system prompt for this plan",
     },
     {
-      "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+      "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
       "id": "export_build_brief",
-      "label": "Export the full build brief (Cursor / Claude Code)",
+      "label": "Export the Claude-safe build brief (Cursor / Claude Code)",
     },
     {
       "action": "get_playbook({ id: "codebase_agent_workflow" })",
@@ -825,7 +825,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
   "goal_to_product_wizard": {
     "artifact_choices": [
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+        "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
         "best_for": "Paste into a builder immediately.",
         "id": "prompt",
         "kind": "artifact",
@@ -834,7 +834,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "tradeoffs": "Fastest artifact; less structured than issues.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['linear'] })",
+        "action": "export_build_brief({ handoff_targets: ['linear'], delivery_mode: 'full' })",
         "best_for": "Turning the plan into tracked implementation work.",
         "id": "linear_issues",
         "kind": "artifact",
@@ -843,7 +843,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "tradeoffs": "plan_workflow does not write to Linear; export text only.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['obsidian'] })",
+        "action": "export_build_brief({ handoff_targets: ['obsidian'], delivery_mode: 'compact' })",
         "best_for": "Keeping the plan in a local knowledge base.",
         "id": "obsidian",
         "kind": "artifact",
@@ -852,7 +852,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "tradeoffs": "plan_workflow does not write notes; export markdown only.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+        "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
         "best_for": "Handing a locked scope to Cursor, Claude Code, or Codex.",
         "id": "build_brief",
         "kind": "artifact",
@@ -863,7 +863,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     ],
     "build_choices": [
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+        "action": "[text]",
         "best_for": "IDE-first implementation with project files open.",
         "id": "cursor",
         "kind": "build",
@@ -872,7 +872,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "tradeoffs": "Fast for repo edits; needs a clear build brief.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+        "action": "[text]",
         "best_for": "Terminal-first code generation and refactors.",
         "id": "claude_code",
         "kind": "build",
@@ -881,7 +881,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "tradeoffs": "Great for implementation; keep the route and tests explicit.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'code' })",
+        "action": "[text]",
         "best_for": "Agentic repo work with tests, commits, and PR handoff.",
         "id": "codex",
         "kind": "build",
@@ -982,7 +982,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       },
     ],
     "recommended_next_click": {
-      "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+      "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
       "id": "build_brief",
       "label": "Export Build brief for Codex",
     },
@@ -1105,9 +1105,9 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "label": "Generate the CoWork or ChatGPT system prompt for this plan",
     },
     {
-      "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+      "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
       "id": "export_build_brief",
-      "label": "Export the full build brief (Cursor / Claude Code)",
+      "label": "Export the Claude-safe build brief (Cursor / Claude Code)",
     },
     {
       "action": "see:what_you_need",
@@ -1560,7 +1560,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
   "goal_to_product_wizard": {
     "artifact_choices": [
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+        "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
         "best_for": "Paste into a builder immediately.",
         "id": "prompt",
         "kind": "artifact",
@@ -1569,7 +1569,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "tradeoffs": "Fastest artifact; less structured than issues.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['linear'] })",
+        "action": "export_build_brief({ handoff_targets: ['linear'], delivery_mode: 'full' })",
         "best_for": "Turning the plan into tracked implementation work.",
         "id": "linear_issues",
         "kind": "artifact",
@@ -1578,7 +1578,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "tradeoffs": "plan_workflow does not write to Linear; export text only.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['obsidian'] })",
+        "action": "export_build_brief({ handoff_targets: ['obsidian'], delivery_mode: 'compact' })",
         "best_for": "Keeping the plan in a local knowledge base.",
         "id": "obsidian",
         "kind": "artifact",
@@ -1587,7 +1587,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "tradeoffs": "plan_workflow does not write notes; export markdown only.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+        "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
         "best_for": "Handing a locked scope to Cursor, Claude Code, or Codex.",
         "id": "build_brief",
         "kind": "artifact",
@@ -1598,7 +1598,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     ],
     "build_choices": [
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+        "action": "[text]",
         "best_for": "IDE-first implementation with project files open.",
         "id": "cursor",
         "kind": "build",
@@ -1607,7 +1607,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "tradeoffs": "Fast for repo edits; needs a clear build brief.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cursor' })",
+        "action": "[text]",
         "best_for": "Terminal-first code generation and refactors.",
         "id": "claude_code",
         "kind": "build",
@@ -1616,7 +1616,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "tradeoffs": "Great for implementation; keep the route and tests explicit.",
       },
       {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], build_target: 'code' })",
+        "action": "[text]",
         "best_for": "Agentic repo work with tests, commits, and PR handoff.",
         "id": "codex",
         "kind": "build",
@@ -1701,7 +1701,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       },
     ],
     "recommended_next_click": {
-      "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+      "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
       "id": "build_brief",
       "label": "Export Build brief for Codex",
     },
@@ -1805,9 +1805,9 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "label": "Generate the CoWork or ChatGPT system prompt for this plan",
     },
     {
-      "action": "export_build_brief({ handoff_targets: ['prompt'] })",
+      "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
       "id": "export_build_brief",
-      "label": "Export the full build brief (Cursor / Claude Code)",
+      "label": "Export the Claude-safe build brief (Cursor / Claude Code)",
     },
     {
       "action": "get_playbook({ id: "codebase_agent_workflow" })",
@@ -2425,6 +2425,419 @@ exports[`MAR-169 — validate_playbook_candidate output schema > ok branch confo
 }
 `;
 
+exports[`MAR-249 — export_build_brief output schema > compact structuredContent conforms and text content is brief_markdown 1`] = `
+{
+  "agent_manifest": {
+    "agent": {
+      "build_target": "code",
+      "goal": "read emails, detect leads and write a note to the CRM for each lead",
+      "name": "read-emails-detect-leads-and-write-a-note-to-the-crm-for-eac",
+      "plan_source": "playbook",
+      "playbook_id": "",
+      "route_id": "",
+    },
+    "manifest_version": 1,
+    "monitoring": {
+      "endpoint_env": "DASH_INGEST_URL",
+      "events": [
+        "run_started",
+        "step_started",
+        "step_completed",
+        "gate_requested",
+        "gate_resolved",
+        "run_completed",
+        "run_failed",
+      ],
+      "output_location": "",
+      "token_env": "DASH_INGEST_TOKEN",
+    },
+    "planned_route": [
+      {
+        "component_id": "email_read",
+        "model_tier": "none",
+        "risk_level": "low",
+        "step": 1,
+      },
+      {
+        "component_id": "schema_validation",
+        "model_tier": "none",
+        "risk_level": "low",
+        "step": 2,
+      },
+      {
+        "component_id": "intent_classifier",
+        "model_tier": "small",
+        "risk_level": "low",
+        "step": 3,
+      },
+      {
+        "component_id": "email_draft",
+        "model_tier": "standard",
+        "risk_level": "medium",
+        "step": 4,
+      },
+      {
+        "component_id": "human_approval_gate",
+        "model_tier": "none",
+        "risk_level": "low",
+        "step": 5,
+      },
+      {
+        "component_id": "crm_note_write",
+        "model_tier": "small",
+        "risk_level": "high",
+        "step": 6,
+      },
+      {
+        "component_id": "optional_email_send",
+        "model_tier": "none",
+        "risk_level": "high",
+        "step": 7,
+      },
+      {
+        "component_id": "audit_log",
+        "model_tier": "none",
+        "risk_level": "low",
+        "step": 8,
+      },
+    ],
+    "provenance": {
+      "generated_at": "[volatile]",
+      "generated_by": "orchestratekit-mcp export_build_brief",
+      "registry_fingerprint": "26b95a7a03de9ffd",
+    },
+    "safety_contract": {
+      "automation_clearance": "L3",
+      "enforced_approval_gates": [
+        "human_approval_gate",
+      ],
+      "irreversible_components": [
+        "crm_note_write",
+        "optional_email_send",
+      ],
+    },
+  },
+  "artifact_index": {
+    "artifact_bytes": 177864,
+    "artifact_fingerprint": "sha256:d294bd3d03480d7ba7fa19680dc5e27a91c533480b6618ff1576ddc54a3cb91a",
+    "compiler": "export_build_brief.artifact_compiler.v1",
+    "epic": {
+      "context": "[text]",
+      "goal": "read emails, detect leads and write a note to the CRM for each lead",
+      "milestones": [
+        "M1: Scope and contracts locked",
+        "M2: Route implementation",
+        "M3: Safety, observability, and release readiness",
+      ],
+      "non_goals": [
+        "No Linear issue creation by OrchestrateMCP.",
+        "No Obsidian note creation by OrchestrateMCP.",
+        "No live credential wiring or external writes during compilation.",
+        "No route changes without re-running plan_workflow.",
+      ],
+      "title": "[text]",
+    },
+    "full_contains": [
+      "scope confirmation and directives",
+      "complete structured fields for every implementation issue",
+      "rendered Linear issue Markdown",
+      "builder execution prompt",
+      "few-shot issue example",
+    ],
+    "issues": [
+      {
+        "id": "ISSUE-001",
+        "milestone_id": "M1",
+        "title": "[text]",
+      },
+      {
+        "id": "ISSUE-002",
+        "milestone_id": "M2",
+        "title": "Implement step 1: Email Read",
+      },
+      {
+        "id": "ISSUE-003",
+        "milestone_id": "M2",
+        "title": "Implement step 2: Schema Validation",
+      },
+      {
+        "id": "ISSUE-004",
+        "milestone_id": "M2",
+        "title": "Implement step 3: Intent Classifier",
+      },
+      {
+        "id": "ISSUE-005",
+        "milestone_id": "M2",
+        "title": "Implement step 4: Email Draft",
+      },
+      {
+        "id": "ISSUE-006",
+        "milestone_id": "M2",
+        "title": "Implement step 5: Human Approval Gate",
+      },
+      {
+        "id": "ISSUE-007",
+        "milestone_id": "M2",
+        "title": "Implement step 6: CRM Note Write",
+      },
+      {
+        "id": "ISSUE-008",
+        "milestone_id": "M2",
+        "title": "Implement step 7: Optional Email Send",
+      },
+      {
+        "id": "ISSUE-009",
+        "milestone_id": "M2",
+        "title": "Implement step 8: Audit Log",
+      },
+      {
+        "id": "ISSUE-010",
+        "milestone_id": "M3",
+        "title": "[text]",
+      },
+    ],
+    "milestones": [
+      {
+        "goal": "[text]",
+        "id": "M1",
+        "issue_ids": [
+          "ISSUE-001",
+        ],
+        "title": "Scope and contracts locked",
+      },
+      {
+        "goal": "[text]",
+        "id": "M2",
+        "issue_ids": [
+          "ISSUE-002",
+          "ISSUE-003",
+          "ISSUE-004",
+          "ISSUE-005",
+          "ISSUE-006",
+          "ISSUE-007",
+          "ISSUE-008",
+          "ISSUE-009",
+        ],
+        "title": "Route implementation",
+      },
+      {
+        "goal": "[text]",
+        "id": "M3",
+        "issue_ids": [
+          "ISSUE-010",
+        ],
+        "title": "Safety, observability, and release readiness",
+      },
+    ],
+    "status": "compiled",
+  },
+  "brief_markdown": "[text]",
+  "connect": {
+    "connect_script": "[text]",
+    "credential_manifest": [
+      {
+        "connect": "paste",
+        "env": "GMAIL_CLIENT_ID",
+        "format_hint": "ends with .apps.googleusercontent.com",
+        "format_pattern": "\\.apps\\.googleusercontent\\.com$",
+        "label": "Google OAuth client ID",
+        "mint_hint": "[text]",
+        "mint_url": "https://console.cloud.google.com/apis/credentials",
+        "probe": {
+          "kind": "none",
+          "note": "Validated together with GMAIL_REFRESH_TOKEN by the OAuth token exchange.",
+        },
+        "provider": "google",
+        "required": true,
+        "required_by": [
+          "email_read",
+          "optional_email_send",
+        ],
+        "secret": false,
+      },
+      {
+        "connect": "paste",
+        "env": "GMAIL_CLIENT_SECRET",
+        "format_hint": "starts with GOCSPX-",
+        "format_pattern": "^GOCSPX-",
+        "label": "Google OAuth client secret",
+        "mint_hint": "Shown on the same OAuth client page as the client ID.",
+        "mint_url": "https://console.cloud.google.com/apis/credentials",
+        "probe": {
+          "kind": "none",
+          "note": "Validated together with GMAIL_REFRESH_TOKEN by the OAuth token exchange.",
+        },
+        "provider": "google",
+        "required": true,
+        "required_by": [
+          "email_read",
+          "optional_email_send",
+        ],
+        "secret": true,
+      },
+      {
+        "connect": "google_oauth",
+        "env": "GMAIL_REFRESH_TOKEN",
+        "label": "Gmail OAuth refresh token",
+        "mint_hint": "[text]",
+        "mint_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "oauth": {
+          "client_id_env": "GMAIL_CLIENT_ID",
+          "client_secret_env": "GMAIL_CLIENT_SECRET",
+          "scopes": [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.compose",
+          ],
+        },
+        "probe": {
+          "client_id_env": "GMAIL_CLIENT_ID",
+          "client_secret_env": "GMAIL_CLIENT_SECRET",
+          "kind": "google_refresh",
+          "profile_url": "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+          "success_field": "emailAddress",
+        },
+        "provider": "google",
+        "required": true,
+        "required_by": [
+          "email_read",
+          "optional_email_send",
+        ],
+        "secret": true,
+      },
+      {
+        "connect": "paste",
+        "env": "ANTHROPIC_API_KEY",
+        "format_hint": "starts with sk-ant-",
+        "format_pattern": "^sk-ant-",
+        "label": "Anthropic API key",
+        "mint_hint": "Create Key → copy once. Scope it to this workspace if you use multiple.",
+        "mint_url": "https://console.anthropic.com/settings/keys",
+        "probe": {
+          "headers": {
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "{{VALUE}}",
+          },
+          "kind": "http",
+          "method": "GET",
+          "ok_statuses": [
+            200,
+          ],
+          "url": "https://api.anthropic.com/v1/models",
+        },
+        "provider": "anthropic",
+        "required": true,
+        "required_by": [
+          "intent_classifier",
+          "email_draft",
+          "crm_note_write",
+        ],
+        "secret": true,
+      },
+      {
+        "connect": "paste",
+        "env": "HUBSPOT_PRIVATE_APP_TOKEN",
+        "format_hint": "starts with pat-",
+        "format_pattern": "^pat-",
+        "label": "HubSpot private-app token",
+        "mint_hint": "[text]",
+        "mint_url": "https://app.hubspot.com/private-apps",
+        "probe": {
+          "headers": {
+            "authorization": "Bearer {{VALUE}}",
+          },
+          "kind": "http",
+          "method": "GET",
+          "ok_statuses": [
+            200,
+          ],
+          "url": "https://api.hubapi.com/crm/v3/objects/contacts?limit=1",
+        },
+        "provider": "hubspot",
+        "required": false,
+        "required_by": [
+          "crm_note_write",
+        ],
+        "secret": true,
+      },
+      {
+        "connect": "paste",
+        "env": "DASH_INGEST_URL",
+        "label": "DASH/LAB ingest endpoint (optional monitoring)",
+        "mint_hint": "[text]",
+        "mint_url": "http://localhost:3000/agents",
+        "probe": {
+          "kind": "none",
+          "note": "Optional monitoring target — validated on first agent run, not at connect time.",
+        },
+        "provider": "dash",
+        "required": false,
+        "required_by": [
+          "observability",
+        ],
+        "secret": false,
+      },
+      {
+        "connect": "paste",
+        "env": "DASH_INGEST_TOKEN",
+        "label": "DASH/LAB ingest bearer token (optional monitoring)",
+        "mint_hint": "[text]",
+        "mint_url": "http://localhost:3000/agents",
+        "probe": {
+          "kind": "none",
+          "note": "Optional monitoring target — validated on first agent run, not at connect time.",
+        },
+        "provider": "dash",
+        "required": false,
+        "required_by": [
+          "observability",
+        ],
+        "secret": true,
+      },
+    ],
+    "instructions": "[text]",
+    "script_path": "scripts/connect.mjs",
+  },
+  "delivery": {
+    "artifact_bytes": 177864,
+    "artifact_fingerprint": "sha256:d294bd3d03480d7ba7fa19680dc5e27a91c533480b6618ff1576ddc54a3cb91a",
+    "contract": "export_build_brief.delivery.v1",
+    "full_artifact_available": true,
+    "full_request": {
+      "arguments_delta": {
+        "delivery_mode": "full",
+      },
+      "instruction": "[text]",
+      "reuse_same_arguments": true,
+      "tool": "export_build_brief",
+    },
+    "mode": "compact",
+    "omitted_fields": [
+      "artifact_package",
+      "full rendered prompt/Linear handoffs",
+    ],
+  },
+  "grounding_note": "[text]",
+  "handoffs": {
+    "linear": "[text]",
+    "prompt": "[text]",
+  },
+  "provenance_tag": "registry-grounded",
+  "sections": {
+    "s0_constraints": "[text]",
+    "s11_connect": "[text]",
+    "s1_summary": "[text]",
+    "s2_route": "[text]",
+    "s3_worker_contracts": "[text]",
+    "s4_loop_contract": "[text]",
+    "s5_safety": "[text]",
+    "s6_do_not_add": "[text]",
+    "s7_review_loopback": "[text]",
+    "s8_definition_of_done": "[text]",
+    "s9_observability": "[text]",
+  },
+}
+`;
+
 exports[`MAR-249 — export_build_brief output schema > runtime structuredContent conforms + golden snapshot 1`] = `
 {
   "agent_manifest": {
@@ -2516,6 +2929,120 @@ exports[`MAR-249 — export_build_brief output schema > runtime structuredConten
         "optional_email_send",
       ],
     },
+  },
+  "artifact_index": {
+    "artifact_bytes": 177864,
+    "artifact_fingerprint": "sha256:d294bd3d03480d7ba7fa19680dc5e27a91c533480b6618ff1576ddc54a3cb91a",
+    "compiler": "export_build_brief.artifact_compiler.v1",
+    "epic": {
+      "context": "[text]",
+      "goal": "read emails, detect leads and write a note to the CRM for each lead",
+      "milestones": [
+        "M1: Scope and contracts locked",
+        "M2: Route implementation",
+        "M3: Safety, observability, and release readiness",
+      ],
+      "non_goals": [
+        "No Linear issue creation by OrchestrateMCP.",
+        "No Obsidian note creation by OrchestrateMCP.",
+        "No live credential wiring or external writes during compilation.",
+        "No route changes without re-running plan_workflow.",
+      ],
+      "title": "[text]",
+    },
+    "full_contains": [
+      "scope confirmation and directives",
+      "complete structured fields for every implementation issue",
+      "rendered Linear issue Markdown",
+      "builder execution prompt",
+      "few-shot issue example",
+    ],
+    "issues": [
+      {
+        "id": "ISSUE-001",
+        "milestone_id": "M1",
+        "title": "[text]",
+      },
+      {
+        "id": "ISSUE-002",
+        "milestone_id": "M2",
+        "title": "Implement step 1: Email Read",
+      },
+      {
+        "id": "ISSUE-003",
+        "milestone_id": "M2",
+        "title": "Implement step 2: Schema Validation",
+      },
+      {
+        "id": "ISSUE-004",
+        "milestone_id": "M2",
+        "title": "Implement step 3: Intent Classifier",
+      },
+      {
+        "id": "ISSUE-005",
+        "milestone_id": "M2",
+        "title": "Implement step 4: Email Draft",
+      },
+      {
+        "id": "ISSUE-006",
+        "milestone_id": "M2",
+        "title": "Implement step 5: Human Approval Gate",
+      },
+      {
+        "id": "ISSUE-007",
+        "milestone_id": "M2",
+        "title": "Implement step 6: CRM Note Write",
+      },
+      {
+        "id": "ISSUE-008",
+        "milestone_id": "M2",
+        "title": "Implement step 7: Optional Email Send",
+      },
+      {
+        "id": "ISSUE-009",
+        "milestone_id": "M2",
+        "title": "Implement step 8: Audit Log",
+      },
+      {
+        "id": "ISSUE-010",
+        "milestone_id": "M3",
+        "title": "[text]",
+      },
+    ],
+    "milestones": [
+      {
+        "goal": "[text]",
+        "id": "M1",
+        "issue_ids": [
+          "ISSUE-001",
+        ],
+        "title": "Scope and contracts locked",
+      },
+      {
+        "goal": "[text]",
+        "id": "M2",
+        "issue_ids": [
+          "ISSUE-002",
+          "ISSUE-003",
+          "ISSUE-004",
+          "ISSUE-005",
+          "ISSUE-006",
+          "ISSUE-007",
+          "ISSUE-008",
+          "ISSUE-009",
+        ],
+        "title": "Route implementation",
+      },
+      {
+        "goal": "[text]",
+        "id": "M3",
+        "issue_ids": [
+          "ISSUE-010",
+        ],
+        "title": "Safety, observability, and release readiness",
+      },
+    ],
+    "status": "compiled",
   },
   "artifact_package": {
     "build_prompt": "[text]",
@@ -2847,6 +3374,22 @@ exports[`MAR-249 — export_build_brief output schema > runtime structuredConten
     ],
     "instructions": "[text]",
     "script_path": "scripts/connect.mjs",
+  },
+  "delivery": {
+    "artifact_bytes": 177864,
+    "artifact_fingerprint": "sha256:d294bd3d03480d7ba7fa19680dc5e27a91c533480b6618ff1576ddc54a3cb91a",
+    "contract": "export_build_brief.delivery.v1",
+    "full_artifact_available": true,
+    "full_request": {
+      "arguments_delta": {
+        "delivery_mode": "full",
+      },
+      "instruction": "[text]",
+      "reuse_same_arguments": true,
+      "tool": "export_build_brief",
+    },
+    "mode": "full",
+    "omitted_fields": [],
   },
   "grounding_note": "[text]",
   "handoffs": {
