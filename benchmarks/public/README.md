@@ -50,4 +50,3 @@ Deterministic route scores range from 61 to 84 (average 72.3). These are graph-i
 - A/B/C client scoring still follows [PROTOCOL.md](../PROTOCOL.md) and requires fresh isolated conversations plus human scoring.
 
 Machine-readable result: [latest.json](latest.json). Historical manual runs remain under `benchmarks/results-*.md` with their original caveats.
-
