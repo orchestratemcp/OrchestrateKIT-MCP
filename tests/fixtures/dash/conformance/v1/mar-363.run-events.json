@@ -1,0 +1,13 @@
+[
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 1, "ts": "2026-07-13T09:00:01Z", "type": "run_started", "status": "ok", "detail": "synthetic conformance run" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 2, "ts": "2026-07-13T09:00:02Z", "type": "gate_requested", "component_id": "slack_notification", "status": "pending" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 3, "ts": "2026-07-13T09:00:03Z", "type": "gate_resolved", "component_id": "slack_notification", "status": "ok", "detail": "approved" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 4, "ts": "2026-07-13T09:00:04Z", "type": "step_started", "component_id": "slack_notification", "status": "pending" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 5, "ts": "2026-07-13T09:00:05Z", "type": "gate_requested", "component_id": "crm_note_write", "status": "pending" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 6, "ts": "2026-07-13T09:00:06Z", "type": "gate_resolved", "component_id": "crm_note_write", "status": "ok", "detail": "approved" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 7, "ts": "2026-07-13T09:00:07Z", "type": "step_started", "component_id": "crm_note_write", "status": "pending" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 8, "ts": "2026-07-13T09:00:08Z", "type": "gate_requested", "component_id": "optional_email_send", "status": "pending" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 9, "ts": "2026-07-13T09:00:09Z", "type": "gate_resolved", "component_id": "optional_email_send", "status": "ok", "detail": "approved" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 10, "ts": "2026-07-13T09:00:10Z", "type": "step_started", "component_id": "optional_email_send", "status": "pending" },
+  { "event_version": 1, "agent": "email-lead-crm-slack-agent", "run_id": "mar-363-contract-rehearsal", "seq": 11, "ts": "2026-07-13T09:00:11Z", "type": "run_completed", "status": "ok" }
+]

@@ -1,0 +1,3082 @@
+{
+  "mode": "single",
+  "status": 200,
+  "contentType": "text/event-stream",
+  "ms": 250,
+  "payload": {
+    "result": {
+      "tools": [
+        {
+          "name": "list_graph_components",
+          "title": "List Graph Components",
+          "description": "Lists published workflow graph components. Filter by category, capability keyword or risk level. Returns id, name, category, capabilities and summary for each match. Use get_graph_component to get full details including related edges.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "type": "string",
+                "enum": [
+                  "input",
+                  "processing",
+                  "state",
+                  "safety",
+                  "tool",
+                  "output",
+                  "eval",
+                  "orchestration",
+                  "integration"
+                ],
+                "description": "Filter by component category: input | processing | state | safety | tool | output | eval | orchestration | integration"
+              },
+              "capability": {
+                "type": "string",
+                "description": "Filter by capability keyword (case-insensitive substring match on the capabilities list)"
+              },
+              "risk_level": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "description": "Filter by risk level: low | medium | high | critical"
+              },
+              "include_beta": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include beta-status components. Default false."
+              },
+              "max_results": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20,
+                "description": "Maximum number of results to return. Default 20."
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "get_graph_component",
+          "title": "Get Graph Component",
+          "description": "Returns full details for a single workflow graph component by id. Use include_edges to see related edges (requires, safer_with, produces_input_for, etc.). Use include_tests to see eval criteria and test playbook references.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "component_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The id of the component to retrieve (e.g. 'source_retrieval')"
+              },
+              "include_edges": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, include all incoming and outgoing edges for this component."
+              },
+              "include_tests": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, include evals, tested_in_playbooks and tested_in_routes."
+              }
+            },
+            "required": [
+              "component_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "list_graph_edges",
+          "title": "List Graph Edges",
+          "description": "Lists workflow graph edges (relations between components). Filter by source/target component, relation type or severity. Use this to understand what edges exist between components before designing a workflow.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "from_component_id": {
+                "type": "string",
+                "description": "Filter edges by source component id"
+              },
+              "to_component_id": {
+                "type": "string",
+                "description": "Filter edges by target component id"
+              },
+              "relation": {
+                "type": "string",
+                "enum": [
+                  "requires",
+                  "compatible_with",
+                  "conflicts_with",
+                  "alternative_to",
+                  "safer_with",
+                  "tested_with",
+                  "produces_input_for",
+                  "consumes_output_from",
+                  "must_run_before",
+                  "can_run_parallel",
+                  "requires_human_approval_when",
+                  "recommended_for",
+                  "avoid_when"
+                ],
+                "description": "Filter by relation type: produces_input_for | requires | safer_with | must_run_before | recommended_for | compatible_with | tested_with | avoid_when | conflicts_with | can_run_parallel"
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "description": "Filter by severity level: low | medium | high | critical"
+              },
+              "include_beta": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include beta-status edges. Default false."
+              },
+              "max_results": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 30,
+                "description": "Maximum number of results to return. Default 30."
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "get_graph_edge",
+          "title": "Get Graph Edge",
+          "description": "Returns full details for a single workflow graph edge by id. Includes the relation type, severity, reason, notes and any conditions. Use list_graph_edges to find edge ids.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "edge_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The id of the edge to retrieve (e.g. 'external_publish__requires__human_approval_gate')"
+              }
+            },
+            "required": [
+              "edge_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "get_stack_recommendation",
+          "title": "Get Stack Recommendation",
+          "description": "Returns the recommended technology stack for an AI workflow, with opinionated defaults and when-to-upgrade guidance. Always warns against premature vector DB, remote auth or graph databases for local/v0 scope. Use this before selecting technologies for a new workflow project.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "stack_id": {
+                "type": "string",
+                "description": "Specific stack id to retrieve. Defaults to 'default_orchestratekit_stack'."
+              },
+              "use_case": {
+                "type": "string",
+                "description": "Describe your use case to get targeted guidance (e.g. 'local MVP', 'hosted team product')"
+              },
+              "local_or_hosted": {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "hosted",
+                  "either"
+                ],
+                "default": "either",
+                "description": "Whether you are building a local tool or a hosted product"
+              },
+              "risk_level": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "description": "Risk level of the workflow to inform stack choices"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "list_known_routes",
+          "title": "List Known Routes",
+          "description": "Lists all known golden-path workflow routes in the registry. Each route is a tested sequence of components and edges for a specific workflow pattern. Use get_route to get full details and component/edge lists for a specific route.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "risk_level": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "description": "Filter routes by risk level"
+              },
+              "include_beta": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include beta/candidate routes. Default false."
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "get_route",
+          "title": "Get Route",
+          "description": "Returns full details for a single golden-path workflow route by id. Includes the component list, edge list, confidence score, risk level and failure modes. Use list_known_routes to discover available route ids.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "route_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The id of the route to retrieve (e.g. 'research_route_v1')"
+              },
+              "include_component_details": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, include full component summaries for each component in the route."
+              }
+            },
+            "required": [
+              "route_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "compose_workflow_route",
+          "title": "Compose Workflow Route",
+          "description": "Proposes a candidate AI workflow route by matching your goal to graph components, adding required dependencies and safety gates, ordering steps, and scoring the result. Use this when you are designing a new AI workflow and want opinionated, graph-backed architecture suggestions. The result is a CANDIDATE ROUTE — not a validated playbook. Always review before implementing. Use get_route and list_known_routes to check if a validated playbook already exists.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "goal": {
+                "type": "string",
+                "minLength": 5,
+                "description": "Describe the workflow you want to build in plain language. Example: 'I want to read emails, research the sender and draft a reply.'"
+              },
+              "must_have_capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Capabilities the route must include (e.g. ['send_email', 'validate_schema']). Missing capabilities will be flagged."
+              },
+              "must_avoid": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Component IDs to exclude from the route."
+              },
+              "risk_level": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "description": "Maximum acceptable risk level for components. Higher-risk components will be flagged."
+              },
+              "local_or_hosted": {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "hosted",
+                  "either"
+                ],
+                "default": "either",
+                "description": "Whether you are building a local tool or a hosted product. Affects stack recommendation."
+              },
+              "output_depth": {
+                "type": "string",
+                "enum": [
+                  "guided",
+                  "brief",
+                  "standard",
+                  "technical",
+                  "deep"
+                ],
+                "default": "standard",
+                "description": "guided/brief = short summary only. standard = full route with warnings. technical/deep = includes all evals."
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "get_playbook",
+          "title": "Get Playbook",
+          "description": "Returns a golden-path playbook from the workflow graph registry by id or workflow type. Set include_graph=true to also receive the resolved route, component summaries, edge summaries, stack context, untested edges and approval gates. If no playbook matches, recommends compose_workflow_route instead. Returns warnings for beta/deprecated/low-confidence matches. Use list_known_routes to browse available route ids.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "playbook_id": {
+                "type": "string",
+                "description": "The exact playbook id to retrieve (e.g. 'codebase_agent_workflow')."
+              },
+              "workflow_type": {
+                "type": "string",
+                "description": "Match the best golden-path playbook by workflow type (e.g. 'coding-agent', 'research', 'data-pipeline'). Used when playbook_id is not known."
+              },
+              "include_beta": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, include beta-status playbooks in the search."
+              },
+              "include_graph": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, resolve and return the full graph context: route, components, edges, stack, untested edges and approval gates."
+              },
+              "output_format": {
+                "type": "string",
+                "enum": [
+                  "summary",
+                  "full",
+                  "implementation_focused"
+                ],
+                "default": "full",
+                "description": "summary = overview only. full = all playbook fields. implementation_focused = guardrails, failure_modes, implementation_steps and graph context."
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "number"
+              },
+              "summary_markdown": {
+                "type": "string"
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "next_recommended_tools": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "matched_playbook_id": {
+                "type": "string"
+              },
+              "playbook": {}
+            },
+            "required": [
+              "status",
+              "confidence",
+              "summary_markdown",
+              "warnings",
+              "next_recommended_tools"
+            ],
+            "additionalProperties": true,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_relevant_docs",
+          "title": "Get Relevant Docs",
+          "description": "Returns documentation and source references relevant to a playbook, route, set of components, or framework/topic from the workflow graph registry and the internal docs-index. Only returns known indexed/internal sources — never fabricates official documentation. Internal seed sources are labelled as 'internal_note'. Use playbook_id or route_id to narrow to a specific workflow. Use frameworks/topics for broad technology-level references.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "playbook_id": {
+                "type": "string",
+                "description": "Pull sources from this playbook and its component/edge members."
+              },
+              "route_id": {
+                "type": "string",
+                "description": "Pull sources from the edges and components referenced by this route."
+              },
+              "component_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Pull sources from these specific component ids."
+              },
+              "frameworks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Match docs-index entries by framework tag (e.g. 'openai', 'cursor', 'anthropic')."
+              },
+              "topics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Match docs-index entries by topic tag (e.g. 'mcp', 'agents', 'orchestration')."
+              },
+              "max_results": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 20,
+                "description": "Maximum number of doc results to return."
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "recommend_architecture",
+          "title": "Recommend Architecture",
+          "description": "The main user-facing architecture recommendation tool. Accepts a workflow goal and constraints, then returns a concrete, opinionated architecture recommendation with route, step classification, stack guidance, approval gates, do-not-build anti-patterns and confidence scoring. Uses deterministic graph routing — no LLM calls. Candidate routes are clearly labelled. High-risk workflows always include approval guidance. Use compose_workflow_route for raw route composition without architecture framing.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "goal": {
+                "type": "string",
+                "minLength": 5,
+                "description": "Describe the AI workflow you want to build. Example: 'I want to scrape job listings, normalise the data and store it for search.'"
+              },
+              "current_stack": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Technologies you are already using (e.g. ['nextjs', 'sqlite', 'openai']). Used to contextualise the stack recommendation."
+              },
+              "preferred_models": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "LLM providers/models you prefer (e.g. ['openai', 'anthropic']). Informational — does not affect routing."
+              },
+              "preferred_frameworks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Frameworks you prefer (e.g. ['vercel-ai-sdk', 'langchain']). Informational."
+              },
+              "integrations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "External services/integrations required (e.g. ['email', 'calendar', 'slack']). Used to surface approval gate requirements."
+              },
+              "risk_level": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "description": "Maximum acceptable risk level. High/critical inputs trigger mandatory approval gate guidance."
+              },
+              "budget_preference": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "balanced",
+                  "high_quality"
+                ],
+                "default": "balanced",
+                "description": "Cost preference: low = minimise tokens/calls, balanced = good quality at reasonable cost, high_quality = optimise for quality."
+              },
+              "latency_preference": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "balanced",
+                  "not_important"
+                ],
+                "default": "balanced",
+                "description": "Latency preference: low = optimise for speed, balanced = acceptable latency, not_important = quality over speed."
+              },
+              "local_or_hosted": {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "hosted",
+                  "either"
+                ],
+                "default": "either",
+                "description": "Whether you are building a local tool or a hosted product. Affects stack and storage recommendations."
+              },
+              "output_depth": {
+                "type": "string",
+                "enum": [
+                  "brief",
+                  "standard",
+                  "deep"
+                ],
+                "default": "standard",
+                "description": "brief = pattern + route only. standard = full architecture. deep = + evals, assumptions, implementation guidance."
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "number"
+              },
+              "recommendation_markdown": {
+                "type": "string"
+              },
+              "next_recommended_tools": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "status",
+              "confidence",
+              "recommendation_markdown",
+              "next_recommended_tools"
+            ],
+            "additionalProperties": true,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "review_workflow_design",
+          "title": "Review Workflow Design",
+          "description": "Deterministic safety checker for AI workflow designs. Accepts a workflow spec (goal, components, agents, tools, state, integrations) and returns a structured review covering: missing approval gates, state gaps, tool safety, architecture anti-patterns, graph-derived findings (untested edges, conflicts, missing deps) and eval coverage. No LLM calls — all checks are rule-based. Use before implementing to catch critical design problems early. Provide route_id or component_ids for graph-aware analysis.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "workflow_name": {
+                "type": "string",
+                "description": "Optional name for the workflow being reviewed."
+              },
+              "goal": {
+                "type": "string",
+                "minLength": 5,
+                "description": "What the workflow is trying to accomplish."
+              },
+              "proposed_architecture": {
+                "type": "string",
+                "description": "Free-text description of the proposed architecture. Include data flow, component roles and decision points."
+              },
+              "route_id": {
+                "type": "string",
+                "description": "Known registry route id to inspect (e.g. 'research_route_v1'). Enables graph-aware edge and component inspection."
+              },
+              "component_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Registry component ids included in the workflow. Used for graph-aware checks."
+              },
+              "agents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "responsibility": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "responsibility"
+                  ],
+                  "additionalProperties": false
+                },
+                "default": [],
+                "description": "Agents in the workflow with their responsibilities and tools."
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "permissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    },
+                    "side_effects": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "default": [],
+                "description": "Custom tools used by agents. Include descriptions, permissions and side effects."
+              },
+              "state": {
+                "type": "object",
+                "properties": {
+                  "has_persistent_state": {
+                    "type": "boolean"
+                  },
+                  "store": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "description": "State/storage configuration for the workflow."
+              },
+              "human_approval": {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "approval_points": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Human approval configuration."
+              },
+              "integrations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "External services/integrations used (e.g. ['email', 'calendar', 'slack', 'github'])."
+              },
+              "risk_level": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "description": "Declared risk level of the workflow."
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "risk_score": {
+                "type": "number"
+              },
+              "summary_markdown": {
+                "type": "string"
+              },
+              "blocking_issues": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "approval_gates_required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "next_recommended_tools": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "status",
+              "risk_score",
+              "summary_markdown",
+              "blocking_issues",
+              "warnings",
+              "approval_gates_required",
+              "next_recommended_tools"
+            ],
+            "additionalProperties": true,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "plan_workflow",
+          "title": "Plan Workflow",
+          "description": "One-call workflow planner. Give it a goal and it returns a complete plan: the recommended route (validated playbook when one strongly matches the goal, otherwise a composed candidate), per-step model-tier guidance, an inlined safety review, the recommended stack, and untested-edge warnings. Replaces the manual sequence of list_known_routes → get_route → compose_workflow_route → get_stack_recommendation → review_workflow_design. Prefer this as the entry point for designing a new AI workflow. IMPORTANT: render the returned `summary_markdown` to the user VERBATIM — do not paraphrase or summarize it, and do not drop the A) B) C) D) continuation menu at the end.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "goal": {
+                "type": "string",
+                "minLength": 5,
+                "description": "Describe the workflow you want to build in plain language. Example: 'read emails, detect leads, research the company and draft a reply.'"
+              },
+              "must_have_capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Capabilities the plan must include. Missing capabilities are flagged."
+              },
+              "must_avoid": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Component IDs to exclude from the plan."
+              },
+              "risk_level": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "description": "Maximum acceptable risk level for components."
+              },
+              "local_or_hosted": {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "hosted",
+                  "either"
+                ],
+                "default": "either",
+                "description": "Local tool vs hosted product — affects the stack recommendation."
+              },
+              "output_depth": {
+                "type": "string",
+                "enum": [
+                  "guided",
+                  "brief",
+                  "standard",
+                  "technical",
+                  "deep"
+                ],
+                "default": "brief",
+                "description": "Layered output (MAR-224). guided/brief = concise Layer-1 decision UI: the goal, the recommended route as one line, integrations to connect (names only), the key safeguard, and a next-action menu. standard = adds the full step list + safety detail. technical/deep = the full plan — model tiers, credentials & gotchas, worker pipeline, untested edges, evals and the provenance block. Default brief."
+              },
+              "build_target": {
+                "type": "string",
+                "enum": [
+                  "cowork",
+                  "cursor",
+                  "chatgpt_gpt",
+                  "code"
+                ],
+                "description": "Who will BUILD from this plan? cowork = Claude Project / CoWork (configure an assistant, no code); cursor = Cursor / Claude Code / VS Code (write implementation code); chatgpt_gpt = ChatGPT Custom GPT (system prompt + Actions); code = raw code (Codex or similar). Drives suggested_next_actions and what_you_need. Omit to get all options."
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "summary_markdown": {
+                "type": "string"
+              },
+              "plan_source": {
+                "type": "string",
+                "enum": [
+                  "playbook",
+                  "composed"
+                ]
+              },
+              "goal": {
+                "type": "string"
+              },
+              "route_status": {
+                "type": "string"
+              },
+              "route_score": {
+                "type": "number"
+              },
+              "enforced_approval_gates": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "safety_review": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pass",
+                      "warnings",
+                      "fail"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ],
+                "additionalProperties": true
+              },
+              "recommended_route": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "component_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "component_id"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "worker_pipeline": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "workers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "worker_id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "worker_id"
+                          ],
+                          "additionalProperties": true
+                        }
+                      },
+                      "handoffs": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {},
+                          "additionalProperties": true
+                        }
+                      },
+                      "feedback_loops": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {},
+                          "additionalProperties": true
+                        }
+                      }
+                    },
+                    "required": [
+                      "workers",
+                      "handoffs",
+                      "feedback_loops"
+                    ],
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "worker_pipeline_pointer": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "loop_guidance": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "playbook_id": {
+                        "type": "string"
+                      },
+                      "worker_sequence": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "loop_contract": {
+                        "type": "object",
+                        "properties": {
+                          "max_iterations": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "max_iterations"
+                        ],
+                        "additionalProperties": true
+                      },
+                      "guardrail_checklist": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "playbook_id",
+                      "worker_sequence",
+                      "loop_contract",
+                      "guardrail_checklist"
+                    ],
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "automation_clearance": {
+                "type": "object",
+                "properties": {
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "L0",
+                      "L1",
+                      "L2",
+                      "L3",
+                      "L4"
+                    ]
+                  },
+                  "autonomous_allowed": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "required_controls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "level",
+                  "autonomous_allowed",
+                  "reason",
+                  "required_controls"
+                ],
+                "additionalProperties": true
+              },
+              "observability": {
+                "type": "object",
+                "properties": {
+                  "recommended_events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "gate_events_required_for": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "endpoint_env": {
+                    "type": "string"
+                  },
+                  "token_env": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "recommended_events",
+                  "gate_events_required_for",
+                  "endpoint_env",
+                  "token_env",
+                  "note"
+                ],
+                "additionalProperties": true
+              },
+              "design_notes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "what_you_need": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "component_id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "product_examples": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "auth_model": {
+                      "type": "string"
+                    },
+                    "mcp_server": {
+                      "type": "object",
+                      "properties": {
+                        "availability": {
+                          "type": "string",
+                          "enum": [
+                            "official",
+                            "community",
+                            "none"
+                          ]
+                        },
+                        "package": {
+                          "type": "string"
+                        },
+                        "transport": {
+                          "type": "string",
+                          "enum": [
+                            "stdio",
+                            "sse",
+                            "http",
+                            "none"
+                          ]
+                        },
+                        "note": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "availability",
+                        "transport"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "required_scopes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "gotchas": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "component_id",
+                    "label",
+                    "product_examples",
+                    "scopes"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "suggested_next_actions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "next_action_menu": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "action": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label",
+                    "action"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "clarifying_questions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "question": {
+                      "type": "string"
+                    },
+                    "options": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "question",
+                    "options"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "hosting_and_monitoring": {
+                "type": "object",
+                "properties": {
+                  "hosting": {
+                    "type": "object",
+                    "properties": {
+                      "recommended": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "label"
+                        ],
+                        "additionalProperties": true
+                      },
+                      "alternatives": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "label"
+                          ],
+                          "additionalProperties": true
+                        }
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "recommended",
+                      "alternatives",
+                      "reason"
+                    ],
+                    "additionalProperties": true
+                  },
+                  "monitoring": {
+                    "type": "object",
+                    "properties": {
+                      "recommended": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "label"
+                        ],
+                        "additionalProperties": true
+                      },
+                      "alternatives": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "label"
+                          ],
+                          "additionalProperties": true
+                        }
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "recommended",
+                      "alternatives",
+                      "reason"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "hosting",
+                  "monitoring"
+                ],
+                "additionalProperties": true
+              },
+              "goal_to_product_wizard": {
+                "type": "object",
+                "properties": {
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "step": {
+                          "type": "number"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "detail": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "step",
+                        "label",
+                        "detail"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "connections_required": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label",
+                        "items"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "build_choices": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "best_for": {
+                          "type": "string"
+                        },
+                        "tradeoffs": {
+                          "type": "string"
+                        },
+                        "recommended": {
+                          "type": "boolean"
+                        },
+                        "action": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label",
+                        "best_for",
+                        "tradeoffs",
+                        "recommended",
+                        "action"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "host_monitor_choices": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "best_for": {
+                          "type": "string"
+                        },
+                        "tradeoffs": {
+                          "type": "string"
+                        },
+                        "recommended": {
+                          "type": "boolean"
+                        },
+                        "action": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label",
+                        "best_for",
+                        "tradeoffs",
+                        "recommended",
+                        "action"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "artifact_choices": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "best_for": {
+                          "type": "string"
+                        },
+                        "tradeoffs": {
+                          "type": "string"
+                        },
+                        "recommended": {
+                          "type": "boolean"
+                        },
+                        "action": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label",
+                        "best_for",
+                        "tradeoffs",
+                        "recommended",
+                        "action"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "clarifying_questions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "question": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "question",
+                        "options"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "recommended_next_click": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "action": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label",
+                      "action"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "steps",
+                  "connections_required",
+                  "build_choices",
+                  "host_monitor_choices",
+                  "artifact_choices",
+                  "clarifying_questions",
+                  "recommended_next_click"
+                ],
+                "additionalProperties": true
+              },
+              "coverage": {
+                "type": "object",
+                "properties": {
+                  "matched": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "component_id": {
+                          "type": "string"
+                        },
+                        "tokens": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "component_id",
+                        "tokens"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "unmatched_demand": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "unsupported_supply": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "coverage_label": {
+                    "type": "string",
+                    "enum": [
+                      "full",
+                      "partial",
+                      "poor"
+                    ]
+                  }
+                },
+                "required": [
+                  "matched",
+                  "unmatched_demand",
+                  "unsupported_supply",
+                  "coverage_label"
+                ],
+                "additionalProperties": true
+              },
+              "provenance": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string",
+                    "const": "registry-deterministic"
+                  },
+                  "all_fields_are_registry_derived": {
+                    "type": "boolean",
+                    "const": true
+                  },
+                  "field_tags": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "grounded",
+                        "computed",
+                        "advisory"
+                      ]
+                    }
+                  },
+                  "grounding_note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "model",
+                  "all_fields_are_registry_derived",
+                  "field_tags",
+                  "grounding_note"
+                ],
+                "additionalProperties": true
+              },
+              "status": {
+                "type": "string",
+                "const": "needs_goal"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "example": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "summary_markdown"
+            ],
+            "additionalProperties": true,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "record_session_feedback",
+          "title": "Record Session Feedback",
+          "description": "The 'ship' step after plan_workflow: capture an evaluation of a COMPLETED workflow setup. Returns a structured, paste-ready session record aligned to the OrchestrateLab session log, plus deterministic safety self-checks (e.g. a component whose required dependency or recommended safeguard is missing from the route). STATELESS: this tool stores nothing and makes no network calls — it only formats and checks your feedback. Save the returned record in OrchestrateLab yourself to accumulate evidence. Call this once the user is done designing/building a workflow with OrchestrateMCP.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "goal": {
+                "type": "string",
+                "minLength": 5,
+                "description": "The agent goal this session designed (plain language)."
+              },
+              "route_components": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "description": "Component ids that ended up in the shipped/used route (the completed setup)."
+              },
+              "route_selected": {
+                "type": "string",
+                "default": "",
+                "description": "Route or playbook id/name that was used, if any."
+              },
+              "client": {
+                "type": "string",
+                "default": "",
+                "description": "Client used, e.g. 'claude' or 'cursor'."
+              },
+              "model": {
+                "type": "string",
+                "default": "",
+                "description": "Model used, e.g. 'claude-opus-4-8'."
+              },
+              "user_goal_domain": {
+                "type": "string",
+                "default": "",
+                "description": "Domain, e.g. 'content-publishing' | 'research' | 'data-pipeline'."
+              },
+              "edges_used": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Edge ids used in the route."
+              },
+              "untested_edges": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Untested edges that shipped → edge validation queue."
+              },
+              "ratings": {
+                "type": "object",
+                "properties": {
+                  "route_quality": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "safety": {
+                    "$ref": "#/properties/ratings/properties/route_quality"
+                  },
+                  "specificity": {
+                    "$ref": "#/properties/ratings/properties/route_quality"
+                  },
+                  "non_hallucination": {
+                    "$ref": "#/properties/ratings/properties/route_quality"
+                  },
+                  "brevity": {
+                    "$ref": "#/properties/ratings/properties/route_quality"
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Per-dimension 1-5 scores (MAR-122 rubric). modelOutputRating is their average."
+              },
+              "overall_rating": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5,
+                "description": "Overall 1-5 rating (0 = unrated). Used when per-dimension ratings are absent."
+              },
+              "what_helped": {
+                "type": "string",
+                "default": "",
+                "description": "One line: what OrchestrateMCP added."
+              },
+              "what_was_noise": {
+                "type": "string",
+                "default": "",
+                "description": "One line: what was noise."
+              },
+              "missing_components": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Capabilities you needed but the registry lacked → component gap queue."
+              },
+              "wrong_components": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Components that were wrongly matched."
+              },
+              "new_edge_candidates": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "New edge ideas → edge queue."
+              },
+              "playbook_candidate": {
+                "type": "string",
+                "default": "",
+                "description": "Slug for a promotable golden-path playbook → promotion queue."
+              },
+              "linear_issue_candidates": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Follow-up issues worth filing."
+              },
+              "baseline_comparison": {
+                "type": "string",
+                "default": "",
+                "description": "Optional A/B note vs. a build made WITHOUT the MCP."
+              }
+            },
+            "required": [
+              "goal",
+              "route_components"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "explain_component",
+          "title": "Explain Component",
+          "description": "Returns a plain-language, operator-friendly explanation of a single workflow component — what it does, what it needs, what it produces, which other steps it connects to, and what can go wrong. Intended for non-technical builders who are assembling an AI agent without deep technical knowledge. Use get_graph_component instead when you need structured JSON fields for programmatic processing or technical documentation.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "component_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The id of the component to explain (e.g. 'human_approval_gate', 'data_scraper')."
+              }
+            },
+            "required": [
+              "component_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "not_found"
+                ]
+              },
+              "component_id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "explanation": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "additionalProperties": true,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "validate_playbook_candidate",
+          "title": "Validate Playbook Candidate",
+          "description": "Deterministic, read-only gate for the playbook factory. Give it a candidate playbook YAML and it checks the Definition of Done against the live registry — missing components, invalid edges, missing failure modes/evals, risk + approval policy, LLM-vs-deterministic separation, sources — and reports which lifecycle stage it qualifies for (draft → candidate → beta). It never writes to the registry and never certifies validated/published (those need Lab evidence it cannot see).",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "playbook_yaml": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The candidate playbook as YAML text (same shape as registry/playbooks/*.playbook.yaml). Validated against the live registry and the Definition of Done."
+              }
+            },
+            "required": [
+              "playbook_yaml"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "invalid_yaml",
+                  "schema_invalid"
+                ]
+              },
+              "playbook_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "qualifies_for": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "candidate",
+                      "beta"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "blocking": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "evidence_required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "summary_markdown": {
+                "type": "string"
+              },
+              "next_recommended_tools": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "status",
+              "playbook_id",
+              "qualifies_for",
+              "blocking",
+              "evidence_required",
+              "summary_markdown",
+              "next_recommended_tools"
+            ],
+            "additionalProperties": true,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "export_build_brief",
+          "title": "Export Build Brief",
+          "description": "Takes a plan_workflow result and emits a provenance-tagged Build Brief — a self-contained handoff document (§0 Constraints → §9 Observability wiring) ready to paste into an IDE agent prompt, a Linear issue, or an Obsidian note. Also emits a deterministic agent.manifest.json (agent_manifest) for DASH monitoring. Stateless: stores nothing, makes no network calls. Call after plan_workflow to get the agent-ready build spec.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "goal": {
+                "type": "string",
+                "minLength": 5,
+                "description": "The original workflow goal — verbatim from plan_workflow."
+              },
+              "plan_source": {
+                "type": "string",
+                "enum": [
+                  "playbook",
+                  "composed"
+                ],
+                "description": "plan_workflow.plan_source — 'playbook' or 'composed'."
+              },
+              "route_status": {
+                "type": "string",
+                "description": "plan_workflow.route_status — 'validated', 'candidate', 'blocked_candidate'."
+              },
+              "recommended_route": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "type": "number"
+                    },
+                    "component_id": {
+                      "type": "string"
+                    },
+                    "component_name": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string"
+                    },
+                    "model_tier": {
+                      "type": "string"
+                    },
+                    "risk_level": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "component_id"
+                  ],
+                  "additionalProperties": true
+                },
+                "minItems": 1,
+                "description": "plan_workflow.recommended_route — ordered step list."
+              },
+              "safety_review": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pass",
+                      "warnings",
+                      "fail"
+                    ]
+                  },
+                  "risk_score": {
+                    "type": "number"
+                  },
+                  "blocking_issues": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  },
+                  "approval_gates_required": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  }
+                },
+                "required": [
+                  "status",
+                  "risk_score"
+                ],
+                "additionalProperties": true,
+                "description": "plan_workflow.safety_review."
+              },
+              "automation_clearance": {
+                "type": "object",
+                "properties": {
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "L0",
+                      "L1",
+                      "L2",
+                      "L3",
+                      "L4"
+                    ]
+                  },
+                  "autonomous_allowed": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "required_controls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  },
+                  "highest_action_components": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  }
+                },
+                "required": [
+                  "level",
+                  "autonomous_allowed",
+                  "reason"
+                ],
+                "additionalProperties": true,
+                "description": "plan_workflow.automation_clearance."
+              },
+              "enforced_approval_gates": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "plan_workflow.enforced_approval_gates."
+              },
+              "untested_edges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "severity": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "severity"
+                  ],
+                  "additionalProperties": true
+                },
+                "default": [],
+                "description": "plan_workflow.untested_edges — each with id + severity."
+              },
+              "avoid_when_violations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "edge": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "default": [],
+                "description": "plan_workflow.avoid_when_violations."
+              },
+              "evals_to_add": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "plan_workflow.evals_to_add — eval gaps the plan surfaced."
+              },
+              "design_notes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "plan_workflow.design_notes — edge control_flow_note + structural advisories."
+              },
+              "worker_pipeline": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "workers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "step": {
+                              "type": "number"
+                            },
+                            "worker_id": {
+                              "type": "string"
+                            },
+                            "role": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "model_tier": {
+                              "type": "string"
+                            },
+                            "inputs": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "outputs": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "step",
+                            "worker_id",
+                            "role",
+                            "title",
+                            "model_tier",
+                            "inputs",
+                            "outputs"
+                          ],
+                          "additionalProperties": true
+                        }
+                      },
+                      "feedback_loops": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {},
+                          "additionalProperties": true
+                        },
+                        "default": []
+                      }
+                    },
+                    "required": [
+                      "workers"
+                    ],
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "plan_workflow.worker_pipeline — build team (optional). Nullable since MAR-256: plan_workflow returns null at guided/brief/standard depth, not just omission — a straight pass-through of that field must not fail validation."
+              },
+              "loop_guidance": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "playbook_id": {
+                        "type": "string"
+                      },
+                      "worker_sequence": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "loop_contract": {
+                        "type": "object",
+                        "properties": {
+                          "max_iterations": {
+                            "type": "number"
+                          },
+                          "stop_condition": {
+                            "type": "string"
+                          },
+                          "escalation_condition": {
+                            "type": "string"
+                          },
+                          "state_required": {
+                            "type": "boolean"
+                          },
+                          "audit_required": {
+                            "type": "boolean"
+                          },
+                          "human_gate_required_for": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "reviewer_independent": {
+                            "type": "boolean"
+                          },
+                          "no_write_until_final_gate": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "max_iterations",
+                          "stop_condition",
+                          "escalation_condition",
+                          "state_required",
+                          "audit_required",
+                          "human_gate_required_for",
+                          "reviewer_independent",
+                          "no_write_until_final_gate"
+                        ],
+                        "additionalProperties": true
+                      },
+                      "guardrail_checklist": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "playbook_id",
+                      "worker_sequence",
+                      "loop_contract",
+                      "guardrail_checklist"
+                    ],
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "plan_workflow.loop_guidance — null unless route is loop-shaped."
+              },
+              "approval_gate_advisory": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "gate": {
+                        "type": "string"
+                      },
+                      "write_components": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "gate",
+                      "write_components",
+                      "reason"
+                    ],
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "plan_workflow.approval_gate_advisory — non-null when gate is downgraded to advisory."
+              },
+              "handoff_targets": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "prompt",
+                    "linear",
+                    "obsidian"
+                  ]
+                },
+                "default": [
+                  "prompt"
+                ],
+                "description": "Output formats to include: 'prompt' = paste-ready agent prompt, 'linear' = Linear issue description, 'obsidian' = Obsidian note. Defaults to prompt only."
+              },
+              "playbook_id": {
+                "type": "string",
+                "default": "",
+                "description": "plan_workflow.playbook.id when plan_source is 'playbook'; '' when composed."
+              },
+              "route_id": {
+                "type": "string",
+                "default": "",
+                "description": "plan_workflow.playbook.route_id when plan_source is 'playbook'; '' when composed."
+              },
+              "build_target": {
+                "type": "string",
+                "enum": [
+                  "cowork",
+                  "cursor",
+                  "chatgpt_gpt",
+                  "code"
+                ],
+                "default": "code",
+                "description": "Where the agent will be BUILT — recorded in the DASH manifest. Defaults to 'code'."
+              },
+              "output_location": {
+                "type": "string",
+                "default": "",
+                "description": "Where this agent's output lands (from the plan-time monitoring question), echoed into the DASH manifest. Free text, e.g. 'HubSpot notes + Gmail drafts'."
+              },
+              "agent_name": {
+                "type": "string",
+                "description": "Override the manifest agent slug. Defaults to a slug of the playbook id or goal."
+              }
+            },
+            "required": [
+              "goal",
+              "plan_source",
+              "route_status",
+              "recommended_route",
+              "safety_review",
+              "automation_clearance"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "brief_markdown": {
+                "type": "string"
+              },
+              "sections": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              },
+              "handoffs": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              },
+              "artifact_package": {
+                "type": "object",
+                "properties": {
+                  "compiler": {
+                    "type": "string",
+                    "const": "export_build_brief.artifact_compiler.v1"
+                  },
+                  "status": {
+                    "type": "string",
+                    "const": "compiled"
+                  },
+                  "directives": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "field_order": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "epic": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "goal": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "goal"
+                    ],
+                    "additionalProperties": true
+                  },
+                  "milestones": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "issue_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "issue_ids"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "linear_issue_templates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "milestone_id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "properties": {
+                            "title": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "goal": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "user_story": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "context": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "inputs": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "outputs": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "required_tools": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "data_model": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "step_by_step_implementation": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "edge_cases": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "failure_modes": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "security": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "approval_gates": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "acceptance_criteria": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "test_cases": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "definition_of_done": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "claude_code_cursor_prompt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "files_likely_affected": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            },
+                            "non_goals": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "title",
+                            "goal",
+                            "user_story",
+                            "context",
+                            "inputs",
+                            "outputs",
+                            "required_tools",
+                            "data_model",
+                            "step_by_step_implementation",
+                            "edge_cases",
+                            "failure_modes",
+                            "security",
+                            "approval_gates",
+                            "acceptance_criteria",
+                            "test_cases",
+                            "definition_of_done",
+                            "claude_code_cursor_prompt",
+                            "files_likely_affected",
+                            "non_goals"
+                          ],
+                          "additionalProperties": true
+                        },
+                        "markdown": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "milestone_id",
+                        "title",
+                        "fields",
+                        "markdown"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "few_shot_example": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "markdown": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "markdown"
+                    ],
+                    "additionalProperties": true
+                  },
+                  "build_prompt": {
+                    "type": "string"
+                  },
+                  "linear_issue_template_markdown": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "compiler",
+                  "status",
+                  "directives",
+                  "field_order",
+                  "epic",
+                  "milestones",
+                  "linear_issue_templates",
+                  "few_shot_example",
+                  "build_prompt",
+                  "linear_issue_template_markdown"
+                ],
+                "additionalProperties": true
+              },
+              "agent_manifest": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              },
+              "connect": {
+                "type": "object",
+                "properties": {
+                  "script_path": {
+                    "type": "string",
+                    "const": "scripts/connect.mjs"
+                  },
+                  "credential_manifest": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "env": {
+                          "type": "string"
+                        },
+                        "provider": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "secret": {
+                          "type": "boolean"
+                        },
+                        "required_by": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "mint_url": {
+                          "type": "string"
+                        },
+                        "mint_hint": {
+                          "type": "string"
+                        },
+                        "connect": {
+                          "type": "string",
+                          "enum": [
+                            "paste",
+                            "google_oauth"
+                          ]
+                        },
+                        "probe": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "http",
+                                "google_refresh",
+                                "none"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ],
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "env",
+                        "provider",
+                        "label",
+                        "required",
+                        "secret",
+                        "required_by",
+                        "mint_url",
+                        "mint_hint",
+                        "connect",
+                        "probe"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "connect_script": {
+                    "type": "string"
+                  },
+                  "instructions": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "script_path",
+                  "credential_manifest",
+                  "connect_script",
+                  "instructions"
+                ],
+                "additionalProperties": true
+              },
+              "provenance_tag": {
+                "type": "string",
+                "const": "registry-grounded"
+              },
+              "grounding_note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "brief_markdown",
+              "sections",
+              "handoffs",
+              "artifact_package",
+              "agent_manifest",
+              "connect",
+              "provenance_tag",
+              "grounding_note"
+            ],
+            "additionalProperties": true,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "health_check",
+          "title": "Health Check",
+          "description": "Returns the server name, version, a summary of loaded registry entities (components, edges, stacks, routes, playbooks), and a build fingerprint. The `build.stale` field is true when the dist/ registry is outdated vs the source — run `pnpm build` to fix. The `safe_to_demo` field is true only when the build is fresh and the registry meets the published count floor; `demo_blockers` lists any reasons it is not. Use this to confirm the MCP server is running and the registry is fresh.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        }
+      ]
+    },
+    "jsonrpc": "2.0",
+    "id": 2
+  },
+  "parseError": "",
+  "rawLength": 49905
+}

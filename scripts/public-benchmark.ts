@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  benchmarkArtifactMatches,
   buildPublicBenchmark,
   renderPublicBenchmarkMarkdown,
   serializePublicBenchmark,
@@ -20,10 +21,16 @@ const write = process.argv.includes("--write");
 
 if (check) {
   const failures: string[] = [];
-  if (!existsSync(jsonPath) || readFileSync(jsonPath, "utf8") !== json) {
+  if (
+    !existsSync(jsonPath) ||
+    !benchmarkArtifactMatches(readFileSync(jsonPath, "utf8"), json)
+  ) {
     failures.push("benchmarks/public/latest.json is stale");
   }
-  if (!existsSync(markdownPath) || readFileSync(markdownPath, "utf8") !== markdown) {
+  if (
+    !existsSync(markdownPath) ||
+    !benchmarkArtifactMatches(readFileSync(markdownPath, "utf8"), markdown)
+  ) {
     failures.push("benchmarks/public/README.md is stale");
   }
   if (failures.length > 0) {

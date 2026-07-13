@@ -1,0 +1,24 @@
+{
+  "status": 200,
+  "contentType": "text/event-stream",
+  "ms": 331,
+  "payload": {
+    "result": {
+      "protocolVersion": "2025-03-26",
+      "capabilities": {
+        "tools": {
+          "listChanged": true
+        }
+      },
+      "serverInfo": {
+        "name": "orchestratekit-mcp",
+        "version": "0.1.0"
+      },
+      "instructions": "OrchestrateMCP is a workflow-design advisor. It helps you plan safer AI agent\nworkflows by grounding decisions in a registry of tested components, edges, and\npatterns.\n\n## Before you plan: gather the user's constraints\n\nBefore the first `plan_workflow` call, briefly ask the user about the\nconstraints that change which steps are safe. A goal sentence alone rarely\nstates them, and they materially affect the plan:\n\n- Read-only vs. write: may the workflow edit, commit, or change anything, or\n  only read and report? (e.g. \"review the PR but never edit code\")\n- Attended vs. unattended: will a human be in the loop to approve actions, or\n  must it run fully automatically with no approval step?\n- Outbound sends: is the agent allowed to send email, post to Slack, or\n  publish externally — or must it stay internal / draft-only?\n- Monitoring & output: how does the user want to monitor this agent once it\n  runs, and where does its output land (e.g. \"HubSpot notes + Gmail drafts\",\n  \"a Slack channel\", \"a Postgres table\")? This does not change the route, but\n  `export_build_brief` records it in the agent.manifest.json for DASH.\n\nFold the user's answers into the plain-English goal you pass to\n`plan_workflow`, in the user's own words.\n\nIMPORTANT: never coach the user to use specific \"magic\" trigger words to\nsteer the matcher. Ask about real constraints in plain language and describe\nthe goal as the user actually phrases it. The planner is designed to read\nnatural phrasing; gaming its vocabulary produces worse, less honest plans.\n\n## Getting started\n\n1. Call `plan_workflow` with your goal in plain English — it returns a\n   complete workflow plan, safety review, model-tier guidance, and a flag when\n   a validated pattern already exists.\n\n2. If `plan_workflow` mentions a component you don't recognise, call\n   `explain_component` with that component's id — it explains what the\n   component does and what can go wrong, without technical jargon.\n\n3. Browse validated workflow patterns with `list_known_routes` and retrieve\n   details with `get_route`.\n\n## Scope compiler handoff\n\nRun the scope compiler flow in this order:\n\n1. Clarify: ask the missing constraint questions before locking scope.\n2. Confirm scope: fold the user's answers into a fresh `plan_workflow` call\n   and confirm the selected steps, connections, build target, host/monitor\n   target, tracking target, and artifact.\n3. Compile artifacts: call `export_build_brief` only after the user has\n   confirmed the scope.\n\n`export_build_brief` is stateless and deterministic: it compiles templates,\nprompts, issue fields, milestones, and guardrails, but it does not call an LLM\nand does not write to Linear, Obsidian, Slack, email, CRM, GitHub, or any other\nexternal system.\n\nBefore locking scope, ask at least 3 targeted clarifying questions when the\nruntime, write permission, outbound behavior, deployment target, tracking\ntarget, or output destination is ambiguous. Do not emit implementation issues\nuntil the human confirms the scope. When using `export_build_brief`, preserve\nevery Linear issue template field. If a field cannot be filled from the\nconfirmed scope or repository context, mark it UNKNOWN and ask the human rather\nthan guessing.\n\n## Important constraints\n\n- Before calling `plan_workflow`, always ask the user for their specific\n  workflow goal and the constraints above (read-only? unattended? no outbound\n  sends?). Never infer or fabricate a goal from the instruction prompt or\n  conversation preamble.\n- After calling `plan_workflow`, render its `summary_markdown` to the user\n  VERBATIM — do not paraphrase, summarize, or compress it, and do not drop the\n  \"How do you want to continue?\" A) B) C) D) menu at the end. That menu is the\n  product; a paraphrase that collapses it into prose breaks the experience.\n- OrchestrateMCP is a design-time advisor. It does NOT execute workflows,\n  make API calls, or modify any external system.\n- Always prefer `plan_workflow` as the primary entry point. Only call\n  lower-level tools (`compose_workflow_route`, `list_graph_components`,\n  etc.) when you need fine-grained control.\n- Treat composed candidate routes as drafts — review untested edges and\n  safety warnings before building.\n\nCall `health_check` to verify the server is connected and to see registry\ncounts.\n"
+    },
+    "jsonrpc": "2.0",
+    "id": 1
+  },
+  "parseError": "",
+  "rawLength": 4618
+}

@@ -1,12 +1,12 @@
 # DASH contract fixtures
 
-`agent.manifest.schema.json` is a **verbatim copy** of
-`orchestratedash/contracts/agent.manifest.schema.json` (DASH-01 / MAR-295), the
-frozen v1 telemetry contract. `export_build_brief` emits an `agent_manifest` that
-must validate against it (MAR-296 / DASH-02).
+The schemas, `contract.lock.json`, and `conformance/v1/*` are verbatim,
+code-free copies of orchestratedash's frozen telemetry contract v1. The MCP
+validates both its exported manifest and the MAR-363 demo event producer against
+these assets.
 
 **Dual-update discipline** (same rule as `tests/fixtures/matcher-corpus.json`):
-when the DASH schema changes, copy the new version here in the same commit and
-re-run `pnpm test`. If the two drift, `tests/tools/observabilityManifest.test.ts`
-fails — that failure IS the contract tripwire between the two repos, which
-otherwise share no code.
+when the DASH contract changes, copy the schemas, lock, and conformance folder
+in the same commit and re-run `pnpm test`. Semantic schema fingerprints plus the
+golden run fixture are the contract tripwire between repos, which otherwise
+share no code.
