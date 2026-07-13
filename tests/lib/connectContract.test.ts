@@ -12,6 +12,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { pathToFileURL } from "node:url";
 import {
   buildConnectArtifacts,
   buildConnectScript,
@@ -92,6 +93,9 @@ describe("buildCredentialManifest", () => {
     expect(refresh?.probe.kind).toBe("google_refresh");
     if (refresh?.probe.kind === "google_refresh") {
       expect(refresh.probe.checks?.map((check) => check.label)).toEqual(["Google Calendar"]);
+      expect(refresh.probe.required_scopes).toEqual([
+        "https://www.googleapis.com/auth/calendar.events",
+      ]);
     }
     expect(manifest.find((c) => c.env === "OPENROUTER_API_KEY")?.required_by).toEqual([
       "intent_classifier",
@@ -155,6 +159,92 @@ describe("buildConnectScript", () => {
     const imports = script.match(/^import .+ from '([^']+)';$/gm) ?? [];
     expect(imports.length).toBeGreaterThan(0);
     for (const line of imports) expect(line).toMatch(/from 'node:/);
+  });
+
+  it("verifies declared Google write scopes instead of trusting a read probe", () => {
+    const calendarScript = buildConnectScript(
+      buildCredentialManifest(EMAIL_CALENDAR_ROUTE, { llm_provider: "openrouter" }),
+      {
+        agent_name: "email-calendar-agent",
+        registry_fingerprint: "26b95a7a03de9ffd",
+      },
+    );
+    expect(calendarScript).toContain("https://oauth2.googleapis.com/tokeninfo?access_token=");
+    expect(calendarScript).toContain("missing Google OAuth scope(s)");
+    expect(calendarScript).toContain('"required_scopes": [');
+    expect(calendarScript).toContain("https://www.googleapis.com/auth/calendar.events");
+  });
+
+  it("fails check mode for a read-only Calendar token and passes with the write scope", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "connect-google-scopes-"));
+    const scriptsDir = path.join(tempRoot, "scripts");
+    fs.mkdirSync(scriptsDir);
+    const scriptPath = path.join(scriptsDir, "connect.mjs");
+    const preloadPath = path.join(tempRoot, "mock-google.mjs");
+    const calendarScript = buildConnectScript(
+      buildCredentialManifest(EMAIL_CALENDAR_ROUTE, { llm_provider: "openrouter" }),
+      {
+        agent_name: "email-calendar-agent",
+        registry_fingerprint: "26b95a7a03de9ffd",
+      },
+    );
+    fs.writeFileSync(scriptPath, calendarScript, "utf8");
+    fs.writeFileSync(
+      path.join(tempRoot, ".env"),
+      [
+        "GMAIL_CLIENT_ID=test.apps.googleusercontent.com",
+        "GMAIL_CLIENT_SECRET=GOCSPX-test",
+        "GMAIL_REFRESH_TOKEN=refresh-test",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    fs.writeFileSync(
+      preloadPath,
+      `globalThis.fetch = async function (input) {
+  const url = String(input);
+  const json = (body) => new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+  if (url === "https://oauth2.googleapis.com/token") return json({ access_token: "access-test" });
+  if (url.startsWith("https://oauth2.googleapis.com/tokeninfo?")) return json({ scope: process.env.MOCK_GOOGLE_SCOPE });
+  if (url === "https://gmail.googleapis.com/gmail/v1/users/me/profile") return json({ emailAddress: "test@example.com" });
+  if (url.startsWith("https://www.googleapis.com/calendar/v3/users/me/calendarList")) return json({ kind: "calendar#calendarList" });
+  throw new Error("unexpected fetch: " + url);
+};
+`,
+      "utf8",
+    );
+
+    const runCheck = (scope: string) => spawnSync(
+      process.execPath,
+      ["--import", pathToFileURL(preloadPath).href, scriptPath, "--check", "--only", "GMAIL_REFRESH_TOKEN"],
+      {
+        cwd: tempRoot,
+        encoding: "utf8",
+        env: { ...process.env, MOCK_GOOGLE_SCOPE: scope },
+      },
+    );
+
+    try {
+      const readOnly = runCheck("https://www.googleapis.com/auth/calendar.readonly");
+      expect(readOnly.status).toBe(1);
+      const readOnlyOutput = readOnly.stdout + readOnly.stderr;
+      expect(readOnlyOutput).toContain("missing Google OAuth scope(s)");
+      expect(readOnlyOutput).toContain("https://www.googleapis.com/auth/calendar.events");
+
+      const writeEnabled = runCheck([
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/calendar.readonly",
+        "https://www.googleapis.com/auth/calendar.events",
+      ].join(" "));
+      expect(writeEnabled.status).toBe(0);
+      expect(writeEnabled.stdout + writeEnabled.stderr).toContain("Google Calendar=calendar#calendarList");
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it("passes node --check (valid ESM syntax)", () => {
