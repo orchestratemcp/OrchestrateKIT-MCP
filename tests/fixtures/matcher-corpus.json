@@ -1,7 +1,7 @@
 {
   "generated_by": "OrchestrateLab LAB-03 (MAR-106) corpus export",
   "version": 1,
-  "goal_count": 44,
+  "goal_count": 46,
   "goals": [
     {
       "slug": "blog_social_variants_reviewer_notify",
@@ -22,6 +22,31 @@
       "missing_but_expected": [],
       "source": "dogfood",
       "level": "composed",
+      "xfail": ""
+    },
+    {
+      "slug": "build_a_simple_assistant_for_handling_meeting_requests_it_sh_a77d84cc",
+      "goal": "Build a simple assistant for handling meeting requests. It should look at new emails, check my calendar, suggest two times that work, let me choose one, add the meeting to my calendar, and prepare a reply. It must never send an email without my approval.",
+      "domain": "adv:meeting_scheduling",
+      "must_have": [
+        "audit_log",
+        "auth_failure_handler",
+        "calendar_lookup",
+        "calendar_write",
+        "email_draft",
+        "email_read",
+        "fan_out_collector",
+        "human_approval_gate",
+        "intent_classifier",
+        "optional_email_send",
+        "schema_validation",
+        "state_store"
+      ],
+      "nice_to_have": [],
+      "forbidden": [],
+      "missing_but_expected": [],
+      "source": "session:a77d84cc-581f-4251-8df6-5ab3e04e8e7f",
+      "level": "raw",
       "xfail": ""
     },
     {
@@ -953,6 +978,26 @@
       ],
       "missing_but_expected": [],
       "source": "dogfood",
+      "level": "composed",
+      "xfail": ""
+    },
+    {
+      "slug": "readonly_email_digest_no_calendar",
+      "goal": "Every morning, summarize my unread emails into a short digest for me to read. Do not reply to anything, do not send anything, do not change my calendar.",
+      "domain": "email_calendar",
+      "must_have": [
+        "email_read"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "scheduled_trigger"
+      ],
+      "forbidden": [
+        "calendar_write",
+        "optional_email_send"
+      ],
+      "missing_but_expected": [],
+      "source": "adversarial:calendar_negation",
       "level": "composed",
       "xfail": ""
     },
