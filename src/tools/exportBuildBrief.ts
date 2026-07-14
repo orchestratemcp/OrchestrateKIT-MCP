@@ -180,13 +180,14 @@ export const InputShape = {
       "Defaults to prompt only.",
     ),
   delivery_mode: z
-    .enum(["compact", "full"])
+    .enum(["compact", "full", "plan_passport"])
     .optional()
     .describe(
       "Response size tier. 'compact' keeps the complete brief, safety controls, DASH manifest, " +
       "and connect artifacts inline while indexing the large issue-template package. 'full' " +
-      "includes every generated issue template and rendered handoff. Omission preserves the " +
-      "legacy full response contract; the plan_workflow wizard requests compact explicitly.",
+      "includes every generated issue template and rendered handoff. 'plan_passport' returns " +
+      "a deterministic build/test contract for agents and future LAB ingestion. Omission preserves " +
+      "the legacy full response contract; the plan_workflow wizard requests compact explicitly.",
     ),
   // ── MAR-296 / DASH-02: agent.manifest.json inputs (all optional) ──
   playbook_id: z
@@ -224,7 +225,7 @@ export const InputShape = {
 
 export type BuildBriefDelivery = {
   contract: "export_build_brief.delivery.v1";
-  mode: "compact" | "full";
+  mode: "compact" | "full" | "plan_passport";
   artifact_fingerprint: string;
   artifact_bytes: number;
   full_artifact_available: true;
@@ -299,6 +300,86 @@ export type CompactBuildBriefOutput = Omit<BuildBriefOutput, "delivery" | "artif
   artifact_package?: never;
 };
 
+export type PlanPassportTest = {
+  id: string;
+  kind:
+    | "failure_mode"
+    | "forbidden_action"
+    | "approval_gate"
+    | "loop_contract"
+    | "fan_out"
+    | "observability"
+    | "read_only";
+  title: string;
+  applies_when: string;
+  assertion: string;
+  evidence_required: string[];
+  severity: "must" | "should";
+};
+
+export type PlanPassport = {
+  contract: "orchestratekit.plan_passport.v1";
+  contract_id: string;
+  registry_fingerprint: string;
+  goal: string;
+  locked_constraints: {
+    read_only: boolean;
+    draft_only: boolean;
+    no_outbound: boolean;
+    attended_required: boolean;
+    unattended: boolean;
+    approval_policy: string;
+  };
+  route: {
+    plan_source: "playbook" | "composed";
+    route_status: string;
+    components: Array<{
+      step: number;
+      component_id: string;
+      purpose: string;
+      risk_level: string;
+      model_tier: string;
+    }>;
+  };
+  required_connections: Array<{
+    env: string;
+    provider: string;
+    label: string;
+    required: boolean;
+    required_by: string[];
+    scopes: string[];
+  }>;
+  safety_gates: {
+    automation_clearance: string;
+    autonomous_allowed: boolean;
+    enforced_approval_gates: string[];
+    approval_gate_advisory: string | null;
+    required_controls: string[];
+  };
+  acceptance_tests: PlanPassportTest[];
+  build_handoff: {
+    instructions: string[];
+    target: ManifestBuildTarget;
+    agent_manifest_ref: "agent_manifest";
+    connect_ref: "connect";
+  };
+  lab_import: {
+    artifact: "plan_passport";
+    contract_id: string;
+    agent_name: string;
+    route_components: string[];
+    evidence_status: "planned";
+  };
+};
+
+export type PlanPassportOutput = Omit<BuildBriefOutput, "delivery" | "handoffs" | "artifact_package"> & {
+  delivery: BuildBriefDelivery & { mode: "plan_passport" };
+  passport_markdown: string;
+  plan_passport: PlanPassport;
+  handoffs?: never;
+  artifact_package?: never;
+};
+
 export type LlmProviderDecisionOption = {
   id: "openrouter" | "anthropic" | "simplest_low_cost" | "deterministic_first";
   label: string;
@@ -324,7 +405,11 @@ export type BuildBriefNeedsInputOutput = {
   grounding_note: string;
 };
 
-export type AnyBuildBriefOutput = BuildBriefOutput | CompactBuildBriefOutput | BuildBriefNeedsInputOutput;
+export type AnyBuildBriefOutput =
+  | BuildBriefOutput
+  | CompactBuildBriefOutput
+  | PlanPassportOutput
+  | BuildBriefNeedsInputOutput;
 
 type ArtifactFieldValue = string | string[];
 
@@ -444,7 +529,7 @@ function buildArtifactIndex(
 }
 
 function buildDelivery(
-  mode: "compact" | "full",
+  mode: "compact" | "full" | "plan_passport",
   identity: ReturnType<typeof artifactIdentity>,
 ): BuildBriefDelivery {
   return {
@@ -461,7 +546,312 @@ function buildDelivery(
     },
     omitted_fields: mode === "compact"
       ? ["artifact_package", "full rendered prompt/Linear handoffs"]
+      : mode === "plan_passport"
+      ? ["artifact_package", "prompt/Linear/Obsidian handoffs"]
       : [],
+  };
+}
+
+const EXTERNAL_WRITE_COMPONENT_HINTS = [
+  "send",
+  "notification",
+  "publish",
+  "write",
+  "update",
+  "crm_note_write",
+  "deal_stage_update",
+  "calendar_write",
+  "file_storage",
+  "vector_store",
+  "code_editing",
+];
+
+function isExternalWriteComponent(componentId: string): boolean {
+  return EXTERNAL_WRITE_COMPONENT_HINTS.some((hint) => componentId.includes(hint));
+}
+
+function credentialScopes(credential: ConnectArtifacts["credential_manifest"][number]): string[] {
+  return credential.oauth?.scopes ??
+    ("required_scopes" in credential.probe ? credential.probe.required_scopes ?? [] : []);
+}
+
+function buildPlanPassportTests(input: {
+  goal: string;
+  routeComponents: string[];
+  constraints: ReturnType<typeof detectConstraintSignals>;
+  clearance: z.infer<typeof AutomationClearanceShape>;
+  enforcedGates: string[];
+  loopGuidance: ExportBuildBriefInput["loop_guidance"];
+}): PlanPassportTest[] {
+  const tests: PlanPassportTest[] = [
+    {
+      id: "observability-run-start-complete-failure",
+      kind: "observability",
+      title: "Run emits start, completion, and failure evidence",
+      applies_when: "all workflows",
+      assertion:
+        "The implementation records safe run evidence for start, success, and controlled failure without leaking secrets or message bodies.",
+      evidence_required: ["run-start event", "run-complete event", "run-failure event fixture"],
+      severity: "should",
+    },
+  ];
+
+  const writeComponents = input.routeComponents.filter(isExternalWriteComponent);
+  const hasExternalWrite = writeComponents.length > 0 || input.clearance.level !== "L0";
+  if (hasExternalWrite) {
+    tests.push(
+      {
+        id: "external-write-duplicate-event-idempotency",
+        kind: "failure_mode",
+        title: "Duplicate events do not duplicate external effects",
+        applies_when: `external-write route components: ${writeComponents.join(", ") || "clearance " + input.clearance.level}`,
+        assertion:
+          "Replaying the same input/run id produces at most one irreversible external write and returns the existing result on retry.",
+        evidence_required: ["duplicate input fixture", "idempotency key assertion", "single-write mock assertion"],
+        severity: "must",
+      },
+      {
+        id: "external-write-partial-failure-stops-handoff",
+        kind: "failure_mode",
+        title: "Partial failure does not advance the route",
+        applies_when: "any step can fail after producing partial output",
+        assertion:
+          "A failed step records a controlled error and does not pass partial output to downstream write components.",
+        evidence_required: ["partial failure fixture", "downstream call count is zero", "failure audit event"],
+        severity: "must",
+      },
+      {
+        id: "external-write-missing-expired-scope",
+        kind: "failure_mode",
+        title: "Missing or expired scopes fail closed",
+        applies_when: "credentials or OAuth scopes are required",
+        assertion:
+          "Missing, expired, or under-scoped credentials fail before external writes and surface a setup error.",
+        evidence_required: ["missing credential fixture", "scope validation assertion", "no external call assertion"],
+        severity: "must",
+      },
+      {
+        id: "external-write-before-approval-forbidden",
+        kind: "approval_gate",
+        title: "No external write can run before required approval",
+        applies_when: input.enforcedGates.length > 0
+          ? `enforced gates: ${input.enforcedGates.join(", ")}`
+          : "approval policy must still be checked for write-bearing routes",
+        assertion:
+          "Every irreversible write checks approval state immediately before execution and blocks when approval is absent or denied.",
+        evidence_required: ["approval denied fixture", "approval missing fixture", "external write call count is zero"],
+        severity: "must",
+      },
+      {
+        id: "external-write-retry-idempotency-violation",
+        kind: "failure_mode",
+        title: "Retries preserve idempotency and do not widen scope",
+        applies_when: "transient external-service failure or timeout",
+        assertion:
+          "Retry logic uses the same idempotency key, keeps the same target resource, and stops after the configured retry budget.",
+        evidence_required: ["timeout fixture", "retry budget assertion", "stable target/idempotency key assertion"],
+        severity: "must",
+      },
+      {
+        id: "external-write-dry-run-no-live-effect",
+        kind: "failure_mode",
+        title: "Dry-run mode cannot produce live external effects",
+        applies_when: "preview, test, or dry-run execution",
+        assertion:
+          "Dry-run execution exercises validation and rendering paths while replacing every external write with a mock/sandbox assertion.",
+        evidence_required: ["dry-run fixture", "mock external client assertion", "no live credential required assertion"],
+        severity: "must",
+      },
+    );
+  }
+
+  if (input.constraints.read_only.detected || input.routeComponents.includes("pr_review_readonly")) {
+    tests.push(
+      {
+        id: "read-only-no-code-or-repo-write",
+        kind: "read_only",
+        title: "Read-only plans cannot edit, commit, or push code",
+        applies_when: "read-only/no-write constraint or PR review route",
+        assertion:
+          "The implementation never writes files, commits, pushes, merges, or leaves review comments that mutate repository state.",
+        evidence_required: ["filesystem write spy", "git command deny-list assertion", "read-only permission fixture"],
+        severity: "must",
+      },
+      {
+        id: "read-only-output-is-report-only",
+        kind: "forbidden_action",
+        title: "Read-only output is report-only",
+        applies_when: "read-only/no-write constraint",
+        assertion:
+          "The final output is a summary/report/draft and never an applied change to the source system.",
+        evidence_required: ["output artifact assertion", "no mutation API call assertion"],
+        severity: "must",
+      },
+    );
+  }
+
+  if (input.loopGuidance || input.routeComponents.includes("loop_controller")) {
+    tests.push({
+      id: "loop-termination-bounded",
+      kind: "loop_contract",
+      title: "Loop termination is bounded and auditable",
+      applies_when: "loop_controller or loop_guidance is present",
+      assertion:
+        "The loop stops at the planned max iteration count or stop condition, records each iteration, and escalates instead of spinning.",
+      evidence_required: ["max-iteration fixture", "stop-condition fixture", "iteration audit log"],
+      severity: "must",
+    });
+  }
+
+  if (input.routeComponents.includes("fan_out_collector")) {
+    tests.push({
+      id: "fan-out-item-failure-handling",
+      kind: "fan_out",
+      title: "Fan-out item failures are isolated and summarized",
+      applies_when: "fan_out_collector is present",
+      assertion:
+        "One failed fan-out item does not erase successful item results; the collector returns per-item status and a final failure summary.",
+      evidence_required: ["mixed success/failure fixture", "per-item result assertion", "collector summary assertion"],
+      severity: "must",
+    });
+  }
+
+  return tests;
+}
+
+function buildPlanPassportMarkdown(passport: PlanPassport): string {
+  const lines = [
+    `# Plan Passport - ${passport.goal.slice(0, 80)}${passport.goal.length > 80 ? "..." : ""}`,
+    "",
+    `Contract: \`${passport.contract_id}\``,
+    `Registry fingerprint: \`${passport.registry_fingerprint}\``,
+    "",
+    "## Route",
+    ...passport.route.components.map(
+      (step) => `- ${step.step}. \`${step.component_id}\` (${step.risk_level}, ${step.model_tier}) - ${step.purpose}`,
+    ),
+    "",
+    "## Safety Gates",
+    `- Clearance: ${passport.safety_gates.automation_clearance} (autonomous allowed: ${passport.safety_gates.autonomous_allowed})`,
+    `- Enforced gates: ${passport.safety_gates.enforced_approval_gates.join(", ") || "none"}`,
+    `- Required controls: ${passport.safety_gates.required_controls.join(", ") || "none"}`,
+    "",
+    "## Acceptance Tests",
+    ...passport.acceptance_tests.map(
+      (test) => `- [${test.severity}] ${test.id}: ${test.assertion}`,
+    ),
+    "",
+    "## LAB Import",
+    `Store as \`${passport.lab_import.artifact}\` with contract id \`${passport.lab_import.contract_id}\`.`,
+  ];
+  return lines.join("\n");
+}
+
+function buildPlanPassport(input: {
+  goal: string;
+  planSource: "playbook" | "composed";
+  routeStatus: string;
+  recommendedRoute: z.infer<typeof RouteStepShape>[];
+  automationClearance: z.infer<typeof AutomationClearanceShape>;
+  enforcedApprovalGates: string[];
+  approvalGateAdvisory?: { gate: string; write_components: string[]; reason: string } | null;
+  loopGuidance: ExportBuildBriefInput["loop_guidance"];
+  agentManifest: AgentManifest;
+  connect: ConnectArtifacts;
+  registryFingerprint: string;
+  buildTarget: ManifestBuildTarget;
+}): { plan_passport: PlanPassport; passport_markdown: string } {
+  const constraints = detectConstraintSignals(input.goal);
+  const routeComponents = input.recommendedRoute.map((step) => step.component_id);
+  const tests = buildPlanPassportTests({
+    goal: input.goal,
+    routeComponents,
+    constraints,
+    clearance: input.automationClearance,
+    enforcedGates: input.enforcedApprovalGates,
+    loopGuidance: input.loopGuidance,
+  });
+
+  const withoutId = {
+    contract: "orchestratekit.plan_passport.v1" as const,
+    registry_fingerprint: input.registryFingerprint,
+    goal: input.goal,
+    locked_constraints: {
+      read_only: constraints.read_only.detected,
+      draft_only: constraints.draft_only.detected,
+      no_outbound: constraints.no_outbound.detected,
+      attended_required: constraints.attended_required.detected,
+      unattended: constraints.unattended.detected,
+      approval_policy: input.enforcedApprovalGates.length > 0
+        ? `approval required via ${input.enforcedApprovalGates.join(", ")}`
+        : input.approvalGateAdvisory
+        ? `advisory: ${input.approvalGateAdvisory.reason}`
+        : "no enforced approval gate",
+    },
+    route: {
+      plan_source: input.planSource,
+      route_status: input.routeStatus,
+      components: input.recommendedRoute.map((step) => ({
+        step: step.step,
+        component_id: step.component_id,
+        purpose: step.purpose ?? "UNKNOWN",
+        risk_level: step.risk_level ?? "unknown",
+        model_tier: step.model_tier ?? "none",
+      })),
+    },
+    required_connections: input.connect.credential_manifest.map((credential) => ({
+      env: credential.env,
+      provider: credential.provider,
+      label: credential.label,
+      required: credential.required,
+      required_by: credential.required_by,
+      scopes: credentialScopes(credential),
+    })),
+    safety_gates: {
+      automation_clearance: input.automationClearance.level,
+      autonomous_allowed: input.automationClearance.autonomous_allowed,
+      enforced_approval_gates: input.enforcedApprovalGates,
+      approval_gate_advisory: input.approvalGateAdvisory?.reason ?? null,
+      required_controls: input.automationClearance.required_controls,
+    },
+    acceptance_tests: tests,
+    build_handoff: {
+      instructions: [
+        "Build exactly the route components listed in this passport.",
+        "Treat every acceptance_tests entry with severity 'must' as a release blocker.",
+        "Do not add external writes, sends, publishes, or repository mutations outside the planned route.",
+        "Write test evidence locally; OrchestrateMCP does not execute or verify the runtime.",
+      ],
+      target: input.buildTarget,
+      agent_manifest_ref: "agent_manifest" as const,
+      connect_ref: "connect" as const,
+    },
+    lab_import: {
+      artifact: "plan_passport" as const,
+      contract_id: "",
+      agent_name: input.agentManifest.agent.name,
+      route_components: routeComponents,
+      evidence_status: "planned" as const,
+    },
+  };
+
+  const contractHash = createHash("sha256")
+    .update(JSON.stringify(canonicalize(withoutId)))
+    .digest("hex")
+    .slice(0, 16);
+  const contractId = `plan_passport:${contractHash}`;
+  const plan_passport: PlanPassport = {
+    ...withoutId,
+    contract_id: contractId,
+    lab_import: {
+      ...withoutId.lab_import,
+      contract_id: contractId,
+    },
+  };
+
+  return {
+    plan_passport,
+    passport_markdown: buildPlanPassportMarkdown(plan_passport),
   };
 }
 
@@ -1486,7 +1876,7 @@ export type ExportBuildBriefInput = {
   } | null;
   approval_gate_advisory?: { gate: string; write_components: string[]; reason: string } | null;
   handoff_targets: ("prompt" | "linear" | "obsidian")[];
-  delivery_mode?: "compact" | "full";
+  delivery_mode?: "compact" | "full" | "plan_passport";
   // ── MAR-296 / DASH-02 (all optional; sensible deterministic defaults) ──
   playbook_id?: string;
   route_id?: string;
@@ -1563,6 +1953,9 @@ export function exportBuildBrief(
   input: ExportBuildBriefInput & { delivery_mode: "compact" },
 ): CompactBuildBriefOutput;
 export function exportBuildBrief(
+  input: ExportBuildBriefInput & { delivery_mode: "plan_passport" },
+): PlanPassportOutput;
+export function exportBuildBrief(
   input: ExportBuildBriefInput & { delivery_mode?: "full" },
 ): BuildBriefOutput;
 export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOutput;
@@ -1575,13 +1968,16 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
     return buildLlmProviderNeedsInput(modelBackedComponents);
   }
 
+  const registryFingerprint = input.registry_fingerprint ?? registryContentFingerprint();
+  const buildTarget = input.build_target ?? "code";
+
   // MAR-296: deterministic agent.manifest.json for DASH (no network, no LLM).
   const agent_manifest = buildAgentManifest({
     goal: input.goal,
     plan_source: input.plan_source,
     playbook_id: input.playbook_id ?? "",
     route_id: input.route_id ?? "",
-    build_target: input.build_target ?? "code",
+    build_target: buildTarget,
     route_steps: input.recommended_route.map((s) => ({
       step: s.step,
       component_id: s.component_id,
@@ -1591,7 +1987,7 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
     automation_clearance: input.automation_clearance.level,
     enforced_approval_gates: input.enforced_approval_gates,
     output_location: input.output_location ?? "",
-    registry_fingerprint: input.registry_fingerprint ?? registryContentFingerprint(),
+    registry_fingerprint: registryFingerprint,
     agent_name: input.agent_name,
     generated_at: input.generated_at,
   });
@@ -1603,7 +1999,7 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
       model_tier: s.model_tier,
     })),
     agent_name: agent_manifest.agent.name,
-    registry_fingerprint: input.registry_fingerprint ?? registryContentFingerprint(),
+    registry_fingerprint: registryFingerprint,
     llm_provider: input.llm_provider,
   });
 
@@ -1664,6 +2060,20 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
   const artifactIdentityValue = artifactIdentity(artifact_package);
   const artifact_index = buildArtifactIndex(artifact_package, artifactIdentityValue);
   const delivery = buildDelivery(deliveryMode, artifactIdentityValue);
+  const passport = buildPlanPassport({
+    goal: input.goal,
+    planSource: input.plan_source,
+    routeStatus: input.route_status,
+    recommendedRoute: input.recommended_route,
+    automationClearance: input.automation_clearance,
+    enforcedApprovalGates: input.enforced_approval_gates,
+    approvalGateAdvisory: input.approval_gate_advisory,
+    loopGuidance: input.loop_guidance,
+    agentManifest: agent_manifest,
+    connect,
+    registryFingerprint,
+    buildTarget,
+  });
 
   const artifactCompilerSection = deliveryMode === "compact"
     ? (
@@ -1673,6 +2083,13 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
       `this inline response, not truncated. ${delivery.full_request.instruction} ` +
       `Artifact fingerprint: \`${delivery.artifact_fingerprint}\` ` +
       `(${delivery.artifact_bytes} canonical bytes).`
+    )
+    : deliveryMode === "plan_passport"
+    ? (
+      `**§10 Plan Passport** _(deterministic build/test contract; no runtime verifier)_\n\n` +
+      `The structured \`plan_passport\` field contains the portable contract id, registry ` +
+      `fingerprint, route, credentials, safety gates, acceptance tests, and LAB import stub. ` +
+      `Artifact fingerprint: \`${delivery.artifact_fingerprint}\`.`
     )
     : (
       `**§10 Tier 2 artifact compiler** _(full delivery; deterministic, no writes)_\n\n` +
@@ -1725,6 +2142,24 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
     );
   }
 
+  if (deliveryMode === "plan_passport") {
+    return {
+      delivery: delivery as PlanPassportOutput["delivery"],
+      brief_markdown,
+      passport_markdown: passport.passport_markdown,
+      sections,
+      artifact_index,
+      agent_manifest,
+      connect,
+      plan_passport: passport.plan_passport,
+      provenance_tag: "registry-grounded",
+      grounding_note:
+        "Plan Passport is a deterministic build/test contract. OrchestrateMCP generated " +
+        "the contract from the plan route, safety posture, credential manifest, and registry " +
+        "fingerprint only; it did not execute or verify the runtime.",
+    };
+  }
+
   if (deliveryMode === "compact") {
     return {
       delivery: delivery as CompactBuildBriefOutput["delivery"],
@@ -1772,7 +2207,8 @@ export function registerExportBuildBrief(server: McpServer): void {
         "ready to paste into an IDE agent prompt, a Linear issue, or an Obsidian note. " +
         "Also emits a deterministic agent.manifest.json (agent_manifest) for DASH " +
         "monitoring. The plan_workflow wizard uses compact delivery for Claude-safe inline " +
-        "results; request full delivery for the complete rendered issue bundle. " +
+        "results; request full delivery for the complete rendered issue bundle, or " +
+        "delivery_mode='plan_passport' for a deterministic build/test contract. " +
         "Stateless: stores nothing, makes no network calls. " +
         "Call after plan_workflow to get the agent-ready build spec.",
       inputSchema: InputShape,
@@ -1824,6 +2260,8 @@ export function registerExportBuildBrief(server: McpServer): void {
             type: "text" as const,
             text: result.delivery.mode === "compact"
               ? result.brief_markdown
+              : "plan_passport" in result
+              ? result.passport_markdown
               : JSON.stringify(result),
           }],
           structuredContent: result,

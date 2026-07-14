@@ -104,6 +104,8 @@ const PLAYBOOK_GOAL =
   "scan a codebase, plan changes, edit code, run tests and write a PR summary";
 const EXPORT_BRIEF_GOAL =
   "read emails, detect leads and write a note to the CRM for each lead";
+const READONLY_PR_GOAL =
+  "When a pull request opens on GitHub, review the diff for bugs and risky changes, notify reviewers with a summary, and never edit or commit code.";
 // The composed golden must match no published playbook. MAR-303 gave the
 // Postgres→report→Slack shape its own playbook, so this uses the analytics-API
 // variant (no DB-source token → scheduled_data_report's gate does not fire).
@@ -260,6 +262,150 @@ describe("MAR-249 — export_build_brief output schema", () => {
     expect((sc.delivery as Record<string, unknown>).mode).toBe("full");
     expect(sc.artifact_package).toBeDefined();
     expect(JSON.parse(text ?? "null")).toEqual(sc);
+  });
+
+  it("plan_passport delivery emits deterministic build contract + failure-mode pack", async () => {
+    const plan = await structured("plan_workflow", {
+      goal: EXPORT_BRIEF_GOAL,
+      output_depth: "technical",
+    });
+    const result = await rawToolResult("export_build_brief", {
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates ?? [],
+      untested_edges: plan.untested_edges ?? [],
+      avoid_when_violations: plan.avoid_when_violations ?? [],
+      evals_to_add: plan.evals_to_add ?? [],
+      design_notes: plan.design_notes ?? [],
+      worker_pipeline: plan.worker_pipeline ?? null,
+      loop_guidance: plan.loop_guidance ?? null,
+      approval_gate_advisory: plan.approval_gate_advisory ?? null,
+      handoff_targets: ["prompt"],
+      delivery_mode: "plan_passport",
+      llm_provider: "anthropic",
+    });
+    const sc = result.structuredContent as Record<string, unknown>;
+    const text = (result.content as Array<{ type: string; text?: string }>).find(
+      (item) => item.type === "text",
+    )?.text;
+    const passport = sc.plan_passport as Record<string, unknown>;
+    const tests = passport.acceptance_tests as Array<Record<string, unknown>>;
+
+    expect(() => ExportBuildBriefOutputShape.parse(sc)).not.toThrow();
+    expect((sc.delivery as Record<string, unknown>).mode).toBe("plan_passport");
+    expect(sc.artifact_package).toBeUndefined();
+    expect(sc.handoffs).toBeUndefined();
+    expect(text).toBe(sc.passport_markdown);
+    expect(passport.contract).toBe("orchestratekit.plan_passport.v1");
+    expect(String(passport.contract_id)).toMatch(/^plan_passport:[a-f0-9]{16}$/);
+    expect(tests.filter((test) => test.kind === "failure_mode").length).toBeGreaterThanOrEqual(5);
+    expect(tests.map((test) => test.id)).toEqual(
+      expect.arrayContaining([
+        "external-write-duplicate-event-idempotency",
+        "external-write-partial-failure-stops-handoff",
+        "external-write-missing-expired-scope",
+        "external-write-retry-idempotency-violation",
+      ]),
+    );
+    expect(normalizeExportBuildBrief(sc)).toMatchSnapshot();
+  });
+
+  it("plan_passport includes read-only/no-write tests for readonly PR review plans", async () => {
+    const plan = await structured("plan_workflow", {
+      goal: READONLY_PR_GOAL,
+      output_depth: "technical",
+    });
+    const sc = await structured("export_build_brief", {
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates ?? [],
+      untested_edges: plan.untested_edges ?? [],
+      avoid_when_violations: plan.avoid_when_violations ?? [],
+      evals_to_add: plan.evals_to_add ?? [],
+      design_notes: plan.design_notes ?? [],
+      worker_pipeline: plan.worker_pipeline ?? null,
+      loop_guidance: plan.loop_guidance ?? null,
+      approval_gate_advisory: plan.approval_gate_advisory ?? null,
+      handoff_targets: ["prompt"],
+      delivery_mode: "plan_passport",
+      llm_provider: "deterministic_first",
+    });
+    const passport = sc.plan_passport as Record<string, unknown>;
+    const tests = passport.acceptance_tests as Array<Record<string, unknown>>;
+    expect(tests.map((test) => test.id)).toEqual(
+      expect.arrayContaining([
+        "read-only-no-code-or-repo-write",
+        "read-only-output-is-report-only",
+      ]),
+    );
+  });
+
+  it("plan_passport includes loop and fan-out tests when those structures are present", async () => {
+    const sc = await structured("export_build_brief", {
+      goal: "Process invoices in parallel, collect every item result, retry failures, and stop after three passes.",
+      plan_source: "composed",
+      route_status: "candidate",
+      recommended_route: [
+        { step: 1, component_id: "scheduled_trigger", purpose: "Start the batch.", model_tier: "none", risk_level: "low" },
+        { step: 2, component_id: "loop_controller", purpose: "Bound retries.", model_tier: "none", risk_level: "medium" },
+        { step: 3, component_id: "fan_out_collector", purpose: "Merge per-item results.", model_tier: "none", risk_level: "medium" },
+      ],
+      safety_review: {
+        status: "warnings",
+        risk_score: 30,
+        blocking_issues: [],
+        warnings: [],
+        approval_gates_required: [],
+      },
+      automation_clearance: {
+        level: "L1",
+        autonomous_allowed: true,
+        reason: "Internal state updates only in this synthetic contract test.",
+        required_controls: ["audit_log"],
+        highest_action_components: ["state_store"],
+      },
+      enforced_approval_gates: [],
+      untested_edges: [],
+      avoid_when_violations: [],
+      evals_to_add: [],
+      design_notes: [],
+      worker_pipeline: null,
+      loop_guidance: {
+        playbook_id: "dynamic_worker_loop",
+        worker_sequence: ["planner", "tester"],
+        loop_contract: {
+          max_iterations: 3,
+          stop_condition: "all invoices processed",
+          escalation_condition: "same item fails twice",
+          state_required: true,
+          audit_required: true,
+          human_gate_required_for: [],
+          reviewer_independent: true,
+          no_write_until_final_gate: true,
+        },
+        guardrail_checklist: ["Persist per-item state before retry."],
+      },
+      approval_gate_advisory: null,
+      handoff_targets: ["prompt"],
+      delivery_mode: "plan_passport",
+      llm_provider: "deterministic_first",
+    });
+    const passport = sc.plan_passport as Record<string, unknown>;
+    const tests = passport.acceptance_tests as Array<Record<string, unknown>>;
+    expect(tests.map((test) => test.id)).toEqual(
+      expect.arrayContaining([
+        "loop-termination-bounded",
+        "fan-out-item-failure-handling",
+      ]),
+    );
   });
 
   it("missing llm_provider returns structured needs_input before artifacts", async () => {
