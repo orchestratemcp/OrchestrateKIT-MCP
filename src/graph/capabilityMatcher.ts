@@ -699,6 +699,39 @@ const CAPABILITY_SUPPRESSION_RULES: CapabilitySuppressionRule[] = [
     phrases: ["drafts only", "draft only", "drafts-only", "draft-only"],
     requireNoStrongEmail: true,
   },
+  // calendar_write — "do not change my calendar" / "don't touch my calendar".
+  // The email/calendar domain is present whenever a mailbox goal also mentions
+  // the calendar, so the bare "calendar" KEYWORD_HINT pulls calendar_write even
+  // when the goal explicitly forbids any calendar change ("summarize my inbox …
+  // do not change my calendar"). This was the calendar-side sibling of the
+  // optional_email_send "do not send" rule: the send negation was honoured but
+  // the calendar-write negation had no rule, so a read-only digest goal still
+  // routed a calendar write (adversarial-batch finding). Every phrase names the
+  // calendar AND carries its own negation, so an affirmative "add the meeting to
+  // my calendar" goal never matches.
+  {
+    components: ["calendar_write"],
+    phrases: [
+      "do not change my calendar",
+      "don't change my calendar",
+      "dont change my calendar",
+      "do not touch my calendar",
+      "don't touch my calendar",
+      "dont touch my calendar",
+      "do not modify my calendar",
+      "don't modify my calendar",
+      "do not add to my calendar",
+      "don't add to my calendar",
+      "do not add anything to my calendar",
+      "don't add anything to my calendar",
+      "no calendar changes",
+      "no calendar writes",
+      "without changing my calendar",
+      "without touching my calendar",
+      "leave my calendar alone",
+      "read-only calendar",
+    ],
+  },
 ];
 
 /**
@@ -889,6 +922,71 @@ function suppressLoopControllerForIdiom(
   if (!IN_THE_LOOP_IDIOM.some((t) => goalLower.includes(t))) return;
   if (GENUINE_ITERATION_SIGNAL.some((t) => goalLower.includes(t))) return;
   domainAllowed.delete("loop_controller");
+}
+
+/**
+ * Adversarial-batch finding: "post to Slack/Discord/Teams/Telegram" is a
+ * NOTIFICATION, not publishing. The content_publishing "post to" domain trigger
+ * plus the "post" external_publish KEYWORD_HINT together injected external_publish
+ * onto notify-only goals ("check the status page and post to Slack if it's down").
+ * Because external_publish is an irreversible external write, the bleed also
+ * dragged a human_approval_gate onto an explicitly unattended flow.
+ *
+ * Same shape as suppressCrmNoteForDataReport: drop external_publish ONLY when a
+ * "post … <chat platform>" phrase is present AND the goal carries no genuine
+ * publish intent (publish / blog / article / social / cms / website / a
+ * publishing destination). A real "publish to our blog and also ping Slack" goal
+ * keeps external_publish via its genuine publish token.
+ */
+const CHAT_POST_PHRASES = [
+  "post to slack",
+  "post in slack",
+  "post it to slack",
+  "posts to slack",
+  "post a message to slack",
+  "post to our slack",
+  "post to the slack",
+  "post to a slack",
+  "post to discord",
+  "post in discord",
+  "post to teams",
+  "post in teams",
+  "post to telegram",
+  "post in telegram",
+  "post to the channel",
+  "post to a channel",
+  "post to our channel",
+  "post in the channel",
+  "message to slack",
+];
+const GENUINE_PUBLISH_INTENT = [
+  "publish",
+  "blog",
+  "article",
+  "social media",
+  "social post",
+  "to our site",
+  "to the website",
+  "to our website",
+  "cms",
+  "publicly",
+  "externally",
+  "wordpress",
+  "medium",
+  "linkedin",
+  "twitter",
+  "facebook",
+  "instagram",
+  "newsletter",
+];
+function suppressExternalPublishForChatPost(
+  goalLower: string,
+  domainAllowed: Set<string>,
+): void {
+  if (!domainAllowed.has("external_publish")) return;
+  if (GENUINE_PUBLISH_INTENT.some((t) => goalLower.includes(t))) return;
+  if (!CHAT_POST_PHRASES.some((p) => goalLower.includes(p))) return;
+  domainAllowed.delete("external_publish");
 }
 
 /**
@@ -1699,6 +1797,10 @@ export function matchCapabilities(
   // MAR-303: the "in the loop" idiom (with no real iteration/fan-out signal)
   // drops the loop_controller false-positive on unattended report/monitor goals.
   suppressLoopControllerForIdiom(goalLower, domainAllowed);
+  // Adversarial-batch: "post to Slack if it's down" is a notification, not a
+  // publish — drop the external_publish false-positive (and the approval gate it
+  // dragged onto an unattended notify-only flow) unless real publish intent shows.
+  suppressExternalPublishForChatPost(goalLower, domainAllowed);
 
   // ── Phase 2: scoped scoring ──
   const scoreMap = new Map<

@@ -146,6 +146,28 @@ describe("composeWorkflowRoute integration", () => {
     expect(gateIdx).toBeLessThan(crmIdx);
   });
 
+  // Adversarial-batch: deal_stage_update is a consequential CRM write and must be
+  // gated — human_approval_gate must precede it in execution_order.
+  it("adversarial: human_approval_gate precedes deal_stage_update in execution_order", () => {
+    const result = composeRoute(
+      {
+        goal:
+          "When a prospect emails back interested, advance their deal stage in the CRM — " +
+          "but check with me before changing anything.",
+        must_have_capabilities: [],
+        must_avoid: [],
+      },
+      registry,
+    );
+
+    const order = result.execution_order;
+    const gateIdx = order.indexOf("human_approval_gate");
+    const dealIdx = order.indexOf("deal_stage_update");
+    expect(gateIdx).toBeGreaterThanOrEqual(0);
+    expect(dealIdx).toBeGreaterThanOrEqual(0);
+    expect(gateIdx).toBeLessThan(dealIdx);
+  });
+
   // MAR-115 p7: research_synthesis + external_publish must NOT be blocked_candidate
   // when citation_checker and human_approval_gate are both present (bypass satisfied)
   it("MAR-115 p7: monitor+publish route is NOT blocked_candidate when citation_checker and gate are present", () => {

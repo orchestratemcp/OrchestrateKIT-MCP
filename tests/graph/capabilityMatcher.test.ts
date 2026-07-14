@@ -478,6 +478,46 @@ describe("matchCapabilities — Dogfood Round 3 residuals", () => {
     expect(ids).toContain("email_read");
   });
 
+  // ── calendar_write negation (adversarial-batch finding) ──
+  // The send-side negation ("do not send") was honoured but the calendar-side
+  // ("do not change my calendar") had no suppression rule, so a read-only inbox
+  // digest still routed a calendar write.
+  it("negation: 'do not change my calendar' suppresses calendar_write", () => {
+    const ids = matchedIds(
+      "Every morning, summarize my unread emails into a short digest for me to read. " +
+        "Do not reply to anything, do not send anything, do not change my calendar.",
+    );
+    expect(ids).not.toContain("calendar_write");
+  });
+
+  // BOUNDARY: an affirmative "add the meeting to my calendar" must KEEP the write.
+  it("negation boundary: affirmative 'add the meeting to my calendar' keeps calendar_write", () => {
+    const ids = matchedIds(
+      "When someone emails asking to meet, check my calendar and add the meeting to my calendar.",
+    );
+    expect(ids).toContain("calendar_write");
+  });
+
+  // ── external_publish 'post to Slack' bleed (adversarial-batch finding) ──
+  // "post to Slack" is a notification, not publishing; the "post to" domain
+  // trigger + "post" hint injected external_publish onto a notify-only monitor goal.
+  it("disambig: 'post to Slack if down' does NOT select external_publish", () => {
+    const ids = matchedIds(
+      "Every hour, check whether our status page is up and post to Slack if anything is down. " +
+        "Fully automatic, no approvals needed.",
+    );
+    expect(ids).not.toContain("external_publish");
+    expect(ids).toContain("slack_notification");
+  });
+
+  // BOUNDARY: a genuine publish goal keeps external_publish even if it also pings Slack.
+  it("disambig boundary: 'publish to our site' keeps external_publish despite a Slack post", () => {
+    const ids = matchedIds(
+      "Write a blog post, publish it to our site, and post to Slack when it's live.",
+    );
+    expect(ids).toContain("external_publish");
+  });
+
   // OVER-SUPPRESSION GUARD: a bare "read-only" scopes to the data source and
   // must NOT remove a wanted Slack alert. The explicit line MAR-140 must not cross.
   it("MAR-140: bare 'read-only' on a monitor goal keeps slack_notification", () => {

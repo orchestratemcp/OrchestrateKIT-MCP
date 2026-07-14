@@ -150,6 +150,13 @@ const IRREVERSIBLE_WRITES = new Set([
   "optional_email_send",
   "calendar_write",
   "crm_note_write",
+  // Advancing a deal/pipeline stage is a consequential external CRM mutation,
+  // exactly like crm_note_write. Adversarial-batch finding: with deal_stage_update
+  // omitted here, computeExecutionOrder never moved human_approval_gate before it,
+  // so an approval-gated "advance the deal stage, but check with me first" goal
+  // ordered the write ahead of its own gate. Same class as the MAR-252 fix that
+  // added the notification egresses below.
+  "deal_stage_update",
   "slack_notification",
   "discord_notification",
   "teams_notification",
