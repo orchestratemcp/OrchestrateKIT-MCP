@@ -334,7 +334,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "best_for": "ChatGPT-hosted assistant with Actions-style integrations.",
         "id": "gpt_agents",
         "kind": "build",
-        "label": "GPT Agents",
+        "label": "ChatGPT agent surfaces",
         "recommended": false,
         "tradeoffs": "Good UX; hosting/runtime control is more constrained.",
       },
@@ -498,7 +498,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     {
       "action": "assistant:generate_prompt",
       "id": "generate_prompt",
-      "label": "Generate the CoWork or ChatGPT system prompt for this plan",
+      "label": "Generate a portable agent handoff prompt",
     },
     {
       "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
@@ -713,7 +713,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
   "suggested_next_actions": [
     "[text]",
     "[text]",
-    "[c] Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON",
+    "[text]",
     "[text]",
   ],
   "summary_markdown": "[text]",
@@ -903,7 +903,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "best_for": "ChatGPT-hosted assistant with Actions-style integrations.",
         "id": "gpt_agents",
         "kind": "build",
-        "label": "GPT Agents",
+        "label": "ChatGPT agent surfaces",
         "recommended": false,
         "tradeoffs": "Good UX; hosting/runtime control is more constrained.",
       },
@@ -1102,7 +1102,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     {
       "action": "assistant:generate_prompt",
       "id": "generate_prompt",
-      "label": "Generate the CoWork or ChatGPT system prompt for this plan",
+      "label": "Generate a portable agent handoff prompt",
     },
     {
       "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
@@ -1352,7 +1352,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
   "suggested_next_actions": [
     "[text]",
     "[text]",
-    "[c] Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON",
+    "[text]",
     "Wire up the integrations: Slack, Canva",
     "[text]",
   ],
@@ -1638,7 +1638,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "best_for": "ChatGPT-hosted assistant with Actions-style integrations.",
         "id": "gpt_agents",
         "kind": "build",
-        "label": "GPT Agents",
+        "label": "ChatGPT agent surfaces",
         "recommended": false,
         "tradeoffs": "Good UX; hosting/runtime control is more constrained.",
       },
@@ -1802,7 +1802,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     {
       "action": "assistant:generate_prompt",
       "id": "generate_prompt",
-      "label": "Generate the CoWork or ChatGPT system prompt for this plan",
+      "label": "Generate a portable agent handoff prompt",
     },
     {
       "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
@@ -2017,7 +2017,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
   "suggested_next_actions": [
     "[text]",
     "[text]",
-    "[c] Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON",
+    "[text]",
     "[text]",
   ],
   "summary_markdown": "[text]",
@@ -2636,6 +2636,9 @@ exports[`MAR-249 — export_build_brief output schema > compact structuredConten
     "connect_script": "[text]",
     "credential_manifest": [
       {
+        "aliases": [
+          "GOOGLE_CLIENT_ID",
+        ],
         "connect": "paste",
         "env": "GMAIL_CLIENT_ID",
         "format_hint": "ends with .apps.googleusercontent.com",
@@ -2656,6 +2659,9 @@ exports[`MAR-249 — export_build_brief output schema > compact structuredConten
         "secret": false,
       },
       {
+        "aliases": [
+          "GOOGLE_CLIENT_SECRET",
+        ],
         "connect": "paste",
         "env": "GMAIL_CLIENT_SECRET",
         "format_hint": "starts with GOCSPX-",
@@ -2676,6 +2682,9 @@ exports[`MAR-249 — export_build_brief output schema > compact structuredConten
         "secret": true,
       },
       {
+        "aliases": [
+          "GOOGLE_REFRESH_TOKEN",
+        ],
         "connect": "google_oauth",
         "env": "GMAIL_REFRESH_TOKEN",
         "label": "Gmail OAuth refresh token",
@@ -3214,6 +3223,9 @@ exports[`MAR-249 — export_build_brief output schema > runtime structuredConten
     "connect_script": "[text]",
     "credential_manifest": [
       {
+        "aliases": [
+          "GOOGLE_CLIENT_ID",
+        ],
         "connect": "paste",
         "env": "GMAIL_CLIENT_ID",
         "format_hint": "ends with .apps.googleusercontent.com",
@@ -3234,6 +3246,9 @@ exports[`MAR-249 — export_build_brief output schema > runtime structuredConten
         "secret": false,
       },
       {
+        "aliases": [
+          "GOOGLE_CLIENT_SECRET",
+        ],
         "connect": "paste",
         "env": "GMAIL_CLIENT_SECRET",
         "format_hint": "starts with GOCSPX-",
@@ -3254,6 +3269,9 @@ exports[`MAR-249 — export_build_brief output schema > runtime structuredConten
         "secret": true,
       },
       {
+        "aliases": [
+          "GOOGLE_REFRESH_TOKEN",
+        ],
         "connect": "google_oauth",
         "env": "GMAIL_REFRESH_TOKEN",
         "label": "Gmail OAuth refresh token",

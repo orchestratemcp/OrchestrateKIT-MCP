@@ -325,9 +325,9 @@ describe("plan_workflow — what_you_need + suggested_next_actions (MAR-208)", (
     expect(joined).toContain("[c]");
   });
 
-  it("build_target=cowork leads with CoWork system prompt action", () => {
+  it("build_target=cowork leads with a portable Cowork handoff prompt action", () => {
     const r = plan("read emails and write a CRM note", "cowork");
-    expect(r.suggested_next_actions[0]).toContain("CoWork system prompt");
+    expect(r.suggested_next_actions[0]).toContain("portable agent handoff prompt");
   });
 
   it("build_target=cursor leads with export_build_brief action", () => {

@@ -34,6 +34,7 @@ function planAndBrief(
     loop_guidance: plan.loop_guidance,
     approval_gate_advisory: plan.approval_gate_advisory,
     handoff_targets,
+    llm_provider: "anthropic",
   });
 }
 
@@ -101,6 +102,7 @@ describe("export_build_brief — input schema accepts plan_workflow's literal ou
       loop_guidance: plan.loop_guidance,
       approval_gate_advisory: plan.approval_gate_advisory,
       handoff_targets: ["prompt"],
+      llm_provider: "anthropic",
     });
     expect(parsed.success, parsed.success ? "" : JSON.stringify((parsed as { error: unknown }).error)).toBe(true);
   });
@@ -196,6 +198,7 @@ describe("export_build_brief — §3/§4 round-trip inputs + numbering (MAR-255)
       loop_guidance: plan.loop_guidance,
       approval_gate_advisory: plan.approval_gate_advisory,
       handoff_targets: ["prompt"],
+      llm_provider: "anthropic",
     });
     expect(b.sections.s3_worker_contracts).toContain("Pipeline:");
     expect(b.sections.s3_worker_contracts).toContain("`planner`");
@@ -235,6 +238,7 @@ describe("export_build_brief — §2 route is grounded (MAR-205 + MAR-206)", () 
       loop_guidance: plan.loop_guidance,
       approval_gate_advisory: plan.approval_gate_advisory,
       handoff_targets: ["prompt"],
+      llm_provider: "anthropic",
     });
     for (const step of plan.recommended_route) {
       expect(brief.sections.s2_route).toContain(step.component_id);
@@ -305,6 +309,7 @@ describe("export_build_brief — §5 safety (MAR-205)", () => {
       loop_guidance: plan.loop_guidance,
       approval_gate_advisory: plan.approval_gate_advisory,
       handoff_targets: ["prompt"],
+      llm_provider: "anthropic",
     });
     expect(brief.sections.s5_safety).toContain("email_read__produces__crm_note_write");
     expect(brief.sections.s5_safety).toContain("HIGH");
@@ -386,6 +391,7 @@ describe("export_build_brief delivery contract (PKG-W0-BRIEF-SIZE)", () => {
       approval_gate_advisory: plan.approval_gate_advisory,
       handoff_targets: handoffTargets,
       generated_at: "2026-07-13T00:00:00.000Z",
+      llm_provider: "anthropic" as const,
     };
     return {
       omitted: exportBuildBrief(input),

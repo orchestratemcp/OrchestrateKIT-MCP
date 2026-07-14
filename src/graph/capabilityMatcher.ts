@@ -659,6 +659,8 @@ const CAPABILITY_SUPPRESSION_RULES: CapabilitySuppressionRule[] = [
       "draft only",
       "drafts-only",
       "draft-only",
+      "prepare a reply",
+      "prepare the reply",
       "do not send",
       "don't send",
       "dont send",
@@ -1628,6 +1630,23 @@ const PDF_EXTRACTION_SIGNALS = [
   "ocr",
 ];
 
+const EXPLICIT_FAN_OUT_SIGNALS = [
+  "parallel",
+  "fan out",
+  "fan-out",
+  "branch",
+  "branches",
+  "merge",
+];
+
+const MEETING_TIME_CHOICE_SIGNALS = [
+  "suggest two times",
+  "two times",
+  "two candidate",
+  "two slots",
+  "two meeting",
+];
+
 /** Domains a component belongs to (defaults to generic_orchestration). */
 function componentDomains(id: string): Domain[] {
   return COMPONENT_DOMAINS[id] ?? ["generic_orchestration"];
@@ -1817,6 +1836,15 @@ export function matchCapabilities(
       goalLower.includes(t),
     );
     if (!hasExtractionSignal) scoreMap.delete("pdf_extraction");
+  }
+
+  if (scoreMap.has("fan_out_collector")) {
+    const hasExplicitFanOutSignal = EXPLICIT_FAN_OUT_SIGNALS.some((t) =>
+      goalLower.includes(t),
+    );
+    const isMeetingTimeChoice = goalDomains.has("email_calendar") &&
+      MEETING_TIME_CHOICE_SIGNALS.some((t) => goalLower.includes(t));
+    if (isMeetingTimeChoice && !hasExplicitFanOutSignal) scoreMap.delete("fan_out_collector");
   }
 
   // ── Build matches from positively-scored components ──

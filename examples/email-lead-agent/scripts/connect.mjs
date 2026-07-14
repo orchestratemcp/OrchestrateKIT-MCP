@@ -31,6 +31,9 @@ import { fileURLToPath } from 'node:url';
 const MANIFEST = [
   {
     "env": "GMAIL_CLIENT_ID",
+    "aliases": [
+      "GOOGLE_CLIENT_ID"
+    ],
     "provider": "google",
     "label": "Google OAuth client ID",
     "required": true,
@@ -51,6 +54,9 @@ const MANIFEST = [
   },
   {
     "env": "GMAIL_CLIENT_SECRET",
+    "aliases": [
+      "GOOGLE_CLIENT_SECRET"
+    ],
     "provider": "google",
     "label": "Google OAuth client secret",
     "required": true,
@@ -71,6 +77,9 @@ const MANIFEST = [
   },
   {
     "env": "GMAIL_REFRESH_TOKEN",
+    "aliases": [
+      "GOOGLE_REFRESH_TOKEN"
+    ],
     "provider": "google",
     "label": "Gmail OAuth refresh token",
     "required": true,
@@ -80,7 +89,7 @@ const MANIFEST = [
       "optional_email_send"
     ],
     "mint_url": "https://accounts.google.com/o/oauth2/v2/auth",
-    "mint_hint": "connect.mjs mints this itself: it opens the Google consent screen and receives the token on a localhost loopback — no copy-paste. (Fallback: paste an existing refresh token with gmail.readonly + gmail.compose scope.)",
+    "mint_hint": "connect.mjs mints this itself with a localhost loopback flow. Create a NEW Google OAuth client of type 'Desktop app' first; a Web client will not work with this loopback redirect. Fallback: copy the consent link or paste an existing refresh token with gmail.readonly + gmail.compose scope.)",
     "connect": "google_oauth",
     "oauth": {
       "scopes": [
@@ -275,8 +284,18 @@ function ensureGitignored() {
 // ─── prompts ───
 
 function openBrowser(url) {
+  if (process.env.ORCHESTRATEKIT_CONNECT_TEST_CAPTURE_BROWSER_ARG) {
+    fs.writeFileSync(process.env.ORCHESTRATEKIT_CONNECT_TEST_CAPTURE_BROWSER_ARG, url, 'utf8');
+    return;
+  }
   const platform = process.platform;
-  if (platform === 'win32') spawnSync('cmd', ['/c', 'start', '', url], { stdio: 'ignore' });
+  if (platform === 'win32') spawnSync('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-Command',
+    'Start-Process -FilePath $args[0]',
+    url,
+  ], { stdio: 'ignore' });
   else if (platform === 'darwin') spawnSync('open', [url], { stdio: 'ignore' });
   else spawnSync('xdg-open', [url], { stdio: 'ignore' });
 }
@@ -313,6 +332,62 @@ async function confirm(question) {
   if (ASSUME_YES || !process.stdin.isTTY) return true;
   const a = await ask(question + ' [Y/n] ', false);
   return a === '' || a.toLowerCase() === 'y' || a.toLowerCase() === 'yes';
+}
+
+async function migrateAliases(envMap) {
+  for (const cred of MANIFEST) {
+    if (envMap.has(cred.env)) continue;
+    const aliases = cred.aliases || [];
+    const alias = aliases.find(function (name) { return envMap.has(name); });
+    if (!alias) continue;
+    const value = envMap.get(alias);
+    if (!value) continue;
+    if (CHECK_ONLY) {
+      envMap.set(cred.env, value);
+      console.log('  alias detected: ' + alias + ' can satisfy ' + cred.env + ' (value hidden)');
+      continue;
+    }
+    const ok = await confirm('  found ' + alias + ' for ' + cred.env + '. Copy it to the canonical name? (value stays hidden)');
+    if (ok) {
+      writeEnvVar(cred.env, value);
+      envMap.set(cred.env, value);
+      console.log('  copied ' + alias + ' to ' + cred.env + ' without displaying the value');
+    }
+  }
+}
+
+function explainGoogleOAuthFailure(err) {
+  const detail = String(err && err.message || err);
+  const lower = detail.toLowerCase();
+  if (lower.includes('unauthorized_client') || lower.includes('invalid_client') || lower.includes('client type')) {
+    return 'Google rejected the OAuth client. This loopback flow requires a Desktop OAuth client; create a new Desktop app client instead of reusing a Web client.';
+  }
+  if (lower.includes('redirect_uri_mismatch') || lower.includes('redirect uri')) {
+    return 'Google rejected the redirect URI. Desktop clients accept localhost loopback redirects automatically; Web clients require exact redirect registration and are not compatible with this flow.';
+  }
+  if (lower.includes('scope') || lower.includes('insufficient')) {
+    return 'Google rejected or omitted a required scope. Retry consent and grant every listed Gmail/Calendar scope.';
+  }
+  if (lower.includes('response_type') || lower.includes('invalid_request')) {
+    return 'Google saw a corrupted OAuth URL. Copy the printed consent link into your browser and verify it still includes response_type=code, access_type=offline, and all scopes.';
+  }
+  return detail;
+}
+
+async function exchangeGoogleCode(clientId, clientSecret, redirectUri, code) {
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code: code, client_id: clientId, client_secret: clientSecret,
+      redirect_uri: redirectUri, grant_type: 'authorization_code',
+    }).toString(),
+  });
+  const data = await tokenRes.json();
+  if (!tokenRes.ok) {
+    throw new Error(data.error_description || data.error || 'token endpoint HTTP ' + tokenRes.status);
+  }
+  return data.refresh_token || null;
 }
 
 // ─── probes ───
@@ -438,22 +513,18 @@ async function googleOauthLoopback(cred, envMap) {
         server.close();
         if (!code) { resolve(null); return; }
         try {
-          const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-            method: 'POST',
-            headers: { 'content-type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              code: code, client_id: clientId, client_secret: clientSecret,
-              redirect_uri: redirectUri, grant_type: 'authorization_code',
-            }).toString(),
-          });
-          const data = await tokenRes.json();
-          resolve(data.refresh_token || null);
+          resolve(await exchangeGoogleCode(clientId, clientSecret, redirectUri, code));
+          return;
         } catch (err) {
-          console.error('  token exchange failed: ' + String(err && err.message || err));
+          console.error('  token exchange failed: ' + explainGoogleOAuthFailure(err));
           resolve(null);
+          return;
         }
       });
 
+      console.log('  Google OAuth uses a localhost loopback and requires a Desktop OAuth client.');
+      console.log('  A Web client will fail with a redirect/client-type error. If the browser launch fails, copy this link:');
+      console.log('  ' + authUrl);
       console.log('  opening Google consent screen (loopback on port ' + port + ', 3 min timeout)…');
       openBrowser(authUrl);
     });
@@ -485,6 +556,12 @@ function pushGithubSecrets(connected) {
 // ─── main ───
 
 async function main() {
+  const testOpenBrowserIndex = args.indexOf('--test-open-browser');
+  if (testOpenBrowserIndex >= 0) {
+    openBrowser(args[testOpenBrowserIndex + 1] || '');
+    return;
+  }
+
   const wanted = ONLY ? MANIFEST.filter(function (c) { return ONLY.includes(c.env); }) : MANIFEST;
   console.log('connect — email-lead-crm-slack-agent');
   console.log((CHECK_ONLY ? 'probe-only mode: ' : 'guided connect: ') + wanted.length + ' credential(s) in manifest\n');
@@ -492,7 +569,9 @@ async function main() {
   const envMap = readEnvFile();
   for (const [k, v] of Object.entries(process.env)) {
     if (!envMap.has(k) && MANIFEST.some(function (c) { return c.env === k; })) envMap.set(k, v);
+    if (!envMap.has(k) && MANIFEST.some(function (c) { return (c.aliases || []).includes(k); })) envMap.set(k, v);
   }
+  await migrateAliases(envMap);
 
   const results = [];
   for (const cred of wanted) {
@@ -531,7 +610,8 @@ async function main() {
       if (cred.connect === 'google_oauth' && process.stdin.isTTY) {
         value = await googleOauthLoopback(cred, envMap) || '';
         if (!value) {
-          console.log('  loopback flow did not return a refresh token — falling back to paste.');
+          console.log('  loopback flow did not return a refresh token.');
+          console.log('  Recovery: retry with a Desktop OAuth client, copy/open the printed consent link manually, or paste an existing refresh token.');
           console.log('  mint: ' + cred.mint_url + '\n  hint: ' + cred.mint_hint);
           value = await ask('  paste ' + cred.env + ': ', cred.secret);
         }

@@ -67,6 +67,7 @@ function planAndBrief(
     build_target: opts.build_target ?? "code",
     output_location: opts.output_location ?? "",
     generated_at: "2026-07-05T00:00:00Z", // deterministic for assertions
+    llm_provider: "anthropic",
   });
 }
 

@@ -44,8 +44,12 @@ const EMAIL_CALENDAR_ROUTE = [
 ];
 
 describe("buildCredentialManifest", () => {
+  it("refuses to choose a provider implicitly for model-backed steps", () => {
+    expect(() => buildCredentialManifest(EMAIL_LEAD_ROUTE)).toThrow(/llm_provider is required/);
+  });
+
   it("derives the full email-lead-agent credential set in catalog order", () => {
-    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE);
+    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE, { llm_provider: "anthropic" });
     expect(manifest.map((c) => c.env)).toEqual([
       "GMAIL_CLIENT_ID",
       "GMAIL_CLIENT_SECRET",
@@ -59,14 +63,14 @@ describe("buildCredentialManifest", () => {
   });
 
   it("dedupes the Anthropic key across all LLM-tier steps", () => {
-    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE);
+    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE, { llm_provider: "anthropic" });
     const anthropic = manifest.filter((c) => c.env === "ANTHROPIC_API_KEY");
     expect(anthropic).toHaveLength(1);
     expect(anthropic[0].required_by).toEqual(["intent_classifier", "email_draft", "crm_note_write"]);
   });
 
   it("merges gmail required_by across read and send components", () => {
-    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE);
+    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE, { llm_provider: "anthropic" });
     const refresh = manifest.find((c) => c.env === "GMAIL_REFRESH_TOKEN");
     expect(refresh?.required_by).toEqual(["email_read", "optional_email_send"]);
     expect(refresh?.connect).toBe("google_oauth");
@@ -101,10 +105,28 @@ describe("buildCredentialManifest", () => {
       "intent_classifier",
       "email_draft",
     ]);
+    const serialized = JSON.stringify(manifest);
+    expect(serialized).not.toContain("ANTHROPIC_API_KEY");
+    expect(serialized).not.toContain("anthropic");
+  });
+
+  it("declares GOOGLE_* aliases for safe migration to the canonical GMAIL_* contract", () => {
+    const manifest = buildCredentialManifest(EMAIL_CALENDAR_ROUTE, {
+      llm_provider: "openrouter",
+    });
+    expect(manifest.find((c) => c.env === "GMAIL_CLIENT_ID")?.aliases).toEqual([
+      "GOOGLE_CLIENT_ID",
+    ]);
+    expect(manifest.find((c) => c.env === "GMAIL_CLIENT_SECRET")?.aliases).toEqual([
+      "GOOGLE_CLIENT_SECRET",
+    ]);
+    expect(manifest.find((c) => c.env === "GMAIL_REFRESH_TOKEN")?.aliases).toEqual([
+      "GOOGLE_REFRESH_TOKEN",
+    ]);
   });
 
   it("marks CRM and DASH credentials optional (local fallbacks exist)", () => {
-    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE);
+    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE, { llm_provider: "anthropic" });
     for (const env of ["HUBSPOT_PRIVATE_APP_TOKEN", "DASH_INGEST_URL", "DASH_INGEST_TOKEN"]) {
       expect(manifest.find((c) => c.env === env)?.required).toBe(false);
     }
@@ -119,7 +141,7 @@ describe("buildCredentialManifest", () => {
   });
 
   it("keeps every mint_url https and every probe declarative", () => {
-    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE);
+    const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE, { llm_provider: "anthropic" });
     for (const c of manifest) {
       expect(c.mint_url).toMatch(/^https?:\/\//);
       expect(["http", "google_refresh", "none"]).toContain(c.probe.kind);
@@ -134,7 +156,7 @@ describe("buildCredentialManifest", () => {
 });
 
 describe("buildConnectScript", () => {
-  const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE);
+  const manifest = buildCredentialManifest(EMAIL_LEAD_ROUTE, { llm_provider: "anthropic" });
   const script = buildConnectScript(manifest, {
     agent_name: "email-lead-crm-slack-agent",
     registry_fingerprint: "26b95a7a03de9ffd",
@@ -258,6 +280,35 @@ describe("buildConnectScript", () => {
       fs.rmSync(tmp, { force: true });
     }
   });
+
+  it("preserves the complete Windows OAuth URL as one launched argument without opening a browser", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "connect-browser-arg-"));
+    const scriptPath = path.join(tempRoot, "connect.mjs");
+    const capturePath = path.join(tempRoot, "launched-url.txt");
+    const fullUrl =
+      "https://accounts.google.com/o/oauth2/v2/auth?" +
+      "client_id=test.apps.googleusercontent.com&" +
+      "redirect_uri=http%3A%2F%2F127.0.0.1%3A54321%2Foauth%2Fcallback&" +
+      "response_type=code&" +
+      "access_type=offline&" +
+      "prompt=consent&" +
+      "scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.events";
+    fs.writeFileSync(scriptPath, script, "utf8");
+    try {
+      const res = spawnSync(process.execPath, [scriptPath, "--test-open-browser", fullUrl], {
+        cwd: tempRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          ORCHESTRATEKIT_CONNECT_TEST_CAPTURE_BROWSER_ARG: capturePath,
+        },
+      });
+      expect(res.status).toBe(0);
+      expect(fs.readFileSync(capturePath, "utf8")).toBe(fullUrl);
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("buildConnectArtifacts + s11Connect", () => {
@@ -265,6 +316,7 @@ describe("buildConnectArtifacts + s11Connect", () => {
     route_steps: EMAIL_LEAD_ROUTE,
     agent_name: "email-lead-crm-slack-agent",
     registry_fingerprint: "26b95a7a03de9ffd",
+    llm_provider: "anthropic",
   });
 
   it("names the required credentials in the instructions", () => {
@@ -302,7 +354,7 @@ describe("checked-in example script stays in sync with the generator", () => {
       provenance: { registry_fingerprint: string };
     };
     const expected = buildConnectScript(
-      buildCredentialManifest(agentManifest.planned_route),
+      buildCredentialManifest(agentManifest.planned_route, { llm_provider: "anthropic" }),
       {
         agent_name: agentManifest.agent.name,
         registry_fingerprint: agentManifest.provenance.registry_fingerprint,
