@@ -68,6 +68,28 @@ Call review_workflow_design with this design. Tell me:
 
 ---
 
+## Playbook Resources
+
+Claude Desktop can read published playbooks as MCP Resources in addition to
+calling tools. Resource URIs use:
+
+```text
+orchestratekit://playbooks/<playbook_id>
+```
+
+For example:
+
+```text
+Read the MCP resource orchestratekit://playbooks/email_lead_to_crm and use it
+as context for this workflow design.
+```
+
+The resource body is the same JSON payload returned by `get_playbook` with
+default options for that `playbook_id`. Call `get_playbook` instead when you
+want workflow-type matching, beta playbooks, or `include_graph=true`.
+
+---
+
 ## Typical Flow
 
 ```text

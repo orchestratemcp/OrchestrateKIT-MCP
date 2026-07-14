@@ -13,6 +13,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { SERVER_NAME, SERVER_VERSION, SERVER_INSTRUCTIONS } from "./config.js";
 import { registerTools } from "./tools/index.js";
+import { registerResources } from "./resources/index.js";
 import {
   setRegistryLoader,
   setBuildInfoProvider,
@@ -71,6 +72,7 @@ export default {
         { instructions: SERVER_INSTRUCTIONS },
       );
       registerTools(server);
+      registerResources(server);
 
       const transport = new WebStandardStreamableHTTPServerTransport({
         sessionIdGenerator: undefined,

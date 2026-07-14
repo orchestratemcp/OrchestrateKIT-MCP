@@ -47,6 +47,29 @@ Use deeper graph tools only after the product card is visible:
 
 ---
 
+## Playbook Resources
+
+Published playbooks are also exposed as MCP Resources, so Cursor can load them
+as context without an explicit tool call. Resource URIs use:
+
+```text
+orchestratekit://playbooks/<playbook_id>
+```
+
+For example:
+
+```text
+Load the MCP resource orchestratekit://playbooks/codebase_agent_workflow,
+then use it as planning context before editing code.
+```
+
+The resource body is the same JSON payload returned by `get_playbook` with
+default options for that `playbook_id`. Use `get_playbook` when you need a
+workflow-type search, beta inclusion, or graph context; use the resource when
+you already know the playbook id and want stable context.
+
+---
+
 ## Forcing Cursor To Use The MCP
 
 Cursor can skip tools and answer from training data. Be explicit:
@@ -128,5 +151,6 @@ included in a workflow.
 | `explain_component` | Explain one component in plain language |
 | `list_known_routes` | Browse validated and candidate workflow patterns |
 | `get_playbook` | Full guidance for a selected playbook |
+| `orchestratekit://playbooks/<id>` | MCP Resource for a published playbook payload |
 | `review_workflow_design` | Safety checker for an implementation design |
 | `get_relevant_docs` | Docs sources for components, frameworks, and topics |

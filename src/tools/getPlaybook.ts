@@ -63,7 +63,15 @@ type GraphContext = {
   approval_gates: string[];
 };
 
-type GetPlaybookOutput = {
+export type GetPlaybookInput = {
+  playbook_id?: string;
+  workflow_type?: string;
+  include_beta?: boolean;
+  include_graph?: boolean;
+  output_format?: "summary" | "full" | "implementation_focused";
+};
+
+export type GetPlaybookOutput = {
   status: "ok" | "not_found" | "low_confidence";
   matched_playbook_id?: string;
   confidence: number;
@@ -290,6 +298,146 @@ function playbookToMarkdown(
 // Tool registration
 // ---------------------------------------------------------------------------
 
+export function buildGetPlaybookOutput(input: GetPlaybookInput): GetPlaybookOutput {
+  const includeBeta = input.include_beta ?? false;
+  const includeGraph = input.include_graph ?? false;
+  const outputFormat = input.output_format ?? "full";
+  const registry = loadRegistry({ includeBeta });
+
+  let playbook: Playbook | undefined;
+  let confidence = 1.0;
+
+  if (input.playbook_id) {
+    playbook = registry.playbooks.find((p) => p.id === input.playbook_id);
+    if (!playbook) {
+      const output: GetPlaybookOutput = {
+        status: "not_found",
+        confidence: 0,
+        summary_markdown: `**Playbook not found:** \`${input.playbook_id}\` does not exist in the published registry.`,
+        warnings: [
+          `No playbook with id "${input.playbook_id}" found. Use get_playbook with a workflow_type to search by type, or compose_workflow_route to build a new route.`,
+        ],
+        next_recommended_tools: ["compose_workflow_route", "list_known_routes"],
+      };
+      logger.debug(`get_playbook -> not_found: ${input.playbook_id}`);
+      return output;
+    }
+  } else if (input.workflow_type) {
+    const match = bestPlaybookMatch(registry.playbooks, input.workflow_type);
+    if (!match) {
+      const output: GetPlaybookOutput = {
+        status: "not_found",
+        confidence: 0,
+        summary_markdown: `**No playbook matched** workflow type \`${input.workflow_type}\`.`,
+        warnings: [
+          `No published playbook matches workflow type "${input.workflow_type}". Use compose_workflow_route to build a candidate route from scratch.`,
+        ],
+        next_recommended_tools: ["compose_workflow_route", "list_known_routes"],
+      };
+      logger.debug(`get_playbook -> not_found by workflow_type: ${input.workflow_type}`);
+      return output;
+    }
+    playbook = match.playbook;
+    confidence = match.confidence;
+  } else {
+    return {
+      status: "not_found",
+      confidence: 0,
+      summary_markdown: `**Input required:** provide either playbook_id or workflow_type.`,
+      warnings: ["Provide playbook_id or workflow_type to look up a playbook."],
+      next_recommended_tools: ["list_known_routes", "compose_workflow_route"],
+    };
+  }
+
+  const warnings: string[] = [
+    ...statusWarnings(playbook.status, "playbook", playbook.id),
+  ];
+
+  if (confidence < 1.0) {
+    warnings.push(
+      `Low-confidence match (${Math.round(confidence * 100)}%): playbook "${playbook.id}" was matched by workflow_type, not exact id. Verify this is the right playbook before implementing.`,
+    );
+  }
+
+  let graphCtx: GraphContext | undefined;
+  if (includeGraph) {
+    graphCtx = buildGraphContext(playbook, registry);
+
+    if (!registry.routes.find((r) => r.id === playbook!.golden_path_route_id)) {
+      warnings.push(
+        `Golden-path route "${playbook.golden_path_route_id}" was not found in the loaded registry. ` +
+        `The route may be filtered out by status.`,
+      );
+    }
+
+    if (graphCtx.untested_edges.length > 0) {
+      warnings.push(
+        `This playbook has ${graphCtx.untested_edges.length} untested edge(s): ` +
+        graphCtx.untested_edges.join(", ") +
+        ". Validate these edges before using in production.",
+      );
+    }
+
+    if (graphCtx.approval_gates.length > 0) {
+      warnings.push(
+        `This playbook has ${graphCtx.approval_gates.length} approval gate(s). ` +
+        "External write/send/publish/calendar-write flows require human approval before execution.",
+      );
+    }
+  }
+
+  const playbookObj =
+    outputFormat === "summary"
+      ? {
+          id: playbook.id,
+          title: playbook.title,
+          status: playbook.status,
+          workflow_type: playbook.workflow_type,
+          risk_level: playbook.risk_level,
+          summary: playbook.summary,
+        }
+      : outputFormat === "implementation_focused"
+      ? {
+          id: playbook.id,
+          title: playbook.title,
+          status: playbook.status,
+          workflow_type: playbook.workflow_type,
+          risk_level: playbook.risk_level,
+          summary: playbook.summary,
+          guardrails: playbook.guardrails,
+          failure_modes: playbook.failure_modes,
+          implementation_steps: playbook.implementation_steps,
+          golden_path_route_id: playbook.golden_path_route_id,
+          stack_id: playbook.stack_id,
+        }
+      : playbook;
+
+  const summary = playbookToMarkdown(playbook, outputFormat, graphCtx);
+  const status: "ok" | "low_confidence" =
+    confidence >= 0.8 ? "ok" : "low_confidence";
+
+  const output: GetPlaybookOutput = {
+    status,
+    matched_playbook_id: playbook.id,
+    confidence,
+    summary_markdown: summary,
+    playbook: playbookObj,
+    graph_context: graphCtx,
+    warnings,
+    next_recommended_tools: [
+      "get_relevant_docs",
+      "compose_workflow_route",
+      "get_route",
+      "get_graph_component",
+    ],
+  };
+
+  logger.debug(
+    `get_playbook -> status=${output.status} id=${playbook.id} confidence=${confidence}`,
+  );
+  return output;
+}
+
 export function registerGetPlaybook(server: McpServer): void {
   server.registerTool(
     "get_playbook",
@@ -308,156 +456,10 @@ export function registerGetPlaybook(server: McpServer): void {
     },
     async (input) => {
       try {
-        const registry = loadRegistry({ includeBeta: input.include_beta });
-
-        // --- Find playbook ---
-        let playbook: Playbook | undefined;
-        let confidence = 1.0;
-
-        if (input.playbook_id) {
-          playbook = registry.playbooks.find((p) => p.id === input.playbook_id);
-          if (!playbook) {
-            const output: GetPlaybookOutput = {
-              status: "not_found",
-              confidence: 0,
-              summary_markdown: `**Playbook not found:** \`${input.playbook_id}\` does not exist in the published registry.`,
-              warnings: [
-                `No playbook with id "${input.playbook_id}" found. Use get_playbook with a workflow_type to search by type, or compose_workflow_route to build a new route.`,
-              ],
-              next_recommended_tools: ["compose_workflow_route", "list_known_routes"],
-            };
-            logger.debug(`get_playbook → not_found: ${input.playbook_id}`);
-            return {
-              content: [{ type: "text" as const, text: JSON.stringify(output) }],
-              structuredContent: output,
-            };
-          }
-        } else if (input.workflow_type) {
-          const match = bestPlaybookMatch(registry.playbooks, input.workflow_type);
-          if (!match) {
-            const output: GetPlaybookOutput = {
-              status: "not_found",
-              confidence: 0,
-              summary_markdown: `**No playbook matched** workflow type \`${input.workflow_type}\`.`,
-              warnings: [
-                `No published playbook matches workflow type "${input.workflow_type}". Use compose_workflow_route to build a candidate route from scratch.`,
-              ],
-              next_recommended_tools: ["compose_workflow_route", "list_known_routes"],
-            };
-            logger.debug(`get_playbook → not_found by workflow_type: ${input.workflow_type}`);
-            return {
-              content: [{ type: "text" as const, text: JSON.stringify(output) }],
-              structuredContent: output,
-            };
-          }
-          playbook = match.playbook;
-          confidence = match.confidence;
-        } else {
-          const output: GetPlaybookOutput = {
-            status: "not_found",
-            confidence: 0,
-            summary_markdown: `**Input required:** provide either playbook_id or workflow_type.`,
-            warnings: ["Provide playbook_id or workflow_type to look up a playbook."],
-            next_recommended_tools: ["list_known_routes", "compose_workflow_route"],
-          };
-          return {
-            content: [{ type: "text" as const, text: JSON.stringify(output) }],
-            structuredContent: output,
-          };
-        }
-
-        // --- Collect warnings ---
-        const warnings: string[] = [
-          ...statusWarnings(playbook.status, "playbook", playbook.id),
-        ];
-
-        if (confidence < 1.0) {
-          warnings.push(
-            `Low-confidence match (${Math.round(confidence * 100)}%): playbook "${playbook.id}" was matched by workflow_type, not exact id. Verify this is the right playbook before implementing.`,
-          );
-        }
-
-        // --- Build graph context ---
-        let graphCtx: GraphContext | undefined;
-        if (input.include_graph) {
-          graphCtx = buildGraphContext(playbook, registry);
-
-          if (!registry.routes.find((r) => r.id === playbook!.golden_path_route_id)) {
-            warnings.push(
-              `Golden-path route "${playbook.golden_path_route_id}" was not found in the loaded registry. ` +
-              `The route may be filtered out by status.`,
-            );
-          }
-
-          if (graphCtx.untested_edges.length > 0) {
-            warnings.push(
-              `This playbook has ${graphCtx.untested_edges.length} untested edge(s): ` +
-              graphCtx.untested_edges.join(", ") +
-              ". Validate these edges before using in production.",
-            );
-          }
-
-          if (graphCtx.approval_gates.length > 0) {
-            warnings.push(
-              `This playbook has ${graphCtx.approval_gates.length} approval gate(s). ` +
-              "External write/send/publish/calendar-write flows require human approval before execution.",
-            );
-          }
-        }
-
-        // --- Build output playbook object ---
-        const playbookObj =
-          input.output_format === "summary"
-            ? {
-                id: playbook.id,
-                title: playbook.title,
-                status: playbook.status,
-                workflow_type: playbook.workflow_type,
-                risk_level: playbook.risk_level,
-                summary: playbook.summary,
-              }
-            : input.output_format === "implementation_focused"
-            ? {
-                id: playbook.id,
-                title: playbook.title,
-                status: playbook.status,
-                workflow_type: playbook.workflow_type,
-                risk_level: playbook.risk_level,
-                summary: playbook.summary,
-                guardrails: playbook.guardrails,
-                failure_modes: playbook.failure_modes,
-                implementation_steps: playbook.implementation_steps,
-                golden_path_route_id: playbook.golden_path_route_id,
-                stack_id: playbook.stack_id,
-              }
-            : playbook;
-
-        const summary = playbookToMarkdown(playbook, input.output_format, graphCtx);
-        const status: "ok" | "low_confidence" =
-          confidence >= 0.8 ? "ok" : "low_confidence";
-
-        const output: GetPlaybookOutput = {
-          status,
-          matched_playbook_id: playbook.id,
-          confidence,
-          summary_markdown: summary,
-          playbook: playbookObj,
-          graph_context: graphCtx,
-          warnings,
-          next_recommended_tools: [
-            "get_relevant_docs",
-            "compose_workflow_route",
-            "get_route",
-            "get_graph_component",
-          ],
-        };
-
-        logger.debug(
-          `get_playbook → status=${output.status} id=${playbook.id} confidence=${confidence}`,
-        );
+        const result = buildGetPlaybookOutput(input);
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(output) }],
-          structuredContent: output,
+          content: [{ type: "text" as const, text: JSON.stringify(result) }],
+          structuredContent: result,
         };
       } catch (err) {
         logger.error("get_playbook failed", err);
