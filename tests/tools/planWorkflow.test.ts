@@ -55,6 +55,30 @@ describe("planWorkflow — worker build pipeline (MAR-166)", () => {
   });
 });
 
+describe("planWorkflow - MAR-375 exact meeting-assistant route", () => {
+  it("keeps the unchanged prompt on the draft + calendar approval path without generic-overlap noise", () => {
+    const goal = `Build me a simple assistant for handling meeting requests.
+
+It should look at new emails, check my calendar, suggest two times that work, let me choose one, add the meeting to my calendar, and prepare a reply.
+
+It must never send an email without my approval.`;
+    const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [] }, registry);
+    const ids = r.recommended_route.map((s) => s.component_id);
+
+    expect(ids).toContain("email_read");
+    expect(ids).toContain("calendar_lookup");
+    expect(ids).toContain("email_draft");
+    expect(ids).toContain("human_approval_gate");
+    expect(ids).toContain("calendar_write");
+    expect(ids).toContain("audit_log");
+    expect(ids).not.toContain("fan_out_collector");
+    expect(ids).not.toContain("reviewer_notification");
+    expect(ids).not.toContain("optional_email_send");
+    expect(ids.indexOf("human_approval_gate")).toBeLessThan(ids.indexOf("calendar_write"));
+    expect(r.enforced_approval_gates).toContain("human_approval_gate");
+  });
+});
+
 describe("planWorkflow — bounded loop contract (MAR-167)", () => {
   it("surfaces loop_guidance when the route is loop-shaped", () => {
     const r = planTech(
@@ -695,7 +719,7 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
 
   it("build_target gates the build path (cowork → cowork prompt, cursor → build brief, gpt → gpt prompt)", () => {
     const cowork = at("read emails and draft a reply", "cowork").next_action_menu;
-    expect(cowork.find((a) => a.id === "generate_prompt")!.label).toContain("CoWork");
+    expect(cowork.find((a) => a.id === "generate_prompt")!.label).toContain("Cowork");
     expect(cowork.find((a) => a.id === "export_build_brief")).toBeUndefined();
 
     const cursor = at("read emails and draft a reply", "cursor").next_action_menu;
@@ -724,7 +748,7 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
     const r = plan("read emails and draft a reply for approval");
     expect(r.summary_markdown).toContain("### How do you want to continue?");
     expect(r.summary_markdown).toContain("A) Save this plan to Linear / Obsidian / Notion");
-    expect(r.summary_markdown).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
+    expect(r.summary_markdown).toContain("B) Generate a portable agent handoff prompt");
     expect(r.summary_markdown).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
     expect(r.summary_markdown).toContain("D) Review or change the plan");
     expect(r.summary_markdown.match(/^[A-D]\) /gm)?.length).toBe(4);

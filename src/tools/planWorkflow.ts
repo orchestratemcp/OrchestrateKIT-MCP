@@ -1450,7 +1450,7 @@ function buildWhatYouNeed(
  * MAR-208: deterministic, target-aware next steps so the session doesn't dead-end.
  *
  * When build_target is provided, leads with the most relevant action for that
- * environment. Without a target, offers all three options (CoWork / code / GPT)
+ * environment. Without a target, offers portable prompt / code / GPT options.
  * so the reading agent can prompt the user to choose.
  */
 /**
@@ -1478,9 +1478,9 @@ function buildSuggestedNextActions(
   buildTarget: BuildTarget | undefined,
   whatYouNeed: IntegrationNeed[],
 ): string[] {
-  const COWORK = "Ask me to generate the CoWork system prompt for this plan — paste it into a Claude Project to configure an assistant";
+  const COWORK = "Ask me to generate a portable agent handoff prompt for this plan (Claude Cowork where available)";
   const CURSOR  = "Call `export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })` for the Claude-safe inline build spec; request full mode only for the rendered issue bundle";
-  const GPT     = "Ask me to generate the ChatGPT Custom GPT system prompt and Actions JSON";
+  const GPT     = "Ask me to generate a ChatGPT handoff prompt; agent mode and Workspace Agents are separate availability-gated surfaces";
   const REVIEW  = "Call `review_workflow_design(...)` after building to validate your implementation against the plan";
 
   const actions: string[] = [];
@@ -1549,14 +1549,14 @@ export function buildNextActionMenu(
     case "cowork":
       menu.push({
         id: "generate_prompt",
-        label: "Generate the CoWork system prompt to paste into a Claude Project",
+        label: "Generate a portable agent handoff prompt for Claude Cowork where available",
         action: "assistant:generate_cowork_prompt",
       });
       break;
     case "chatgpt_gpt":
       menu.push({
         id: "generate_prompt",
-        label: "Generate the ChatGPT Custom GPT system prompt + Actions JSON",
+        label: "Generate a ChatGPT handoff prompt (agent mode / Workspace Agents where available)",
         action: "assistant:generate_chatgpt_gpt",
       });
       break;
@@ -1572,7 +1572,7 @@ export function buildNextActionMenu(
       // No target chosen — offer both build paths.
       menu.push({
         id: "generate_prompt",
-        label: "Generate the CoWork or ChatGPT system prompt for this plan",
+        label: "Generate a portable agent handoff prompt",
         action: "assistant:generate_prompt",
       });
       menu.push({
@@ -1786,7 +1786,7 @@ export function buildClarifyingQuestions(
     addIfNeeded({
       id: "build_surface",
       question: "Where do you want to build this after scope is locked?",
-      options: ["Codex", "Cursor / Claude Code", "Cowork / GPT Agent", "Not sure yet"],
+      options: ["Codex", "Cursor / Claude Code", "Portable agent handoff prompt", "Not sure yet"],
     });
   }
 
@@ -1835,7 +1835,7 @@ const HOSTING_OPTION_LABELS: Record<HostingOptionId, string> = {
   local_cron: "Local scheduled task / cron",
   hosted_cron: "Hosted scheduled function (cron-triggered)",
   hosted_endpoint: "Always-on endpoint (serverless function or small VPS)",
-  in_client: "Runs inside the client (CoWork / ChatGPT GPT)",
+  in_client: "Runs inside an available agent client (Claude Cowork, ChatGPT agent mode, or Workspace Agents where available)",
   manual_local: "Manual, on-demand run from your own environment",
 };
 
@@ -2147,7 +2147,7 @@ function buildWizardChoices(buildTarget: BuildTarget | undefined): WizardChoice[
     },
     {
       id: "gpt_agents",
-      label: "GPT Agents",
+      label: "ChatGPT agent surfaces",
       kind: "build",
       best_for: "ChatGPT-hosted assistant with Actions-style integrations.",
       tradeoffs: "Good UX; hosting/runtime control is more constrained.",
@@ -2802,7 +2802,7 @@ function renderProductCardContinueMenu(): string[] {
     `### How do you want to continue?`,
     ``,
     `A) Save this plan to Linear / Obsidian / Notion`,
-    `B) Turn it into a prompt for CoWork / ChatGPT Agents`,
+    `B) Generate a portable agent handoff prompt`,
     `C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended`,
     `D) Review or change the plan`,
     ``,
@@ -3776,7 +3776,7 @@ const InputShape = {
   ),
   build_target: z.enum(["cowork", "cursor", "chatgpt_gpt", "code"]).optional().describe(
     "Who will BUILD from this plan? " +
-    "cowork = Claude Project / CoWork (configure an assistant, no code); " +
+    "cowork = Claude Cowork where available (configure an assistant, no code); " +
     "cursor = Cursor / Claude Code / VS Code (write implementation code); " +
     "chatgpt_gpt = ChatGPT Custom GPT (system prompt + Actions); " +
     "code = raw code (Codex or similar). " +

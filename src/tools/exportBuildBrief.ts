@@ -213,10 +213,10 @@ export const InputShape = {
     .optional()
     .describe("Override the manifest agent slug. Defaults to a slug of the playbook id or goal."),
   llm_provider: z
-    .enum(["anthropic", "openrouter"])
-    .default("anthropic")
+    .enum(["anthropic", "openrouter", "deterministic_first"])
+    .optional()
     .describe(
-      "LLM credential provider for model-tier steps. Defaults to Anthropic for backwards compatibility.",
+      "LLM credential provider for model-tier steps. Required when the route includes model-backed steps.",
     ),
 };
 
@@ -299,7 +299,32 @@ export type CompactBuildBriefOutput = Omit<BuildBriefOutput, "delivery" | "artif
   artifact_package?: never;
 };
 
-export type AnyBuildBriefOutput = BuildBriefOutput | CompactBuildBriefOutput;
+export type LlmProviderDecisionOption = {
+  id: "openrouter" | "anthropic" | "simplest_low_cost" | "deterministic_first";
+  label: string;
+  description: string;
+  arguments_delta: { llm_provider: "openrouter" | "anthropic" | "deterministic_first" };
+};
+
+export type BuildBriefNeedsInputOutput = {
+  status: "needs_input";
+  summary_markdown: string;
+  needs_input: {
+    kind: "llm_provider";
+    question: string;
+    model_backed_components: string[];
+    options: LlmProviderDecisionOption[];
+  };
+  provider_decision: {
+    required_before: "build_artifacts";
+    reason: string;
+    no_default_provider: true;
+  };
+  provenance_tag: "registry-grounded";
+  grounding_note: string;
+};
+
+export type AnyBuildBriefOutput = BuildBriefOutput | CompactBuildBriefOutput | BuildBriefNeedsInputOutput;
 
 type ArtifactFieldValue = string | string[];
 
@@ -1468,12 +1493,71 @@ export type ExportBuildBriefInput = {
   build_target?: ManifestBuildTarget;
   output_location?: string;
   agent_name?: string;
-  llm_provider?: "anthropic" | "openrouter";
+  llm_provider?: "anthropic" | "openrouter" | "deterministic_first";
   /** Registry fingerprint for manifest provenance; defaults to the bundle's. */
   registry_fingerprint?: string;
   /** Manifest timestamp; injectable so tests/snapshots stay deterministic. */
   generated_at?: string;
 };
+
+function modelBackedComponentIds(route: ExportBuildBriefInput["recommended_route"]): string[] {
+  return route
+    .filter((s) => s.model_tier !== undefined && s.model_tier !== "none")
+    .map((s) => s.component_id);
+}
+
+function buildLlmProviderNeedsInput(
+  modelBackedComponents: string[],
+): BuildBriefNeedsInputOutput {
+  const options: LlmProviderDecisionOption[] = [
+    {
+      id: "openrouter",
+      label: "OpenRouter",
+      description: "Use an OpenRouter API key; generated credentials and instructions contain no Anthropic dependency.",
+      arguments_delta: { llm_provider: "openrouter" },
+    },
+    {
+      id: "anthropic",
+      label: "Anthropic",
+      description: "Use an Anthropic API key directly for model-backed steps.",
+      arguments_delta: { llm_provider: "anthropic" },
+    },
+    {
+      id: "simplest_low_cost",
+      label: "Simplest available / low-cost option",
+      description: "Use OpenRouter explicitly so the builder can pick a low-cost supported model without provider lock-in.",
+      arguments_delta: { llm_provider: "openrouter" },
+    },
+    {
+      id: "deterministic_first",
+      label: "Deterministic-first where supported",
+      description: "Prefer deterministic implementation paths and omit model-provider credentials from the generated connect contract.",
+      arguments_delta: { llm_provider: "deterministic_first" },
+    },
+  ];
+  return {
+    status: "needs_input",
+    summary_markdown:
+      "Model-backed steps are present, so choose an LLM provider before exporting build artifacts. " +
+      "No provider is selected by default.",
+    needs_input: {
+      kind: "llm_provider",
+      question: "Which model provider should the generated agent use for model-backed steps?",
+      model_backed_components: modelBackedComponents,
+      options,
+    },
+    provider_decision: {
+      required_before: "build_artifacts",
+      reason:
+        "The route includes model-backed components; choosing a provider changes dependencies, credentials, env vars, and setup instructions.",
+      no_default_provider: true,
+    },
+    provenance_tag: "registry-grounded",
+    grounding_note:
+      "OrchestrateMCP makes no LLM calls and does not choose a provider implicitly. " +
+      "Provider options are deterministic metadata for the next export_build_brief call.",
+  };
+}
 
 export function exportBuildBrief(
   input: ExportBuildBriefInput & { delivery_mode: "compact" },
@@ -1485,6 +1569,11 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
 export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOutput {
   const deliveryMode = input.delivery_mode ?? "full";
   const routeComponents = input.recommended_route.map((s) => s.component_id);
+  const modelBackedComponents = modelBackedComponentIds(input.recommended_route);
+
+  if (modelBackedComponents.length > 0 && !input.llm_provider) {
+    return buildLlmProviderNeedsInput(modelBackedComponents);
+  }
 
   // MAR-296: deterministic agent.manifest.json for DASH (no network, no LLM).
   const agent_manifest = buildAgentManifest({
@@ -1714,7 +1803,16 @@ export function registerExportBuildBrief(server: McpServer): void {
           build_target: input.build_target,
           output_location: input.output_location,
           agent_name: input.agent_name,
+          llm_provider: input.llm_provider,
         });
+
+        if (!("delivery" in result)) {
+          logger.debug("export_build_brief -> needs_input llm_provider");
+          return {
+            content: [{ type: "text" as const, text: result.summary_markdown }],
+            structuredContent: result,
+          };
+        }
 
         logger.debug(
           `export_build_brief → ${result.sections ? "ok" : "error"} ` +

@@ -182,6 +182,7 @@ describe("MAR-249 — export_build_brief output schema", () => {
       loop_guidance: plan.loop_guidance ?? null,
       approval_gate_advisory: plan.approval_gate_advisory ?? null,
       handoff_targets: ["prompt", "linear"],
+      llm_provider: "anthropic",
     });
 
     const pkg = sc.artifact_package as Record<string, unknown>;
@@ -213,6 +214,7 @@ describe("MAR-249 — export_build_brief output schema", () => {
       approval_gate_advisory: plan.approval_gate_advisory ?? null,
       handoff_targets: ["prompt", "linear"],
       delivery_mode: "compact",
+      llm_provider: "anthropic",
     });
     const sc = result.structuredContent as Record<string, unknown>;
     const text = (result.content as Array<{ type: string; text?: string }>).find(
@@ -248,6 +250,7 @@ describe("MAR-249 — export_build_brief output schema", () => {
       approval_gate_advisory: plan.approval_gate_advisory ?? null,
       handoff_targets: ["prompt", "linear"],
       delivery_mode: "full",
+      llm_provider: "anthropic",
     });
     const sc = result.structuredContent as Record<string, unknown>;
     const text = (result.content as Array<{ type: string; text?: string }>).find(
@@ -257,6 +260,41 @@ describe("MAR-249 — export_build_brief output schema", () => {
     expect((sc.delivery as Record<string, unknown>).mode).toBe("full");
     expect(sc.artifact_package).toBeDefined();
     expect(JSON.parse(text ?? "null")).toEqual(sc);
+  });
+
+  it("missing llm_provider returns structured needs_input before artifacts", async () => {
+    const plan = await structured("plan_workflow", {
+      goal: EXPORT_BRIEF_GOAL,
+      output_depth: "technical",
+    });
+    const result = await rawToolResult("export_build_brief", {
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: plan.recommended_route,
+      safety_review: plan.safety_review,
+      automation_clearance: plan.automation_clearance,
+      enforced_approval_gates: plan.enforced_approval_gates ?? [],
+      untested_edges: plan.untested_edges ?? [],
+      avoid_when_violations: plan.avoid_when_violations ?? [],
+      evals_to_add: plan.evals_to_add ?? [],
+      design_notes: plan.design_notes ?? [],
+      worker_pipeline: plan.worker_pipeline ?? null,
+      loop_guidance: plan.loop_guidance ?? null,
+      approval_gate_advisory: plan.approval_gate_advisory ?? null,
+      handoff_targets: ["prompt", "linear"],
+      delivery_mode: "compact",
+    });
+    const sc = result.structuredContent as Record<string, unknown>;
+    expect(() => ExportBuildBriefOutputShape.parse(sc)).not.toThrow();
+    expect(sc.status).toBe("needs_input");
+    expect(sc.delivery).toBeUndefined();
+    expect(sc.connect).toBeUndefined();
+    const needs = sc.needs_input as Record<string, unknown>;
+    expect(needs.kind).toBe("llm_provider");
+    expect(JSON.stringify(needs)).toContain("OpenRouter");
+    expect(JSON.stringify(needs)).toContain("Anthropic");
+    expect(JSON.stringify(needs)).toContain("deterministic_first");
   });
 });
 

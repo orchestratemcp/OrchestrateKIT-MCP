@@ -60,7 +60,7 @@ function expectTargetProductCard(md: string) {
   expect(md).toContain("### How do you want to continue?");
   expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
   expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
-  expect(md).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
+  expect(md).toContain("B) Generate a portable agent handoff prompt");
   expect(md).toMatch(/^C\) Turn it into a build prompt for Claude Code \/ Codex \/ Cursor .+ Recommended$/m);
   expect(md).toContain("D) Review or change the plan");
   expect(md).not.toContain("**Route spine:**");
@@ -108,7 +108,7 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     const md = plan("guided").summary_markdown;
     expect(md).toContain("### How do you want to continue?");
     expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
-    expect(md).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
+    expect(md).toContain("B) Generate a portable agent handoff prompt");
     expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
     expect(md).toContain("D) Review or change the plan");
     expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
@@ -218,7 +218,7 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
       "Claude Code",
       "Codex",
       "Cowork",
-      "GPT Agents",
+      "ChatGPT agent surfaces",
     ]);
     expect(w.host_monitor_choices.map((c) => c.label)).toEqual(
       expect.arrayContaining(["Local", "Cowork", "GitHub Action", "cron"]),
@@ -381,7 +381,7 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
     expect(md).toContain("**Build controls:** Add state, retries, credential-failure handling, tests, and rollback/compensation in the build brief.");
     expect(md).toContain("### How do you want to continue?");
     expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
-    expect(md).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
+    expect(md).toContain("B) Generate a portable agent handoff prompt");
     expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
     expect(md).toContain("D) Review or change the plan");
     expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);

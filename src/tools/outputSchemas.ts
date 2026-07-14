@@ -339,6 +339,34 @@ const ArtifactIssueFieldsShape = z
 /** export_build_brief — canonical build handoff plus MAR-249 artifact package. */
 export const ExportBuildBriefOutputShape = z
   .object({
+    status: z.literal("needs_input").optional(),
+    summary_markdown: z.string().optional(),
+    needs_input: z
+      .object({
+        kind: z.literal("llm_provider"),
+        question: z.string(),
+        model_backed_components: z.array(z.string()),
+        options: z.array(
+          z
+            .object({
+              id: z.string(),
+              label: z.string(),
+              description: z.string(),
+              arguments_delta: z.object({ llm_provider: z.string() }).passthrough(),
+            })
+            .passthrough(),
+        ),
+      })
+      .passthrough()
+      .optional(),
+    provider_decision: z
+      .object({
+        required_before: z.literal("build_artifacts"),
+        reason: z.string(),
+        no_default_provider: z.literal(true),
+      })
+      .passthrough()
+      .optional(),
     delivery: z
       .object({
         contract: z.literal("export_build_brief.delivery.v1"),
@@ -356,10 +384,11 @@ export const ExportBuildBriefOutputShape = z
           .passthrough(),
         omitted_fields: z.array(z.string()),
       })
-      .passthrough(),
-    brief_markdown: z.string(),
-    sections: z.object({}).passthrough(),
-    handoffs: z.object({}).passthrough(),
+      .passthrough()
+      .optional(),
+    brief_markdown: z.string().optional(),
+    sections: z.object({}).passthrough().optional(),
+    handoffs: z.object({}).passthrough().optional(),
     artifact_index: z
       .object({
         compiler: z.literal("export_build_brief.artifact_compiler.v1"),
@@ -375,7 +404,8 @@ export const ExportBuildBriefOutputShape = z
         ),
         full_contains: z.array(z.string()),
       })
-      .passthrough(),
+      .passthrough()
+      .optional(),
     artifact_package: z
       .object({
         compiler: z.literal("export_build_brief.artifact_compiler.v1"),
@@ -403,7 +433,7 @@ export const ExportBuildBriefOutputShape = z
       })
       .passthrough()
       .optional(),
-    agent_manifest: z.object({}).passthrough(),
+    agent_manifest: z.object({}).passthrough().optional(),
     // MAR-364: fast-connect credential manifest + generated scripts/connect.mjs.
     connect: z
       .object({
@@ -427,7 +457,8 @@ export const ExportBuildBriefOutputShape = z
         connect_script: z.string(),
         instructions: z.string(),
       })
-      .passthrough(),
+      .passthrough()
+      .optional(),
     provenance_tag: z.literal("registry-grounded"),
     grounding_note: z.string(),
   })
