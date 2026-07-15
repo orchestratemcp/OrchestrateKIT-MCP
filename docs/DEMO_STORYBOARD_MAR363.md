@@ -1,378 +1,415 @@
-# MAR-363 — Action storyboard: Goal → running product
+# MAR-363 Recording Control Sheet
 
 Final demo case: **Email & Calendar Assistant**.
 
-The recording should prove the complete path with real connections:
-
-> Goal → validated plan → build → create credentials → connect → deploy → send
-> a real meeting request → review two free slots → approve → Calendar event +
-> Gmail draft → audit proof.
-
-This is an **action script**, not a spoken presentation. Record the screen and
-add narration/captions afterward.
+Record one continuous raw take that proves the full path:
+
+```text
+Goal -> validated plan -> Plan Passport/build brief -> build -> connect Google + OpenRouter
+-> deploy to Vercel -> send a real meeting request -> review two available slots
+-> approve -> Google Calendar event + Gmail draft -> structured audit proof
+```
+
+This is an action script for Henrik's screen recording. It is not a spoken
+presentation script. Capture the real flow, speed up waits in the edit, and add
+captions or narration afterward.
+
+## Current Recording Baseline
+
+Use a fresh connector/session before the take. The recording is allowed to use
+new work that landed after the failed attempt:
+
+| Area | Recording implication |
+|---|---|
+| MAR-375 provider fix | `export_build_brief` must ask for an LLM provider when model-backed steps are present. Select `openrouter`; no Anthropic default is acceptable. |
+| MAR-375 route fix | The route for the exact Email & Calendar goal must be `email_read -> calendar_lookup -> schema_validation -> intent_classifier -> email_draft -> state_store -> human_approval_gate -> auth_failure_handler -> calendar_write -> audit_log`. |
+| MAR-103 MCP resources | If useful, briefly show playbooks as MCP resources instead of browsing local files. Do not let this slow the take. |
+| MAR-342 Plan Passport | Show the Plan Passport/build contract as the deterministic handoff from plan to build. |
+| MAR-343 replay verifier | If the client exposes it, use replay verification as audit support after the run. Do not configure it live if it is not ready. |
+| MAR-138 Claude Skill | Claude is now a valid distribution path, but use whichever client is cleanest for the take. |
+| MAR-251 matcher fix | Monitor/approve/handoff language should no longer bleed into unrelated route components; if it does, stop and reconnect. |
+
+Fresh hosted-worker evidence after MAR-375:
+
+```text
+build_sha: 41ea718f8c49232a
+built_at: 2026-07-14T21:39:30.987Z
+safe_to_demo: true
+```
+
+The final recording should be made against that build or a newer build on
+master. The latest known master merge commit before this prep was:
+
+```text
+17b1ceae7b9c68359d78e629e3878ad017747e55
+```
+
+## Failed-Take Lessons To Actively Guard
+
+The previous recording attempt was useful but not acceptable. These are hard
+stop conditions:
+
+- **Anthropic appears without being chosen:** stop. The brief must ask for a
+  provider, and the recording path must choose OpenRouter explicitly.
+- **Google OAuth URL is corrupted on Windows:** stop. Re-run the connector, open
+  the generated URL through the browser exactly as emitted, and verify the
+  redirect URI is an intact `http://127.0.0.1:<port>/oauth/callback` loopback.
+- **Web OAuth client is selected:** stop. Use a Google **Desktop app** OAuth
+  client for the loopback connector.
+- **Connector looks stale:** stop. Restart/reconnect the OrchestrateMCP server
+  and confirm the route/provider behavior again.
+- **Old email-lead/Slack/HubSpot storyboard appears:** stop. The take is only
+  the Email & Calendar Assistant.
+- **Credentials, access codes, tokens or secrets become visible:** stop, revoke
+  the exposed value, discard the raw take, and restart.
+- **LAB is broken:** keep going if the deployed product and Vercel audit logs
+  are healthy. LAB telemetry is optional and non-blocking for MAR-363.
+
+## Exact Goal To Paste
+
+```text
+Build an email and calendar assistant that reads unread Gmail meeting requests,
+checks my real Google Calendar, drafts a reply with two available 30-minute
+slots, and only after I approve creates one Calendar event and one Gmail draft.
+Never send the email. I will be present for approval and I want visible run logs.
+```
+
+When asked for deployment/provider constraints, paste:
+
+```text
+Use a Vercel hosted endpoint, OpenRouter, real Gmail + Google Calendar OAuth,
+draft-only email, explicit human approval, and structured Vercel audit logs.
+LAB telemetry is optional and must not block the product.
+```
+
+When exporting/building, include this constraint:
+
+```text
+Include safe connection and deploy steps. Read local credential values without
+printing them, send Vercel environment values through stdin or masked prompts,
+create APP_ACCESS_TOKEN and APPROVAL_SECRET in memory, mark secrets sensitive,
+and print names/statuses only. Add a focused dry-run or test for this path.
+```
+
+## Go/No-Go Preflight
+
+Complete this before opening OBS:
+
+- [ ] Original dirty checkout is untouched.
+- [ ] Recording workspace is fresh, with no `.env`, no `.vercel`, and no old app
+      artifacts unless clearly labelled as rehearsal evidence.
+- [ ] OrchestrateMCP connector was restarted after the latest build.
+- [ ] `health_check` or equivalent shows a build on or after
+      `2026-07-14T21:39:30.987Z`.
+- [ ] `plan_workflow` on the exact goal selects `email_calendar_assistant`.
+- [ ] Route includes the ordered gate before `calendar_write`.
+- [ ] Route does **not** include `fan_out_collector`, `reviewer_notification`,
+      Slack, HubSpot, CRM, or `optional_email_send` as a sent-email step.
+- [ ] `export_build_brief` without `llm_provider` returns structured
+      `needs_input` with kind `llm_provider`.
+- [ ] Provider options include `openrouter`.
+- [ ] OpenRouter export contains `OPENROUTER_API_KEY` and no Anthropic env vars
+      or setup text.
+- [ ] Local generated handler fails closed when secrets are absent.
+- [ ] Existing `examples/email-calendar-agent` syntax checks pass if used as
+      reference evidence.
+- [ ] Google, Gmail, Calendar, OpenRouter, GitHub and Vercel are already signed
+      in before recording.
+- [ ] Browser notifications, email previews and password-manager popups are off.
+- [ ] OBS has a full-screen scene and a credential shield scene/hotkey tested.
+- [ ] A second mailbox or phone is ready to send the fresh meeting request.
+- [ ] Old rehearsal emails are read or archived; old Calendar events/drafts are
+      deleted or outside the recording window.
 
-## Recording format
+## Credential Safety
 
-- Capture one continuous raw take. Speed up build, consent propagation and
-  deployment in the edit instead of pretending they were instantaneous.
-- Target raw duration: **10–20 minutes**, depending on the build.
-- Target edited duration: **3–4 minutes**.
-- Keep cursor movement deliberate. Pause for two seconds on every proof screen.
-- Never cut from one run to artifacts created by another run unless the edit
-  explicitly labels it as earlier evidence.
+Creating keys live is part of the story. Showing values is not.
 
-## Credential safety — mandatory
+1. Create or verify an OBS scene named `CREDENTIAL SHIELD`.
+2. Turn the shield on before any secret, access code, client secret, refresh
+   token or API key can appear.
+3. Paste secrets only into masked prompts. Do not open `.env`, print environment
+   variables, paste credentials into chat, or show Vercel secret values.
+4. Keep the raw recording private until secret frames are reviewed and blurred.
+5. Use disposable recording credentials.
+6. After the take, revoke the recording OpenRouter key, retire the recording
+   Google OAuth client, revoke the refresh token, and rotate demo access tokens.
 
-Creating keys live is part of the story. Showing their values is not.
-
-1. Add an OBS scene or overlay named **CREDENTIAL SHIELD** before recording.
-   It must cover provider key/client-secret values and the browser access-code
-   field while leaving buttons and success states visible.
-2. Turn the shield on **before** clicking any button that reveals a secret.
-3. Paste secrets only into masked terminal prompts. Never open `.env`, never
-   print environment values, and never paste credentials into the AI chat.
-4. Keep the raw recording private until all secret areas have been checked and
-   blurred frame-by-frame.
-5. Use disposable recording credentials. Revoke the OpenRouter key and retire
-   the recording OAuth client after the take; then restore the stable demo
-   credentials if the hosted demo should remain online.
-
-Passwords, 2FA, account recovery and billing are **not** part of the demo.
-Accounts may be signed in before recording. The provider credentials themselves
-are still created live.
+Passwords, account recovery, billing and 2FA are not part of the demo. Sign in
+before recording.
 
-## Pre-roll — off camera
+## Recording Format
 
-### Accounts and machine
-
-- [ ] Google Cloud, Gmail, Calendar, OpenRouter, GitHub and Vercel are already signed in.
-- [ ] `gh auth status` and `vercel whoami` pass.
-- [ ] Desktop notifications, email previews and password-manager popups are disabled.
-- [ ] Browser zoom and terminal font are readable at the recording resolution.
-- [ ] Bookmarks and unrelated tabs are hidden.
-- [ ] OBS has `FULL SCREEN` and `CREDENTIAL SHIELD` scenes/hotkeys tested.
-
-### Google preparation
-
-- [ ] Gmail API and Google Calendar API are enabled in the demo Cloud project.
-- [ ] OAuth consent screen and test user are already configured.
-- [ ] No recording-specific Desktop OAuth client exists yet; create it on camera.
-- [ ] Connected Gmail account has the intended calendar and timezone.
-- [ ] Old rehearsal requests are marked read so the new message is unambiguous.
-- [ ] Old rehearsal event/draft are removed or clearly outside the recording window.
+- Raw take target: 10-20 minutes.
+- Edited target: 3-4 minutes.
+- Keep cursor movement deliberate.
+- Pause two seconds on each proof screen.
+- Do not splice artifacts from another run unless the edit labels them as
+  earlier evidence.
+- If a build or deploy waits, keep the raw wait and accelerate it in the edit.
+- If OpenRouter is unavailable and deterministic fallback handles the step,
+  label that honestly in the audit/proof shot.
 
-### Build/deploy preparation
+## Scene Script
 
-- [ ] Start from a clean demo folder with no `.env` and no `.vercel` link.
-- [ ] MCP endpoint is connected and healthy.
-- [ ] The selected coding client can write files and run terminal commands.
-- [ ] The build output must include `agent.manifest.json`, `scripts/connect.mjs`,
-      tests, a Vercel app, and a safe env-sync/deploy command that prints names
-      and statuses only—not values.
-- [ ] Prepare a second mailbox or phone to send the meeting request during the take.
+### 0. Fresh Session Proof
 
-If any pre-roll item fails, fix it before recording. Do not debug account setup
-or credential leakage on camera.
-
----
-
-## Scene 1 — Enter the goal
-
-**Screen:** Codex, Claude Code or Cursor with OrchestrateKit connected.
-
-**Actions:**
-
-1. Open a new, empty task.
-2. Paste this goal exactly:
-
-   ```text
-   Build an email and calendar assistant that reads unread Gmail meeting
-   requests, checks my real Google Calendar, drafts a reply with two available
-   30-minute slots, and only after I approve creates one Calendar event and one
-   Gmail draft. Never send the email. I will be present for approval and I want
-   visible run logs.
-   ```
-
-3. Submit once.
-4. Let the client call `plan_workflow`; do not steer it with component names.
-5. Hold for two seconds on the result showing:
-   - validated playbook `email_calendar_assistant`;
-   - full coverage;
-   - approval enforced;
-   - zero untested edges;
-   - route from Gmail read through audit log.
-
-**Edit later:** lower-third: `One goal. A validated, approval-gated route.`
-
-## Scene 2 — Choose the product shape
+Show a new client session with OrchestrateMCP connected. Confirm the worker build
+is fresh enough for MAR-375 behavior. This can be a short opening shot.
 
-**Actions:**
+Proof to hold:
 
-1. Choose the user-facing continuation for building/exporting the product.
-2. When asked for runtime/provider choices, enter:
+- build date or health output;
+- no stale connector warning;
+- clean recording folder.
 
-   ```text
-   Use a Vercel hosted endpoint, OpenRouter, real Gmail + Google Calendar OAuth,
-   draft-only email, explicit human approval, and structured Vercel audit logs.
-   LAB telemetry is optional and must not block the product.
-   ```
+### 1. Goal -> Validated Plan
 
-3. Export the full build brief for the selected coding client.
-4. Add this recording constraint to the build handoff:
-
-   ```text
-   Include a safe Vercel env-sync/deploy command. It must read the connected
-   local values without printing them, create the app-access and approval
-   secrets in memory, pipe values to Vercel through stdin, mark them sensitive,
-   and print names/statuses only. Add a dry-run or focused test for this path.
-   ```
+Paste the exact goal and submit once. Let the client call `plan_workflow` without
+steering it with component IDs.
 
-5. Pause on the brief sections that show:
-   - route and safety gate;
-   - required connections/scopes;
-   - Vercel host choice;
-   - `scripts/connect.mjs` and `agent.manifest.json` artifacts.
-
-**Edit later:** lower-third: `The plan includes connection and deployment work.`
+Proof to hold:
 
-## Scene 3 — Build in a fresh folder
+- playbook `email_calendar_assistant`;
+- full coverage / validated route;
+- approval enforced;
+- route includes `human_approval_gate` before `calendar_write`;
+- no Slack/HubSpot/CRM/email-lead route.
 
-**Actions:**
+Caption:
 
-1. Give the exported build prompt to the coding client.
-2. Let it create the application in the clean folder.
-3. Keep recording while it writes and tests; do not jump to a prebuilt folder.
-4. When it finishes, run the generated verification command.
-5. Show the file tree briefly:
-   - approval-gated API/UI;
-   - `scripts/connect.mjs`;
-   - safe Vercel env/deploy helper;
-   - `agent.manifest.json`;
-   - focused tests.
-6. Stop if tests are red. A fixed-on-camera build is not the final take.
+```text
+One goal. A validated, approval-gated route.
+```
 
-**Edit later:** speed this scene up 8–20×. Keep the final green test summary at
-normal speed for two seconds.
+### 2. Provider Choice -> Build Brief
 
-## Scene 4 — Create Google credentials live
+When the tool asks for a provider, choose OpenRouter. Export the build brief for
+the chosen coding client.
 
-**Screen:** terminal left, browser right.
+Proof to hold:
 
-**Actions:**
+- `needs_input.kind = llm_provider` appeared before selection, if visible;
+- OpenRouter selected explicitly;
+- Plan Passport/build contract present;
+- Google/Gmail/Calendar scopes listed;
+- Vercel host choice listed;
+- approval and audit requirements listed.
 
-1. Run from the generated project:
+Caption:
 
-   ```powershell
-   node scripts/connect.mjs
-   ```
+```text
+The build brief includes provider, connection, deployment and safety gates.
+```
 
-2. At the Google client prompt, open the exact Google Cloud credential page.
-3. Click **Create credentials → OAuth client ID → Desktop app**.
-4. Name it `OrchestrateKit recording — YYYY-MM-DD`.
-5. Turn **CREDENTIAL SHIELD ON**.
-6. Click **Create**; copy the client ID and client secret into the corresponding
-   masked connector prompts.
-7. Close the credential dialog. Turn **CREDENTIAL SHIELD OFF**.
-8. Let `connect.mjs` open Google's OAuth consent page.
-9. Show and approve only these scopes:
-   - `gmail.readonly`;
-   - `gmail.compose`;
-   - `calendar.readonly`;
-   - `calendar.events`.
-10. Return to the terminal and pause on the green Gmail + Calendar live probes.
+### 3. Build In A Fresh Folder
 
-Do not use a Web OAuth client. The generated loopback callback requires a
-Desktop client.
+Give the exported build prompt to the coding client. Keep recording while it
+writes files and tests. Speed up this scene later.
 
-## Scene 5 — Create the OpenRouter key live
+Proof to hold:
 
-**Actions:**
-
-1. Let `connect.mjs` open OpenRouter's key page.
-2. Click **Create key** and name it `okit-mar363-recording-YYYYMMDD`.
-3. Turn **CREDENTIAL SHIELD ON before the value appears**.
-4. Copy the key into the masked connector prompt.
-5. Close the key modal and turn **CREDENTIAL SHIELD OFF**.
-6. Pause on the successful OpenRouter live probe.
-7. Run the complete preflight:
+- app/API/UI files;
+- `agent.manifest.json`;
+- connection script or equivalent setup helper;
+- focused tests;
+- green verification summary.
 
-   ```powershell
-   node scripts/connect.mjs --check
-   ```
+Stop the take if tests are red. A fixed-on-camera build is not the final take.
 
-8. Hold on the all-green summary. It must explicitly prove Calendar write
-   scope, not merely Calendar read access.
+### 4. Create Google Credentials Live
 
-## Scene 6 — Link and deploy to Vercel
+Run the generated connector from the generated app folder. Use a Google Desktop
+OAuth client only.
 
-**Actions:**
+Proof to hold:
 
-1. Link/create a fresh isolated Vercel project from the generated app folder:
+- Gmail API and Calendar API scopes:
+  `gmail.readonly`, `gmail.compose`, `calendar.readonly`, `calendar.events`;
+- intact loopback redirect URL;
+- green Gmail and Calendar probes;
+- Calendar write scope proven, not just Calendar read.
 
-   ```powershell
-   vercel link
-   ```
+Keep `CREDENTIAL SHIELD` on for client secret and OAuth code frames.
 
-2. Run the generated safe env-sync command. It must:
-   - transfer Google/OpenRouter values from local `.env` through stdin;
-   - create random `APP_ACCESS_TOKEN` and `APPROVAL_SECRET` values in memory;
-   - mark secrets sensitive;
-   - print variable names and target environments only.
-3. Never use `cat`, `Get-Content` output, shell echo, or a dashboard bulk-paste
-   that exposes values on screen.
-4. Deploy production:
+### 5. Create OpenRouter Key Live
 
-   ```powershell
-   vercel deploy --prod --yes
-   ```
+Create a disposable OpenRouter key named for the recording date. Paste it into
+the masked connector prompt.
 
-5. Open the resulting production URL.
-6. Show the health strip: Google ✓, OpenRouter ✓, Approval gate ✓.
-7. Turn **CREDENTIAL SHIELD ON**, paste the generated demo access code into the
-   password field, then turn the shield off.
+Proof to hold:
 
-**Edit later:** speed up the Vercel build; return to normal speed at `READY` and
-the production URL.
+- OpenRouter live probe passes;
+- no Anthropic credential prompt or env var is shown;
+- complete connector check is green.
 
-## Scene 7 — Send a real meeting request
+### 6. Link And Deploy To Vercel
 
-**Actions:**
+Link a fresh Vercel project from the generated app folder, sync environment
+values safely, and deploy production.
 
-1. From the second mailbox/phone, compose a new message to the connected Gmail account.
-2. Use this subject:
+Proof to hold:
 
-   ```text
-   30 minute meeting next week?
-   ```
+- env sync prints variable names/statuses only;
+- production deployment URL;
+- health strip shows Google, OpenRouter and approval configured;
+- LAB optional state does not block readiness.
 
-3. Use this body:
+Keep `CREDENTIAL SHIELD` on when entering the app access code.
 
-   ```text
-   Hi! Could we schedule a 30 minute meeting next week? Please suggest two
-   times that work in your calendar.
-   ```
+### 7. Send A Fresh Meeting Request
 
-4. Send it on camera.
-5. Return immediately to the deployed app.
+From the second mailbox or phone, send this message to the connected Gmail
+account:
 
-## Scene 8 — Scan and review before any write
+```text
+Subject: 30 minute meeting next week?
 
-**Actions:**
+Hi! Could we schedule a 30 minute meeting next week? Please suggest two times
+that work in your calendar.
+```
 
-1. Click **Scan Gmail** once.
-2. Wait for the review card; do not reload or click repeatedly.
-3. Expand the original email briefly.
-4. Show:
-   - correct sender and subject;
-   - exactly two conflict-free slots;
-   - event title/timezone;
-   - full Gmail draft recipient, subject and body;
-   - the statement `Nothing has been written yet`.
-5. Select one slot.
-6. Pause for two seconds with **Approve selected slot** visible.
+Return immediately to the deployed app.
 
-**Edit later:** lower-third: `The agent pauses before both external writes.`
+### 8. Scan And Review Before Any Write
 
-## Scene 9 — Human approval and real artifacts
+Click `Scan Gmail` once. Do not reload or click repeatedly.
 
-**Actions:**
+Proof to hold:
 
-1. Click **Approve selected slot** exactly once.
-2. Wait for the success state. Do not navigate away while it is working.
-3. Open the reported Calendar event and show:
-   - selected start/end;
-   - attendee;
-   - source/approval note.
-4. Open Gmail **Drafts** and show:
-   - matching recipient;
-   - matching subject/body;
-   - draft state.
-5. Do **not** click Send.
+- correct sender and subject;
+- original email visible;
+- exactly two conflict-free slots;
+- event title and timezone;
+- full Gmail draft recipient, subject and body;
+- clear state that nothing has been written yet.
 
-**Edit later:** lower-third: `One Calendar event. One Gmail draft. No email sent.`
+Caption:
 
-## Scene 10 — Audit proof and closing frame
+```text
+The agent pauses before both external writes.
+```
 
-**Actions:**
+### 9. Human Approval -> Real Artifacts
 
-1. Open the Vercel runtime logs for the completed run.
-2. Filter to the run ID if needed.
-3. Show the ordered events:
+Select one slot and click approve exactly once. Wait for success.
 
-   ```text
-   gate_requested
-   gate_resolved
-   calendar_write completed
-   optional_email_send completed (draft-only)
-   run_completed
-   ```
+Proof to hold:
 
-4. If LAB telemetry is already configured, show the same run in `/agents` as
-   a short optional closing shot. Do not configure or repair LAB during this take.
-5. End on a three-panel proof frame: plan summary, Calendar event, Gmail draft.
+- Calendar event with selected start/end, attendee and approval/source note;
+- Gmail draft with matching recipient, subject and body;
+- Gmail draft remains unsent.
 
-**Edit later:** final caption:
+Caption:
+
+```text
+One Calendar event. One Gmail draft. No email sent.
+```
+
+### 10. Structured Audit Proof
+
+Open Vercel runtime logs for the run ID.
+
+Required audit sequence:
+
+```text
+gate_requested
+gate_resolved
+calendar_write completed
+optional_email_send completed (draft-only)
+run_completed
+```
+
+If LAB is already configured, optionally show the same run in `/agents`. Do not
+configure or debug LAB during the take.
+
+Closing frame:
 
 ```text
 Planned. Built. Connected. Deployed. Approved. Audited.
 ```
 
----
+## Timing Sheet
 
-## Expected timing from the accepted hosted rehearsal
+Fill this during rehearsal and final edit:
+
+| Segment | Target/evidence | Final timestamp |
+|---|---|---|
+| Goal submitted | exact Email & Calendar goal | |
+| Plan validated | `email_calendar_assistant` route | |
+| Provider selected | OpenRouter, no Anthropic default | |
+| Plan Passport/build brief | deterministic contract visible | |
+| Build finished | green local verification | |
+| Google connected | Gmail + Calendar probes green | |
+| OpenRouter connected | live probe green | |
+| Vercel deployed | production URL ready | |
+| Fresh email sent | subject visible | |
+| Scan completed | two slots before write | |
+| Approval clicked | one human approval | |
+| Calendar written | event ID/link visible | |
+| Gmail draft written | draft ID/state visible | |
+| Audit shown | ordered write events visible | |
+
+Accepted hosted rehearsal evidence from 2026-07-14:
+
+| Item | Evidence |
+|---|---|
+| Production URL | `https://orchestratekit-email-calendar-assis.vercel.app` |
+| Run ID | `1a137629-cf7a-4205-9228-424497a13aaa` |
+| Approval ID | `ce0e0f97-1165-4f77-8d24-b51a506e49eb` |
+| Calendar event | `okitc85be9bf3dbc38500eca1cc06bcf8d9d` |
+| Gmail draft | `r-7868842765165270678` |
+| Write phase | about 1.5 seconds after approval |
+| CI then | 55 test files / 1628 tests passed |
+
+Measured rehearsal timings:
 
 | Action | Expected raw time |
 |---|---:|
-| Plan + build brief | under 1 minute |
-| Coding build | variable; retain raw, accelerate in edit |
-| Google client + OAuth | 1–3 minutes |
-| OpenRouter key + preflight | 30–90 seconds |
-| Vercel link/env/deploy | 1–2 minutes |
-| Gmail read | under 1 second |
-| Classification | up to 12 seconds before deterministic fallback |
-| Calendar lookup | under 1 second |
-| Draft generation | up to 12 seconds before deterministic fallback |
-| Approved Calendar + Gmail writes | about 1.5 seconds |
+| Email read | about 0.5 seconds |
+| Intent classification | about 11.5 seconds, or deterministic fallback if OpenRouter is unavailable |
+| Calendar lookup | about 0.3 seconds |
+| Draft generation | about 0.1 seconds with fallback, up to OpenRouter timeout otherwise |
+| Human approval wait | operator-dependent; rehearsal was about 36.8 seconds |
+| Calendar write | about 0.9 seconds |
+| Gmail draft creation | about 0.7 seconds |
+| Approval-to-complete write phase | about 1.5 seconds |
 
-The accepted production run on 2026-07-14 completed the approved Calendar and
-Gmail writes in about 1.5 seconds after the human click.
+## Failure Policy During The Take
 
-## Failure policy for the take
+- Login/2FA appears: stop, pre-authenticate, restart.
+- Secret becomes visible: stop, revoke it, delete the raw take, restart.
+- Wrong provider appears: stop and rerun export with OpenRouter selected.
+- Wrong Google scope/client type appears: stop and create a Desktop client.
+- OAuth URL is malformed: stop and rerun the connector; do not edit the URL by
+  hand on camera.
+- No meeting request found: confirm the fresh message is unread, then restart
+  the scan scene. Do not tune Gmail queries on camera.
+- Approval token expires: run a fresh scan. Do not bypass or extend the gate.
+- Vercel queue is slow: keep raw wait and speed it up later.
+- Calendar succeeds but Gmail draft fails: stop. Do not present partial success.
+- LAB fails: continue only if Vercel audit logs prove the structured run.
 
-- **Login/2FA appears:** stop the take; pre-authenticate and restart.
-- **Secret becomes visible:** stop, revoke it, delete the raw take and restart.
-- **Wrong Google scope/client type:** do not continue; create a Desktop client
-  and rerun connect.
-- **OpenRouter is slow/unavailable:** deterministic fallback is acceptable and
-  should be labelled honestly in the audit shot.
-- **No meeting request found:** confirm the fresh message is unread, then restart
-  the scan scene. Do not edit Gmail queries on camera.
-- **Approval token expires:** run a fresh scan. Never bypass or extend the gate.
-- **Vercel queue is slow:** keep the raw wait and speed it up later. Do not splice
-  in an unrelated deployment without a label.
-- **Calendar succeeds but Gmail fails:** stop. Do not present partial completion
-  as success; investigate and repeat with new disposable artifacts.
-
-## Post-roll — before publishing
+## Post-Roll Before Publishing
 
 - [ ] Verify every credential frame is covered in the edited export.
 - [ ] Revoke the recording OpenRouter key.
-- [ ] Retire the recording Google OAuth client and revoke its refresh token.
-- [ ] Rotate the demo access and approval secrets.
+- [ ] Retire the recording Google OAuth client.
+- [ ] Revoke the recording refresh token.
+- [ ] Rotate app access and approval secrets.
 - [ ] Restore stable production credentials if the demo remains hosted.
-- [ ] Verify the Calendar event and Gmail draft IDs belong to the recorded run.
-- [ ] Delete only the disposable rehearsal artifacts after evidence is retained.
-- [ ] Add captions/narration without changing what the screen actually proves.
-- [ ] Attach the final video/timings to MAR-363.
+- [ ] Confirm Calendar event and Gmail draft IDs belong to the recorded run.
+- [ ] Fill the timing sheet above.
+- [ ] Attach the final video, timings and run IDs to MAR-363.
 
-## Definition of done for the recording
+## Definition Of Done For MAR-363 Recording
 
 - Fresh provider credentials were created live but never exposed.
 - The app was built and deployed from the recorded project.
-- A real email triggered the run.
+- A real meeting-request email triggered the run.
 - The review card showed two real free slots before any write.
 - A human approved once.
 - The recorded run produced one Calendar event and one Gmail draft.
 - No email was sent.
-- Audit evidence shows the gate before both writes.
-- The final edit labels accelerated waits and any deterministic fallback honestly.
+- Structured audit evidence shows the gate before both writes.
+- The final edit labels accelerated waits and deterministic fallback honestly.
