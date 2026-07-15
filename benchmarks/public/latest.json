@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "report_fingerprint": "45440db283407509",
+  "report_fingerprint": "9d5a97033faa319e",
   "methodology": {
     "name": "OrchestrateMCP public registry conformance benchmark",
     "kind": "deterministic_registry_conformance",
@@ -52,7 +52,7 @@
     "required_components_missing": 0,
     "forbidden_components_present": 0,
     "expected_playbooks_missing": 0,
-    "route_score_average": 72.3,
+    "route_score_average": 72.6,
     "route_score_min": 61,
     "route_score_max": 84,
     "candidate_or_blocked_routes": 3,
@@ -554,11 +554,10 @@
           "audit_log"
         ],
         "nice_to_have_present": [
-          "source_freshness_check",
-          "research_synthesis",
           "content_idea_intake",
           "copy_generation",
-          "state_store"
+          "state_store",
+          "audit_log"
         ],
         "assertion_count": 5,
         "passed_assertion_count": 5,
@@ -567,36 +566,36 @@
       "composition": {
         "status": "candidate_route",
         "route_status": "validated",
-        "route_score": 66,
+        "route_score": 68,
         "components": [
-          "page_monitor",
-          "research_synthesis",
           "content_idea_intake",
+          "page_monitor",
+          "intent_classifier",
           "schema_validation",
           "copy_generation",
           "design_brief_generation",
-          "citation_checker",
-          "source_freshness_check",
           "reviewer_notification",
           "state_store",
           "human_approval_gate",
-          "external_publish"
+          "auth_failure_handler",
+          "external_publish",
+          "audit_log"
         ],
         "blocking_gaps": [
-          "Matcher noise: `reviewer_notification` — Matched the goal text but has no graph edge connecting it to the rest of the route — verify it is not a matcher false positive."
+          "Matcher noise: `intent_classifier` — Matched the goal text but has no graph edge connecting it to the rest of the route — verify it is not a matcher false positive."
         ],
         "untested_edges": [],
         "compose_noise": [
           {
-            "component_id": "reviewer_notification",
+            "component_id": "intent_classifier",
             "reason": "Matched the goal text but has no graph edge connecting it to the rest of the route — verify it is not a matcher false positive."
           }
         ],
         "playbook_first": {
           "recommendation_type": "playbook",
           "playbook_id": "content_approval_pipeline",
-          "recall": 0.86,
-          "precision": 0.5
+          "recall": 1,
+          "precision": 0.58
         }
       },
       "passed": true

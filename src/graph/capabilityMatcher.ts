@@ -390,6 +390,76 @@ const DOMAIN_KEYWORDS: Record<Exclude<Domain, "generic_orchestration">, string[]
 const WEAK_RESEARCH_KEYWORDS = ["summarize", "summarise"];
 
 /**
+ * MAR-251: handoff-to-code-agent phrasing is not code work by itself. "Trigger
+ * Claude Code" / "create Linear issues" describes a downstream orchestration
+ * handoff; it should not establish the code_agent domain unless the workflow
+ * itself also names codebase/repo/edit/test work.
+ */
+const CODE_HANDOFF_PHRASES = [
+  "trigger claude code",
+  "hand off to claude code",
+  "handoff to claude code",
+  "send to claude code",
+  "create linear issue",
+  "create linear issues",
+];
+
+const CODE_WORK_SIGNALS = [
+  "codebase",
+  "repository",
+  " repo",
+  "refactor",
+  "implement",
+  "bug",
+  "feature",
+  "pull request",
+  "unit test",
+  "test suite",
+  "compile",
+  "scan code",
+  "scan the code",
+  "edit code",
+  "code edit",
+  "code changes",
+  "diff",
+  "run tests",
+  "tests pass",
+];
+
+function isCodeHandoffOnly(goalLower: string): boolean {
+  const hasHandoff = CODE_HANDOFF_PHRASES.some((p) => goalLower.includes(p));
+  if (!hasHandoff) return false;
+  return !CODE_WORK_SIGNALS.some((p) => goalLower.includes(p));
+}
+
+/**
+ * MAR-251: "monitor news sources and summarize useful items into improvement
+ * ideas" is a monitoring digest, not a research workflow. Keep research for
+ * explicit research/synthesis/citation goals, but do not let weak digest words
+ * pull the citation/research spine into monitor -> approve -> handoff routes.
+ */
+const MONITORING_RESEARCH_WORK_SIGNALS = [
+  "research",
+  "citation",
+  "cite",
+  "cited",
+  "factual",
+  "factuality",
+  "synthesize",
+  "synthesise",
+  "synthesis",
+  "literature review",
+  "inline citations",
+];
+
+function isMonitoringDigestOnlyResearch(goalLower: string): boolean {
+  if (!goalLower.includes("summarize") && !goalLower.includes("summarise")) {
+    return false;
+  }
+  return !MONITORING_RESEARCH_WORK_SIGNALS.some((p) => goalLower.includes(p));
+}
+
+/**
  * Weak email_calendar triggers (MAR-131, generalizing MAR-127). "schedule" /
  * "scheduling" name an infra/timing concept ("runs on a schedule", "schedule
  * social posts") far more often than a literal calendar action, so they bleed
@@ -916,6 +986,18 @@ export function classifyGoalDomains(goal: string): Set<Domain> {
     }
   }
 
+  if (domains.has("code_agent") && isCodeHandoffOnly(goalLower)) {
+    domains.delete("code_agent");
+  }
+
+  if (
+    domains.has("monitoring") &&
+    domains.has("research") &&
+    isMonitoringDigestOnlyResearch(goalLower)
+  ) {
+    domains.delete("research");
+  }
+
   // MAR-127: in a code-agent goal, a weak research trigger (summarize/summarise)
   // alone must not establish the research domain — otherwise research_synthesis
   // bleeds into "summarize a PR" / "scan the codebase and summarize" routes.
@@ -1365,9 +1447,9 @@ export function hasScheduleTimeSignal(goalLower: string): boolean {
  */
 const REVISION_LOOP_PATTERNS: RegExp[] = [
   // an explicit revise/refine/rework/redraft verb, then "until" in the clause
-  /\b(revis|refin|rework|redraft|redo|improv)\w*\b[^.?!]*\buntil\b/,
+  /\b(revise|revises|revised|revising|refine|refines|refined|refining|rework|reworks|reworked|reworking|redraft|redrafts|redrafted|redrafting|redo|improve|improves|improved|improving)\b[^.?!]*\buntil\b/,
   // a revise/improve verb paired with "approve(s)/approval" in the clause
-  /\b(revis|refin|rework|redraft|redo|improv)\w*\b[^.?!]*\bapprov(e|es|ed|al)\b/,
+  /\b(revise|revises|revised|revising|refine|refines|refined|refining|rework|reworks|reworked|reworking|redraft|redrafts|redrafted|redrafting|redo|improve|improves|improved|improving)\b[^.?!]*\bapprov(e|es|ed|al)\b/,
   // an explicit bounded count of rounds/iterations/revisions/passes
   /\b(max(imum)?\s+|up to\s+|at most\s+)?\d+\s*(rounds?|iterations?|revisions?|passes|attempts|cycles?)\b/,
 ];
