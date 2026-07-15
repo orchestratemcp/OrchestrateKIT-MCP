@@ -59,10 +59,17 @@ function expectTargetProductCard(md: string) {
   expect(md).toContain("**Build controls:**");
   expect(md).toContain("### How do you want to continue?");
   expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
-  expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
-  expect(md).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
-  expect(md).toMatch(/^C\) Turn it into a build prompt for Claude Code \/ Codex \/ Cursor .+ Recommended$/m);
-  expect(md).toContain("D) Review or change the plan");
+  if (md.includes("— Next achievable step")) {
+    expect(md).toMatch(/^A\) Prepare .+ — Next achievable step$/m);
+    expect(md).toContain("B) Review or change Runtime, Control surface, Interaction surface, or Trigger");
+    expect(md).toContain("C) Show the technical plan and deployment alternatives");
+    expect(md).not.toContain("Turn it into a build prompt");
+  } else {
+    expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
+    expect(md).toContain("B) Turn it into a prompt for CoWork / ChatGPT Agents");
+    expect(md).toMatch(/^C\) Turn it into a build prompt for Claude Code \/ Codex \/ Cursor .+ Recommended$/m);
+    expect(md).toContain("D) Review or change the plan");
+  }
   expect(md).not.toContain("**Route spine:**");
   expect(md).not.toContain("**Recommended playbook:**");
   expect(md).not.toContain("**Next — pick one:**");
@@ -326,8 +333,13 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
       expect(md).not.toContain("5. **Artifact**");
       expect(md).not.toContain("Show technical plan");
       expect(md).not.toContain("Open validated playbook");
+      const runtimeFirst = wizard.runtime_requirements.must_run_while_user_offline;
       expect(wizard.recommended_next_click.id).toBe(
-        wizard.clarifying_questions.length > 0 ? "answer_clarifying_questions" : "build_brief",
+        wizard.clarifying_questions.length > 0
+          ? "answer_clarifying_questions"
+          : runtimeFirst
+          ? "prepare_runtime"
+          : "build_brief",
       );
       expect(wizard.clarifying_questions).toEqual(r.clarifying_questions);
     });
@@ -368,7 +380,7 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
     expect(md).toContain("**How it works**");
     expect(md).toContain("1. Read and extract lead data from the inbox.");
     expect(md).toContain("5. After approval, update CRM and alert sales in Slack.");
-    expect(md).toContain("**Connect:** Gmail inbox · CRM (HubSpot/Salesforce/Pipedrive) · Slack sales channel · optional email sender.");
+    expect(md).toContain("**Connect:** Gmail inbox · CRM (HubSpot/Salesforce/Pipedrive) · Slack sales channel · optional email sender · Model provider.");
     expect(md).toContain("v1 should probably stay draft-only");
     expect(md).toContain("**Build controls:** Add state, retries, credential-failure handling, tests, and rollback/compensation in the build brief.");
     expect(md).toContain("### How do you want to continue?");
@@ -531,8 +543,14 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
 
       expect(wizard.steps.length).toBeGreaterThan(0);
       expect(wizard.connections_required.length).toBeGreaterThan(0);
-      expect(wizard.build_choices.some((c) => c.recommended)).toBe(true);
-      expect(wizard.host_monitor_choices.some((c) => c.recommended)).toBe(true);
+      if (wizard.recommended_next_click.id === "prepare_runtime") {
+        expect(wizard.build_choices).toEqual([]);
+        expect(wizard.host_monitor_choices).toEqual([]);
+        expect(wizard.artifact_choices).toEqual([]);
+      } else {
+        expect(wizard.build_choices.some((c) => c.recommended)).toBe(true);
+        expect(wizard.host_monitor_choices.some((c) => c.recommended)).toBe(true);
+      }
       expect(wizard.recommended_next_click.label.length).toBeGreaterThan(0);
 
       expect(md).not.toContain("```json");

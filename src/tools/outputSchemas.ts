@@ -23,6 +23,30 @@
  */
 import { z } from "zod";
 
+const PlacementOptionShape = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    appropriate_when: z.string(),
+    limitation: z.string(),
+    availability: z.enum(["available now", "requires setup", "planned", "advanced"]),
+  })
+  .passthrough();
+
+const PlacementAxisShape = z
+  .object({
+    recommended: PlacementOptionShape,
+    alternatives: z.array(PlacementOptionShape),
+  })
+  .passthrough();
+
+const RuntimeOptionShape = PlacementOptionShape.extend({
+  runtime_class: z.string(),
+  reason: z.string(),
+  offline_behavior: z.string(),
+  install_action: z.string().nullable(),
+}).passthrough();
+
 /**
  * plan_workflow — a full plan OR a `needs_goal` nudge (MAR-162). The only field
  * common to both is `summary_markdown`; the plan fields and the needs_goal
@@ -208,6 +232,40 @@ export const PlanWorkflowOutputShape = z
             })
             .passthrough(),
         ),
+        runtime_requirements: z
+          .object({
+            trigger_mode: z.enum(["interactive", "scheduled", "event", "polling", "manual"]),
+            operation_mode: z.enum(["interactive", "scheduled", "event-driven", "continuous"]),
+            expected_duration: z.enum(["short", "long-running"]),
+            persistent_state_needed: z.boolean(),
+            durable_approval_needed: z.boolean(),
+            must_run_while_user_offline: z.boolean(),
+            data_sensitivity: z.enum(["low", "medium", "high"]),
+            estimated_operational_complexity: z.enum(["low", "medium", "high"]),
+          })
+          .passthrough(),
+        runtime_recommendation: RuntimeOptionShape,
+        runtime_alternatives: z.array(RuntimeOptionShape),
+        control_surface: PlacementAxisShape,
+        interaction_surface: PlacementAxisShape,
+        trigger_explanation: z
+          .object({
+            mode: z.enum(["interactive", "scheduled", "event", "polling", "manual"]),
+            label: z.string(),
+            what_wakes_it_up: z.string(),
+            offline_behavior: z.string(),
+            limitation: z.string(),
+          })
+          .passthrough(),
+        recommended_setup: z
+          .object({
+            label: z.string(),
+            availability: z.enum(["available now", "requires setup", "planned", "advanced"]),
+            action: z.string().nullable(),
+            blocker: z.string().nullable(),
+            next_achievable_step: z.string(),
+          })
+          .passthrough(),
         clarifying_questions: z.array(
           z.object({ id: z.string(), question: z.string(), options: z.array(z.string()) }).passthrough(),
         ),
