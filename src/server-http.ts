@@ -28,6 +28,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SERVER_NAME, SERVER_VERSION, SERVER_INSTRUCTIONS } from "./config.js";
 import { registerTools } from "./tools/index.js";
+import { registerResources } from "./resources/index.js";
 import { bootstrapNodeRegistry } from "./registry/nodeRegistryBootstrap.js";
 import { logger } from "./lib/logger.js";
 
@@ -81,6 +82,7 @@ async function main(): Promise<void> {
         { instructions: SERVER_INSTRUCTIONS },
       );
       registerTools(server);
+      registerResources(server);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
       });
