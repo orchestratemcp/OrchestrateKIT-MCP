@@ -1,12 +1,10 @@
 /**
- * MAR-315 (SCOPE-T1) — hosting + monitoring menu evals.
+ * MAR-315 (SCOPE-T1) — legacy hosting + monitoring compatibility evals.
  *
- * plan_workflow gains a deterministic `hosting_and_monitoring` block (route
- * shape → hosting recommendation, DASH import as the recommended monitoring
- * option) plus two gated `next_action_menu` entries (`choose_hosting`,
- * `wire_monitoring`). Everything here is registry/route-shape derived — no
- * LLM, no network call, matching the buildNextActionMenu / buildClarifyingQuestions
- * discipline it was modeled on.
+ * The legacy `hosting_and_monitoring` block remains deterministic and
+ * route-shape derived for existing consumers. MAR-378's runtime-fit contract is
+ * authoritative for new guided placement and keeps runtime, control,
+ * interaction, and trigger as separate decisions.
  */
 import { describe, it, expect } from "vitest";
 import { planWorkflow, LAYER1_MAX_CHARS } from "../../src/tools/planWorkflow.js";
@@ -46,12 +44,12 @@ const DISCORD_BOT =
   "Build a Discord bot that answers support questions in the channel and posts the reply.";
 
 describe("MAR-315 — hosting recommendation derives from route trigger shape", () => {
-  it("scheduled_trigger (G4 scheduled-report) → local scheduled task / cron recommended", () => {
+  it("offline scheduled route → hosted cron compatibility recommendation", () => {
     const r = plan(G4_SCHEDULED_REPORT);
     expect(r.recommended_route.map((s) => s.component_id)).toContain("scheduled_trigger");
-    expect(r.hosting_and_monitoring.hosting.recommended.id).toBe("local_cron");
+    expect(r.hosting_and_monitoring.hosting.recommended.id).toBe("hosted_cron");
     expect(r.hosting_and_monitoring.hosting.recommended.label.toLowerCase()).toContain(
-      "local scheduled task",
+      "hosted scheduled function",
     );
   });
 
@@ -82,10 +80,10 @@ describe("MAR-315 — hosting recommendation derives from route trigger shape", 
 });
 
 describe("MAR-315 — local_or_hosted is honored as an override", () => {
-  it("'hosted' preference on a scheduled route recommends a hosted cron function instead of local", () => {
+  it("'hosted' preference agrees with an offline scheduled route", () => {
     const r = plan(G4_SCHEDULED_REPORT, { local_or_hosted: "hosted", output_depth: "technical" });
     expect(r.hosting_and_monitoring.hosting.recommended.id).toBe("hosted_cron");
-    expect(r.hosting_and_monitoring.hosting.reason).toMatch(/hosted stack/);
+    expect(r.hosting_and_monitoring.hosting.reason).toMatch(/managed timer/);
   });
 
   it("'local' preference cannot override a webhook trigger's need for a reachable endpoint", () => {
@@ -179,13 +177,14 @@ describe("MAR-315 — provenance, presence, and layering", () => {
     }
   });
 
-  it("technical/deep render the full section with recommended + reason + alternatives", () => {
+  it("technical/deep render the corrected runtime-fit section with alternatives", () => {
     for (const depth of ["technical", "deep"] as const) {
       const md = plan(G4_SCHEDULED_REPORT, { output_depth: depth }).summary_markdown;
-      expect(md).toContain("### Hosting & monitoring");
-      expect(md).toContain("**Alternatives:**");
-      expect(md).toMatch(/🟢 \*\*Hosting \(recommended\):\*\*/);
-      expect(md).toMatch(/🟢 \*\*Monitoring \(recommended\):\*\*/);
+      expect(md).toContain("### Runtime-fit setup");
+      expect(md).toContain("#### Runtime recommendation");
+      expect(md).toContain("#### Runtime alternatives");
+      expect(md).toContain("Managed scheduled job — Recommended");
+      expect(md).toContain("Must run while user is offline: yes");
     }
   });
 
