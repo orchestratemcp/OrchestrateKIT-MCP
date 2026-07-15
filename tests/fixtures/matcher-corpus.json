@@ -1,7 +1,7 @@
 {
   "generated_by": "OrchestrateLab LAB-03 (MAR-106) corpus export",
   "version": 1,
-  "goal_count": 43,
+  "goal_count": 44,
   "goals": [
     {
       "slug": "blog_social_variants_reviewer_notify",
@@ -670,6 +670,36 @@
       ],
       "missing_but_expected": [],
       "source": "manual",
+      "level": "raw",
+      "xfail": ""
+    },
+    {
+      "slug": "monitor_ai_news_improvement_handoff",
+      "goal": "Monitor AI-agent news sources, deduplicate and summarize what changed, turn useful items into Orchestrate MCP improvement ideas, show me an approval summary, and after I approve create Linear issues and trigger Claude Code.",
+      "domain": "monitoring",
+      "must_have": [
+        "human_approval_gate",
+        "page_monitor"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "deduplication",
+        "schema_validation",
+        "state_store"
+      ],
+      "forbidden": [
+        "citation_checker",
+        "code_editing",
+        "codebase_scan",
+        "loop_controller",
+        "pr_summary",
+        "research_synthesis"
+      ],
+      "missing_but_expected": [
+        "linear_issue_create",
+        "agent_handoff"
+      ],
+      "source": "linear:MAR-251",
       "level": "raw",
       "xfail": ""
     },

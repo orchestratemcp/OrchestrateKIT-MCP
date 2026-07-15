@@ -391,6 +391,51 @@ describe("classifyGoalDomains — MAR-131 weak email_calendar de-bias", () => {
   });
 });
 
+describe("matchCapabilities — MAR-251 code handoff and monitor digest de-bias", () => {
+  const MAR_251_GOAL =
+    "Monitor AI-agent news sources, deduplicate and summarize what changed, turn useful items into " +
+    "Orchestrate MCP improvement ideas, show me an approval summary, and after I approve create " +
+    "Linear issues and trigger Claude Code.";
+
+  it("keeps monitor -> approve -> handoff goals out of code/research spines", () => {
+    const ids = matchedIds(MAR_251_GOAL);
+    expect(ids).toContain("page_monitor");
+    expect(ids).toContain("human_approval_gate");
+    expect(ids).not.toContain("code_editing");
+    expect(ids).not.toContain("codebase_scan");
+    expect(ids).not.toContain("loop_controller");
+    expect(ids).not.toContain("pr_summary");
+    expect(ids).not.toContain("research_synthesis");
+    expect(ids).not.toContain("citation_checker");
+  });
+
+  it("drops code_agent and research domains for a handoff-only monitoring digest", () => {
+    const domains = classifyGoalDomains(MAR_251_GOAL);
+    expect(domains.has("monitoring")).toBe(true);
+    expect(domains.has("code_agent")).toBe(false);
+    expect(domains.has("research")).toBe(false);
+  });
+
+  it("still selects the code-agent route when the goal asks for repo edits and tests", () => {
+    const ids = matchedIds(
+      "Scan the codebase, implement a bug fix, edit code, run tests, and open a pull request.",
+    );
+    expect(ids).toContain("codebase_scan");
+    expect(ids).toContain("code_editing");
+    expect(ids).toContain("test_runner");
+    expect(ids).toContain("pr_summary");
+  });
+
+  it("still keeps research for explicit monitoring plus cited synthesis", () => {
+    const ids = matchedIds(
+      "Monitor policy pages for changes, synthesize a cited summary with inline citations, and send it for approval.",
+    );
+    expect(ids).toContain("page_monitor");
+    expect(ids).toContain("research_synthesis");
+    expect(ids).toContain("citation_checker");
+  });
+});
+
 describe("matchCapabilities — Dogfood Round 3 residuals", () => {
   // ── MAR-140: code read-only constraint suppresses code_editing ──
   it("MAR-140: does NOT select code_editing when the goal forbids editing", () => {
