@@ -501,3 +501,65 @@ export const ExportBuildBriefOutputShape = z
     grounding_note: z.string(),
   })
   .passthrough();
+
+/** replay_plan_passport — deterministic local replay verifier (MAR-343). */
+export const ReplayPlanPassportOutputShape = z
+  .object({
+    contract: z.literal("orchestratekit.plan_replay.v1"),
+    status: z.enum(["pass", "warning", "fail"]),
+    plan_contract_id: z.string(),
+    replay_fingerprint: z.string(),
+    summary_markdown: z.string(),
+    drift_chips: z.array(
+      z
+        .object({
+          kind: z.string(),
+          severity: z.enum(["info", "warning", "fail"]),
+          message: z.string(),
+        })
+        .passthrough(),
+    ),
+    missing_evidence: z.array(
+      z
+        .object({
+          kind: z.string(),
+          severity: z.enum(["must", "should"]),
+          message: z.string(),
+          evidence_required: z.array(z.string()),
+        })
+        .passthrough(),
+    ),
+    observed_route: z.array(z.string()),
+    planned_route: z.array(z.string()),
+    suggested_lab_rating: z.enum(["verified", "needs_evidence", "failed"]),
+    lab_evidence: z
+      .object({
+        contract: z.literal("orchestratekit.lab_evidence.plan_replay.v1"),
+        source: z.literal("plan_replay"),
+        plan_contract_id: z.string(),
+        replay_fingerprint: z.string(),
+        evidence_status: z.enum(["verified", "needs_evidence", "failed"]),
+        route_components: z.array(z.string()),
+      })
+      .passthrough(),
+    corpus_contract_candidate: z
+      .object({
+        contract: z.literal("orchestratekit.corpus_contract_candidate.v1"),
+        source: z.literal("plan_replay"),
+        human_gate: z.literal("required"),
+      })
+      .passthrough()
+      .nullable(),
+    linear_issue_candidate: z
+      .object({
+        title: z.string(),
+        labels: z.array(z.string()),
+        description_markdown: z.string(),
+        human_gate: z.literal("required"),
+      })
+      .passthrough()
+      .nullable(),
+    provenance_tag: z.literal("deterministic-replay"),
+    grounding_note: z.string(),
+  })
+  .passthrough();
