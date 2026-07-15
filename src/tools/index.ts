@@ -21,6 +21,7 @@ import { registerRecordSessionFeedback } from "./recordSessionFeedback.js";
 import { registerExplainComponent } from "./explainComponent.js";
 import { registerValidatePlaybookCandidate } from "./validatePlaybookCandidate.js";
 import { registerExportBuildBrief } from "./exportBuildBrief.js";
+import { registerReplayPlanPassport } from "./replayPlanPassport.js";
 
 export type RegistrySummary = {
   component_count: number;
@@ -124,6 +125,7 @@ export function registerTools(server: McpServer): void {
   registerExplainComponent(server);
   registerValidatePlaybookCandidate(server);
   registerExportBuildBrief(server);
+  registerReplayPlanPassport(server);
 
   server.registerTool(
     "health_check",
