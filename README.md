@@ -39,6 +39,7 @@ When a user describes a workflow goal, the MCP can:
 - `health_check` returns `{ name, version, registry: { component_count, edge_count, stack_count, route_count, playbook_count, worker_count, untested_edge_pct } }`.
 - Hosted registry: 64 components, 151 connections, 1 reference stack, 12 published routes, 12 published playbooks, 4 workers.
 - Coverage accounting reports unmatched demand and unsupported supply instead of silently pretending the graph covers everything.
+- `export_build_brief` can emit a Plan Passport: a deterministic build/test contract for agents and future LAB ingestion, not a runtime verifier.
 - Corpus regression tests and release-trust floors ratchet the registry forward in CI.
 - `pnpm verify` (typecheck + lint + tests) passes from a clean clone and install.
 

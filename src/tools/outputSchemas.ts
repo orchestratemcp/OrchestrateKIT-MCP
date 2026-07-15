@@ -370,7 +370,7 @@ export const ExportBuildBriefOutputShape = z
     delivery: z
       .object({
         contract: z.literal("export_build_brief.delivery.v1"),
-        mode: z.enum(["compact", "full"]),
+        mode: z.enum(["compact", "full", "plan_passport"]),
         artifact_fingerprint: z.string(),
         artifact_bytes: z.number().int().positive(),
         full_artifact_available: z.literal(true),
@@ -387,6 +387,44 @@ export const ExportBuildBriefOutputShape = z
       .passthrough()
       .optional(),
     brief_markdown: z.string().optional(),
+    passport_markdown: z.string().optional(),
+    plan_passport: z
+      .object({
+        contract: z.literal("orchestratekit.plan_passport.v1"),
+        contract_id: z.string(),
+        registry_fingerprint: z.string(),
+        goal: z.string(),
+        route: z
+          .object({
+            plan_source: z.enum(["playbook", "composed"]),
+            route_status: z.string(),
+            components: z.array(
+              z.object({ step: z.number(), component_id: z.string() }).passthrough(),
+            ),
+          })
+          .passthrough(),
+        required_connections: z.array(z.object({ env: z.string(), provider: z.string() }).passthrough()),
+        safety_gates: z
+          .object({
+            automation_clearance: z.string(),
+            enforced_approval_gates: z.array(z.string()),
+          })
+          .passthrough(),
+        acceptance_tests: z.array(
+          z
+            .object({
+              id: z.string(),
+              kind: z.string(),
+              assertion: z.string(),
+              evidence_required: z.array(z.string()),
+              severity: z.enum(["must", "should"]),
+            })
+            .passthrough(),
+        ),
+        lab_import: z.object({ artifact: z.literal("plan_passport"), contract_id: z.string() }).passthrough(),
+      })
+      .passthrough()
+      .optional(),
     sections: z.object({}).passthrough().optional(),
     handoffs: z.object({}).passthrough().optional(),
     artifact_index: z
