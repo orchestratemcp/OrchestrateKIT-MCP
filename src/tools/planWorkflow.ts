@@ -539,6 +539,59 @@ export type WizardChoice = {
   action: string;
 };
 
+export type PlacementAvailability =
+  | "available now"
+  | "requires setup"
+  | "planned"
+  | "advanced";
+
+export type PlacementOption = {
+  id: string;
+  label: string;
+  appropriate_when: string;
+  limitation: string;
+  availability: PlacementAvailability;
+};
+
+export type PlacementAxis = {
+  recommended: PlacementOption;
+  alternatives: PlacementOption[];
+};
+
+export type RuntimeRequirements = {
+  trigger_mode: "interactive" | "scheduled" | "event" | "polling" | "manual";
+  operation_mode: "interactive" | "scheduled" | "event-driven" | "continuous";
+  expected_duration: "short" | "long-running";
+  persistent_state_needed: boolean;
+  durable_approval_needed: boolean;
+  must_run_while_user_offline: boolean;
+  data_sensitivity: "low" | "medium" | "high";
+  estimated_operational_complexity: "low" | "medium" | "high";
+};
+
+export type RuntimeOption = PlacementOption & {
+  runtime_class: string;
+  reason: string;
+  offline_behavior: string;
+  install_action: string | null;
+};
+
+export type TriggerExplanation = {
+  mode: RuntimeRequirements["trigger_mode"];
+  label: string;
+  what_wakes_it_up: string;
+  offline_behavior: string;
+  limitation: string;
+};
+
+export type RecommendedSetup = {
+  label: string;
+  availability: PlacementAvailability;
+  action: string | null;
+  blocker: string | null;
+  next_achievable_step: string;
+};
+
 export type WizardStep = {
   step: number;
   label: string;
@@ -555,9 +608,10 @@ export type WizardConnectionGroup = {
 /**
  * MAR-333: the top-level Goal -> Product wizard contract. This is the concise,
  * menu-shaped surface clients should render by default. It is deterministic
- * data only: plain-English route steps, grouped connection needs, build choices,
- * host/monitor choices, artifact choices, bounded questions, and one best next
- * click. Deep/technical fields remain available elsewhere in the same payload.
+ * data only: plain-English route steps, grouped connection needs, separate
+ * runtime/control/interaction/trigger recommendations, bounded questions, and
+ * one honest next action. Deep/technical fields and legacy choice arrays remain
+ * available elsewhere in the same payload.
  */
 export type GoalToProductWizard = {
   steps: WizardStep[];
@@ -565,6 +619,13 @@ export type GoalToProductWizard = {
   build_choices: WizardChoice[];
   host_monitor_choices: WizardChoice[];
   artifact_choices: WizardChoice[];
+  runtime_requirements: RuntimeRequirements;
+  runtime_recommendation: RuntimeOption;
+  runtime_alternatives: RuntimeOption[];
+  control_surface: PlacementAxis;
+  interaction_surface: PlacementAxis;
+  trigger_explanation: TriggerExplanation;
+  recommended_setup: RecommendedSetup;
   clarifying_questions: ClarifyingQuestion[];
   recommended_next_click: {
     id: string;
@@ -1904,22 +1965,54 @@ const MONITORING_STATED_SIGNALS = [
  * reachable endpoint) or add hosting to something that already runs
  * in-client.
  */
-function deriveHostingBase(routeComponentIds: string[]): HostingOptionId {
+function goalNeedsBackgroundRunner(goal: string, routeComponentIds: string[]): boolean {
+  const g = goal.toLowerCase();
+  return (
+    routeComponentIds.includes("scheduled_trigger") ||
+    routeComponentIds.includes("page_monitor") ||
+    routeComponentIds.includes("webhook_trigger") ||
+    routeComponentIds.includes("github_trigger") ||
+    (routeComponentIds.includes("email_read") &&
+      (routeComponentIds.includes("calendar_lookup") ||
+        anySignal(g, ["watch my inbox", "watch my gmail", "looks at my gmail", "new email", "new emails"]))) ||
+    anySignal(g, [
+      "computer is off",
+      "computer off",
+      "laptop is off",
+      "client closes",
+      "client is closed",
+      "keep working when",
+      "always-on",
+      "always on",
+      "in the background",
+    ])
+  );
+}
+
+function deriveHostingBase(goal: string, routeComponentIds: string[]): HostingOptionId {
+  const interactive = anySignal(goal.toLowerCase(), [
+    "when i ask in chat",
+    "never run in the background",
+    "only when i ask",
+  ]);
   const hasWebhookish =
     routeComponentIds.includes("webhook_trigger") || routeComponentIds.includes("github_trigger");
   const hasScheduled = routeComponentIds.includes("scheduled_trigger");
   const hasChat = routeComponentIds.includes("chat_trigger");
+  if (interactive) return "in_client";
   if (hasWebhookish) return "hosted_endpoint";
-  if (hasScheduled) return "local_cron";
+  if (hasScheduled) return goalNeedsBackgroundRunner(goal, routeComponentIds) ? "hosted_cron" : "local_cron";
+  if (goalNeedsBackgroundRunner(goal, routeComponentIds)) return "hosted_endpoint";
   if (hasChat) return "in_client";
   return "manual_local";
 }
 
 function buildHostingBlock(
+  goal: string,
   routeComponentIds: string[],
   localOrHosted: "local" | "hosted" | "either" | undefined,
 ): HostingAndMonitoring["hosting"] {
-  const base = deriveHostingBase(routeComponentIds);
+  const base = deriveHostingBase(goal, routeComponentIds);
   const hasWebhookish =
     routeComponentIds.includes("webhook_trigger") || routeComponentIds.includes("github_trigger");
   const hasScheduled = routeComponentIds.includes("scheduled_trigger");
@@ -1938,7 +2031,11 @@ function buildHostingBlock(
   if (hasWebhookish) {
     reason = "Reacts to an inbound webhook/PR event — needs a reachable, always-on endpoint.";
   } else if (hasScheduled) {
-    reason = "Runs on a fixed schedule with no inbound trigger — a timer is enough, no server to keep up.";
+    reason = recommendedId === "hosted_cron"
+      ? "Runs on a fixed schedule while the user is offline — use a managed timer, not a client or local-only schedule."
+      : "Runs on a fixed schedule with no offline requirement — a local timer is sufficient.";
+  } else if (goalNeedsBackgroundRunner(goal, routeComponentIds)) {
+    reason = "Needs background execution after the computer/client closes; the legacy hosting field points to a hosted endpoint while runtime_recommendation carries the precise runtime class.";
   } else if (hasChat) {
     reason = "Chat-triggered — runs inside the client session; nothing separate to host.";
   } else {
@@ -1978,7 +2075,7 @@ function buildHostingAndMonitoring(
   outputDepth: "guided" | "brief" | "standard" | "technical" | "deep",
 ): HostingAndMonitoring {
   const full: HostingAndMonitoring = {
-    hosting: buildHostingBlock(routeComponentIds, localOrHosted),
+    hosting: buildHostingBlock(goal, routeComponentIds, localOrHosted),
     monitoring: buildMonitoringBlock(goal),
   };
   // MAR-256 payload diet: at Layer-1 depths the JSON carries only the
@@ -2025,6 +2122,84 @@ function renderHostingAndMonitoringFull(hm: HostingAndMonitoring): string[] {
   return lines;
 }
 
+function renderOperatingBundleCompact(wizard: GoalToProductWizard): string[] {
+  const runtime = wizard.runtime_recommendation;
+  const setup = wizard.recommended_setup;
+  const installAvailability = setup.action
+    ? "supported action available"
+    : runtime.availability === "available now"
+    ? "available now; no runtime install action is needed"
+    : "no one-click action";
+  return [
+    `**Recommended runtime setup**`,
+    `- **Runtime (execution):** ${runtime.label} _(${runtime.availability})_ — ${runtime.reason}`,
+    `- **Offline behavior:** ${runtime.offline_behavior}`,
+    `- **Control surface:** ${wizard.control_surface.recommended.label} _(${wizard.control_surface.recommended.availability})_ — ${wizard.control_surface.recommended.appropriate_when}`,
+    `- **Interaction surface:** ${wizard.interaction_surface.recommended.label} _(${wizard.interaction_surface.recommended.availability})_ — ${wizard.interaction_surface.recommended.appropriate_when}`,
+    `- **Trigger:** ${wizard.trigger_explanation.label} — ${wizard.trigger_explanation.what_wakes_it_up}`,
+    `- **Install availability:** ${installAvailability}. ${setup.blocker ?? ""}`,
+    `- **Next achievable step:** ${setup.next_achievable_step}`,
+    ``,
+  ];
+}
+
+function renderOperatingBundleFull(wizard: GoalToProductWizard): string[] {
+  const lines = [
+    `### Runtime-fit setup`,
+    ``,
+    `#### Runtime requirements`,
+    ``,
+    `- Trigger mode: ${wizard.runtime_requirements.trigger_mode}`,
+    `- Operation mode: ${wizard.runtime_requirements.operation_mode}`,
+    `- Expected duration: ${wizard.runtime_requirements.expected_duration}`,
+    `- Persistent state needed: ${wizard.runtime_requirements.persistent_state_needed ? "yes" : "no"}`,
+    `- Durable approval needed: ${wizard.runtime_requirements.durable_approval_needed ? "yes" : "no"}`,
+    `- Must run while user is offline: ${wizard.runtime_requirements.must_run_while_user_offline ? "yes" : "no"}`,
+    `- Data sensitivity: ${wizard.runtime_requirements.data_sensitivity}`,
+    `- Operational complexity: ${wizard.runtime_requirements.estimated_operational_complexity}`,
+    ``,
+    `#### Runtime recommendation`,
+    ``,
+    `- **${wizard.runtime_recommendation.label} — Recommended** · ${wizard.runtime_recommendation.availability}`,
+    `- Why: ${wizard.runtime_recommendation.reason}`,
+    `- Offline behavior: ${wizard.runtime_recommendation.offline_behavior}`,
+    `- Limitation: ${wizard.runtime_recommendation.limitation}`,
+    `- Install action: ${wizard.runtime_recommendation.install_action ?? "none available from plan_workflow"}`,
+    ``,
+    `#### Runtime alternatives`,
+    ``,
+  ];
+  for (const option of wizard.runtime_alternatives) {
+    lines.push(
+      `- **${option.label}** · ${option.availability}. Fit: ${option.reason} Limitation: ${option.limitation}`,
+    );
+  }
+  lines.push(``);
+  const axes: Array<[string, PlacementAxis]> = [
+    ["Control surface", wizard.control_surface],
+    ["Interaction surface", wizard.interaction_surface],
+  ];
+  for (const [title, axis] of axes) {
+    const all = [axis.recommended, ...axis.alternatives];
+    lines.push(`#### ${title}`, ``);
+    for (const [index, option] of all.entries()) {
+      lines.push(
+        `- **${option.label}${index === 0 ? " — Recommended" : ""}** · ` +
+          `${option.availability}. Appropriate when: ${option.appropriate_when} ` +
+          `Limitation: ${option.limitation}`,
+      );
+    }
+    lines.push(``);
+  }
+  lines.push(`#### Trigger`, ``);
+  lines.push(`- **${wizard.trigger_explanation.label}:** ${wizard.trigger_explanation.what_wakes_it_up}`);
+  lines.push(`- Offline behavior: ${wizard.trigger_explanation.offline_behavior}`);
+  lines.push(`- Limitation: ${wizard.trigger_explanation.limitation}`, ``);
+  lines.push(`**Install-path blocker:** ${wizard.recommended_setup.blocker ?? "None."}`, ``);
+  lines.push(`**Next achievable step:** ${wizard.recommended_setup.next_achievable_step}`, ``);
+  return lines;
+}
+
 function wizardStepLabel(step: RouteStep): string {
   return step.purpose || step.component_name || step.component_id;
 }
@@ -2064,7 +2239,12 @@ function connectionGroupFor(componentId: string): WizardConnectionGroup["id"] {
   return "secrets";
 }
 
-function groupConnections(whatYouNeed: IntegrationNeed[], enforcedGates: string[]): WizardConnectionGroup[] {
+function groupConnections(
+  goal: string,
+  whatYouNeed: IntegrationNeed[],
+  enforcedGates: string[],
+  steps: RouteStep[],
+): WizardConnectionGroup[] {
   const labels: Record<WizardConnectionGroup["id"], string> = {
     sources: "Data sources",
     destinations: "Destinations",
@@ -2079,6 +2259,16 @@ function groupConnections(whatYouNeed: IntegrationNeed[], enforcedGates: string[
   };
 
   for (const need of whatYouNeed) {
+    if (explicitlyDraftOnly(goal) && need.component_id === "optional_email_send") continue;
+    if (
+      need.component_id === "reviewer_notification" &&
+      enforcedGates.includes("human_approval_gate") &&
+      steps.some((step) => step.component_id === "email_read") &&
+      steps.some((step) => step.component_id === "calendar_lookup" || step.component_id === "calendar_write") &&
+      !hasGoalSignal(goal, ["slack", "email notification", "webhook notification"])
+    ) {
+      continue;
+    }
     const name = need.product_examples[0] || need.label;
     add(connectionGroupFor(need.component_id), name);
     if (need.required_scopes.length > 0 || need.scopes.length > 0) {
@@ -2086,7 +2276,10 @@ function groupConnections(whatYouNeed: IntegrationNeed[], enforcedGates: string[
     }
   }
   if (enforcedGates.includes("human_approval_gate")) {
-    add("approval", "Human approval checkpoint");
+    add("approval", "DASH approval target (planned; use manual approval until integrated)");
+  }
+  if (steps.some((step) => step.model_tier !== "none")) {
+    add("secrets", "Model provider credentials");
   }
   if (groups.size === 0) {
     add("secrets", "No external connections required");
@@ -2249,16 +2442,382 @@ function buildArtifactChoices(): WizardChoice[] {
   ];
 }
 
+function placementOption(
+  id: string,
+  label: string,
+  appropriateWhen: string,
+  limitation: string,
+  availability: PlacementAvailability,
+): PlacementOption {
+  return { id, label, appropriate_when: appropriateWhen, limitation, availability };
+}
+
+function recommendedConnectionLabels(
+  goal: string,
+  steps: RouteStep[],
+  whatYouNeed: IntegrationNeed[],
+): string[] {
+  const ids = new Set(steps.map((step) => step.component_id));
+  const labels: string[] = [];
+  const add = (label: string) => {
+    if (!labels.includes(label)) labels.push(label);
+  };
+  if (ids.has("email_read") || ids.has("email_draft")) add(hasGoalSignal(goal, ["gmail"]) ? "Gmail" : "email");
+  if (ids.has("calendar_lookup") || ids.has("calendar_write")) add("Google Calendar");
+  if (ids.has("page_monitor")) add("the page monitor");
+  if (ids.has("slack_notification")) add("Slack");
+  if (hasGoalSignal(goal, ["documents", "document", "files", "file"] )) add("the document source");
+  if (steps.some((step) => step.model_tier !== "none")) add("a model provider");
+  if (labels.length === 0) {
+    uniqueIntegrationNames(whatYouNeed).slice(0, 3).forEach(add);
+  }
+  return labels;
+}
+
+function joinWithAnd(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "the required integrations";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+function runtimeOption(
+  id: string,
+  label: string,
+  runtimeClass: string,
+  reason: string,
+  offlineBehavior: string,
+  limitation: string,
+  availability: PlacementAvailability,
+  installAction: string | null = null,
+): RuntimeOption {
+  return {
+    ...placementOption(id, label, reason, limitation, availability),
+    runtime_class: runtimeClass,
+    reason,
+    offline_behavior: offlineBehavior,
+    install_action: installAction,
+  };
+}
+
+function buildPlacementContract(input: {
+  goal: string;
+  steps: RouteStep[];
+  whatYouNeed: IntegrationNeed[];
+  enforcedGates: string[];
+}): Pick<
+  GoalToProductWizard,
+  | "runtime_requirements"
+  | "runtime_recommendation"
+  | "runtime_alternatives"
+  | "control_surface"
+  | "interaction_surface"
+  | "trigger_explanation"
+  | "recommended_setup"
+> {
+  const ids = new Set(input.steps.map((step) => step.component_id));
+  const g = input.goal.toLowerCase();
+  const interactive = anySignal(g, [
+    "when i ask in chat",
+    "when asked in chat",
+    "never run in the background",
+    "only when i ask",
+    "on demand in chat",
+  ]);
+  const scheduled = ids.has("scheduled_trigger") && !interactive;
+  const emailCalendar =
+    ids.has("email_read") && (ids.has("calendar_lookup") || ids.has("calendar_write"));
+  const webhook = ids.has("webhook_trigger") || ids.has("github_trigger");
+  const polling = emailCalendar && hasGoalSignal(input.goal, ["poll", "polling", "every 5 minutes"]);
+  const slack = ids.has("slack_notification") || hasGoalSignal(input.goal, ["slack"]);
+  const priceMonitor = ids.has("page_monitor") && hasGoalSignal(input.goal, ["price", "prices", "pricing"]);
+  const persistentState =
+    ids.has("state_store") || ids.has("deduplication") || ids.has("page_monitor") || emailCalendar;
+  const durableApproval = input.enforcedGates.includes("human_approval_gate") && !interactive;
+  const offline = !interactive && (scheduled || emailCalendar || webhook || goalNeedsBackgroundRunner(input.goal, Array.from(ids)));
+
+  const triggerMode: RuntimeRequirements["trigger_mode"] = interactive
+    ? "interactive"
+    : scheduled
+    ? "scheduled"
+    : emailCalendar && !polling
+    ? "event"
+    : webhook
+    ? "event"
+    : polling
+    ? "polling"
+    : "manual";
+  const operationMode: RuntimeRequirements["operation_mode"] = interactive
+    ? "interactive"
+    : scheduled
+    ? "scheduled"
+    : webhook || emailCalendar
+    ? "event-driven"
+    : offline
+    ? "continuous"
+    : "interactive";
+
+  const runtimeRequirements: RuntimeRequirements = {
+    trigger_mode: triggerMode,
+    operation_mode: operationMode,
+    expected_duration: emailCalendar || operationMode === "continuous" ? "long-running" : "short",
+    persistent_state_needed: interactive ? false : persistentState,
+    durable_approval_needed: durableApproval,
+    must_run_while_user_offline: offline,
+    data_sensitivity:
+      emailCalendar || hasGoalSignal(input.goal, ["customer", "document", "gmail", "calendar"])
+        ? "high"
+        : slack
+        ? "medium"
+        : "low",
+    estimated_operational_complexity: interactive
+      ? "low"
+      : emailCalendar
+      ? "high"
+      : scheduled || webhook || persistentState
+      ? "medium"
+      : "low",
+  };
+
+  const clientRuntime = runtimeOption(
+    "client_chat_runtime",
+    "Client/chat runtime",
+    "client_chat",
+    "Best for attended, on-demand work that starts only when the user asks in chat.",
+    "Stops when the client/session closes; that is correct for explicitly attended work.",
+    "Cannot run scheduled or background work after the client closes.",
+    "available now",
+  );
+  const managedScheduled = runtimeOption(
+    "managed_scheduled_job",
+    "Managed scheduled job",
+    "managed_scheduled_job",
+    "A short morning check needs a durable timer, not an always-on worker.",
+    "Keeps running on schedule while the user's computer and client are closed.",
+    "Requires a selected scheduled-job runtime, secrets, state, retries, and cost controls.",
+    "requires setup",
+  );
+  const managedDurable = runtimeOption(
+    "managed_durable_background_runtime",
+    "Managed background worker / durable workflow",
+    "managed_durable_background",
+    "Gmail events or polling plus persistent deduplication and durable approval must outlive a client session.",
+    "Keeps watching and can wait for approval while the user is offline.",
+    "No built-in Orchestrate Runner or one-click installer exists; a real external durable runtime must be selected and configured.",
+    "requires setup",
+  );
+  const selfHosted = runtimeOption(
+    "self_hosted_runtime",
+    "Self-hosted server/runtime",
+    "self_hosted",
+    "Fits privacy or infrastructure-control requirements.",
+    "Can run offline from the user's device if the server stays up.",
+    "You own uptime, security, updates, backups, retries, and cost.",
+    "advanced",
+  );
+  const localRuntime = runtimeOption(
+    "local_runtime",
+    "This computer",
+    "local_process",
+    "Useful for development and manual testing.",
+    "Stops when the computer, network, or process stops.",
+    "Does not satisfy an offline/background requirement.",
+    "requires setup",
+  );
+  const workflowAdapter = runtimeOption(
+    "workflow_automation_adapter",
+    "Supported workflow-automation adapter",
+    "workflow_automation",
+    "Can fit connector-heavy schedules when a supported adapter is selected.",
+    "Runs according to the adapter's hosted execution guarantees.",
+    "Availability and limits depend on the selected supported adapter; none is selected by this plan.",
+    "requires setup",
+  );
+  const generatedUiRuntime = runtimeOption(
+    "generated_web_application",
+    "Generated web application",
+    "application_backend",
+    "Fits a richer multi-user interface when chat is no longer sufficient.",
+    "Runs only after a real application backend is deployed.",
+    "More setup than this attended read-only route needs.",
+    "requires setup",
+  );
+
+  const runtimeRecommendation = interactive
+    ? clientRuntime
+    : scheduled
+    ? managedScheduled
+    : emailCalendar || webhook || offline
+    ? managedDurable
+    : clientRuntime;
+  const runtimeAlternatives = interactive
+    ? [generatedUiRuntime, localRuntime]
+    : scheduled
+    ? [workflowAdapter, selfHosted]
+    : [selfHosted, managedScheduled];
+
+  const websiteBroker = placementOption(
+    "website_install_broker",
+    "Website install/control broker",
+    "Guide setup and link to a selected runtime's controls.",
+    "Website control does not execute agents without a separate real runner.",
+    "planned",
+  );
+  const clientControl = placementOption(
+    "client_control",
+    "Current client/chat",
+    "Configure and control attended, on-demand work in the current conversation.",
+    "Not durable after the client closes and unsuitable for background approvals.",
+    "available now",
+  );
+  const providerControl = placementOption(
+    "runtime_provider_control",
+    "Selected runtime's provider UI and logs",
+    "Manage schedule, secrets, status, retries, and history where the runtime actually runs.",
+    "Requires choosing and configuring a supported runtime; no universal provider is selected.",
+    "requires setup",
+  );
+  const approvalControl = placementOption(
+    "provider_neutral_approval_inbox",
+    "Provider-neutral approval inbox / generated UI",
+    "Persist approvals while the user is offline without making DASH a dependency.",
+    "Must be backed by the same durable runtime/state store; it is not generated or hosted by plan_workflow.",
+    "requires setup",
+  );
+  const logsControl = placementOption(
+    "logs_control",
+    "Logs or run table",
+    "A minimal status/history surface for scheduled jobs.",
+    "Needs setup and is not a complete approval experience.",
+    "requires setup",
+  );
+  const controlSurface: PlacementAxis = interactive
+    ? { recommended: clientControl, alternatives: [websiteBroker] }
+    : durableApproval
+    ? { recommended: approvalControl, alternatives: [providerControl, websiteBroker] }
+    : { recommended: providerControl, alternatives: [logsControl, websiteBroker] };
+
+  const clientInteraction = placementOption(
+    "client_interaction",
+    "Current client/chat",
+    "Ask for a summary and receive it in the same attended conversation.",
+    "No background delivery after the client closes.",
+    "available now",
+  );
+  const slackInteraction = placementOption(
+    "slack_interaction",
+    priceMonitor ? "Slack price-change notifications" : "Slack notifications",
+    "Deliver team output where people already work; Slack is an interaction surface, not hosting.",
+    priceMonitor
+      ? "Requires a Slack connection and an explicit choice: approve every post or automate low-risk alerts."
+      : "Requires a Slack connection and cannot execute the workflow.",
+    "requires setup",
+  );
+  const approvalInteraction = placementOption(
+    "approval_inbox_interaction",
+    "Approval inbox / generated UI",
+    "Review suggested times and approve the calendar write from a durable, provider-neutral surface.",
+    "Requires a separately built UI and durable backend; no working approval UI exists yet.",
+    "requires setup",
+  );
+  const draftInteraction = placementOption(
+    "gmail_draft_interaction",
+    "Gmail draft",
+    "Receive the prepared reply as a draft without sending it.",
+    "Gmail drafts carry output but do not provide durable workflow approval controls.",
+    "requires setup",
+  );
+  const interactionSurface: PlacementAxis = interactive
+    ? { recommended: clientInteraction, alternatives: [placementOption(
+        "generated_website_interaction",
+        "Generated website UI",
+        "A richer interface if chat becomes insufficient.",
+        "Requires a separately deployed application; unnecessary for the current read-only route.",
+        "requires setup",
+      )] }
+    : slack
+    ? { recommended: slackInteraction, alternatives: [clientInteraction] }
+    : { recommended: approvalInteraction, alternatives: [draftInteraction, clientInteraction, slackInteraction] };
+
+  const triggerExplanation: TriggerExplanation = interactive
+    ? {
+        mode: "interactive",
+        label: "A request in chat",
+        what_wakes_it_up: "Nothing runs until the user asks in the current client and selects documents.",
+        offline_behavior: "It intentionally does not run after the client closes.",
+        limitation: "No scheduler or background trigger is configured.",
+      }
+    : scheduled
+    ? {
+        mode: "scheduled",
+        label: "Configured morning schedule",
+        what_wakes_it_up: "A durable scheduler starts one short run each morning at the configured time and timezone.",
+        offline_behavior: "The schedule continues while the user's computer/client is closed when installed on the selected managed job runtime.",
+        limitation: "The time, timezone, retries, and overlap policy still need configuration.",
+      }
+    : emailCalendar
+    ? {
+        mode: polling ? "polling" : "event",
+        label: polling ? "Gmail watch or explicit polling schedule" : "Gmail event",
+        what_wakes_it_up: "A Gmail event watch should start it; if unavailable, configure and disclose a fixed polling interval.",
+        offline_behavior: "It continues only when the watch/poll is attached to the selected durable runtime.",
+        limitation: "Gmail watches require setup/renewal; polling adds delay and API usage.",
+      }
+    : {
+        mode: webhook ? "event" : "manual",
+        label: webhook ? "Inbound event/webhook" : "Manual start",
+        what_wakes_it_up: webhook ? "The source sends an event to a reachable runtime endpoint." : "The user starts a run.",
+        offline_behavior: webhook ? "Works offline from the user's device only after a real endpoint is deployed." : "Does not run after the client closes.",
+        limitation: webhook ? "Requires a reachable endpoint and source-side webhook setup." : "No background trigger is configured.",
+      };
+
+  const connectionNames = joinWithAnd(recommendedConnectionLabels(input.goal, input.steps, input.whatYouNeed));
+  const blocker = interactive
+    ? "Document-source selection still needs setup; the MCP worker is stateless and does not run customer agents."
+    : "This product has no runtime installer or Orchestrate Runner; the MCP worker is stateless and must not run customer agents.";
+  const nextStep = emailCalendar
+    ? `Connect ${connectionNames}, choose a supported durable runtime, and prepare a provider-neutral approval inbox. Keep sending disabled.`
+    : scheduled && slack
+    ? `Choose Slack delivery mode (approve every post or automate low-risk price-change alerts), connect ${connectionNames}, then prepare a managed scheduled job with persistent change-detection state.`
+    : interactive
+    ? `Connect the selected document source and model provider, then test an attended read-only run in the current client.`
+    : `Connect ${connectionNames}, then select and prepare the recommended runtime class.`;
+
+  return {
+    runtime_requirements: runtimeRequirements,
+    runtime_recommendation: runtimeRecommendation,
+    runtime_alternatives: runtimeAlternatives,
+    control_surface: controlSurface,
+    interaction_surface: interactionSurface,
+    trigger_explanation: triggerExplanation,
+    recommended_setup: {
+      label: interactive ? "Prepare attended client run" : "Prepare runtime and connections",
+      availability: interactive ? "requires setup" : runtimeRecommendation.availability,
+      action: null,
+      blocker,
+      next_achievable_step: nextStep,
+    },
+  };
+}
+
 function pickRecommendedNextClick(
   clarifyingQuestions: ClarifyingQuestion[],
   buildChoices: WizardChoice[],
   artifactChoices: WizardChoice[],
+  placement: ReturnType<typeof buildPlacementContract>,
+  runtimeFirst: boolean,
 ): GoalToProductWizard["recommended_next_click"] {
   if (clarifyingQuestions.length > 0) {
     return {
       id: "answer_clarifying_questions",
       label: "Answer the quick questions",
       action: "assistant:ask_clarifying_questions",
+    };
+  }
+  if (runtimeFirst) {
+    return {
+      id: "prepare_runtime",
+      label: placement.recommended_setup.next_achievable_step,
+      action: "see:goal_to_product_wizard.recommended_setup",
     };
   }
   const build = buildChoices.find((c) => c.recommended) ?? buildChoices[0];
@@ -2271,15 +2830,27 @@ function pickRecommendedNextClick(
 }
 
 function buildGoalToProductWizard(input: {
+  goal: string;
   steps: RouteStep[];
   whatYouNeed: IntegrationNeed[];
   enforcedGates: string[];
   buildTarget: BuildTarget | undefined;
   hostingAndMonitoring: HostingAndMonitoring;
   clarifyingQuestions: ClarifyingQuestion[];
+  outputDepth: "guided" | "brief" | "standard" | "technical" | "deep";
 }): GoalToProductWizard {
   const buildChoices = buildWizardChoices(input.buildTarget);
   const artifactChoices = buildArtifactChoices();
+  const placement = buildPlacementContract({
+    goal: input.goal,
+    steps: input.steps,
+    whatYouNeed: input.whatYouNeed,
+    enforcedGates: input.enforcedGates,
+  });
+  const runtimeFirst =
+    placement.runtime_requirements.must_run_while_user_offline ||
+    placement.runtime_requirements.trigger_mode === "interactive";
+  const technicalDepth = input.outputDepth === "technical" || input.outputDepth === "deep";
   return {
     steps: input.steps.map((s) => ({
       step: s.step,
@@ -2287,15 +2858,19 @@ function buildGoalToProductWizard(input: {
       detail: riskStepNote(s.risk_level),
       component_id: s.component_id,
     })),
-    connections_required: groupConnections(input.whatYouNeed, input.enforcedGates),
-    build_choices: buildChoices,
-    host_monitor_choices: buildHostMonitorChoices(input.hostingAndMonitoring),
-    artifact_choices: artifactChoices,
+    connections_required: groupConnections(input.goal, input.whatYouNeed, input.enforcedGates, input.steps),
+    build_choices: runtimeFirst && !technicalDepth ? [] : buildChoices,
+    host_monitor_choices:
+      runtimeFirst && !technicalDepth ? [] : buildHostMonitorChoices(input.hostingAndMonitoring),
+    artifact_choices: runtimeFirst && !technicalDepth ? [] : artifactChoices,
+    ...placement,
     clarifying_questions: input.clarifyingQuestions,
     recommended_next_click: pickRecommendedNextClick(
       input.clarifyingQuestions,
       buildChoices,
       artifactChoices,
+      placement,
+      runtimeFirst,
     ),
   };
 }
@@ -2453,7 +3028,7 @@ function buildCompactStatusHeader(
  * RESPONSE-UX-04 eval (MAR-227) asserts the rendered summary stays under this
  * so "report creep" fails CI instead of silently re-bloating Layer 1.
  */
-export const LAYER1_MAX_CHARS = 2400;
+export const LAYER1_MAX_CHARS = 3600;
 
 /**
  * MAR-250: the coverage gap block, shared by every depth. Empty when coverage
@@ -2462,11 +3037,27 @@ export const LAYER1_MAX_CHARS = 2400;
  */
 const COVERAGE_MAX_SHOWN = 5;
 
-function renderCoverageBlock(coverage: Coverage): string[] {
+function renderCoverageBlock(coverage: Coverage, steps: RouteStep[] = [], goal = ""): string[] {
   const lines: string[] = [];
-  if (coverage.unmatched_demand.length > 0) {
-    const shown = coverage.unmatched_demand.slice(0, COVERAGE_MAX_SHOWN);
-    const more = coverage.unmatched_demand.length - shown.length;
+  const routeIds = new Set(steps.map((step) => step.component_id));
+  const priceMonitorMappingGap =
+    routeIds.has("scheduled_trigger") &&
+    routeIds.has("page_monitor") &&
+    hasGoalSignal(goal, ["competitor product pages", "competitor pages"]);
+  const genericUnmatched = priceMonitorMappingGap
+    ? coverage.unmatched_demand.filter(
+        (phrase) => !hasGoalSignal(phrase, ["competitor product pages", "competitor pages"]),
+      )
+    : coverage.unmatched_demand;
+  if (priceMonitorMappingGap) {
+    lines.push(
+      `**Confirm before activation:** the route includes the morning schedule and page monitor, but the coverage matcher did not fully ground the exact five-page instruction. Confirm all five URLs, the time, and the timezone.`,
+      ``,
+    );
+  }
+  if (genericUnmatched.length > 0) {
+    const shown = genericUnmatched.slice(0, COVERAGE_MAX_SHOWN);
+    const more = genericUnmatched.length - shown.length;
     lines.push(
       `**Not covered by the registry:**`,
       ...shown.map((p) => `- "${p}"`),
@@ -2502,8 +3093,14 @@ function truncateGoalForCard(goal: string): string {
   return goal.length > 240 ? `${goal.slice(0, 240).trimEnd()}...` : goal;
 }
 
-function routeSpine(steps: RouteStep[]): string {
-  return steps.map((s) => s.component_name || s.component_id).join(" → ");
+function routeSpine(goal: string, steps: RouteStep[]): string {
+  return steps
+    .map((s) =>
+      s.component_id === "optional_email_send" && explicitlyDraftOnly(goal)
+        ? "Email Send (disabled for this goal)"
+        : s.component_name || s.component_id,
+    )
+    .join(" → ");
 }
 
 function formatHumanList(items: string[]): string {
@@ -2554,6 +3151,17 @@ function hasGoalSignal(goal: string, signals: string[]): boolean {
   return signals.some((s) => g.includes(s));
 }
 
+function explicitlyDraftOnly(goal: string): boolean {
+  return hasGoalSignal(goal, [
+    "do not want it to send",
+    "do not send",
+    "don't send",
+    "never send",
+    "without sending",
+    "leave a reply in my gmail drafts",
+  ]);
+}
+
 function formatExamples(examples: string[]): string {
   const shown = examples.filter(Boolean).slice(0, 3);
   if (shown.length === 0) return "";
@@ -2600,6 +3208,9 @@ function buildProductCardConnectList(
   if (hasGoalSignal(goal, ["content brief"])) {
     add("content_brief", "Content brief source");
   }
+  if (hasGoalSignal(goal, ["documents", "document", "selected files", "select files"])) {
+    add("selected_documents", "Selected document source");
+  }
 
   if (
     hasGoalSignal(goal, ["pull request", "pr opens", "github", "diff", "code review"]) &&
@@ -2621,7 +3232,7 @@ function buildProductCardConnectList(
   }
 
   if (routeIds.has("email_draft")) {
-    const sender = routeIds.has("optional_email_send")
+    const sender = routeIds.has("optional_email_send") && !explicitlyDraftOnly(goal)
       ? "Email sender is optional; draft-only is enough unless approved replies should be sent"
       : "Email draft account; draft-only is enough";
     add("email_draft", sender);
@@ -2647,12 +3258,30 @@ function buildProductCardConnectList(
     ) {
       continue;
     }
+    if (
+      need.component_id === "source_retrieval" &&
+      hasGoalSignal(goal, ["documents", "document", "selected files", "select files"])
+    ) {
+      continue;
+    }
+    if (
+      need.component_id === "reviewer_notification" &&
+      enforcedGates.includes("human_approval_gate") &&
+      routeIds.has("email_read") &&
+      (routeIds.has("calendar_lookup") || routeIds.has("calendar_write")) &&
+      !hasGoalSignal(goal, ["slack", "email notification", "webhook notification"])
+    ) {
+      continue;
+    }
     const examples = formatExamples(need.product_examples);
     add(need.component_id, examples ? `${need.label} (${examples})` : need.label);
   }
 
   if (enforcedGates.includes("human_approval_gate")) {
     add("approval", "Human approval checkpoint");
+  }
+  if (steps.some((step) => step.model_tier !== "none")) {
+    add("model_provider", "Model provider");
   }
 
   if (lines.length === 0 && needById.size === 0) {
@@ -2797,7 +3426,18 @@ function buildProductCardNotes(
   return notes.slice(0, 3);
 }
 
-function renderProductCardContinueMenu(): string[] {
+function renderProductCardContinueMenu(wizard: GoalToProductWizard): string[] {
+  if (wizard.recommended_next_click.id === "prepare_runtime") {
+    return [
+      `### How do you want to continue?`,
+      ``,
+      `A) ${wizard.recommended_setup.label} — Next achievable step`,
+      `B) Review or change Runtime, Control surface, Interaction surface, or Trigger`,
+      `C) Show the technical plan and deployment alternatives`,
+      `D) Save this plan to Linear / Obsidian / Notion`,
+      ``,
+    ];
+  }
   return [
     `### How do you want to continue?`,
     ``,
@@ -2849,13 +3489,15 @@ function buildGuidedPlanMarkdown(
   lines.push(`## ${productCardTitle(goal, planSource, playbook, steps)}`, ``);
   lines.push(`**You want:** ${truncateGoalForCard(goal)}`, ``);
 
-  lines.push(`**Route:** ${routeSpine(steps)}`, ``);
+  lines.push(`**Route:** ${routeSpine(goal, steps)}`, ``);
 
   lines.push(`**How it works**`);
   howItWorksSteps(steps).forEach((step, index) => {
     lines.push(`${index + 1}. ${step}`);
   });
   lines.push(``);
+
+  lines.push(...renderOperatingBundleCompact(goalToProductWizard));
 
   if (fullSteps) {
     lines.push(`**Steps:**`);
@@ -2869,7 +3511,7 @@ function buildGuidedPlanMarkdown(
 
   lines.push(`**Connect:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}.`, ``);
 
-  lines.push(...renderCoverageBlock(coverage));
+  lines.push(...renderCoverageBlock(coverage, steps, goal));
 
   const cardRouteIds = new Set(steps.map((s) => s.component_id));
   let cardSafeguard: string;
@@ -2878,12 +3520,20 @@ function buildGuidedPlanMarkdown(
       const guardedActions = [
         cardRouteIds.has("crm_note_write") ? "CRM updates" : null,
         cardRouteIds.has("slack_notification") ? "Slack alerts" : null,
-        cardRouteIds.has("optional_email_send") ? "sending" : null,
+        cardRouteIds.has("calendar_write") ? "calendar invite creation" : null,
+        cardRouteIds.has("optional_email_send") && !explicitlyDraftOnly(goal) ? "sending" : null,
       ].filter((action): action is string => Boolean(action));
       cardSafeguard =
         guardedActions.length > 0
           ? `Keep the approval gate before ${formatHumanList(guardedActions)}`
           : `Keep the human approval gate before any irreversible action`;
+      if (explicitlyDraftOnly(goal) && cardRouteIds.has("email_draft")) {
+        cardSafeguard += "; keep the reply draft-only and leave sending disabled";
+      }
+      if (cardRouteIds.has("scheduled_trigger") && cardRouteIds.has("slack_notification")) {
+        cardSafeguard =
+          "The current plan pauses for approval before each Slack post; choose that, or explicitly allow automatic low-risk price-change alerts";
+      }
     } else {
       cardSafeguard = `approval is enforced (${enforcedGates.join(", ")}) — keep it`;
     }
@@ -2898,7 +3548,13 @@ function buildGuidedPlanMarkdown(
   }
   const cardUncovered = coverage.unmatched_demand.length;
   const cardAutoText =
-    clearance.autonomous_allowed && safety.status === "fail"
+    anySignal(goal.toLowerCase(), ["never run in the background", "only when i ask", "when i ask in chat"])
+      ? "attended only by request and never runs in the background"
+      : enforcedGates.includes("human_approval_gate") &&
+    cardRouteIds.has("scheduled_trigger") &&
+    cardRouteIds.has("slack_notification")
+      ? "may monitor unattended, but each Slack post waits for approval"
+      : clearance.autonomous_allowed && safety.status === "fail"
       ? "unattended blocked — resolve the safety failure first"
       : clearance.autonomous_allowed && cardUncovered > 0
       ? `may run unattended for the covered steps only (${cardUncovered} goal step${cardUncovered === 1 ? "" : "s"} not carried by this plan)`
@@ -2915,7 +3571,7 @@ function buildGuidedPlanMarkdown(
     lines.push(...renderClarifyingQuestions(clarifyingQuestions));
   }
 
-  lines.push(...renderProductCardContinueMenu());
+  lines.push(...renderProductCardContinueMenu(goalToProductWizard));
 
   lines.push(
     `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +
@@ -2986,7 +3642,7 @@ function buildPlanMarkdown(
 
   // MAR-250: coverage gaps directly under the steps — a technical reader must
   // see where the registry ends before reading tiers/credentials.
-  const coverageBlock = renderCoverageBlock(coverage);
+  const coverageBlock = renderCoverageBlock(coverage, steps, goal);
   if (coverageBlock.length > 0) {
     lines.push(`### Coverage gaps`, ``, ...coverageBlock);
   }
@@ -3151,7 +3807,7 @@ function buildPlanMarkdown(
 
   // MAR-315: full hosting + monitoring recommendation (recommended pick,
   // reason, and alternatives — Layer 1 carries the compact one-liner only).
-  lines.push(...renderHostingAndMonitoringFull(hostingAndMonitoring));
+  lines.push(...renderOperatingBundleFull(goalToProductWizard));
 
   // MAR-225: bounded clarifying questions (architecture-affecting only).
   if (clarifyingQuestions.length > 0) {
@@ -3493,12 +4149,14 @@ export function planWorkflow(
   // ── MAR-225: bounded clarifying questions for missing architecture constraints ──
   const clarifying_questions = buildClarifyingQuestions(input.goal, routeComponentIds);
   const goal_to_product_wizard = buildGoalToProductWizard({
+    goal: input.goal,
     steps,
     whatYouNeed: what_you_need,
     enforcedGates: enforced_approval_gates,
     buildTarget: input.build_target,
     hostingAndMonitoring: hosting_and_monitoring,
     clarifyingQuestions: clarifying_questions,
+    outputDepth,
   });
 
   // ── Step 6: fused markdown ──

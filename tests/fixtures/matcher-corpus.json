@@ -46,7 +46,7 @@
       "forbidden": [],
       "missing_but_expected": [],
       "source": "session:a77d84cc-581f-4251-8df6-5ab3e04e8e7f",
-      "level": "raw",
+      "level": "composed",
       "xfail": ""
     },
     {
