@@ -21,6 +21,8 @@
  * published playbooks.
  */
 
+import { GOOGLE_SCOPE_CATALOG, googleScopesForComponents } from "./credentialScopeCatalog.js";
+
 // ──────────────────────────────── types ────────────────────────────────
 
 export type CredentialProbe =
@@ -99,16 +101,17 @@ type RouteStepLike = {
 export type LlmProvider = "anthropic" | "openrouter" | "deterministic_first";
 
 // ─────────────────────── component → credential catalog ───────────────────────
+//
+// Scope values are NOT hardcoded here — they derive from the single Google
+// scope catalog (credentialScopeCatalog.ts) so this module and `what_you_need`
+// (planWorkflow.ts) can never drift apart again (P0-05).
 
-const GMAIL_OAUTH_SCOPES = [
-  // Read leads + create drafts. The demo agent is draft-only by contract, so
-  // gmail.send is deliberately NOT requested.
-  "https://www.googleapis.com/auth/gmail.readonly",
-  "https://www.googleapis.com/auth/gmail.compose",
-];
+// Read leads + create drafts. The demo agent is draft-only by contract, so
+// gmail.send is deliberately NOT requested (see credentialScopeCatalog.ts).
+const GMAIL_OAUTH_SCOPES = googleScopesForComponents(["email_read", "email_draft"]);
 
-const CALENDAR_READ_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
-const CALENDAR_WRITE_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+const CALENDAR_READ_SCOPE = GOOGLE_SCOPE_CATALOG.calendar_lookup.scopes[0];
+const CALENDAR_WRITE_SCOPE = GOOGLE_SCOPE_CATALOG.calendar_write.scopes[0];
 
 const GMAIL_COMPONENTS = ["email_read", "optional_email_send", "email_send"];
 const CALENDAR_COMPONENTS = ["calendar_lookup", "calendar_write"];
