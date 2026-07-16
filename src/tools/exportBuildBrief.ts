@@ -28,7 +28,10 @@ import { createHash } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
-import { detectConstraintSignals } from "../lib/constraintSignals.js";
+import {
+  detectConstraintSignals,
+  outboundComponentsExcludedByConstraints,
+} from "../lib/constraintSignals.js";
 import { registryContentFingerprint } from "../registry/loadRegistryBundled.js";
 import {
   buildAgentManifest,
@@ -1896,6 +1899,31 @@ function modelBackedComponentIds(route: ExportBuildBriefInput["recommended_route
     .map((s) => s.component_id);
 }
 
+function routeWithoutExcludedSendComponents(
+  goal: string,
+  route: ExportBuildBriefInput["recommended_route"],
+): ExportBuildBriefInput["recommended_route"] {
+  const excluded = outboundComponentsExcludedByConstraints(goal);
+  if (excluded.size === 0) return route;
+  return route
+    .filter((s) => !excluded.has(s.component_id))
+    .map((s, index) => ({ ...s, step: index + 1 }));
+}
+
+function clearanceWithoutExcludedDrivers(
+  goal: string,
+  clearance: z.infer<typeof AutomationClearanceShape>,
+): z.infer<typeof AutomationClearanceShape> {
+  const excluded = outboundComponentsExcludedByConstraints(goal);
+  if (excluded.size === 0) return clearance;
+  return {
+    ...clearance,
+    highest_action_components: clearance.highest_action_components.filter(
+      (id) => !excluded.has(id),
+    ),
+  };
+}
+
 function buildLlmProviderNeedsInput(
   modelBackedComponents: string[],
 ): BuildBriefNeedsInputOutput {
@@ -1961,8 +1989,10 @@ export function exportBuildBrief(
 export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOutput;
 export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOutput {
   const deliveryMode = input.delivery_mode ?? "full";
-  const routeComponents = input.recommended_route.map((s) => s.component_id);
-  const modelBackedComponents = modelBackedComponentIds(input.recommended_route);
+  const recommendedRoute = routeWithoutExcludedSendComponents(input.goal, input.recommended_route);
+  const automationClearance = clearanceWithoutExcludedDrivers(input.goal, input.automation_clearance);
+  const routeComponents = recommendedRoute.map((s) => s.component_id);
+  const modelBackedComponents = modelBackedComponentIds(recommendedRoute);
 
   if (modelBackedComponents.length > 0 && !input.llm_provider) {
     return buildLlmProviderNeedsInput(modelBackedComponents);
@@ -1978,13 +2008,13 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
     playbook_id: input.playbook_id ?? "",
     route_id: input.route_id ?? "",
     build_target: buildTarget,
-    route_steps: input.recommended_route.map((s) => ({
+    route_steps: recommendedRoute.map((s) => ({
       step: s.step,
       component_id: s.component_id,
       risk_level: s.risk_level,
       model_tier: s.model_tier,
     })),
-    automation_clearance: input.automation_clearance.level,
+    automation_clearance: automationClearance.level,
     enforced_approval_gates: input.enforced_approval_gates,
     output_location: input.output_location ?? "",
     registry_fingerprint: registryFingerprint,
@@ -1994,7 +2024,7 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
 
   // MAR-364: credential manifest + connect.mjs source, derived from the route.
   const connect = buildConnectArtifacts({
-    route_steps: input.recommended_route.map((s) => ({
+    route_steps: recommendedRoute.map((s) => ({
       component_id: s.component_id,
       model_tier: s.model_tier,
     })),
@@ -2009,14 +2039,14 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
       input.goal,
       input.plan_source,
       input.route_status,
-      input.recommended_route.length,
+      recommendedRoute.length,
     ),
-    s2_route: s2Route(input.recommended_route, input.design_notes),
+    s2_route: s2Route(recommendedRoute, input.design_notes),
     s3_worker_contracts: s3WorkerContracts(input.worker_pipeline),
     s4_loop_contract: s4LoopContract(input.loop_guidance),
     s5_safety: s5Safety(
       input.safety_review,
-      input.automation_clearance,
+      automationClearance,
       input.enforced_approval_gates,
       input.untested_edges,
     ),
@@ -2025,7 +2055,7 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
     s8_definition_of_done: s8DefinitionOfDone(
       input.route_status,
       input.safety_review,
-      input.automation_clearance,
+      automationClearance,
       input.untested_edges,
       input.enforced_approval_gates,
     ),
@@ -2051,9 +2081,9 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
   const artifact_package = buildArtifactPackage({
     goal: input.goal,
     route_status: input.route_status,
-    recommended_route: input.recommended_route,
+    recommended_route: recommendedRoute,
     safety_review: input.safety_review,
-    automation_clearance: input.automation_clearance,
+    automation_clearance: automationClearance,
     enforced_approval_gates: input.enforced_approval_gates,
     untested_edges: input.untested_edges,
   });
@@ -2064,8 +2094,8 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
     goal: input.goal,
     planSource: input.plan_source,
     routeStatus: input.route_status,
-    recommendedRoute: input.recommended_route,
-    automationClearance: input.automation_clearance,
+    recommendedRoute,
+    automationClearance,
     enforcedApprovalGates: input.enforced_approval_gates,
     approvalGateAdvisory: input.approval_gate_advisory,
     loopGuidance: input.loop_guidance,

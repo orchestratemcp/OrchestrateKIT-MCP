@@ -75,7 +75,8 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
     expect(wizard.recommended_next_click.id).toBe("prepare_runtime");
     expect(result.summary_markdown).toContain("Managed background worker / durable workflow");
     expect(result.summary_markdown).toContain("provider-neutral");
-    expect(result.summary_markdown).toContain("Email Send (disabled for this goal)");
+    expect(result.summary_markdown).toContain("Email sending: excluded per your constraint");
+    expect(result.summary_markdown).not.toContain("Email Send (disabled for this goal)");
     expect(result.summary_markdown).not.toContain("Use recommended setup");
     expect(result.summary_markdown).not.toContain("localhost");
   });

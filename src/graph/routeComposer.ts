@@ -24,6 +24,7 @@ import {
   criticalUntestedChecklist,
   type InlineEdgeSummary,
 } from "../tools/graphToolFormatters.js";
+import { outboundComponentsExcludedByConstraints } from "../lib/constraintSignals.js";
 import {
   computeRouteValidation,
   formatScoreBreakdownMarkdown,
@@ -416,13 +417,18 @@ export function composeRoute(
   const assumptions: string[] = [];
 
   // ── Step 1: Match capabilities ──
-  const { matches, missing_capabilities } = matchCapabilities(
+  const matchResult = matchCapabilities(
     goal,
     must_have_capabilities,
     must_avoid,
     registry.components,
     registry.edges,
   );
+  const excludedByConstraints = outboundComponentsExcludedByConstraints(goal);
+  const matches = matchResult.matches.filter(
+    (match) => !excludedByConstraints.has(match.component.id),
+  );
+  const { missing_capabilities } = matchResult;
 
   if (matches.length === 0) {
     const emptyBreakdown: ScoreBreakdown = {
@@ -483,7 +489,10 @@ export function composeRoute(
 
   // ── Step 3: Expand with required components from `requires` edges ──
   const selectedIds = new Set(selected.map((c) => c.id));
-  const mustAvoidSet = new Set(must_avoid.map((s) => s.toLowerCase()));
+  const mustAvoidSet = new Set([
+    ...must_avoid.map((s) => s.toLowerCase()),
+    ...Array.from(excludedByConstraints),
+  ]);
 
   // MAR-245: force-include any user-named platform egress that matched but ranked
   // below MATCH_TOP_N — the goal names it explicitly, so honour it regardless of
@@ -519,7 +528,7 @@ export function composeRoute(
 
   // ── Step 4: Safety augmentation ──
   const { components: augmented, added_gates, added_audit, added_validation, added_auth_handler, added_by_chain } =
-    augmentWithSafety(selected, registry.edges, registry.components);
+    augmentWithSafety(selected, registry.edges, registry.components, mustAvoidSet);
 
   if (added_gates.length > 0) {
     warnings.push(
@@ -551,6 +560,11 @@ export function composeRoute(
   if (added_by_chain.length > 0) {
     assumptions.push(
       `Added via prerequisite chain walk: ${added_by_chain.join(", ")}.`,
+    );
+  }
+  if (excludedByConstraints.size > 0) {
+    assumptions.push(
+      `Excluded send component(s) per no-outbound constraint: ${Array.from(excludedByConstraints).join(", ")}.`,
     );
   }
 

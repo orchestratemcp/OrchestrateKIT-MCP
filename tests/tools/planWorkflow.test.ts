@@ -32,6 +32,12 @@ function planTech(goal: string) {
   );
 }
 
+const P0_02_DOGFOOD_GOAL =
+  "Build an email and calendar assistant that reads unread Gmail meeting requests, " +
+  "checks my real Google Calendar, drafts a reply with two available 30-minute slots, " +
+  "and only after I approve creates one Calendar event and one Gmail draft. Never send " +
+  "the email. I will be present for approval and I want visible run logs.";
+
 describe("planWorkflow — worker build pipeline (MAR-166)", () => {
   // MAR-256: the pipeline is depth-gated boilerplate — technical/deep carry it
   // (responseUxEvals.test.ts locks the null-with-pointer default).
@@ -76,6 +82,54 @@ It must never send an email without my approval.`;
     expect(ids).not.toContain("optional_email_send");
     expect(ids.indexOf("human_approval_gate")).toBeLessThan(ids.indexOf("calendar_write"));
     expect(r.enforced_approval_gates).toContain("human_approval_gate");
+  });
+
+  it("P0-02: no-outbound meeting assistant structurally excludes send components", () => {
+    const r = plan(P0_02_DOGFOOD_GOAL);
+    const ids = r.recommended_route.map((s) => s.component_id);
+    const sendIds = [
+      "optional_email_send",
+      "external_publish",
+      "slack_notification",
+      "discord_notification",
+      "teams_notification",
+      "telegram_notification",
+      "reviewer_notification",
+    ];
+
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "email_read",
+        "calendar_lookup",
+        "email_draft",
+        "human_approval_gate",
+        "calendar_write",
+        "audit_log",
+      ]),
+    );
+    for (const id of sendIds) {
+      expect(ids, `${id} leaked into recommended_route`).not.toContain(id);
+      expect(
+        r.automation_clearance.highest_action_components,
+        `${id} leaked into automation clearance drivers`,
+      ).not.toContain(id);
+      expect(
+        r.credential_advisory.components_requiring_credentials.map((c) => c.component_id),
+        `${id} leaked into credential advisory`,
+      ).not.toContain(id);
+      expect(
+        r.what_you_need.map((n) => n.component_id),
+        `${id} leaked into what_you_need`,
+      ).not.toContain(id);
+      expect(
+        r.observability.gate_events_required_for,
+        `${id} leaked into observability gate events`,
+      ).not.toContain(id);
+    }
+    expect(r.automation_clearance.highest_action_components).toEqual(["calendar_write"]);
+    expect(r.summary_markdown).toContain("Email sending: excluded per your constraint");
+    expect(r.summary_markdown).not.toContain("Email Send (disabled for this goal)");
+    expect(r.summary_markdown).not.toContain("Optional Email Send");
   });
 });
 

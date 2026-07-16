@@ -44,7 +44,11 @@ import {
   isNegatedInContext,
   extractIterationBound,
 } from "../graph/capabilityMatcher.js";
-import { hasWriteConstraint, hasUnattendedWaiver } from "../lib/constraintSignals.js";
+import {
+  hasWriteConstraint,
+  hasUnattendedWaiver,
+  outboundComponentsExcludedByConstraints,
+} from "../lib/constraintSignals.js";
 import { computeCoverage, type Coverage } from "../graph/coverage.js";
 import { findOverlappingPlaybooks } from "../graph/playbookOverlap.js";
 import {
@@ -3093,11 +3097,7 @@ function truncateGoalForCard(goal: string): string {
 
 function routeSpine(goal: string, steps: RouteStep[]): string {
   return steps
-    .map((s) =>
-      s.component_id === "optional_email_send" && explicitlyDraftOnly(goal)
-        ? "Email Send (disabled for this goal)"
-        : s.component_name || s.component_id,
-    )
+    .map((s) => s.component_name || s.component_id)
     .join(" → ");
 }
 
@@ -3488,6 +3488,10 @@ function buildGuidedPlanMarkdown(
   lines.push(`**You want:** ${truncateGoalForCard(goal)}`, ``);
 
   lines.push(`**Route:** ${routeSpine(goal, steps)}`, ``);
+
+  if (outboundComponentsExcludedByConstraints(goal).has("optional_email_send")) {
+    lines.push(`Email sending: excluded per your constraint`, ``);
+  }
 
   lines.push(`**How it works**`);
   howItWorksSteps(steps).forEach((step, index) => {
@@ -3973,6 +3977,17 @@ export function planWorkflow(
     planningOrder = composed.planning_order;
     executionOrder = composed.execution_order;
     routeComponentIds = composed.recommended_route.map((s) => s.component_id);
+  }
+
+  const excludedByNoOutbound = outboundComponentsExcludedByConstraints(input.goal);
+  if (excludedByNoOutbound.size > 0 && routeComponentIds.some((id) => excludedByNoOutbound.has(id))) {
+    const filteredIds = routeComponentIds.filter((id) => !excludedByNoOutbound.has(id));
+    const filteredComponents = resolveComponents(filteredIds, registry);
+    const ordered = computeExecutionOrder(filteredComponents, registry.edges);
+    steps = ordered.map((c, i) => toRouteStep(c, i));
+    planningOrder = filteredComponents.map((c) => c.id);
+    executionOrder = ordered.map((c) => c.id);
+    routeComponentIds = ordered.map((c) => c.id);
   }
 
   // ── Step 3b: coverage accounting for the chosen route (MAR-250) ──
