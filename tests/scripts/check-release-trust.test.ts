@@ -16,6 +16,13 @@ import {
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+// Windows resolves package-manager shims (pnpm, npx) as .cmd files, which
+// CreateProcess can only launch through a shell — execFileSync's default
+// shell:false throws ENOENT/EINVAL for them on win32. All args here are
+// static literals (no untrusted input reaches the shell), so `shell: true`
+// is safe.
+const EXEC_OPTS = process.platform === "win32" ? { shell: true } : {};
+
 // P0-06: scripts/check-release-trust.ts is a self-executing script (it
 // process.exit(1)s on failure), so its checks are extracted into pure,
 // side-effect-free functions guarded behind an isMainModule check — importing
@@ -83,7 +90,7 @@ describe("scripts/check-release-trust.ts (P0-06)", () => {
     beforeAll(() => {
       // Ensure the generated bundle exists and is in sync, independent of
       // whether `pnpm gen:registry` already ran in this test invocation.
-      execFileSync("pnpm", ["gen:registry"], { cwd: ROOT, stdio: "ignore" });
+      execFileSync("pnpm", ["gen:registry"], { cwd: ROOT, stdio: "ignore", ...EXEC_OPTS });
     }, 60_000);
 
     it("passes (exit 0) against the current checked-out registry", () => {
@@ -91,6 +98,7 @@ describe("scripts/check-release-trust.ts (P0-06)", () => {
         execFileSync("npx", ["tsx", "scripts/check-release-trust.ts"], {
           cwd: ROOT,
           stdio: "pipe",
+          ...EXEC_OPTS,
         }),
       ).not.toThrow();
     }, 60_000);
