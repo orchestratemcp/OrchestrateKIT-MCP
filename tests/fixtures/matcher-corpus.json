@@ -1,7 +1,6 @@
 {
   "generated_by": "OrchestrateLab LAB-03 (MAR-106) corpus export",
   "version": 1,
-  "goal_count": 48,
   "goals": [
     {
       "slug": "blog_social_variants_reviewer_notify",
@@ -1237,6 +1236,67 @@
       "source": "dogfood",
       "level": "composed",
       "xfail": ""
+    },
+    {
+      "slug": "run_visibility_email_calendar_no_log_provider",
+      "goal": "Build an email and calendar assistant that reads unread Gmail meeting requests, checks my real Google Calendar, drafts a reply with two available 30-minute slots, and only after I approve creates one Calendar event and one Gmail draft. Never send the email. I will be present for approval and I want visible run logs.",
+      "domain": "email_calendar",
+      "must_have": [
+        "calendar_lookup",
+        "calendar_write",
+        "email_draft",
+        "email_read",
+        "human_approval_gate"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "reviewer_notification"
+      ],
+      "forbidden": [
+        "log_monitor"
+      ],
+      "missing_but_expected": [],
+      "source": "linear:P0-03",
+      "level": "raw",
+      "xfail": ""
+    },
+    {
+      "slug": "watch_it_run_lead_drafts_no_log_provider",
+      "goal": "Draft replies to new leads and hold them for approval before sending. I want to watch it run and check the logs of what happened.",
+      "domain": "email_calendar",
+      "must_have": [
+        "email_draft",
+        "human_approval_gate"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "reviewer_notification"
+      ],
+      "forbidden": [
+        "log_monitor"
+      ],
+      "missing_but_expected": [],
+      "source": "linear:P0-03",
+      "level": "raw",
+      "xfail": ""
+    },
+    {
+      "slug": "genuine_application_log_monitoring_still_matches",
+      "goal": "Monitor application logs for errors and page the on-call engineer.",
+      "domain": "monitoring",
+      "must_have": [
+        "log_monitor"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "page_monitor"
+      ],
+      "forbidden": [],
+      "missing_but_expected": [],
+      "source": "linear:P0-03",
+      "level": "raw",
+      "xfail": ""
     }
-  ]
+  ],
+  "goal_count": 51
 }

@@ -1062,6 +1062,63 @@ function suppressExternalPublishForChatPost(
 }
 
 /**
+ * P0-03: agent-run-observability de-bias for log_monitor, same shape as the
+ * MAR-251 handoff-bleed suppression. Phrases about watching the AGENT'S OWN
+ * execution — "visible run logs", "run logs", "run history", "watch it run",
+ * "see what it did" — describe the manifest monitoring/observability section
+ * (agent.manifest.json), not a step that queries an external log provider.
+ * The bare "logs" DOMAIN_KEYWORD (monitoring domain) and the "logs" KEYWORD_HINT
+ * both fire on this phrasing, injecting a phantom log_monitor step — and its
+ * Datadog/CloudWatch/Sentry/Loki Connect entry — onto flows that read no
+ * external log source at all (the Gmail/Calendar approval-gated dogfood goal).
+ *
+ * Suppress log_monitor ONLY when a run-observability phrase is present AND no
+ * genuine log-SOURCE signal names an actual system to scan (an "application/
+ * server/production/system" log noun, an explicit log-scanning verb phrase, or
+ * a log-provider product name). A goal that wants both ("watch it run, and
+ * also monitor our application logs for errors") keeps log_monitor via its
+ * genuine log-source token.
+ */
+const RUN_OBSERVABILITY_PHRASES = [
+  "visible run logs",
+  "run logs",
+  "run history",
+  "watch it run",
+  "watch it work",
+  "see what it did",
+  "see what the agent did",
+];
+const LOG_SOURCE_WORK_SIGNALS = [
+  "application log",
+  "application logs",
+  "server log",
+  "server logs",
+  "production log",
+  "production logs",
+  "system log",
+  "system logs",
+  "error log",
+  "error logs",
+  "log aggregator",
+  "log errors",
+  "scan logs",
+  "log files",
+  "datadog",
+  "cloudwatch",
+  "sentry",
+  "loki",
+];
+function suppressLogMonitorForRunObservability(
+  goalLower: string,
+  domainAllowed: Set<string>,
+): void {
+  if (!domainAllowed.has("log_monitor")) return;
+  if (!RUN_OBSERVABILITY_PHRASES.some((p) => goalLower.includes(p))) return;
+  if (LOG_SOURCE_WORK_SIGNALS.some((t) => goalLower.includes(t))) return;
+  domainAllowed.delete("log_monitor");
+}
+
+/**
  * Classify a goal into workflow domains (MAR-88).
  * Always includes `generic_orchestration` so safety/orchestration components
  * are never blocked. Exported for unit testing.
@@ -1902,6 +1959,11 @@ export function matchCapabilities(
   // publish — drop the external_publish false-positive (and the approval gate it
   // dragged onto an unattended notify-only flow) unless real publish intent shows.
   suppressExternalPublishForChatPost(goalLower, domainAllowed);
+  // P0-03: "watch it run" / "visible run logs" describe wanting insight into
+  // the agent's own execution, not an external log source — drop the
+  // log_monitor false-positive (and its Datadog/CloudWatch/Sentry/Loki Connect
+  // entry) unless the goal also names a real log source to scan.
+  suppressLogMonitorForRunObservability(goalLower, domainAllowed);
 
   // ── Phase 2: scoped scoring ──
   const scoreMap = new Map<

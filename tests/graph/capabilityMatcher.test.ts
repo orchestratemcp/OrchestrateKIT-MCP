@@ -436,6 +436,54 @@ describe("matchCapabilities — MAR-251 code handoff and monitor digest de-bias"
   });
 });
 
+describe("matchCapabilities — P0-03 agent-run-observability vs log-source de-bias", () => {
+  it("does NOT select log_monitor for 'visible run logs' / 'watch it run' phrasing", () => {
+    const ids = matchedIds(
+      "Build an email and calendar assistant that reads unread Gmail meeting requests, checks my " +
+        "real Google Calendar, drafts a reply with two available 30-minute slots, and only after I " +
+        "approve creates one Calendar event and one Gmail draft. Never send the email. I will be " +
+        "present for approval and I want visible run logs.",
+    );
+    expect(ids).not.toContain("log_monitor");
+  });
+
+  it("does NOT select log_monitor for 'run history' phrasing even with a bare 'logs' trigger nearby", () => {
+    const ids = matchedIds(
+      "Summarize new support tickets every morning and post a digest to Slack for approval. I want a " +
+        "run history of the logs so I can see what happened each morning.",
+    );
+    expect(ids).not.toContain("log_monitor");
+  });
+
+  it("does NOT select log_monitor for 'watch it run' phrasing even with a bare 'logs' trigger nearby", () => {
+    const ids = matchedIds(
+      "Draft replies to new leads and hold them for approval before sending. I want to watch it run " +
+        "and check the logs of what happened.",
+    );
+    expect(ids).not.toContain("log_monitor");
+  });
+
+  it("does NOT select log_monitor for 'see what it did' phrasing even with a bare 'logs' trigger nearby", () => {
+    const ids = matchedIds(
+      "Triage incoming support emails and draft suggested replies for a human to approve. Afterward I " +
+        "want to see what it did in the logs.",
+    );
+    expect(ids).not.toContain("log_monitor");
+  });
+
+  it("STILL selects log_monitor for genuine log-source monitoring demand", () => {
+    const ids = matchedIds("Monitor application logs for errors and alert the on-call channel.");
+    expect(ids).toContain("log_monitor");
+  });
+
+  it("STILL selects log_monitor when a real log provider is named alongside run-visibility language", () => {
+    const ids = matchedIds(
+      "Watch it run, and also monitor our production logs for errors via Datadog.",
+    );
+    expect(ids).toContain("log_monitor");
+  });
+});
+
 describe("matchCapabilities — Dogfood Round 3 residuals", () => {
   // ── MAR-140: code read-only constraint suppresses code_editing ──
   it("MAR-140: does NOT select code_editing when the goal forbids editing", () => {
