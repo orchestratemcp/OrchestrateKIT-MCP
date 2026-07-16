@@ -6,7 +6,8 @@ import {
 } from "node:fs";
 import { join, relative } from "node:path";
 import { createHash } from "node:crypto";
-import { defaultRegistryDir } from "./registryLoader.js";
+import { defaultRegistryDir, readRawEntries } from "./registryLoader.js";
+import { contentFingerprint } from "./contentFingerprint.js";
 import type { RegistryBuild } from "./buildInfoTypes.js";
 
 export type { RegistryBuild };
@@ -70,6 +71,11 @@ export function getRegistryBuild(registryDir?: string): RegistryBuild {
   }
   const fingerprint = hash.digest("hex").slice(0, 16);
 
+  // Mtime-independent content fingerprint (MAR-220/P0-06) — reparses the same
+  // YAML into entity data so it matches what scripts/check-release-trust.ts
+  // and the generated Worker bundle compute.
+  const content_fingerprint = contentFingerprint(readRawEntries(dir));
+
   // Newest mtime
   let newestMtime = new Date(0);
   for (const f of files) {
@@ -131,6 +137,7 @@ export function getRegistryBuild(registryDir?: string): RegistryBuild {
 
   return {
     fingerprint,
+    content_fingerprint,
     newest_mtime: newestMtime.toISOString(),
     built_at: builtAt,
     stale,

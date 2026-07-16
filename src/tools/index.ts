@@ -1,5 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SERVER_NAME, SERVER_VERSION, MIN_COMPONENTS, MIN_EDGES } from "../config.js";
+import {
+  SERVER_NAME,
+  SERVER_VERSION,
+  MIN_COMPONENTS,
+  MIN_EDGES,
+  MIN_ROUTES,
+  MIN_PLAYBOOKS,
+  EXPECTED_RELEASE_FINGERPRINT,
+} from "../config.js";
 import { getRegistryStatus, getRegistryBuild } from "../registry/registryProvider.js";
 import type { RegistryBuild } from "../registry/buildInfoTypes.js";
 import { toErrorResult } from "../lib/errors.js";
@@ -51,12 +59,23 @@ export type HealthCheckResult = {
   safe_to_demo: boolean;
   /** Human-readable reasons safe_to_demo is false. Empty when safe. */
   demo_blockers: string[];
+  /**
+   * P0-06 (MAR-220 follow-up): true only when `build.content_fingerprint`
+   * equals `EXPECTED_RELEASE_FINGERPRINT` — this build is serving the exact
+   * published registry snapshot, not merely one whose counts happen to clear
+   * the floors. A build can have `demo_blockers` empty on every count check
+   * ("counts compatible") while still having `matches_expected_release: false`
+   * ("not the matching release") — that mismatch is itself a demo blocker
+   * (see `computeDemoBlockers`), so `safe_to_demo` is false either way.
+   */
+  matches_expected_release: boolean;
 };
 
 /**
  * Aggregate the release-trust signals (MAR-220). Combines the count floor
- * (MIN_COMPONENTS/MIN_EDGES), every-edge-tested, dist staleness (MAR-114),
- * and process staleness (MAR-141) into a single safe-to-demo verdict.
+ * (MIN_COMPONENTS/MIN_EDGES/MIN_ROUTES/MIN_PLAYBOOKS), the expected release
+ * fingerprint (P0-06), every-edge-tested, dist staleness (MAR-114), and
+ * process staleness (MAR-141) into a single safe-to-demo verdict.
  */
 export function computeDemoBlockers(
   registry: RegistrySummary,
@@ -71,6 +90,14 @@ export function computeDemoBlockers(
   if (registry.edge_count < MIN_EDGES) {
     blockers.push(`edge_count ${registry.edge_count} below floor ${MIN_EDGES}`);
   }
+  if (registry.route_count < MIN_ROUTES) {
+    blockers.push(`route_count ${registry.route_count} below floor ${MIN_ROUTES}`);
+  }
+  if (registry.playbook_count < MIN_PLAYBOOKS) {
+    blockers.push(
+      `playbook_count ${registry.playbook_count} below floor ${MIN_PLAYBOOKS}`,
+    );
+  }
   if (registry.untested_edge_pct > 0) {
     blockers.push(`${registry.untested_edge_pct}% of edges are untested`);
   }
@@ -79,6 +106,12 @@ export function computeDemoBlockers(
   }
   if (build.process_stale) {
     blockers.push("running process is older than the build — restart + reconnect");
+  }
+  if (build.content_fingerprint !== EXPECTED_RELEASE_FINGERPRINT) {
+    blockers.push(
+      `content_fingerprint ${build.content_fingerprint} does not match expected release ` +
+        `${EXPECTED_RELEASE_FINGERPRINT} — counts may be compatible but this is not the published release`,
+    );
   }
   return blockers;
 }
@@ -104,6 +137,7 @@ export function buildHealthCheckResult(): HealthCheckResult {
     build,
     safe_to_demo: demo_blockers.length === 0,
     demo_blockers,
+    matches_expected_release: build.content_fingerprint === EXPECTED_RELEASE_FINGERPRINT,
   };
 }
 
@@ -132,7 +166,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Health Check",
       description:
-        "Returns the server name, version, a summary of loaded registry entities (components, edges, stacks, routes, playbooks), and a build fingerprint. The `build.stale` field is true when the dist/ registry is outdated vs the source — run `pnpm build` to fix. The `safe_to_demo` field is true only when the build is fresh and the registry meets the published count floor; `demo_blockers` lists any reasons it is not. Use this to confirm the MCP server is running and the registry is fresh.",
+        "Returns the server name, version, a summary of loaded registry entities (components, edges, stacks, routes, playbooks), and a build fingerprint. The `build.stale` field is true when the dist/ registry is outdated vs the source — run `pnpm build` to fix. The `safe_to_demo` field is true only when the build is fresh, the registry meets the published component/edge/route/playbook count floors, AND `build.content_fingerprint` matches the pinned expected release fingerprint; `demo_blockers` lists any reasons it is not. `matches_expected_release` distinguishes the two ways a build can fail trust: a build can have counts that clear every floor (\"counts compatible\") while still not being the exact published registry snapshot (\"matching release\" is false) — for example a hosted build serving an older or newer, unreleased registry. Use this to confirm the MCP server is running and the registry is fresh.",
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => {

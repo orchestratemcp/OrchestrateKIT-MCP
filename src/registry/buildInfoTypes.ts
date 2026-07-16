@@ -6,6 +6,14 @@
 export type RegistryBuild = {
   /** Short sha256 fingerprint of all YAML file paths + contents. */
   fingerprint: string;
+  /**
+   * Mtime-independent fingerprint of entity content only (MAR-220/P0-06).
+   * Reproducible across checkouts and deploys — compared against
+   * `EXPECTED_RELEASE_FINGERPRINT` (src/config.ts) to tell a build serving the
+   * exact published release apart from one that merely clears the count
+   * floors.
+   */
+  content_fingerprint: string;
   /** ISO timestamp of the newest YAML file in the registry dir. */
   newest_mtime: string;
   /** ISO timestamp written by the build into the manifest. Null in dev mode. */

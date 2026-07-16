@@ -12,6 +12,9 @@ import {
   SERVER_INSTRUCTIONS,
   MIN_COMPONENTS,
   MIN_EDGES,
+  MIN_ROUTES,
+  MIN_PLAYBOOKS,
+  EXPECTED_RELEASE_FINGERPRINT,
 } from "../src/config.js";
 
 describe("health_check tool", () => {
@@ -66,16 +69,18 @@ describe("health_check tool", () => {
   // spine); MAR-266: ≥64/≥147 (price-monitor edges); MAR-267: ≥64/≥151
   // (PR-review golden-path edges)
   // MAR-220: floor centralised in config (MIN_COMPONENTS / MIN_EDGES)
+  // P0-06: route/playbook floors centralised too (MIN_ROUTES / MIN_PLAYBOOKS)
   it("registry counts meet baseline (≥64 components, ≥151 edges after MAR-267 PR-review edges)", () => {
     const r = buildHealthCheckResult().registry;
     expect(MIN_COMPONENTS).toBe(64);
     expect(MIN_EDGES).toBe(151);
+    expect(MIN_ROUTES).toBe(12);
+    expect(MIN_PLAYBOOKS).toBe(12);
     expect(r.component_count, "components (regression floor)").toBeGreaterThanOrEqual(MIN_COMPONENTS);
     expect(r.edge_count, "edges (regression floor)").toBeGreaterThanOrEqual(MIN_EDGES);
     expect(r.stack_count, "stacks").toBeGreaterThanOrEqual(1);
-    expect(r.route_count, "routes").toBeGreaterThanOrEqual(5);
-    // MAR-267: pr_review_readonly published → 9 playbooks is the new floor.
-    expect(r.playbook_count, "playbooks").toBeGreaterThanOrEqual(9);
+    expect(r.route_count, "routes (regression floor)").toBeGreaterThanOrEqual(MIN_ROUTES);
+    expect(r.playbook_count, "playbooks (regression floor)").toBeGreaterThanOrEqual(MIN_PLAYBOOKS);
   });
 
   // MAR-220: release-trust safe_to_demo verdict
@@ -91,14 +96,15 @@ describe("health_check tool", () => {
       component_count: MIN_COMPONENTS - 1,
       edge_count: MIN_EDGES - 1,
       stack_count: 1,
-      route_count: 6,
-      playbook_count: 6,
+      route_count: MIN_ROUTES - 1,
+      playbook_count: MIN_PLAYBOOKS - 1,
       worker_count: 4,
       untested_edge_pct: 5,
       stale_component_count: 0,
     };
     const staleBuild: RegistryBuild = {
       fingerprint: "deadbeefdeadbeef",
+      content_fingerprint: "deadbeefdeadbeef",
       newest_mtime: new Date().toISOString(),
       built_at: new Date(0).toISOString(),
       stale: true,
@@ -107,26 +113,30 @@ describe("health_check tool", () => {
       process_stale: true,
     };
     const blockers = computeDemoBlockers(lowRegistry, staleBuild);
-    expect(blockers.length).toBeGreaterThanOrEqual(5);
+    expect(blockers.length).toBeGreaterThanOrEqual(7);
     expect(blockers.join("\n")).toMatch(/component_count/);
     expect(blockers.join("\n")).toMatch(/edge_count/);
+    expect(blockers.join("\n")).toMatch(/route_count/);
+    expect(blockers.join("\n")).toMatch(/playbook_count/);
     expect(blockers.join("\n")).toMatch(/untested/);
     expect(blockers.join("\n")).toMatch(/stale/);
+    expect(blockers.join("\n")).toMatch(/content_fingerprint/);
   });
 
-  it("computeDemoBlockers is empty for a healthy fresh build", () => {
+  it("computeDemoBlockers is empty for a healthy fresh build matching the expected release", () => {
     const okRegistry: RegistrySummary = {
       component_count: MIN_COMPONENTS,
       edge_count: MIN_EDGES,
       stack_count: 1,
-      route_count: 6,
-      playbook_count: 6,
+      route_count: MIN_ROUTES,
+      playbook_count: MIN_PLAYBOOKS,
       worker_count: 4,
       untested_edge_pct: 0,
       stale_component_count: 0,
     };
     const freshBuild: RegistryBuild = {
       fingerprint: "abc123abc123abc1",
+      content_fingerprint: EXPECTED_RELEASE_FINGERPRINT,
       newest_mtime: new Date().toISOString(),
       built_at: null,
       stale: false,
@@ -135,6 +145,63 @@ describe("health_check tool", () => {
       process_stale: false,
     };
     expect(computeDemoBlockers(okRegistry, freshBuild)).toHaveLength(0);
+  });
+
+  // P0-06 (MAR-220 follow-up): computeDemoBlockers checked component/edge
+  // floors but not route/playbook counts or the expected release fingerprint —
+  // an old hosted build could report safe_to_demo merely because its
+  // component/edge counts still matched. This is the acceptance test: a build
+  // whose counts are fully "compatible" (every floor cleared) but whose
+  // content_fingerprint does not match EXPECTED_RELEASE_FINGERPRINT (a stale
+  // or otherwise-not-the-published-release build) must still be blocked.
+  it("a stale-fingerprint build with fully compatible counts is still blocked from safe_to_demo (P0-06)", () => {
+    const compatibleCountsRegistry: RegistrySummary = {
+      component_count: MIN_COMPONENTS + 10,
+      edge_count: MIN_EDGES + 10,
+      stack_count: 1,
+      route_count: MIN_ROUTES + 5,
+      playbook_count: MIN_PLAYBOOKS + 5,
+      worker_count: 4,
+      untested_edge_pct: 0,
+      stale_component_count: 0,
+    };
+    const staleFingerprintBuild: RegistryBuild = {
+      fingerprint: "freshbuildmtime1",
+      // Every count floor is cleared, but this is a DIFFERENT registry
+      // snapshot than the one pinned as the published release.
+      content_fingerprint: "0000000000000000",
+      newest_mtime: new Date().toISOString(),
+      built_at: new Date().toISOString(),
+      stale: false,
+      stale_files: [],
+      process_started_at: new Date().toISOString(),
+      process_stale: false,
+    };
+    const blockers = computeDemoBlockers(compatibleCountsRegistry, staleFingerprintBuild);
+    // No count/staleness blockers — counts are compatible.
+    expect(blockers.join("\n")).not.toMatch(/component_count|edge_count|route_count|playbook_count/);
+    expect(blockers.join("\n")).not.toMatch(/^build is stale|running process/);
+    // But the fingerprint mismatch alone still blocks the demo.
+    expect(blockers).toHaveLength(1);
+    expect(blockers[0]).toMatch(/content_fingerprint/);
+    expect(blockers[0]).toContain(EXPECTED_RELEASE_FINGERPRINT);
+  });
+
+  // P0-06: health output distinguishes "matching release" (fingerprint pinned
+  // exactly) from "counts compatible" (floors merely cleared).
+  it("matches_expected_release is false — and safe_to_demo false — when only the fingerprint differs (P0-06)", () => {
+    const result = buildHealthCheckResult();
+    // Sanity: the live dev build IS the expected release in this repo state.
+    expect(result.matches_expected_release).toBe(true);
+    expect(result.safe_to_demo).toBe(true);
+
+    const staleFingerprintBuild: RegistryBuild = {
+      ...result.build,
+      content_fingerprint: "1111111111111111",
+    };
+    const blockers = computeDemoBlockers(result.registry, staleFingerprintBuild);
+    expect(blockers.length).toBe(1);
+    expect(blockers[0]).toMatch(/content_fingerprint/);
   });
 
   // MAR-114: build fingerprint and stale-dist detection
@@ -147,6 +214,21 @@ describe("health_check tool", () => {
     expect(new Date(b.newest_mtime).getTime()).toBeGreaterThan(0);
     expect(typeof b.stale).toBe("boolean");
     expect(Array.isArray(b.stale_files)).toBe(true);
+  });
+
+  // P0-06: build.content_fingerprint is the mtime-independent hash compared
+  // against EXPECTED_RELEASE_FINGERPRINT.
+  it("build.content_fingerprint is a non-empty string that matches the live registry (P0-06)", () => {
+    const b = buildHealthCheckResult().build;
+    expect(typeof b.content_fingerprint).toBe("string");
+    expect(b.content_fingerprint.length).toBeGreaterThan(0);
+    expect(b.content_fingerprint).toBe(EXPECTED_RELEASE_FINGERPRINT);
+  });
+
+  it("build.content_fingerprint is stable across two calls with the same registry", () => {
+    const a = buildHealthCheckResult().build.content_fingerprint;
+    const b = buildHealthCheckResult().build.content_fingerprint;
+    expect(a).toBe(b);
   });
 
   it("build.built_at is null in dev (tsx) mode — no _build_manifest.json in src registry", () => {
