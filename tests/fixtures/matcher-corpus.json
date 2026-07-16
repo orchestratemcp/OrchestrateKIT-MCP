@@ -35,15 +35,15 @@
         "calendar_write",
         "email_draft",
         "email_read",
-        "fan_out_collector",
         "human_approval_gate",
         "intent_classifier",
-        "optional_email_send",
         "schema_validation",
         "state_store"
       ],
       "nice_to_have": [],
-      "forbidden": [],
+      "forbidden": [
+        "optional_email_send"
+      ],
       "missing_but_expected": [],
       "source": "session:a77d84cc-581f-4251-8df6-5ab3e04e8e7f",
       "level": "composed",
