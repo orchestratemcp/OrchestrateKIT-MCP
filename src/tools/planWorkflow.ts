@@ -65,6 +65,7 @@ import {
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import { riskStepNote } from "../lib/plainLanguage.js";
+import { GOOGLE_SCOPE_CATALOG } from "../lib/credentialScopeCatalog.js";
 import { PlanWorkflowOutputShape } from "./outputSchemas.js";
 import {
   buildObservabilityGuidance,
@@ -985,7 +986,7 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
       transport: "stdio",
       note: "Google OAuth consent screen verification required for production; skip with a test user during dev",
     },
-    required_scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
+    required_scopes: [...GOOGLE_SCOPE_CATALOG.email_read.scopes],
     gotchas: [
       "Rate limit: 250 quota units / second per user — batch list + fetch calls",
       "Refresh tokens expire after 6 months of non-use; build a token-rotation flow",
@@ -994,7 +995,7 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
   },
 
   email_draft: {
-    label: "Email provider — draft / send",
+    label: "Email provider — draft (never sends)",
     product_examples: ["Gmail", "Outlook", "SMTP"],
     auth_model: "OAuth2 (user-delegated)",
     mcp_server: {
@@ -1002,13 +1003,10 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
       package: "@modelcontextprotocol/server-gmail",
       transport: "stdio",
     },
-    required_scopes: [
-      "https://www.googleapis.com/auth/gmail.compose",
-      "https://www.googleapis.com/auth/gmail.send",
-    ],
+    required_scopes: [...GOOGLE_SCOPE_CATALOG.email_draft.scopes],
     gotchas: [
-      "gmail.send scope is required even when sending a draft — compose alone is not enough",
-      "Send-as restrictions apply if the user has multiple identities; validate the From address",
+      "gmail.compose is sufficient for users.drafts.create — gmail.send is never required to create or update a draft",
+      "Send-as restrictions apply if the user has multiple identities; validate the From address before any later send step",
     ],
   },
 
@@ -1038,7 +1036,7 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
       transport: "stdio",
       note: "No official MCP server; use a community package such as mcp-google-calendar",
     },
-    required_scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+    required_scopes: [...GOOGLE_SCOPE_CATALOG.calendar_lookup.scopes],
     gotchas: [
       "API returns UTC; convert to the user's timezone for display",
       "Free / busy query is cheaper than listing all events — prefer it for availability checks",
@@ -1054,7 +1052,7 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
       transport: "stdio",
       note: "No official MCP server; use a community package such as mcp-google-calendar",
     },
-    required_scopes: ["https://www.googleapis.com/auth/calendar.events"],
+    required_scopes: [...GOOGLE_SCOPE_CATALOG.calendar_write.scopes],
     gotchas: [
       "Creating an event with attendees sends email invitations automatically — add sendUpdates=none to suppress",
       "Always specify timeZone in the event body; omitting it defaults to the calendar's timezone, which may differ from the user's",
