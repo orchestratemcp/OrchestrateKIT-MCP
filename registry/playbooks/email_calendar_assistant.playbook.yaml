@@ -4,8 +4,9 @@ title: Email and Calendar Assistant
 status: published
 summary: >
   Opinionated blueprint for an AI assistant that reads email, classifies intent,
-  drafts replies and optionally sends or schedules — with human approval on every
-  external action. Optimised for safety over convenience.
+  previews a reply for approval, and only then writes — the calendar event and the
+  saved mailbox draft both land after the gate. Sending stays optional and needs its
+  own second approval. Optimised for safety over convenience.
 workflow_type: email-calendar
 risk_level: high
 golden_path_route_id: email_calendar_route_v1
@@ -16,31 +17,43 @@ components:
   - optional_email_send
   - calendar_lookup
   - calendar_write
+  - gmail_draft_write
   - human_approval_gate
   - audit_log
 edges:
   - email_read__produces__intent_classifier
   - email_draft__safer_with__human_approval_gate
+  - email_draft__produces__gmail_draft_write
   - optional_email_send__requires__human_approval_gate
   - calendar_write__requires__human_approval_gate
+  - gmail_draft_write__requires__human_approval_gate
+  - gmail_draft_write__can_run_parallel__calendar_write
   - audit_log__recommended__optional_email_send
   - audit_log__recommended__calendar_write
+  - audit_log__recommended__gmail_draft_write
   - email_draft__compatible__calendar_lookup
 stack_id: default_orchestratekit_stack
 best_for:
   - scheduling assistant that reads meeting requests and drafts replies with slot suggestions
   - inbox triage that classifies emails and drafts responses for human approval
   - calendar management agent that suggests and creates events from email context
+  - draft-only assistant that, after approval, books the event and leaves the reply in Gmail drafts without ever sending
 avoid_when:
   - fully autonomous email sending without human review
   - bulk email outreach or marketing sends
   - external-facing customer support without human escalation path
 recommended_architecture:
-  pattern: Read → classify → draft → approve → act pipeline with separate approval checkpoints per external action
+  pattern: Read → classify → compose preview → approve → write (calendar event ∥ saved draft) → audit, with separate approval checkpoints per external action
   why: >
-    Every external write (send, calendar create) requires its own explicit approval.
-    Combining email send and calendar write into one approval step reduces clarity
-    and increases the chance of accidental approval. Keep them as separate checkpoints.
+    Composing and saving are deliberately two steps with the gate between them.
+    email_draft produces the preview and touches nothing; gmail_draft_write and
+    calendar_write are the provider writes that follow approval. That split is what
+    makes "only after I approve" representable — if the draft were saved as it was
+    composed, the approval would be asking about something the mailbox already had.
+
+    Every external write (draft save, calendar create, send) still requires its own
+    explicit approval. Combining them into one approval step reduces clarity and
+    increases the chance of accidental approval. Keep them as separate checkpoints.
 llm_driven_steps:
   - intent_classifier
   - email_draft
@@ -49,13 +62,16 @@ deterministic_steps:
   - optional_email_send
   - calendar_lookup
   - calendar_write
+  - gmail_draft_write
   - audit_log
 guardrails:
-  - Never send email or create calendar events without explicit human approval
+  - Never send email, save a mailbox draft, or create calendar events without explicit human approval
   - Approval UI must show the full draft and recipient list — not a summary
   - Do not combine email send and calendar write into a single approval step
   - Treat every external action as irreversible — there is no reliable undo
   - Do not build bulk email send flow with this playbook — it is for individual interactions only
+  - A draft-only build requests gmail.compose and never gmail.send — if a build needs the send scope, some step other than the draft save is asking for it
+  - Never let the draft save re-generate the text — save exactly the bytes the user approved, or the approval covered a different message
 failure_modes:
   - Intent misclassification routes a scheduling email to reply flow, missing the calendar step
   - OAuth token expiry causes silent email read failure, returning empty inbox
@@ -63,22 +79,29 @@ failure_modes:
   - Calendar event created in wrong timezone when source email does not specify timezone explicitly
   - Approval notification not delivered, workflow stalls indefinitely without timeout handling
   - Duplicate send on retry after transient failure if send is not idempotent
+  - Retry after a timed-out drafts.create leaves two near-identical drafts in the mailbox
+  - Draft saved without the source threadId starts a new thread instead of replying to the original
+  - A saved draft is read as a sent reply, so the user believes the message went out and never sends it
 evals:
   - intent classification accuracy on 20-email labelled test set
   - draft quality score (human annotation) on 10 diverse email scenarios
   - timezone correctness on locale-diverse scheduling test cases
   - approval gate enforcement test — send blocked when approval is absent
+  - approval gate enforcement test — draft save blocked when approval is absent
   - duplicate send prevention test on simulated transient failure
-  - audit log completeness — every send and calendar_write has a record
+  - draft-save idempotency test — a retried save updates the existing draft rather than creating a second
+  - scope test — a draft-only build's credential set carries gmail.compose and never gmail.send
+  - audit log completeness — every draft save, send and calendar_write has a record, and saves are recorded as saves
 implementation_steps:
   - "Step 1: Implement email_read with IMAP or provider API. Strip quoted reply chains before passing to intent_classifier"
   - "Step 2: Implement intent_classifier to distinguish: reply-only, schedule-meeting, decline-meeting, archive/no-action"
   - "Step 3: For schedule-meeting intent, run calendar_lookup to find free slots before drafting"
-  - "Step 4: Implement email_draft prompt with tone instructions and any relevant context (meeting slots, previous messages)"
-  - "Step 5: Surface draft to human_approval_gate — show full draft, recipient list and thread context"
-  - "Step 6: On draft approval, offer optional_email_send. Require a second explicit approval for the actual send"
-  - "Step 7: For calendar events, show full event details (attendees, time, timezone) in approval UI before calendar_write"
-  - "Step 8: Write audit_log entry after every send or calendar_write with actor, timestamp and action payload"
+  - "Step 4: Implement email_draft prompt with tone instructions and any relevant context (meeting slots, previous messages). This step COMPOSES only — it must not call the provider"
+  - "Step 5: Surface draft to human_approval_gate — show full draft, recipient list, thread context, and the proposed event details (attendees, time, timezone). Everything downstream of this point is a real write"
+  - "Step 6: On approval, run gmail_draft_write to save the approved text via users.drafts.create (gmail.compose scope). Pass the source threadId so the draft threads onto the original message, and key on the source message id so a retry updates rather than duplicates"
+  - "Step 7: On the same approval, run calendar_write. It is independent of the draft save — either order is fine, and neither failure should roll the other back"
+  - "Step 8: Only if the build actually sends, offer optional_email_send behind its own second explicit approval. A draft-only assistant omits this step entirely and never requests gmail.send"
+  - "Step 9: Write audit_log entry after every draft save, calendar_write and send with actor, timestamp and action payload. Record a draft save as a SAVE, never as a send — the audit trail is where that distinction has to survive"
 sources:
   - title: Google Calendar API documentation
     url: https://developers.google.com/calendar/api/guides/overview

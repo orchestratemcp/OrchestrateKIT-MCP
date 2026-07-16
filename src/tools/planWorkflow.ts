@@ -1014,6 +1014,25 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
     ],
   },
 
+  gmail_draft_write: {
+    label: "Email provider — save draft to mailbox (never sends)",
+    product_examples: ["Gmail", "Outlook", "IMAP APPEND"],
+    auth_model: "OAuth2 (user-delegated)",
+    mcp_server: {
+      availability: "official",
+      package: "@modelcontextprotocol/server-gmail",
+      transport: "stdio",
+      note: "Same Gmail server as email_read/email_draft — one OAuth grant covers read, compose and draft save",
+    },
+    required_scopes: [...GOOGLE_SCOPE_CATALOG.gmail_draft_write.scopes],
+    gotchas: [
+      "users.drafts.create needs only gmail.compose — granting gmail.send here would give the agent a send capability the workflow never uses",
+      "Set threadId on the draft or the reply starts a new thread instead of threading onto the original message",
+      "drafts.create is not idempotent — a retry after a timeout creates a SECOND draft; key on the source message id to dedupe",
+      "A draft in the Drafts folder looks identical to a reply the user wrote — make the audit trail say which run created it",
+    ],
+  },
+
   optional_email_send: {
     label: "Email sender (transactional)",
     product_examples: ["SendGrid", "Resend", "Gmail SMTP"],

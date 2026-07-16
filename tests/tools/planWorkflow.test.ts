@@ -126,10 +126,60 @@ It must never send an email without my approval.`;
         `${id} leaked into observability gate events`,
       ).not.toContain(id);
     }
-    expect(r.automation_clearance.highest_action_components).toEqual(["calendar_write"]);
+    // P0-04: the draft save is an external mailbox write, so it drives clearance
+    // alongside calendar_write. Both are L3 — excluding the send did not make the
+    // plan write-free, and the clearance should not pretend otherwise.
+    expect(r.automation_clearance.highest_action_components).toEqual([
+      "calendar_write",
+      "gmail_draft_write",
+    ]);
     expect(r.summary_markdown).toContain("Email sending: excluded per your constraint");
     expect(r.summary_markdown).not.toContain("Email Send (disabled for this goal)");
     expect(r.summary_markdown).not.toContain("Optional Email Send");
+  });
+
+  // P0-04: before gmail_draft_write existed, "after I approve, create one Gmail
+  // draft" had no faithful representation — email_draft only COMPOSES text and
+  // runs BEFORE the gate, so the plan silently dropped the post-approval write.
+  // The corpus pins membership; only order proves the gate actually gates.
+  it("P0-04: the Gmail draft is a real write that lands AFTER the approval gate", () => {
+    const r = plan(P0_02_DOGFOOD_GOAL);
+    const ids = r.recommended_route.map((s) => s.component_id);
+
+    expect(ids).toContain("gmail_draft_write");
+
+    // The user's words are "only after I approve": compose is the preview the
+    // gate shows, the save is what approval releases.
+    expect(ids.indexOf("email_draft")).toBeLessThan(ids.indexOf("human_approval_gate"));
+    expect(ids.indexOf("human_approval_gate")).toBeLessThan(ids.indexOf("gmail_draft_write"));
+    // Both post-approval writes sit behind the same gate.
+    expect(ids.indexOf("human_approval_gate")).toBeLessThan(ids.indexOf("calendar_write"));
+    expect(ids[ids.length - 1]).toBe("audit_log");
+
+    // "Never send the email" — the draft save must not smuggle a send back in.
+    expect(ids).not.toContain("optional_email_send");
+    // "visible run logs" is monitoring of this agent's own run (P0-03), not a
+    // demand for a log SOURCE to read.
+    expect(ids).not.toContain("log_monitor");
+
+    expect(r.enforced_approval_gates).toContain("human_approval_gate");
+    expect(r.plan_source).toBe("playbook");
+    expect(r.playbook?.id).toBe("email_calendar_assistant");
+  });
+
+  it("P0-04: the draft-save build asks for gmail.compose and never gmail.send", () => {
+    const r = planTech(P0_02_DOGFOOD_GOAL);
+    const need = r.what_you_need.find((n) => n.component_id === "gmail_draft_write");
+    expect(need, "gmail_draft_write missing from what_you_need").toBeDefined();
+
+    // Assert on real OAuth scope URLs across the whole payload: prose may
+    // legitimately mention the send scope to say it is NOT requested, so a
+    // substring check on "gmail.send" would be a false positive.
+    const scopeUrls = new Set(
+      JSON.stringify(r).match(/https:\/\/www\.googleapis\.com\/auth\/[a-z.]+/g) ?? [],
+    );
+    expect(scopeUrls).toContain("https://www.googleapis.com/auth/gmail.compose");
+    expect(scopeUrls).not.toContain("https://www.googleapis.com/auth/gmail.send");
   });
 });
 

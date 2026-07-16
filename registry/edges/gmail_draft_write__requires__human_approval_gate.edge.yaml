@@ -1,0 +1,12 @@
+id: gmail_draft_write__requires__human_approval_gate
+from: gmail_draft_write
+to: human_approval_gate
+relation: requires
+status: published
+reason: Saving a draft writes into the user's real mailbox. The draft is what the user will send, so its wording must be approved before it lands in the Drafts folder — an unreviewed draft invites a one-click send of text nobody checked.
+severity: high
+notes: Show the full body and recipient list before approval, not a summary. Unlike calendar_write this is recoverable — a draft can be deleted and nothing is transmitted — but the gate is what keeps the mailbox free of unreviewed text.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: gmail_draft_write__requires__human_approval_gate"

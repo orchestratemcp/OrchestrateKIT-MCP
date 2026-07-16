@@ -24,6 +24,8 @@ const CRITICAL_WRITE_COMPONENTS = new Set([
   "external_publish",
   "optional_email_send",
   "calendar_write",
+  // P0-04: writes a draft into the user's real mailbox.
+  "gmail_draft_write",
 ]);
 
 /** Registry subdirectories that hold YAML files (relative to the registry dir). */

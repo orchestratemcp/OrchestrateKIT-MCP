@@ -2430,7 +2430,7 @@ exports[`MAR-163 — recommend_architecture output schema > ok branch conforms +
   "assumptions": [
     "Added audit_log because the route includes external actions.",
   ],
-  "confidence": 0.72,
+  "confidence": 0.71,
   "matched_playbook_ids": [
     "email_lead_to_crm",
     "morning_email_triage",
@@ -2724,7 +2724,7 @@ exports[`MAR-249 — export_build_brief output schema > compact structuredConten
     "provenance": {
       "generated_at": "[volatile]",
       "generated_by": "orchestratekit-mcp export_build_brief",
-      "registry_fingerprint": "26b95a7a03de9ffd",
+      "registry_fingerprint": "825e5120f319f842",
     },
     "safety_contract": {
       "automation_clearance": "L3",
@@ -3146,7 +3146,7 @@ exports[`MAR-249 — export_build_brief output schema > plan_passport delivery e
     "provenance": {
       "generated_at": "[volatile]",
       "generated_by": "orchestratekit-mcp export_build_brief",
-      "registry_fingerprint": "26b95a7a03de9ffd",
+      "registry_fingerprint": "825e5120f319f842",
     },
     "safety_contract": {
       "automation_clearance": "L3",
@@ -3575,12 +3575,12 @@ exports[`MAR-249 — export_build_brief output schema > plan_passport delivery e
       "target": "code",
     },
     "contract": "orchestratekit.plan_passport.v1",
-    "contract_id": "plan_passport:fe28e77f71f7a9b1",
+    "contract_id": "plan_passport:d820cf38fb7ba8a3",
     "goal": "read emails, detect leads and write a note to the CRM for each lead",
     "lab_import": {
       "agent_name": "read-emails-detect-leads-and-write-a-note-to-the-crm-for-eac",
       "artifact": "plan_passport",
-      "contract_id": "plan_passport:fe28e77f71f7a9b1",
+      "contract_id": "plan_passport:d820cf38fb7ba8a3",
       "evidence_status": "planned",
       "route_components": [
         "email_read",
@@ -3601,7 +3601,7 @@ exports[`MAR-249 — export_build_brief output schema > plan_passport delivery e
       "read_only": false,
       "unattended": false,
     },
-    "registry_fingerprint": "26b95a7a03de9ffd",
+    "registry_fingerprint": "825e5120f319f842",
     "required_connections": [
       {
         "env": "GMAIL_CLIENT_ID",
@@ -3858,7 +3858,7 @@ exports[`MAR-249 — export_build_brief output schema > runtime structuredConten
     "provenance": {
       "generated_at": "[volatile]",
       "generated_by": "orchestratekit-mcp export_build_brief",
-      "registry_fingerprint": "26b95a7a03de9ffd",
+      "registry_fingerprint": "825e5120f319f842",
     },
     "safety_contract": {
       "automation_clearance": "L3",

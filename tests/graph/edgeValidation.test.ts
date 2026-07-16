@@ -211,6 +211,8 @@ const AUTH_HANDLER_EDGES: Array<[string, string]> = [
   ["uptime_check__safer_with__auth_failure_handler", "uptime_check"],
   // MAR-244: file_storage
   ["file_storage__safer_with__auth_failure_handler", "file_storage"],
+  // P0-04: the post-approval Gmail draft save
+  ["gmail_draft_write__safer_with__auth_failure_handler", "gmail_draft_write"],
 ];
 
 for (const [edgeId, from] of AUTH_HANDLER_EDGES) {
@@ -929,3 +931,92 @@ for (const [edgeId, from, to] of MAR254_RECOMMENDED_EDGES) {
     });
   });
 }
+
+// ── P0-04: gmail_draft_write — the post-approval provider write ────────────
+//
+// email_draft only COMPOSES text and sits BEFORE the approval gate, so the
+// route had no way to express "after I approve, create one Gmail draft".
+// gmail_draft_write is that write. These blocks pin the four properties the
+// dogfood flow depends on: the gate precedes it, the composed text feeds it,
+// it is audited, and it is independent of calendar_write.
+
+describe("edge: gmail_draft_write__requires__human_approval_gate", () => {
+  it("augmentWithSafety injects human_approval_gate when gmail_draft_write is present", () => {
+    const result = augmentWithSafety(pick(["gmail_draft_write"]), edges, components);
+    expect(result.components.map((c) => c.id)).toContain("human_approval_gate");
+  });
+
+  it("computeExecutionOrder never places the draft save before its own gate", () => {
+    const ids = computeExecutionOrder(
+      pick(["gmail_draft_write", "human_approval_gate", "email_draft"]),
+      edges,
+    ).map((c) => c.id);
+    expect(ids.indexOf("human_approval_gate")).toBeLessThan(ids.indexOf("gmail_draft_write"));
+  });
+});
+
+describe("edge: audit_log__recommended__gmail_draft_write", () => {
+  it("augmentWithSafety adds audit_log when gmail_draft_write is present", () => {
+    const result = augmentWithSafety(pick(["gmail_draft_write"]), edges, components);
+    expect(result.components.map((c) => c.id)).toContain("audit_log");
+    expect(result.added_audit).toBe(true);
+  });
+});
+
+describe("edge: email_draft__produces__gmail_draft_write", () => {
+  it("computeExecutionOrder places email_draft before gmail_draft_write", () => {
+    const ids = computeExecutionOrder(
+      pick(["gmail_draft_write", "email_draft", "human_approval_gate"]),
+      edges,
+    ).map((c) => c.id);
+    expect(ids.indexOf("email_draft")).toBeLessThan(ids.indexOf("gmail_draft_write"));
+  });
+
+  it("orders the full dogfood shape: compose → approve → save", () => {
+    const ids = computeExecutionOrder(
+      pick([
+        "email_read",
+        "email_draft",
+        "calendar_lookup",
+        "calendar_write",
+        "gmail_draft_write",
+        "human_approval_gate",
+        "audit_log",
+      ]),
+      edges,
+    ).map((c) => c.id);
+    expect(ids.indexOf("email_draft")).toBeLessThan(ids.indexOf("human_approval_gate"));
+    expect(ids.indexOf("human_approval_gate")).toBeLessThan(ids.indexOf("gmail_draft_write"));
+    expect(ids.indexOf("human_approval_gate")).toBeLessThan(ids.indexOf("calendar_write"));
+    expect(ids[ids.length - 1]).toBe("audit_log");
+  });
+});
+
+describe("edge: gmail_draft_write__can_run_parallel__calendar_write", () => {
+  it("edge is present, relation can_run_parallel, tested", () => {
+    const edge = edges.find((e) => e.id === "gmail_draft_write__can_run_parallel__calendar_write");
+    expect(edge).toBeDefined();
+    expect(edge!.relation).toBe("can_run_parallel");
+    expect(edge!.from).toBe("gmail_draft_write");
+    expect(edge!.to).toBe("calendar_write");
+    expect(edge!.tested).toBe(true);
+  });
+
+  it("imposes no ordering between the two writes — both still follow the gate", () => {
+    const ids = computeExecutionOrder(
+      pick(["gmail_draft_write", "calendar_write", "human_approval_gate"]),
+      edges,
+    ).map((c) => c.id);
+    const gate = ids.indexOf("human_approval_gate");
+    expect(gate).toBeLessThan(ids.indexOf("gmail_draft_write"));
+    expect(gate).toBeLessThan(ids.indexOf("calendar_write"));
+  });
+
+  it("declares neither write as an avoid violation against the other", () => {
+    const violations = detectAvoidViolations(
+      new Set(["gmail_draft_write", "calendar_write"]),
+      edges,
+    );
+    expect(violations).toEqual([]);
+  });
+});

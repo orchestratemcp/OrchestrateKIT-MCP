@@ -1,0 +1,12 @@
+id: audit_log__recommended__gmail_draft_write
+from: audit_log
+to: gmail_draft_write
+relation: recommended_for
+status: published
+reason: A draft appearing in the mailbox has no inherent record of which run produced it or who approved it. An audit record ties the draft back to the approval actor and the run that composed it.
+severity: medium
+notes: Log draft_id, thread_id, recipient list, approval actor and workflow run_id. Record that the action was a draft SAVE, never a send — the distinction is the whole safety claim of this route.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: audit_log__recommended__gmail_draft_write"

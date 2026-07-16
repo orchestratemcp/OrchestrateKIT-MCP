@@ -39,6 +39,10 @@ const NEEDS_AUTH_FAILURE_HANDLER = new Set([
   // MAR-244: a storage write authenticates with a Sheets/S3/database credential
   // that can expire — an auth failure must halt and alert, never drop the records.
   "file_storage",
+  // P0-04: the draft save runs on an expirable Gmail OAuth grant, and it runs
+  // AFTER the human has already approved. A silent credential failure there
+  // loses text the user believes is saved — the worst moment to fail quietly.
+  "gmail_draft_write",
 ]);
 
 /** External-write components that always require human_approval_gate. */
@@ -52,6 +56,11 @@ export const ALWAYS_REQUIRES_GATE = new Set([
   "teams_notification",
   "telegram_notification",
   "deal_stage_update", // MAR-242: irreversible write to a revenue-bearing deal
+  // P0-04: gmail_draft_write__requires__human_approval_gate already forces the
+  // gate via Rule 2. Listed here so the guarantee survives as policy rather than
+  // resting on that one edge staying in the registry — the gate is the entire
+  // reason this component can exist without a send scope.
+  "gmail_draft_write",
 ]);
 
 /** External-write components that always require audit_log. */
@@ -78,6 +87,10 @@ const ALWAYS_RECOMMEND_AUDIT = new Set([
   // MAR-244: a persistent-store write should leave a record of what rows/files were
   // written and where — the audit trail is the only post-hoc evidence of the write.
   "file_storage",
+  // P0-04: a draft in the mailbox is indistinguishable from one the user typed.
+  // The audit entry is the only thing that records which run produced it, who
+  // approved it, and — critically — that it was SAVED and not sent.
+  "gmail_draft_write",
 ]);
 
 /**

@@ -58,6 +58,7 @@
         "calendar_write",
         "email_draft",
         "email_read",
+        "gmail_draft_write",
         "human_approval_gate"
       ],
       "nice_to_have": [
@@ -88,6 +89,7 @@
         "calendar_write",
         "email_draft",
         "email_read",
+        "gmail_draft_write",
         "human_approval_gate"
       ],
       "nice_to_have": [
@@ -430,6 +432,7 @@
       "must_have": [
         "email_draft",
         "email_read",
+        "gmail_draft_write",
         "human_approval_gate",
         "intent_classifier",
         "scheduled_trigger"
@@ -1246,6 +1249,7 @@
         "calendar_write",
         "email_draft",
         "email_read",
+        "gmail_draft_write",
         "human_approval_gate"
       ],
       "nice_to_have": [
@@ -1296,7 +1300,40 @@
       "source": "linear:P0-03",
       "level": "raw",
       "xfail": ""
+    },
+    {
+      "slug": "calendar_gmail_draft_saved_after_approval_p0_04",
+      "goal": "Build an email and calendar assistant that reads unread Gmail meeting requests, checks my real Google Calendar, drafts a reply with two available 30-minute slots, and only after I approve creates one Calendar event and one Gmail draft. Never send the email. I will be present for approval and I want visible run logs.",
+      "domain": "email_calendar",
+      "must_have": [
+        "audit_log",
+        "calendar_lookup",
+        "calendar_write",
+        "email_draft",
+        "email_read",
+        "gmail_draft_write",
+        "human_approval_gate"
+      ],
+      "nice_to_have": [
+        "auth_failure_handler",
+        "intent_classifier",
+        "schema_validation"
+      ],
+      "forbidden": [
+        "discord_notification",
+        "external_publish",
+        "log_monitor",
+        "optional_email_send",
+        "reviewer_notification",
+        "slack_notification",
+        "teams_notification",
+        "telegram_notification"
+      ],
+      "missing_but_expected": [],
+      "source": "linear:P0-04",
+      "level": "composed",
+      "xfail": ""
     }
   ],
-  "goal_count": 51
+  "goal_count": 52
 }

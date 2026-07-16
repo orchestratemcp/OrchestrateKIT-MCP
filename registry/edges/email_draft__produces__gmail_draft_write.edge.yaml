@@ -1,0 +1,12 @@
+id: email_draft__produces__gmail_draft_write
+from: email_draft
+to: gmail_draft_write
+relation: produces_input_for
+status: published
+reason: email_draft COMPOSES the reply text but writes nothing; gmail_draft_write SAVES that text into the mailbox. The composed subject, body and recipient list are exactly the input the save step needs, so the two form the preview-then-persist pair that lets the approval gate sit between them.
+severity: high
+notes: Pass the approved draft through unchanged — text re-generated after approval has not been approved. Carry the source thread id from email_read so the saved draft threads onto the original message.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: email_draft__produces__gmail_draft_write"

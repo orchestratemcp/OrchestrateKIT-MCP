@@ -15,12 +15,16 @@ components:
   - intent_classifier
   - email_draft
   - human_approval_gate
+  - gmail_draft_write
   - reviewer_notification
   - audit_log
 edges:
   - email_read__produces__intent_classifier
   - intent_classifier__produces__email_draft
   - email_draft__safer_with__human_approval_gate
+  - email_draft__produces__gmail_draft_write
+  - gmail_draft_write__requires__human_approval_gate
+  - audit_log__recommended__gmail_draft_write
   - audit_log__recommended__reviewer_notification
 risk_level: medium
 confidence: 0.8

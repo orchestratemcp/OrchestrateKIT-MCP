@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "report_fingerprint": "9d5a97033faa319e",
+  "report_fingerprint": "b302b97a81286cc8",
   "methodology": {
     "name": "OrchestrateMCP public registry conformance benchmark",
     "kind": "deterministic_registry_conformance",
@@ -24,12 +24,12 @@
   "provenance": {
     "package_name": "orchestratekit-mcp",
     "package_version": "0.1.0",
-    "registry_fingerprint": "26b95a7a03de9ffd",
+    "registry_fingerprint": "825e5120f319f842",
     "registry_scope": "public_non_beta",
     "registry_build_mode": "source",
     "registry_counts": {
-      "components": 64,
-      "edges": 151,
+      "components": 65,
+      "edges": 156,
       "routes": 12,
       "playbooks": 12,
       "workers": 4
@@ -52,7 +52,7 @@
     "required_components_missing": 0,
     "forbidden_components_present": 0,
     "expected_playbooks_missing": 0,
-    "route_score_average": 72.6,
+    "route_score_average": 72.4,
     "route_score_min": 61,
     "route_score_max": 84,
     "candidate_or_blocked_routes": 3,
@@ -276,7 +276,7 @@
       "composition": {
         "status": "candidate_route",
         "route_status": "validated",
-        "route_score": 65,
+        "route_score": 64,
         "components": [
           "user_goal_intake",
           "email_read",
@@ -296,7 +296,7 @@
         "playbook_first": {
           "recommendation_type": "playbook",
           "playbook_id": "email_calendar_assistant",
-          "recall": 1,
+          "recall": 0.89,
           "precision": 0.73
         }
       },

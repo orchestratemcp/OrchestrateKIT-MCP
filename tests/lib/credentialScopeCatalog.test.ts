@@ -109,12 +109,25 @@ describe("P0-05 — every rendered permission surface agrees, for the golden ema
     // guards the rest of this suite against silently testing the wrong route
     expect(routeIds).toContain("email_draft");
     expect(routeIds).toContain("calendar_write");
+    // P0-04: the post-approval draft SAVE is the surface most likely to attract a
+    // send scope. If it ever drops out of the route, every gmail.send assertion
+    // below would pass vacuously.
+    expect(routeIds).toContain("gmail_draft_write");
   });
 
   it("what_you_need renders gmail.compose (never gmail.send) for the draft component", () => {
     const draftNeed = plan.what_you_need.find((n) => n.component_id === "email_draft");
     expect(draftNeed?.required_scopes).toEqual(["https://www.googleapis.com/auth/gmail.compose"]);
     expect(draftNeed?.required_scopes).not.toContain(GMAIL_SEND_SCOPE);
+  });
+
+  it("P0-04: the draft SAVE renders gmail.compose, never gmail.send", () => {
+    // Saving a draft is where "we need send access" is the tempting wrong answer:
+    // users.drafts.create accepts gmail.compose, and granting send here would hand
+    // the agent a capability the whole route exists to withhold.
+    const saveNeed = plan.what_you_need.find((n) => n.component_id === "gmail_draft_write");
+    expect(saveNeed?.required_scopes).toEqual(["https://www.googleapis.com/auth/gmail.compose"]);
+    expect(saveNeed?.required_scopes).not.toContain(GMAIL_SEND_SCOPE);
   });
 
   it("connectContract's GMAIL_REFRESH_TOKEN oauth scopes never include gmail.send", () => {

@@ -1,0 +1,55 @@
+id: gmail_draft_write
+name: Gmail Draft Write
+status: published
+category: integration
+summary: Saves an approved reply into the user's mailbox as a Gmail draft. Creates the draft only — it never transmits the message.
+capabilities:
+  - create_draft
+  - update_draft
+  - attach_to_thread
+inputs:
+  - approved draft (subject, body, recipients), thread/message id to reply to, mailbox credentials
+outputs:
+  - saved draft confirmation with draft_id and thread_id
+risk_level: medium
+side_effects:
+  - creates a draft in the user's mailbox — appears in their Drafts folder; nothing is transmitted to the recipient
+permissions:
+  read: []
+  write:
+    - gmail.compose scope — sufficient for users.drafts.create, and the only scope this component needs
+    - saves a draft into the user's mailbox; transmits nothing
+  approval_required_for:
+    - every draft save
+requires:
+  - human_approval_gate
+recommended_with:
+  - email_draft
+  - audit_log
+avoid_with: []
+failure_modes:
+  - duplicate drafts created when a retry follows a timed-out save
+  - draft saved outside the original thread, so the reply loses its threading
+  - wrong send-as identity used when the mailbox has several configured
+  - a saved draft is mistaken for a sent reply, so the user believes the message went out
+evals:
+  - idempotency test — a duplicate trigger does not create a second draft
+  - rejection test — draft save blocked when approval is missing
+  - scope test — the requested credential set carries gmail.compose and never gmail.send
+  - threading correctness — the saved draft attaches to the original thread
+tested_in_playbooks:
+  - email_calendar_assistant
+  - morning_email_triage
+tested_in_routes:
+  - email_calendar_route_v1
+  - morning_email_triage_route_v1
+sources:
+  - title: Gmail API — users.drafts.create
+    url: https://developers.google.com/gmail/api/reference/rest/v1/users.drafts/create
+    source_type: official_docs
+    last_checked: "2026-07-16"
+
+model_tier: none
+fallback_tier: none
+context_need: minimal
+compression_strategy: none

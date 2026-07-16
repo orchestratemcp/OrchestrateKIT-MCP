@@ -161,6 +161,15 @@ const IRREVERSIBLE_WRITES = new Set([
   "discord_notification",
   "teams_notification",
   "telegram_notification",
+  // P0-04: gmail_draft_write is the odd one out here — a saved draft IS
+  // recoverable (delete it; nothing was transmitted), so it is not irreversible
+  // in the literal sense the set name implies. It belongs anyway because this
+  // set drives the one invariant that matters for it: the approval gate must
+  // precede it. Without membership the post-pass below never moves the gate
+  // ahead of the save, and "only after I approve creates one Gmail draft"
+  // orders as a write BEFORE its own gate — the same defect the MAR-252
+  // notification egresses and the deal_stage_update finding above had.
+  "gmail_draft_write",
 ]);
 
 /**

@@ -33,12 +33,20 @@ stack_id: default_orchestratekit_stack
 # intent_classifier is the classify step (urgent/FYI/needs-reply/spam) — the
 # literal core of a triage agent — and is included even though the raw matcher
 # under-selects it on this phrasing (it is nice_to_have in the corpus row).
+#
+# P0-04: gmail_draft_write is the step this playbook always described but could
+# not name. "Saves everything as drafts" is its title, its summary and its
+# safety promise, yet email_draft only COMPOSES text — nothing here actually
+# wrote to the mailbox. It is a draft SAVE, not a send: it needs gmail.compose,
+# never gmail.send, so it strengthens the no-send guarantee rather than denting
+# it (the negative scope below is unchanged).
 components:
   - scheduled_trigger
   - email_read
   - intent_classifier
   - email_draft
   - human_approval_gate
+  - gmail_draft_write
   - reviewer_notification
   - audit_log
 
@@ -46,6 +54,9 @@ edges:
   - email_read__produces__intent_classifier
   - intent_classifier__produces__email_draft
   - email_draft__safer_with__human_approval_gate
+  - email_draft__produces__gmail_draft_write
+  - gmail_draft_write__requires__human_approval_gate
+  - audit_log__recommended__gmail_draft_write
   - audit_log__recommended__reviewer_notification
 
 best_for:

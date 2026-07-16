@@ -13,9 +13,9 @@ pnpm benchmark:check
 ## Provenance
 
 - Package: `orchestratekit-mcp@0.1.0`
-- Registry fingerprint: `26b95a7a03de9ffd`
-- Report fingerprint: `9d5a97033faa319e`
-- Public non-beta registry: 64 components / 151 edges / 12 routes / 12 playbooks / 4 workers
+- Registry fingerprint: `825e5120f319f842`
+- Report fingerprint: `b302b97a81286cc8`
+- Public non-beta registry: 65 components / 156 edges / 12 routes / 12 playbooks / 4 workers
 - Prompt source SHA-256: `7a1b47ce10f1db158810205984f7f956aaa95c0d87f9334080032ac7abb6d8f9`
 - False-positive fixture SHA-256: `5a2e8a3e5cabe5febb4eb9d9d5e5371a8e1c5458360a6b9be1e7e75364f51c25`
 
@@ -23,13 +23,13 @@ pnpm benchmark:check
 
 **7/7 prompts pass; 50/50 required/forbidden assertions pass.**
 
-Deterministic route scores range from 61 to 84 (average 72.6). These are graph-internal scores, not LLM quality scores. The report also exposes 3 non-validated routes, 0 untested-edge occurrences, and 3 compose-noise flags instead of hiding them.
+Deterministic route scores range from 61 to 84 (average 72.4). These are graph-internal scores, not LLM quality scores. The report also exposes 3 non-validated routes, 0 untested-edge occurrences, and 3 compose-noise flags instead of hiding them.
 
 | Prompt | Fixtures | Route status | Route score | Untested | Noise | Path | Verdict |
 | --- | ---: | --- | ---: | ---: | ---: | --- | --- |
 | p1_research_workflow | 7/7 | candidate | 81 | 0 | 1 | compose | PASS |
 | p2_content_publish_workflow | 8/8 | validated | 70 | 0 | 1 | `content_approval_pipeline` | PASS |
-| p3_email_calendar_assistant | 7/7 | validated | 65 | 0 | 0 | `email_calendar_assistant` | PASS |
+| p3_email_calendar_assistant | 7/7 | validated | 64 | 0 | 0 | `email_calendar_assistant` | PASS |
 | p4_codebase_agent | 9/9 | candidate | 84 | 0 | 0 | compose | PASS |
 | p5_data_pipeline | 9/9 | candidate | 79 | 0 | 0 | compose | PASS |
 | p6_email_lead_crm | 5/5 | validated | 61 | 0 | 0 | `email_lead_to_crm` | PASS |

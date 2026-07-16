@@ -42,6 +42,10 @@ export const GOOGLE_SCOPE_CATALOG: Readonly<Record<string, GoogleScopeCatalogEnt
     scopes: [GMAIL_COMPOSE_SCOPE],
     note: "Draft-only: gmail.compose is sufficient for users.drafts.create — gmail.send is never requested for drafting.",
   },
+  gmail_draft_write: {
+    scopes: [GMAIL_COMPOSE_SCOPE],
+    note: "Saves the approved reply via users.drafts.create. Same compose scope as email_draft — persisting a draft needs no more privilege than composing one, and gmail.send stays out of the grant so the agent is incapable of transmitting.",
+  },
   calendar_lookup: {
     scopes: [CALENDAR_READONLY_SCOPE],
   },
@@ -57,7 +61,13 @@ export const GOOGLE_SCOPE_CATALOG: Readonly<Record<string, GoogleScopeCatalogEnt
 export function googleScopesForComponents(componentIds: readonly string[]): string[] {
   const present = new Set(componentIds);
   const scopes: string[] = [];
-  for (const id of ["email_read", "email_draft", "calendar_lookup", "calendar_write"]) {
+  for (const id of [
+    "email_read",
+    "email_draft",
+    "gmail_draft_write",
+    "calendar_lookup",
+    "calendar_write",
+  ]) {
     if (!present.has(id)) continue;
     for (const scope of GOOGLE_SCOPE_CATALOG[id].scopes) {
       if (!scopes.includes(scope)) scopes.push(scope);

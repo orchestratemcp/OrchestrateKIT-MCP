@@ -1,0 +1,13 @@
+id: gmail_draft_write__can_run_parallel__calendar_write
+from: gmail_draft_write
+to: calendar_write
+relation: can_run_parallel
+status: published
+reason: Both are post-approval writes to different providers, and neither consumes the other's output — the saved draft does not depend on the event id, and the event does not depend on the draft. Once the same approval has cleared both, they may run in either order or concurrently.
+severity: low
+notes: Independent ordering does not mean shared approval. The playbook still shows the event and the draft as separate items in the approval UI, so the user can approve one and reject the other.
+control_flow_note: "Parallel branch — the two writes fan out from the same approval and neither blocks the other. Failure of one does not imply the other should be rolled back; the audit_log entry records each outcome separately."
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: gmail_draft_write__can_run_parallel__calendar_write"
