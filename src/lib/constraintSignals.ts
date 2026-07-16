@@ -227,6 +227,11 @@ const ATTENDED_SIGNALS_FOR_BRIEF = [
 
 const NO_OUTBOUND_SIGNALS = [
   "no outbound",
+  "no outbound email",
+  "no outbound emails",
+  "never send anything",
+  "do not send anything",
+  "don't send anything",
   "no emails sent",
   "no email sent",
   "never send",
@@ -234,8 +239,53 @@ const NO_OUTBOUND_SIGNALS = [
   "stays internal",
   "do not send",
   "don't send",
+  "do not want it to send",
+  "don't want it to send",
+  "dont want it to send",
+  "nothing gets sent",
+  "nothing sent out",
+  "nothing is sent",
+  "nothing goes out",
+  "nothing sent externally",
   "no external sends",
 ];
+
+const EMAIL_SEND_COMPONENTS_EXCLUDED_BY_NO_OUTBOUND = [
+  "optional_email_send",
+  "reviewer_notification",
+] as const;
+
+const ALL_SEND_COMPONENTS_EXCLUDED_BY_NO_OUTBOUND = [
+  "external_publish",
+  "optional_email_send",
+  "slack_notification",
+  "discord_notification",
+  "teams_notification",
+  "telegram_notification",
+  "reviewer_notification",
+] as const;
+
+function hasBroadNoOutboundConstraint(goal: string): boolean {
+  const g = neutralizeApprovalGatedProhibitions(goal).toLowerCase();
+  return [
+    "no outbound",
+    "internal only",
+    "stays internal",
+    "no external sends",
+    "never send anything",
+    "do not send anything",
+    "don't send anything",
+    "dont send anything",
+    "do not want it to send anything",
+    "don't want it to send anything",
+    "dont want it to send anything",
+    "nothing gets sent",
+    "nothing sent out",
+    "nothing is sent",
+    "nothing goes out",
+    "nothing sent externally",
+  ].some((s) => g.includes(s));
+}
 
 const READ_ONLY_SIGNALS = [
   "read-only",
@@ -255,31 +305,32 @@ const READ_ONLY_SIGNALS = [
  * (draft-only, no-outbound, read-only-as-a-class).
  */
 export function detectConstraintSignals(goal: string): ConstraintSignals {
-  const g = goal.toLowerCase();
+  const rawGoal = goal.toLowerCase();
+  const g = neutralizeApprovalGatedProhibitions(goal).toLowerCase();
 
   const readOnlyTrigger = firstMatch(g, READ_ONLY_SIGNALS);
   const draftOnlyTrigger = firstMatch(g, DRAFT_ONLY_SIGNALS);
   const noOutboundTrigger = firstMatch(g, NO_OUTBOUND_SIGNALS);
 
-  const unattended = hasUnattendedWaiver(g);
+  const unattended = hasUnattendedWaiver(rawGoal);
   const unattendedTrigger = unattended
-    ? firstMatch(g, UNATTENDED_WAIVER_SIGNALS)
+    ? firstMatch(rawGoal, UNATTENDED_WAIVER_SIGNALS)
     : null;
 
   const attended =
-    hasExplicitApprovalRequirement(g) ||
-    ATTENDED_SIGNALS_FOR_BRIEF.some((s) => occursUnnegated(g, s, true));
+    hasExplicitApprovalRequirement(rawGoal) ||
+    ATTENDED_SIGNALS_FOR_BRIEF.some((s) => occursUnnegated(rawGoal, s, true));
   const attendedTrigger = attended
-    ? (/\battended\b/.test(g) ? "attended" : null) ??
-      firstMatch(g, APPROVAL_REQUIRED_SIGNALS) ??
-      firstMatch(g, ATTENDED_SIGNALS_FOR_BRIEF)
+    ? (/\battended\b/.test(rawGoal) ? "attended" : null) ??
+      firstMatch(rawGoal, APPROVAL_REQUIRED_SIGNALS) ??
+      firstMatch(rawGoal, ATTENDED_SIGNALS_FOR_BRIEF)
     : null;
 
   // hasUnattendedWaiver already yields to an explicit approval requirement
   // (MAR-229), so a true conflict is only visible via the brief-side attended
   // phrases co-occurring with a waiver phrase — mirror the planner: attended
   // wins, but SHOW both with a marker instead of silently dropping one.
-  const rawWaiverPhrase = firstMatch(g, UNATTENDED_WAIVER_SIGNALS);
+  const rawWaiverPhrase = firstMatch(rawGoal, UNATTENDED_WAIVER_SIGNALS);
   const conflict = attended && rawWaiverPhrase !== null;
 
   return {
@@ -293,4 +344,27 @@ export function detectConstraintSignals(goal: string): ConstraintSignals {
     no_outbound: { detected: noOutboundTrigger !== null, trigger: noOutboundTrigger },
     conflict,
   };
+}
+
+/**
+ * Components that must be structurally absent when the user states a no-send /
+ * no-outbound constraint. Email-specific phrases ("never send the email") only
+ * remove email sending; broad phrases ("internal only", "no outbound") remove
+ * all outbound send/post/publish components. Calendar writes are deliberately
+ * not in this set because booking a meeting can be explicitly requested while
+ * the email reply must stay draft-only.
+ */
+export function outboundComponentsExcludedByConstraints(goal: string): Set<string> {
+  const signals = detectConstraintSignals(goal);
+  if (!signals.no_outbound.detected && !signals.draft_only.detected) {
+    return new Set();
+  }
+
+  const excluded = new Set<string>(EMAIL_SEND_COMPONENTS_EXCLUDED_BY_NO_OUTBOUND);
+  if (signals.no_outbound.detected && hasBroadNoOutboundConstraint(goal)) {
+    for (const id of ALL_SEND_COMPONENTS_EXCLUDED_BY_NO_OUTBOUND) {
+      excluded.add(id);
+    }
+  }
+  return excluded;
 }

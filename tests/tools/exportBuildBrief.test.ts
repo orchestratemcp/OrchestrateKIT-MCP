@@ -38,6 +38,12 @@ function planAndBrief(
   });
 }
 
+const P0_02_DOGFOOD_GOAL =
+  "Build an email and calendar assistant that reads unread Gmail meeting requests, " +
+  "checks my real Google Calendar, drafts a reply with two available 30-minute slots, " +
+  "and only after I approve creates one Calendar event and one Gmail draft. Never send " +
+  "the email. I will be present for approval and I want visible run logs.";
+
 describe("export_build_brief — structure (MAR-205)", () => {
   it("returns all 9 sections + brief_markdown + provenance_tag", () => {
     const b = planAndBrief("read emails, detect leads and write a note to the CRM for each lead");
@@ -64,6 +70,69 @@ describe("export_build_brief — structure (MAR-205)", () => {
     const b = planAndBrief("read emails, detect leads and write a note to the CRM for each lead");
     expect(b.grounding_note).toContain("no LLM calls");
     expect(b.grounding_note).toContain("🟢");
+  });
+});
+
+describe("export_build_brief — P0-02 no-outbound send exclusion", () => {
+  it("keeps excluded send components out of manifest, connect artifacts, and brief output", () => {
+    const plan = planWorkflow(
+      { goal: P0_02_DOGFOOD_GOAL, must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    const staleRoute = [
+      ...plan.recommended_route,
+      {
+        step: plan.recommended_route.length + 1,
+        component_id: "optional_email_send",
+        component_name: "Optional Email Send",
+        purpose: "Send the approved email.",
+        model_tier: "none",
+        risk_level: "high",
+      },
+    ];
+
+    const brief = exportBuildBrief({
+      goal: plan.goal,
+      plan_source: plan.plan_source,
+      route_status: plan.route_status,
+      recommended_route: staleRoute,
+      safety_review: plan.safety_review,
+      automation_clearance: {
+        ...plan.automation_clearance,
+        highest_action_components: [
+          ...plan.automation_clearance.highest_action_components,
+          "optional_email_send",
+        ],
+      },
+      enforced_approval_gates: plan.enforced_approval_gates,
+      untested_edges: plan.untested_edges,
+      avoid_when_violations: plan.avoid_when_violations,
+      evals_to_add: plan.evals_to_add,
+      design_notes: plan.design_notes,
+      worker_pipeline: plan.worker_pipeline,
+      loop_guidance: plan.loop_guidance,
+      approval_gate_advisory: plan.approval_gate_advisory,
+      handoff_targets: ["prompt"],
+      llm_provider: "anthropic",
+      generated_at: "2026-07-16T00:00:00.000Z",
+      registry_fingerprint: "0123456789abcdef",
+    });
+
+    const serialized = JSON.stringify(brief);
+    expect(serialized).not.toContain("optional_email_send");
+    expect(serialized).not.toContain("Optional Email Send");
+    expect(serialized).not.toContain("Mail Send");
+    expect(serialized).not.toContain("external email send");
+    expect(brief.agent_manifest.planned_route.map((s) => s.component_id)).not.toContain(
+      "optional_email_send",
+    );
+    expect(brief.agent_manifest.safety_contract.irreversible_components).toEqual([
+      "calendar_write",
+    ]);
+    expect(brief.connect.credential_manifest.flatMap((c) => c.required_by)).not.toContain(
+      "optional_email_send",
+    );
+    expect(brief.sections.s5_safety).toContain("Driven by: `calendar_write`");
   });
 });
 
