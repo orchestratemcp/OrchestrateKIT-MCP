@@ -50,6 +50,7 @@ export function registryContentFingerprint(): string {
 export function bundledBuildInfo(): RegistryBuild {
   return {
     fingerprint: BUNDLE.fingerprint,
+    content_fingerprint: registryContentFingerprint(),
     newest_mtime: BUNDLE.newest_mtime,
     built_at: BUNDLE.generated_at,
     stale: false,

@@ -10,6 +10,33 @@ export const MIN_COMPONENTS = 64;
 export const MIN_EDGES = 151;
 
 /**
+ * P0-06 (MAR-220 follow-up): published route/playbook count floors. Same
+ * regression-floor contract as MIN_COMPONENTS/MIN_EDGES above — an old hosted
+ * build could still clear the component/edge floor while silently missing
+ * routes or playbooks added since it was deployed, so those need their own
+ * floors rather than piggybacking on the component/edge counts.
+ */
+export const MIN_ROUTES = 12;
+export const MIN_PLAYBOOKS = 12;
+
+/**
+ * P0-06 (MAR-220 follow-up): the mtime-independent content fingerprint
+ * (`contentFingerprint()`) of the published registry this release ships with.
+ * Unlike the count floors above — which a stale build can still clear if it
+ * happens to have "enough" of everything — this pins the EXACT registry
+ * snapshot. `computeDemoBlockers` and `scripts/check-release-trust.ts` both
+ * compare the running/checked-out fingerprint against this constant so a
+ * hosted build serving an older (or newer, unreleased) registry is reported
+ * as "counts compatible" but NOT "matching release", and safe_to_demo is
+ * false either way.
+ *
+ * Update this alongside docs/releases/v0.1.0.md whenever the registry is
+ * intentionally changed and re-released — recompute via
+ * `contentFingerprint(readRawEntries())`.
+ */
+export const EXPECTED_RELEASE_FINGERPRINT = "26b95a7a03de9ffd";
+
+/**
  * MAR-99: server-level instructions sent to AI clients on connect.
  *
  * Guides the client on which tool to call first and how to use the suite.
