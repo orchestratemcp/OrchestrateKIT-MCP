@@ -1,25 +1,26 @@
 /**
- * MAR-111: OrchestrateMCP — HTTP (Streamable HTTP) transport server.
+ * MAR-111: OrchestrateMCP HTTP (Streamable HTTP) transport server.
  *
- * Exposes the same 18 tools as the stdio server over the MCP Streamable HTTP
+ * Exposes the same tools as the stdio server over the MCP Streamable HTTP
  * protocol so remote clients (ChatGPT Actions, Claude Cowork, Cursor remote,
  * etc.) can connect without a local process spawn.
  *
  * Usage:
  *   pnpm start:http             # listens on http://127.0.0.1:3001/mcp
- *   PORT=4000 pnpm start:http   # custom port
- *   HOST=0.0.0.0 pnpm start:http   # bind all interfaces (behind ngrok/tunnel)
+ *   PORT=4000 pnpm start:http   # custom port, still loopback-only
+ *   HOST=0.0.0.0 ORCHESTRATEKIT_ALLOW_PUBLIC_BIND=1 pnpm start:http
+ *                               # bind all interfaces intentionally
  *
  * ChatGPT / OpenAI GPT Actions: point to https://<tunnel>/mcp
- * Claude Projects (Cowork):     same URL — uses POST + optional SSE GET
+ * Claude Projects (Cowork):     same URL; uses POST + optional SSE GET
  *
  * Transport mode: STATELESS (sessionIdGenerator: undefined).
- * Each request is handled independently — no persistent server-side session.
+ * Each request is handled independently; no persistent server-side session.
  * This is the correct mode for hosted / remote clients.
  *
  * Security note: this server has no auth built in. When exposing via a tunnel
  * (ngrok / Cloudflare Tunnel / etc.), add an API-key header check or OAuth
- * layer in front — the MCP spec supports bearer tokens via the Authorization
+ * layer in front. The MCP spec supports bearer tokens via the Authorization
  * header, but OrchestrateMCP has no secrets to protect (read-only advisory).
  */
 
@@ -30,20 +31,17 @@ import { SERVER_NAME, SERVER_VERSION, SERVER_INSTRUCTIONS } from "./config.js";
 import { registerTools } from "./tools/index.js";
 import { bootstrapNodeRegistry } from "./registry/nodeRegistryBootstrap.js";
 import { logger } from "./lib/logger.js";
+import { resolveHttpBindConfig } from "./lib/httpBindConfig.js";
 
-const PORT = Number(process.env.PORT ?? 3001);
-// When a hosting platform injects PORT (Railway, Render, Fly, etc.) we must
-// bind all interfaces so the platform's router can reach us. Locally (no PORT
-// injected) we keep 127.0.0.1 — the tunnel connects via loopback. HOST always
-// wins if explicitly set.
-const HOST =
-  process.env.HOST ?? (process.env.PORT ? "0.0.0.0" : "127.0.0.1");
+// The HTTP package entrypoint is local-only by default. Public interface
+// binding requires ORCHESTRATEKIT_ALLOW_PUBLIC_BIND=1.
+const { host: HOST, port: PORT } = resolveHttpBindConfig();
 
 async function main(): Promise<void> {
   bootstrapNodeRegistry();
 
   const httpServer = createServer(async (req, res) => {
-    // CORS — allow all origins (OrchestrateMCP is read-only advisory; no secrets)
+    // CORS: allow all origins (OrchestrateMCP is read-only advisory; no secrets).
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader(
@@ -58,7 +56,7 @@ async function main(): Promise<void> {
 
     const url = req.url ?? "/";
 
-    // Health check endpoint — useful for tunnel health probes and uptime monitoring.
+    // Health check endpoint: useful for tunnel health probes and uptime monitoring.
     if (url === "/" || url === "/health") {
       res.writeHead(200, { "Content-Type": "application/json" }).end(
         JSON.stringify({
@@ -72,7 +70,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    // MCP endpoint — all Streamable HTTP MCP methods (POST, GET/SSE, DELETE)
+    // MCP endpoint: all Streamable HTTP MCP methods (POST, GET/SSE, DELETE).
     if (url === "/mcp") {
       // The SDK requires a fresh McpServer + transport per request in stateless mode.
       // Reusing a stateless transport throws on the second request (message ID collision guard).
@@ -116,7 +114,7 @@ async function main(): Promise<void> {
   });
 
   // Graceful shutdown. Transports are created per-request (stateless mode),
-  // so there is no long-lived transport to close here — just the HTTP server.
+  // so there is no long-lived transport to close here; just the HTTP server.
   process.on("SIGTERM", () => {
     httpServer.close();
     process.exit(0);
