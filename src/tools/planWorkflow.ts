@@ -1916,10 +1916,10 @@ function buildCalendarNotificationQuestion(
     // (LAYER1_MAX_CHARS). The trade-off the hold costs — they get no
     // confirmation — is already stated in the option label.
     why: noSendConstraint
-      ? `Your “${signals.no_outbound.trigger ?? signals.draft_only.trigger}” constraint decides ` +
-        "this: an invitation is an email Google sends to them on your behalf."
-      : "An invitation is an email Google sends to them on your behalf; a private hold is " +
-        "visible only to you.",
+      ? `“${signals.no_outbound.trigger ?? signals.draft_only.trigger}” makes an invitation ` +
+        "an email Google sends on your behalf."
+      : "An invitation is an email Google sends on your behalf; a private hold is visible " +
+        "only to you.",
   };
 }
 
