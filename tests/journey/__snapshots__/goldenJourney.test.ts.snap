@@ -12,9 +12,9 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > comp
       "kind": "plan",
       "plan_source": "playbook",
       "recommended_next_click": {
-        "action": "see:goal_to_product_wizard.recommended_setup",
-        "id": "prepare_runtime",
-        "label": "[text]",
+        "action": "assistant:attended_dry_run_in_chat",
+        "id": "dry_run_in_chat",
+        "label": "Dry run it attended in this chat now — nothing persists, then build",
       },
       "round": 0,
       "route": [
@@ -39,6 +39,12 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > comp
       "walking_skeleton_disclosed": true,
     },
     {
+      "attended": true,
+      "kind": "dry_run",
+      "nothing_persists": true,
+      "scope_size": "medium",
+    },
+    {
       "kind": "terminal:prepare_runtime",
       "next_achievable_step": "[text]",
       "recommended_setup_availability": "requires setup",
@@ -47,6 +53,74 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > comp
     },
   ],
   "terminal": "prepare_runtime",
+  "transcript_version": "orchestratekit.golden_journey.v1",
+}
+`;
+
+exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > gmail_lead_to_crm > matches the golden transcript snapshot 1`] = `
+{
+  "final_goal": "[text]",
+  "fixture": "gmail_lead_to_crm",
+  "initial_goal": "[text]",
+  "steps": [
+    {
+      "clarifying_question_ids": [],
+      "coverage_label": "full",
+      "kind": "plan",
+      "plan_source": "playbook",
+      "recommended_next_click": {
+        "action": "assistant:attended_dry_run_in_chat",
+        "id": "dry_run_in_chat",
+        "label": "Dry run it attended in this chat now — nothing persists, then build",
+      },
+      "round": 0,
+      "route": [
+        "email_read",
+        "schema_validation",
+        "intent_classifier",
+        "email_draft",
+        "human_approval_gate",
+        "slack_notification",
+        "crm_note_write",
+        "optional_email_send",
+        "audit_log",
+      ],
+      "route_status": "validated",
+    },
+    {
+      "durable_build_goal": false,
+      "honest_disclosure": true,
+      "kind": "attended_dry_run_option",
+      "present": true,
+      "walking_skeleton_disclosed": false,
+    },
+    {
+      "attended": true,
+      "kind": "dry_run",
+      "nothing_persists": true,
+      "scope_size": "medium",
+    },
+    {
+      "all_sections_non_empty": true,
+      "brief_markdown_non_empty": true,
+      "kind": "terminal:build_brief",
+      "llm_provider": "deterministic_first",
+      "sections_present": [
+        "s0_constraints",
+        "s1_summary",
+        "s2_route",
+        "s3_worker_contracts",
+        "s4_loop_contract",
+        "s5_safety",
+        "s6_do_not_add",
+        "s7_review_loopback",
+        "s8_definition_of_done",
+        "s9_observability",
+        "s11_connect",
+      ],
+    },
+  ],
+  "terminal": "build_brief",
   "transcript_version": "orchestratekit.golden_journey.v1",
 }
 `;
@@ -93,9 +167,9 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > gold
       "kind": "plan",
       "plan_source": "composed",
       "recommended_next_click": {
-        "action": "see:goal_to_product_wizard.recommended_setup",
-        "id": "prepare_runtime",
-        "label": "[text]",
+        "action": "assistant:attended_dry_run_in_chat",
+        "id": "dry_run_in_chat",
+        "label": "Dry run it attended in this chat now — nothing persists, then build",
       },
       "round": 1,
       "route": [
@@ -120,6 +194,12 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > gold
       "walking_skeleton_disclosed": true,
     },
     {
+      "attended": true,
+      "kind": "dry_run",
+      "nothing_persists": true,
+      "scope_size": "medium",
+    },
+    {
       "kind": "terminal:prepare_runtime",
       "next_achievable_step": "[text]",
       "recommended_setup_availability": "requires setup",
@@ -128,6 +208,56 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > gold
     },
   ],
   "terminal": "prepare_runtime",
+  "transcript_version": "orchestratekit.golden_journey.v1",
+}
+`;
+
+exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > multi_agent_coder_loop > matches the golden transcript snapshot 1`] = `
+{
+  "final_goal": "[text]",
+  "fixture": "multi_agent_coder_loop",
+  "initial_goal": "[text]",
+  "steps": [
+    {
+      "clarifying_question_ids": [],
+      "coverage_label": "full",
+      "kind": "plan",
+      "plan_source": "composed",
+      "recommended_next_click": {
+        "action": "export_build_brief({ handoff_targets: ['linear'], delivery_mode: 'full' })",
+        "id": "generate_linear_project",
+        "label": "Generate the plan as Linear issues",
+      },
+      "round": 0,
+      "route": [
+        "github_trigger",
+        "loop_controller",
+        "schema_validation",
+        "codebase_scan",
+        "code_editing",
+        "test_runner",
+        "pr_summary",
+        "reviewer_notification",
+        "human_approval_gate",
+        "audit_log",
+      ],
+      "route_status": "candidate",
+    },
+    {
+      "durable_build_goal": false,
+      "honest_disclosure": true,
+      "kind": "attended_dry_run_option",
+      "present": true,
+      "walking_skeleton_disclosed": false,
+    },
+    {
+      "delivery_mode": "full",
+      "handoff_target": "linear",
+      "kind": "terminal:linear_issues",
+      "linear_handoff_non_empty": true,
+    },
+  ],
+  "terminal": "linear_issues",
   "transcript_version": "orchestratekit.golden_journey.v1",
 }
 `;
@@ -144,9 +274,9 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > one_
       "kind": "plan",
       "plan_source": "composed",
       "recommended_next_click": {
-        "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
-        "id": "build_brief",
-        "label": "Export Build brief for Codex",
+        "action": "assistant:attended_dry_run_in_chat",
+        "id": "dry_run_in_chat",
+        "label": "Run it attended in this chat now — nothing persists",
       },
       "round": 0,
       "route": [
@@ -165,26 +295,17 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > one_
       "walking_skeleton_disclosed": false,
     },
     {
-      "all_sections_non_empty": true,
-      "brief_markdown_non_empty": true,
-      "kind": "terminal:build_brief",
-      "llm_provider": "deterministic_first",
-      "sections_present": [
-        "s0_constraints",
-        "s1_summary",
-        "s2_route",
-        "s3_worker_contracts",
-        "s4_loop_contract",
-        "s5_safety",
-        "s6_do_not_add",
-        "s7_review_loopback",
-        "s8_definition_of_done",
-        "s9_observability",
-        "s11_connect",
-      ],
+      "attended": true,
+      "kind": "dry_run",
+      "nothing_persists": true,
+      "scope_size": "small",
+    },
+    {
+      "kind": "terminal:attended_dry_run",
+      "offer_save_as_routine": true,
     },
   ],
-  "terminal": "build_brief",
+  "terminal": "attended_dry_run",
   "transcript_version": "orchestratekit.golden_journey.v1",
 }
 `;

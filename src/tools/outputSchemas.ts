@@ -275,6 +275,15 @@ export const PlanWorkflowOutputShape = z
       })
       .passthrough()
       .optional(),
+    // MAR-386: deterministic Small / Medium / Large scope sizing of the task.
+    scope_assessment: z
+      .object({
+        size: z.enum(["small", "medium", "large"]),
+        drivers: z.array(z.string()),
+        recommended_path: z.string(),
+      })
+      .passthrough()
+      .optional(),
     coverage: z
       .object({
         matched: z.array(

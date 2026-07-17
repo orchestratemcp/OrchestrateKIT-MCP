@@ -319,7 +319,9 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
     expect(r.coverage.unmatched_demand).toEqual([]);
     expect(r.coverage.unsupported_supply).toEqual([]);
     expect(r.clarifying_questions).toEqual([]);
-    expect(r.goal_to_product_wizard.recommended_next_click.id).toBe("build_brief");
+    // MAR-386: medium scope → the ⭐ is the attended dry run, not the build brief.
+    expect(r.scope_assessment.size).toBe("medium");
+    expect(r.goal_to_product_wizard.recommended_next_click.id).toBe("dry_run_in_chat");
     expect(ids).toEqual(
       expect.arrayContaining([
         "email_read",
@@ -1004,8 +1006,11 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
     expect(r.summary_markdown).toContain("### How do you want to continue?");
     expect(r.summary_markdown).toContain("A) Save this plan to Linear / Obsidian / Notion");
     expect(r.summary_markdown).toContain("B) Generate a portable agent handoff prompt");
-    expect(r.summary_markdown).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
+    // MAR-386: medium scope → the dry run (E) is the ⭐, not the build prompt.
+    expect(r.summary_markdown).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor");
+    expect(r.summary_markdown).not.toMatch(/^C\).*Recommended$/m);
     expect(r.summary_markdown).toContain("D) Review or change the plan");
+    expect(r.summary_markdown).toMatch(/^E\) Run it attended in this chat now.*— Recommended$/m);
     expect(r.summary_markdown.match(/^[A-E]\) /gm)?.length).toBe(5);
     expect(r.summary_markdown).not.toContain("**Alternatives:**");
     expect(r.summary_markdown).not.toContain("**Next — pick one:**");

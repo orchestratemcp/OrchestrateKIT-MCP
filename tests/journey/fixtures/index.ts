@@ -7,11 +7,13 @@
  * Kept separate from the suite so a later OpenRouter real-LLM variant can drive
  * the identical fixtures and diff an LLM's choices against the mechanical golden.
  *
- * Coverage across the set is deliberate: the three terminal/branch shapes the
- * CURRENT `recommended_next_click` can produce are all exercised —
- *   • golden_email_calendar → answer_clarifying_questions → prepare_runtime
- *   • competitor_price_monitor → prepare_runtime (no questions)
- *   • one_shot_inbox_summary → build_brief (genuinely one-shot, not durable)
+ * Coverage across the set is deliberate: every scope-aware ⭐ terminal shape is
+ * exercised (MAR-386) —
+ *   • golden_email_calendar → answer_clarifying_questions → dry run → prepare_runtime (medium, durable)
+ *   • competitor_price_monitor → dry run → prepare_runtime (medium, durable, no questions)
+ *   • one_shot_inbox_summary → dry run → attended_dry_run terminal (small — the run IS the deliverable)
+ *   • gmail_lead_to_crm → dry run → build_brief (medium, attended runtime)
+ *   • multi_agent_coder_loop → generate_linear_project → linear_issues (large — plan it)
  */
 import type { JourneyFixture } from "../../../src/journey/mechanicalClient.js";
 
@@ -50,7 +52,27 @@ export const JOURNEY_FIXTURES: JourneyFixture[] = [
     goal: "summarize my inbox for me now",
     canned_answers: {},
     notes:
-      "Genuinely one-shot (nothing must outlive the session), so the recommended click " +
-      "is build_brief and the attended dry run carries NO walking-skeleton nag.",
+      "Genuinely one-shot / small scope (nothing must outlive the session), so the ⭐ is " +
+      "the attended dry run itself (terminal), and it carries NO walking-skeleton nag.",
+  },
+  {
+    name: "gmail_lead_to_crm",
+    goal:
+      "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, " +
+      "and alerts sales in Slack after approval.",
+    canned_answers: {},
+    notes:
+      "Medium scope but attended runtime (manual trigger), so the dry run leads to the " +
+      "build_brief deliverable rather than a runtime setup contract.",
+  },
+  {
+    name: "multi_agent_coder_loop",
+    goal:
+      "Run a coder agent and a reviewer agent in a loop until all tests pass, maximum 5 " +
+      "iterations, then open a pull request for my approval.",
+    canned_answers: {},
+    notes:
+      "Large scope (multi-agent loop), so the ⭐ is generating the plan as Linear issues — " +
+      "the plan-it path, not a single build prompt.",
   },
 ];

@@ -170,9 +170,9 @@ exports[`MAR-378 — corrected runtime-fit wizard > locks the corrected three-pr
       },
     },
     "recommended_next_click": {
-      "action": "see:goal_to_product_wizard.recommended_setup",
-      "id": "prepare_runtime",
-      "label": "Choose Slack delivery mode (approve every post or automate low-risk price-change alerts), connect the page monitor and Slack, then prepare a managed scheduled job with persistent change-detection state.",
+      "action": "assistant:attended_dry_run_in_chat",
+      "id": "dry_run_in_chat",
+      "label": "Dry run it attended in this chat now — nothing persists, then build",
     },
     "recommended_setup": {
       "action": null,
@@ -272,9 +272,9 @@ exports[`MAR-378 — corrected runtime-fit wizard > locks the corrected three-pr
       },
     },
     "recommended_next_click": {
-      "action": "see:goal_to_product_wizard.recommended_setup",
-      "id": "prepare_runtime",
-      "label": "Connect the selected document source and model provider, then test an attended read-only run in the current client.",
+      "action": "assistant:attended_dry_run_in_chat",
+      "id": "dry_run_in_chat",
+      "label": "Run it attended in this chat now — nothing persists",
     },
     "recommended_setup": {
       "action": null,

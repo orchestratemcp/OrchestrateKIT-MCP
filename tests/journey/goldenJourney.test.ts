@@ -53,7 +53,12 @@ describe("MAR-387 — golden journey (mechanical client, always picks ⭐)", () 
       });
 
       it("reaches a terminal deliverable with no unknown/unhandled option", () => {
-        expect(transcript.terminal === "build_brief" || transcript.terminal === "prepare_runtime").toBe(true);
+        expect([
+          "build_brief",
+          "prepare_runtime",
+          "attended_dry_run",
+          "linear_issues",
+        ]).toContain(transcript.terminal);
         const last = transcript.steps[transcript.steps.length - 1];
         expect(last.kind).toBe(`terminal:${transcript.terminal}`);
         // Every plan step carried a recommended click the client could follow —
@@ -97,8 +102,12 @@ describe("MAR-387 — golden journey (mechanical client, always picks ⭐)", () 
       expect(t.steps.some((s) => s.kind === "plan")).toBe(true);
       expect(t.steps.some((s) => s.kind === "attended_dry_run_option")).toBe(true);
     }
-    // The fixture set must exercise BOTH terminal shapes, not just one path.
+    // MAR-386: the fixture set must exercise every scope-aware ⭐ terminal shape —
+    // small (attended dry run), medium→build (build_brief), medium→durable
+    // (prepare_runtime), and large (linear_issues).
+    expect(seenTerminals.has("attended_dry_run")).toBe(true);
     expect(seenTerminals.has("build_brief")).toBe(true);
     expect(seenTerminals.has("prepare_runtime")).toBe(true);
+    expect(seenTerminals.has("linear_issues")).toBe(true);
   });
 });

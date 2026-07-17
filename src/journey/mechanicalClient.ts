@@ -29,6 +29,7 @@
 import type { RegistrySnapshot } from "../graph/routeComposer.js";
 import {
   planWorkflow,
+  goalHasBuildIntent,
   type PlanWorkflowOutput,
 } from "../tools/planWorkflow.js";
 import { exportBuildBrief } from "../tools/exportBuildBrief.js";
@@ -127,14 +128,51 @@ export type PrepareRuntimeJourneyStep = {
   runtime_class: string;
 };
 
+/**
+ * MAR-386: the attended dry run is now the scope-aware ⭐ for small/medium goals.
+ * The mechanical client "takes" it as a traversal step (there is no deterministic
+ * tool to call — it is an assistant action, `assistant:attended_dry_run_in_chat`)
+ * and then, for a medium goal, continues to the build deliverable; for a small
+ * goal the dry run IS the deliverable.
+ */
+export type DryRunTraversalStep = {
+  kind: "dry_run";
+  attended: true;
+  nothing_persists: true;
+  scope_size: ScopeSize;
+};
+
+/** Small-scope terminal: the dry run is the deliverable; save-as-routine offered. */
+export type AttendedDryRunTerminalStep = {
+  kind: "terminal:attended_dry_run";
+  offer_save_as_routine: true;
+};
+
+/** Large-scope terminal: the plan becomes tracked Linear work (export_build_brief). */
+export type LinearIssuesTerminalStep = {
+  kind: "terminal:linear_issues";
+  handoff_target: "linear";
+  delivery_mode: "full";
+  linear_handoff_non_empty: true;
+};
+
 export type JourneyStep =
   | PlanJourneyStep
   | AnswerJourneyStep
   | DryRunJourneyStep
+  | DryRunTraversalStep
   | BuildBriefJourneyStep
-  | PrepareRuntimeJourneyStep;
+  | PrepareRuntimeJourneyStep
+  | AttendedDryRunTerminalStep
+  | LinearIssuesTerminalStep;
 
-export type JourneyTerminal = "build_brief" | "prepare_runtime";
+export type ScopeSize = "small" | "medium" | "large";
+
+export type JourneyTerminal =
+  | "build_brief"
+  | "prepare_runtime"
+  | "attended_dry_run"
+  | "linear_issues";
 
 export type JourneyTranscript = {
   transcript_version: "orchestratekit.golden_journey.v1";
@@ -176,7 +214,12 @@ function planStep(p: PlanWorkflowOutput, round: number): PlanJourneyStep {
  */
 function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): DryRunJourneyStep {
   const md = p.summary_markdown;
-  const durable = p.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline;
+  // MAR-385's actual predicate for the walking-skeleton disclosure: the runtime
+  // must outlive the session AND the goal expresses build intent. (A durable goal
+  // phrased as a one-off task — e.g. "run agents in a loop" — earns no nag.)
+  const durableBuildGoal =
+    p.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline &&
+    goalHasBuildIntent(p.goal);
   const fail = (why: string): never => {
     throw new Error(`[golden-journey:${fixture}] attended dry-run invariant: ${why}`);
   };
@@ -186,7 +229,7 @@ function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): DryRunJou
   if (!md.includes(ATTENDED_DRY_RUN_MARKERS.no_durable_agent)) fail("dry-run option omits the 'no saved agent' framing");
 
   let walkingSkeleton = false;
-  if (durable) {
+  if (durableBuildGoal) {
     if (
       !md.includes(ATTENDED_DRY_RUN_MARKERS.walking_skeleton) ||
       !md.includes(ATTENDED_DRY_RUN_MARKERS.deliverable)
@@ -195,14 +238,14 @@ function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): DryRunJou
     }
     walkingSkeleton = true;
   } else if (md.includes("walking skeleton") || md.includes("export_build_brief")) {
-    fail("genuinely one-shot goal was nagged toward export_build_brief");
+    fail("non-durable / one-shot goal was nagged toward export_build_brief");
   }
 
   return {
     kind: "attended_dry_run_option",
     present: true,
     honest_disclosure: true,
-    durable_build_goal: durable,
+    durable_build_goal: durableBuildGoal,
     walking_skeleton_disclosed: walkingSkeleton,
   };
 }
@@ -288,6 +331,56 @@ function followPrepareRuntime(p: PlanWorkflowOutput, fixture: string): PrepareRu
 }
 
 /**
+ * Follow the `generate_linear_project` recommended click (large scope): export
+ * the plan as Linear issues via the existing full-delivery build brief, and
+ * assert the Linear handoff is present and non-empty.
+ */
+function followLinearIssues(p: PlanWorkflowOutput, fixture: string): LinearIssuesTerminalStep {
+  const brief = exportBuildBrief({
+    goal: p.goal,
+    plan_source: p.plan_source,
+    route_status: p.route_status,
+    recommended_route: p.recommended_route,
+    safety_review: p.safety_review,
+    automation_clearance: p.automation_clearance,
+    enforced_approval_gates: p.enforced_approval_gates,
+    untested_edges: p.untested_edges,
+    avoid_when_violations: p.avoid_when_violations,
+    evals_to_add: p.evals_to_add,
+    design_notes: p.design_notes,
+    worker_pipeline: p.worker_pipeline,
+    loop_guidance: p.loop_guidance,
+    approval_gate_advisory: p.approval_gate_advisory,
+    handoff_targets: ["linear"],
+    delivery_mode: "full",
+    llm_provider: MECHANICAL_LLM_PROVIDER,
+    generated_at: FIXED_GENERATED_AT,
+  });
+  if ("status" in brief && (brief as { status?: string }).status === "needs_input") {
+    throw new Error(
+      `[golden-journey:${fixture}] Linear export returned needs_input despite a fixed provider`,
+    );
+  }
+  const linear = (brief as { handoffs?: { linear?: string } }).handoffs?.linear;
+  if (typeof linear !== "string" || linear.trim().length === 0) {
+    throw new Error(`[golden-journey:${fixture}] Linear handoff is missing or empty`);
+  }
+  return {
+    kind: "terminal:linear_issues",
+    handoff_target: "linear",
+    delivery_mode: "full",
+    linear_handoff_non_empty: true,
+  };
+}
+
+/** The planner's runtime-first rule, mirrored so the client can pick the
+ * post-dry-run build deliverable (prepare_runtime vs build_brief) for medium. */
+function isRuntimeFirst(p: PlanWorkflowOutput): boolean {
+  const rr = p.goal_to_product_wizard.runtime_requirements;
+  return rr.must_run_while_user_offline || rr.trigger_mode === "interactive";
+}
+
+/**
  * Walk one golden journey mechanically and return its transcript. Pure: no LLM,
  * no network, no mutation of inputs. Throws (fails loudly) on any of: an
  * unanswered clarifying question, a clarifying loop that never converges, a
@@ -337,8 +430,35 @@ export function runMechanicalJourney(
   steps.push(assertAttendedDryRun(current, fixture.name));
 
   const click = current.goal_to_product_wizard.recommended_next_click;
+  const scopeSize = current.scope_assessment.size;
   let terminal: JourneyTerminal;
-  if (click.id === "build_brief") {
+  if (click.id === "dry_run_in_chat") {
+    // MAR-386: the scope-aware ⭐. Take the attended dry run as a traversal step…
+    steps.push({
+      kind: "dry_run",
+      attended: true,
+      nothing_persists: true,
+      scope_size: scopeSize,
+    });
+    if (scopeSize === "small") {
+      // …a genuinely small task: the dry run IS the deliverable. Offer save-as-routine.
+      steps.push({ kind: "terminal:attended_dry_run", offer_save_as_routine: true });
+      terminal = "attended_dry_run";
+    } else {
+      // …a medium task: after the dry run, the build deliverable follows —
+      // prepare_runtime when the plan must outlive the session, else build_brief.
+      if (isRuntimeFirst(current)) {
+        steps.push(followPrepareRuntime(current, fixture.name));
+        terminal = "prepare_runtime";
+      } else {
+        steps.push(followBuildBrief(current, fixture.name));
+        terminal = "build_brief";
+      }
+    }
+  } else if (click.id === "generate_linear_project") {
+    steps.push(followLinearIssues(current, fixture.name));
+    terminal = "linear_issues";
+  } else if (click.id === "build_brief") {
     steps.push(followBuildBrief(current, fixture.name));
     terminal = "build_brief";
   } else if (click.id === "prepare_runtime") {
