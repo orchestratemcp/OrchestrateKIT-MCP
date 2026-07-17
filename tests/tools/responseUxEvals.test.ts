@@ -111,6 +111,30 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     }
   });
 
+  // LAYER1_MAX_CHARS was raised 3600 → 3700 to fit the calendar_notification
+  // question. The golden prompt is the goal that forced the raise (long goal +
+  // the question), so it — not just HEAVY_GOAL — is what keeps the new headroom
+  // honest: without this, the bound could drift up unnoticed for the one prompt
+  // that actually spends it.
+  it("the P0-02 golden prompt stays under the brevity bound WITH the notification question", () => {
+    const GOLDEN =
+      "Build an email and calendar assistant that reads unread Gmail meeting requests, " +
+      "checks my real Google Calendar, drafts a reply with two available 30-minute slots, " +
+      "and only after I approve creates one Calendar event and one Gmail draft. Never send " +
+      "the email. I will be present for approval and I want visible run logs.";
+    for (const depth of ["guided", "brief"] as const) {
+      const r = planWorkflow(
+        { goal: GOLDEN, must_have_capabilities: [], must_avoid: [], output_depth: depth },
+        registry,
+      );
+      expect(r.clarifying_questions.map((q) => q.id)).toContain("calendar_notification");
+      const len = r.summary_markdown.length;
+      expect(len, `${depth} length ${len} <= ${LAYER1_MAX_CHARS}`).toBeLessThanOrEqual(
+        LAYER1_MAX_CHARS,
+      );
+    }
+  });
+
   it("Layer-1 shows a user-facing continuation menu, with structured menu kept in JSON", () => {
     const md = plan("guided").summary_markdown;
     expect(md).toContain("### How do you want to continue?");

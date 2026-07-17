@@ -27,7 +27,26 @@ export type GoogleScopeCatalogEntry = {
   scopes: readonly string[];
   /** Why this scope set is sufficient, surfaced next to it in rendered output. */
   note?: string;
+  /**
+   * What the provider DOES when this scope is exercised, beyond the write the
+   * user asked for. A side effect is not a permission: it does not widen the
+   * grant and cannot be requested or withheld at consent time, so it must never
+   * be rendered in a scope list (a reader who sees it there reasonably concludes
+   * it is a checkbox on the consent screen). Kept next to the scope because the
+   * two are read together — the scope says what the agent may do, this says what
+   * the provider does to other people when it does it.
+   */
+  side_effect?: string;
 };
+
+/**
+ * Google emails every attendee when an event is created or updated, unless the
+ * call opts out. This is the disclosure behind the `calendar_notification`
+ * clarifying question (plan_workflow) and the calendar_write build gotcha —
+ * both derive from this constant so the wording cannot drift.
+ */
+export const CALENDAR_INVITE_SIDE_EFFECT =
+  "Creating an event with attendees sends email invitations automatically — add sendUpdates=none to suppress";
 
 /**
  * Scopes required per registry component_id. Read-only components get
@@ -51,6 +70,7 @@ export const GOOGLE_SCOPE_CATALOG: Readonly<Record<string, GoogleScopeCatalogEnt
   },
   calendar_write: {
     scopes: [CALENDAR_EVENTS_SCOPE],
+    side_effect: CALENDAR_INVITE_SIDE_EFFECT,
   },
 };
 

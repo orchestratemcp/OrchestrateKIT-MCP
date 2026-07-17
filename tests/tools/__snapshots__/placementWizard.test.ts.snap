@@ -61,9 +61,9 @@ exports[`MAR-378 — corrected runtime-fit wizard > locks the corrected three-pr
       },
     },
     "recommended_next_click": {
-      "action": "see:goal_to_product_wizard.recommended_setup",
-      "id": "prepare_runtime",
-      "label": "Connect Gmail, Google Calendar, and a model provider, choose a supported durable runtime, and prepare a provider-neutral approval inbox. Keep sending disabled.",
+      "action": "assistant:ask_clarifying_questions",
+      "id": "answer_clarifying_questions",
+      "label": "Answer the quick questions",
     },
     "recommended_setup": {
       "action": null,

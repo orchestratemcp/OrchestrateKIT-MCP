@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "report_fingerprint": "b302b97a81286cc8",
+  "report_fingerprint": "15bbf239cf4dfe8e",
   "methodology": {
     "name": "OrchestrateMCP public registry conformance benchmark",
     "kind": "deterministic_registry_conformance",
@@ -24,7 +24,7 @@
   "provenance": {
     "package_name": "orchestratekit-mcp",
     "package_version": "0.1.0",
-    "registry_fingerprint": "825e5120f319f842",
+    "registry_fingerprint": "531d33b7039db3ca",
     "registry_scope": "public_non_beta",
     "registry_build_mode": "source",
     "registry_counts": {

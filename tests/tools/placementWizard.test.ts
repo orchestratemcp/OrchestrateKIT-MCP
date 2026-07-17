@@ -72,7 +72,13 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
     expect(wizard.trigger_explanation.label).toContain("Gmail");
     expect(wizard.recommended_setup.action).toBeNull();
     expect(wizard.recommended_setup.blocker).toContain("MCP worker is stateless");
-    expect(wizard.recommended_next_click.id).toBe("prepare_runtime");
+    // Prompt A asks for "the calendar invite" AND says "I do not want it to send
+    // anything without me" — an invite is a send, so the notification fork is
+    // open and pickRecommendedNextClick puts answering it ahead of runtime prep
+    // (the standing rule for any clarifying question, not new behavior here).
+    // MAR-378's runtime-fit contract above is unchanged; only the next click is.
+    expect(result.clarifying_questions.map((q) => q.id)).toContain("calendar_notification");
+    expect(wizard.recommended_next_click.id).toBe("answer_clarifying_questions");
     expect(result.summary_markdown).toContain("Managed background worker / durable workflow");
     expect(result.summary_markdown).toContain("provider-neutral");
     expect(result.summary_markdown).toContain("Email sending: excluded per your constraint");
