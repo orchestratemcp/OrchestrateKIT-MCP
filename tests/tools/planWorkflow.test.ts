@@ -1006,7 +1006,7 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
     expect(r.summary_markdown).toContain("B) Generate a portable agent handoff prompt");
     expect(r.summary_markdown).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
     expect(r.summary_markdown).toContain("D) Review or change the plan");
-    expect(r.summary_markdown.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(r.summary_markdown.match(/^[A-E]\) /gm)?.length).toBe(5);
     expect(r.summary_markdown).not.toContain("**Alternatives:**");
     expect(r.summary_markdown).not.toContain("**Next — pick one:**");
     expect(r.summary_markdown).not.toContain("Show technical plan");

@@ -502,6 +502,8 @@ export type ClarifyingQuestion = {
 /** Stable identifiers for the standardized next-action menu (MAR-226). */
 export type NextActionId =
   | "show_technical_plan"
+  // MAR-385: the attended in-chat dry run named as a first-class option.
+  | "dry_run_in_chat"
   | "generate_prompt"
   | "export_build_brief"
   | "wire_integrations"
@@ -1643,6 +1645,41 @@ function buildSuggestedNextActions(
 // ─────────────────────────── MAR-226: next-action menu ───────────────────────
 
 /**
+ * MAR-385: goal phrases that ask to BUILD/STAND UP a durable agent rather than
+ * run a single task once. Used only to decide whether an in-chat run should be
+ * disclosed as a dry-run/walking skeleton (with `export_build_brief` as the real
+ * deliverable) — it invents no matcher vocabulary and never changes the route.
+ */
+const BUILD_INTENT_SIGNALS = [
+  "build", "create an agent", "create an assistant", "create a bot",
+  "set up", "set-up", "make an agent", "stand up", "build an agent",
+  "build me", "an agent that", "an assistant that",
+];
+function goalHasBuildIntent(goal: string): boolean {
+  return anySignal(goal.toLowerCase(), BUILD_INTENT_SIGNALS);
+}
+
+/**
+ * MAR-385: the honest disclosure for running a plan attended in chat right now.
+ * `buildDeliverable` is true only when the goal asks to build a durable agent
+ * AND the runtime recommendation is a durable class (must outlive the session) —
+ * in that case the chat run is a walking skeleton and `export_build_brief` is the
+ * actual deliverable. For a genuinely one-shot / attended goal the base line
+ * stands alone and never nags toward `export_build_brief`. `briefRef` names how
+ * the surrounding menu refers to the build-brief step (e.g. `" (C)"`).
+ */
+function dryRunMenuLine(letter: string, buildDeliverable: boolean, briefRef: string): string {
+  const base =
+    `${letter}) Run it attended in this chat now — one-shot, nothing persists: ` +
+    `no saved agent, no trigger, approval is this chat.`;
+  if (!buildDeliverable) return base;
+  return (
+    base +
+    ` A walking skeleton, not the build; export_build_brief${briefRef} is the deliverable.`
+  );
+}
+
+/**
  * MAR-226: the standardized, machine-consumable next-action menu. A stable,
  * enumerated set with consistent `id`s — each `action` maps to an existing tool
  * call, an `output_depth` re-call, or an assistant directive — context-gated by
@@ -1665,6 +1702,19 @@ export function buildNextActionMenu(
     id: "show_technical_plan",
     label: "Show the full technical plan (steps, model tiers, credentials, build team)",
     action: 'plan_workflow({ output_depth: "technical" })',
+  });
+
+  // MAR-385: name the attended in-chat run explicitly so clients stop silently
+  // substituting chat-execution for building. A chat run reads real data and
+  // produces the real approval card, but nothing persists — for a build goal it
+  // is a walking skeleton, and export_build_brief remains the deliverable.
+  menu.push({
+    id: "dry_run_in_chat",
+    label:
+      "Run this plan attended in this chat now (one-shot dry run) — nothing persists, " +
+      "no trigger, approval is this chat. For a build goal this is a walking skeleton, " +
+      "not a durable agent; offer export_build_brief afterward.",
+    action: "assistant:attended_dry_run_in_chat",
   });
 
   // Build path — gated by build_target so only the relevant one shows.
@@ -2352,7 +2402,7 @@ function renderOperatingBundleCompact(wizard: GoalToProductWizard): string[] {
     `- **Control surface:** ${wizard.control_surface.recommended.label} _(${wizard.control_surface.recommended.availability})_ — ${wizard.control_surface.recommended.appropriate_when}`,
     `- **Interaction surface:** ${wizard.interaction_surface.recommended.label} _(${wizard.interaction_surface.recommended.availability})_ — ${wizard.interaction_surface.recommended.appropriate_when}`,
     `- **Trigger:** ${wizard.trigger_explanation.label} — ${wizard.trigger_explanation.what_wakes_it_up}`,
-    `- **Install availability:** ${installAvailability}. ${setup.blocker ?? ""}`,
+    `- **Install availability:** ${installAvailability}.`,
     `- **Next achievable step:** ${setup.next_achievable_step}`,
     ``,
   ];
@@ -3715,7 +3765,12 @@ function buildProductCardNotes(
   return notes.slice(0, 3);
 }
 
-function renderProductCardContinueMenu(wizard: GoalToProductWizard): string[] {
+function renderProductCardContinueMenu(wizard: GoalToProductWizard, goal: string): string[] {
+  // MAR-385: a chat run is a dry-run/walking skeleton only when the goal asks to
+  // build a durable agent AND the runtime must outlive the session; a genuinely
+  // attended/one-shot goal (client-chat runtime) is never nagged toward the brief.
+  const buildDeliverable =
+    wizard.runtime_requirements.must_run_while_user_offline && goalHasBuildIntent(goal);
   if (wizard.recommended_next_click.id === "prepare_runtime") {
     return [
       `### How do you want to continue?`,
@@ -3724,6 +3779,7 @@ function renderProductCardContinueMenu(wizard: GoalToProductWizard): string[] {
       `B) Review or change Runtime, Control surface, Interaction surface, or Trigger`,
       `C) Show the technical plan and deployment alternatives`,
       `D) Save this plan to Linear / Obsidian / Notion`,
+      dryRunMenuLine("E", buildDeliverable, ""),
       ``,
     ];
   }
@@ -3734,6 +3790,7 @@ function renderProductCardContinueMenu(wizard: GoalToProductWizard): string[] {
     `B) Generate a portable agent handoff prompt`,
     `C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended`,
     `D) Review or change the plan`,
+    dryRunMenuLine("E", buildDeliverable, " (C)"),
     ``,
   ];
 }
@@ -3874,11 +3931,11 @@ function buildGuidedPlanMarkdown(
     lines.push(...renderClarifyingQuestions(clarifyingQuestions, "compact"));
   }
 
-  lines.push(...renderProductCardContinueMenu(goalToProductWizard));
+  lines.push(...renderProductCardContinueMenu(goalToProductWizard, goal));
 
   lines.push(
     `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +
-      `For full details, call \`output_depth: "technical"\`. The exported build brief includes setup and monitoring details.`,
+      `For full details, call \`output_depth: "technical"\`.`,
   );
 
   return lines.join("\n");
@@ -4790,7 +4847,9 @@ export function registerPlanWorkflow(server: McpServer): void {
         "get_stack_recommendation → review_workflow_design. " +
         "Prefer this as the entry point for designing a new AI workflow. " +
         "IMPORTANT: render the returned `summary_markdown` to the user VERBATIM — do not " +
-        "paraphrase or summarize it, and do not drop the A) B) C) D) continuation menu at the end.",
+        "paraphrase or summarize it, and do not drop the A) B) C) D) E) continuation menu at the end. " +
+        "If you run the plan in-chat via connectors, declare it as the attended dry-run option (E) — " +
+        "nothing persists — and offer `export_build_brief` afterward; a chat run never fulfills a build goal.",
       inputSchema: InputShape,
       outputSchema: PlanWorkflowOutputShape,
       annotations: { readOnlyHint: true, openWorldHint: false },

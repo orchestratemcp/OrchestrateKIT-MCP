@@ -626,6 +626,11 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "label": "Show the full technical plan (steps, model tiers, credentials, build team)",
     },
     {
+      "action": "assistant:attended_dry_run_in_chat",
+      "id": "dry_run_in_chat",
+      "label": "[text]",
+    },
+    {
       "action": "assistant:generate_prompt",
       "id": "generate_prompt",
       "label": "Generate a portable agent handoff prompt",
@@ -1210,6 +1215,11 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "action": "plan_workflow({ output_depth: "technical" })",
       "id": "show_technical_plan",
       "label": "Show the full technical plan (steps, model tiers, credentials, build team)",
+    },
+    {
+      "action": "assistant:attended_dry_run_in_chat",
+      "id": "dry_run_in_chat",
+      "label": "[text]",
     },
     {
       "action": "assistant:generate_prompt",
@@ -2041,6 +2051,11 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "action": "plan_workflow({ output_depth: "technical" })",
       "id": "show_technical_plan",
       "label": "Show the full technical plan (steps, model tiers, credentials, build team)",
+    },
+    {
+      "action": "assistant:attended_dry_run_in_chat",
+      "id": "dry_run_in_chat",
+      "label": "[text]",
     },
     {
       "action": "assistant:generate_prompt",
