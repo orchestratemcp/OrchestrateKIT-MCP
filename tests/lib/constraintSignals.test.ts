@@ -87,6 +87,19 @@ describe("planner predicates re-exported unchanged (pure refactor)", () => {
     expect(hasWriteConstraint("post the summary to Slack")).toBe(false);
   });
 
+  it("hasWriteConstraint does NOT fire on send prohibitions — no-send is no_outbound, not read-only", () => {
+    // "Never send the email" forbids one outbound effect while explicitly
+    // requesting two writes (calendar event + Gmail draft). Classifying it as
+    // read-only made the planner warn against the writes the user asked for
+    // (live golden-prompt finding, 2026-07-17).
+    expect(
+      hasWriteConstraint("after I approve, create the calendar event and the draft. Never send the email."),
+    ).toBe(false);
+    expect(hasWriteConstraint("summarize the inbox for me, no emails sent to anyone")).toBe(false);
+    // …while a genuine read-only constraint still counts.
+    expect(hasWriteConstraint("review the PR, read-only, never write anything")).toBe(true);
+  });
+
   it("hasUnattendedWaiver yields to an explicit approval requirement (MAR-229)", () => {
     expect(hasUnattendedWaiver("fully automated, no gate")).toBe(true);
     expect(hasUnattendedWaiver("fully automated, but a human must approve each send")).toBe(false);

@@ -15,6 +15,12 @@
  * Explicit "read-only / no-write" constraint phrases (MAR-142). Used by the
  * planner to warn when a write-bearing playbook is routed for a constrained
  * goal, and by the brief's §0.
+ *
+ * Send prohibitions ("never send", "no email sent") are NOT in this table:
+ * they are the no_outbound class (NO_OUTBOUND_SIGNALS) and are handled
+ * structurally by outboundComponentsExcludedByConstraints. Treating them as
+ * read-only made "Never send the email" warn against the calendar/draft
+ * writes the goal explicitly asked for (live golden-prompt finding, 2026-07-17).
  */
 export const WRITE_CONSTRAINT_SIGNALS = [
   "read-only",
@@ -23,9 +29,6 @@ export const WRITE_CONSTRAINT_SIGNALS = [
   "no write",
   "no writes",
   "no database update",
-  "no emails sent",
-  "no email sent",
-  "never send",
 ];
 
 export function hasWriteConstraint(goal: string): boolean {
