@@ -13,6 +13,12 @@ const CREDENTIALED_EXTERNAL_COMPONENTS = new Set([
   "calendar_write",
   "crm_note_write",
   "data_scraper",
+  // P0-04: the draft save calls Gmail with an expirable OAuth grant, and
+  // gmail_draft_write__safer_with__auth_failure_handler says so in the registry.
+  // Without it here the reviewer contradicts that edge — it would warn about
+  // calendar_write on the email+calendar route while staying silent about the
+  // mailbox write standing right next to it.
+  "gmail_draft_write",
 ]);
 
 /**

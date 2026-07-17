@@ -1,0 +1,12 @@
+id: gmail_draft_write__safer_with__auth_failure_handler
+from: gmail_draft_write
+to: auth_failure_handler
+relation: safer_with
+status: published
+reason: The draft save uses a Gmail token that expires or loses the compose scope. Without a credential-failure path the approved draft is silently lost after the user has already approved it.
+severity: medium
+notes: Show the failing scope (gmail.compose) in the alert so the operator re-grants the right permission. Never widen the retry to gmail.send — a save failure is not a reason to transmit.
+conditions: []
+tested: true
+test_refs:
+  - "tests/graph/edgeValidation.test.ts > edge: gmail_draft_write__safer_with__auth_failure_handler"

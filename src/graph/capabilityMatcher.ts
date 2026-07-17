@@ -73,6 +73,7 @@ const COMPONENT_DOMAINS: Record<string, Domain[]> = {
   // email_calendar
   email_read: ["email_calendar"],
   email_draft: ["email_calendar"],
+  gmail_draft_write: ["email_calendar"],
   optional_email_send: ["email_calendar"],
   calendar_lookup: ["email_calendar"],
   calendar_write: ["email_calendar"],
@@ -886,6 +887,11 @@ function suppressEmailDraftForDocumentSource(
   if (!DOCUMENT_SOURCE_TOKENS.some((t) => goalLower.includes(t))) return;
   if (EMAIL_CORRESPONDENCE_INTENT.some((t) => goalLower.includes(t))) return;
   domainAllowed.delete("email_draft");
+  // P0-04: the draft SAVE follows the draft. A document-extraction goal with no
+  // correspondence intent has nothing to persist to a mailbox, so suppressing
+  // email_draft while leaving its write-side sibling reachable would just move
+  // the hallucinated write one step downstream.
+  domainAllowed.delete("gmail_draft_write");
   domainAllowed.delete("optional_email_send");
   // Documents arrive as inbox attachments — the source is email + PDF, not a
   // website, so the web scraper and the web-page monitor are both noise here
@@ -1214,6 +1220,20 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   inbox: ["email_read"],
   reply: ["email_draft"],
   draft: ["email_draft"],
+  // P0-04: gmail_draft_write — the mailbox WRITE that persists the composed
+  // reply. Every phrase names the drafts destination ("in gmail drafts", "as a
+  // draft", "drafts folder"), never the act of composing: a bare "draft a
+  // reply" is email_draft alone and must stay that way, because composing text
+  // is not a request to write into the mailbox. "gmail draft" also covers
+  // "gmail drafts" by substring.
+  "gmail draft": ["gmail_draft_write"],
+  "draft in gmail": ["gmail_draft_write"],
+  "drafts folder": ["gmail_draft_write"],
+  "as a draft": ["gmail_draft_write"],
+  "as draft": ["gmail_draft_write"],
+  "save the draft": ["gmail_draft_write"],
+  "saved draft": ["gmail_draft_write"],
+  "save the reply": ["gmail_draft_write"],
   calendar: ["calendar_lookup", "calendar_write"],
   meeting: ["calendar_lookup", "calendar_write"],
   slack: ["slack_notification"],
@@ -1695,6 +1715,14 @@ const HINT_ONLY_COMPONENTS = new Set([
   // KEYWORD_HINTS on "calendar" and "meeting".
   "calendar_lookup",
   "calendar_write",
+  // P0-04: gmail_draft_write shares the single most ambient token in the email
+  // domain — "draft" — with email_draft, plus "write"/"save"/"gmail" from its
+  // id and summary. Left fuzzy-matchable it would attach a mailbox WRITE to
+  // every goal that merely composes text ("draft a reply", "draft a post"),
+  // which is precisely the hallucinated-external-write class the MAR-140
+  // calendar_write entry above exists to prevent. Only the explicit
+  // "save it in gmail drafts" family of hints below should reach it.
+  "gmail_draft_write",
   // review_draft_composer and multi_variant_generator are composing/variant tools
   // that only belong in goals that explicitly mention staging/reviewing drafts or
   // A/B variants. Their id/summary tokens ("draft", "composer", "variant",

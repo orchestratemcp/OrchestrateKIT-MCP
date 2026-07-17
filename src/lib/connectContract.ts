@@ -113,7 +113,15 @@ const GMAIL_OAUTH_SCOPES = googleScopesForComponents(["email_read", "email_draft
 const CALENDAR_READ_SCOPE = GOOGLE_SCOPE_CATALOG.calendar_lookup.scopes[0];
 const CALENDAR_WRITE_SCOPE = GOOGLE_SCOPE_CATALOG.calendar_write.scopes[0];
 
-const GMAIL_COMPONENTS = ["email_read", "optional_email_send", "email_send"];
+const GMAIL_COMPONENTS = [
+  "email_read",
+  // P0-04: the post-approval draft save is a real Gmail write, so a route
+  // carrying it needs the Gmail credential set even when no send component is
+  // present. Its scope is still only gmail.compose (credentialScopeCatalog).
+  "gmail_draft_write",
+  "optional_email_send",
+  "email_send",
+];
 const CALENDAR_COMPONENTS = ["calendar_lookup", "calendar_write"];
 const SLACK_COMPONENTS = ["slack_notification"];
 const CRM_COMPONENTS = ["crm_note_write", "crm_update"];
