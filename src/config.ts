@@ -118,8 +118,13 @@ than guessing.
   conversation preamble.
 - After calling \`plan_workflow\`, render its \`summary_markdown\` to the user
   VERBATIM — do not paraphrase, summarize, or compress it, and do not drop the
-  "How do you want to continue?" A) B) C) D) menu at the end. That menu is the
+  "How do you want to continue?" A) B) C) D) E) menu at the end. That menu is the
   product; a paraphrase that collapses it into prose breaks the experience.
+- If you execute the plan in-chat via connectors, you MUST declare it as the
+  attended dry-run option (E) — a one-shot walking skeleton where nothing
+  persists and there is no trigger — and offer \`export_build_brief\` afterward.
+  A chat run never fulfills a "build" goal on its own; the agent dies with the
+  session.
 - OrchestrateMCP is a design-time advisor. It does NOT execute workflows,
   make API calls, or modify any external system.
 - Always prefer \`plan_workflow\` as the primary entry point. Only call

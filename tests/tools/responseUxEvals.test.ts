@@ -58,7 +58,10 @@ function expectTargetProductCard(md: string) {
   expect(md).toContain("**Key safeguard:**");
   expect(md).toContain("**Build controls:**");
   expect(md).toContain("### How do you want to continue?");
-  expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+  expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
+  // MAR-385: the attended in-chat dry run is always a named option, never improvised.
+  expect(md).toMatch(/^E\) Run it attended in this chat now/m);
+  expect(md).toContain("one-shot, nothing persists");
   if (/^A\) Prepare .+ — Next achievable step$/m.test(md)) {
     expect(md).toMatch(/^A\) Prepare .+ — Next achievable step$/m);
     expect(md).toContain("B) Review or change Runtime, Control surface, Interaction surface, or Trigger");
@@ -142,7 +145,8 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     expect(md).toContain("B) Generate a portable agent handoff prompt");
     expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
     expect(md).toContain("D) Review or change the plan");
-    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(md).toContain("E) Run it attended in this chat now — one-shot, nothing persists");
+    expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
     expect(md).not.toContain("**Alternatives:**");
     expect(md).not.toContain("**Next — pick one:**");
     expect(md).not.toContain("Show technical plan");
@@ -420,7 +424,7 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
     expect(md).toContain("B) Generate a portable agent handoff prompt");
     expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
     expect(md).toContain("D) Review or change the plan");
-    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
     expect(md).not.toContain("**Next — pick one:**");
     expect(md).not.toContain("**Next:");
     expect(md).not.toContain("Show technical plan");
@@ -507,7 +511,7 @@ describe("MAR-346 - first-run honesty for weak composed matches", () => {
     expect(md).toContain('"I want something that checks competitor prices every morning"');
     expect(md).toContain('"tells sales if anything changed"');
     expect(md).not.toContain("No external product connection required");
-    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
     expect(r.next_action_menu.length).toBeGreaterThan(3);
   });
 
@@ -538,7 +542,7 @@ describe("MAR-346 - first-run honesty for weak composed matches", () => {
     expect(md).toContain("**Not covered by the registry:**");
     expect(md).toContain('"When a PR opens"');
     expect(md).toContain('"review it for risky changes but don\'t edit anything"');
-    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
     expect(r.next_action_menu.length).toBeGreaterThan(3);
   });
 });
@@ -607,7 +611,7 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
       expect(md).toContain("**Key safeguard:**");
       expect(md).toContain("**Build controls:**");
       expect(md).toContain("### How do you want to continue?");
-      expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+      expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
       expect(md).not.toContain("**Next — pick one:**");
       expect(md).not.toContain("**Next:");
       expect(md).not.toContain("Show technical plan");
@@ -1019,5 +1023,84 @@ describe("MAR-350 — Connect line carries no invoice/ERP leak on unrelated goal
     // …and the authored-for-invoices label never appears as a bare "PO / ERP"
     // connection even on the goal it was written for.
     expect(connect).not.toMatch(/PO \/ ERP|ERP read source/i);
+  });
+});
+
+/**
+ * MAR-385 — the attended in-chat dry run is a named continuation option.
+ *
+ * The MAR-363 demo takes failed because the menu had no option naming the
+ * ephemeral chat run, so the client improvised it: executed the whole workflow
+ * in chat via connectors, never called export_build_brief, and the "agent" died
+ * with the session. This gives that run an honest name (E) — nothing persists,
+ * no trigger, approval is this chat — and, for a build goal on a durable
+ * runtime, states plainly that a chat run is a walking skeleton and
+ * export_build_brief is the deliverable. A genuinely one-shot goal is never
+ * nagged toward the brief.
+ */
+describe("MAR-385 — attended in-chat dry run is a named option, honest about scope", () => {
+  // Durable + build intent → chat run is a walking skeleton, brief is the deliverable.
+  const GOLDEN =
+    "Build an email and calendar assistant that reads unread Gmail meeting requests, " +
+    "checks my real Google Calendar, drafts a reply with two available 30-minute slots, " +
+    "and only after I approve creates one Calendar event and one Gmail draft. Never send " +
+    "the email. I will be present for approval and I want visible run logs.";
+  const COMPETITOR =
+    "Build an agent that checks 5 competitor pages every morning, detects price changes, " +
+    "and sends me a Slack summary. I want to approve before anything external is changed.";
+  // Genuinely one-shot / attended — a chat run IS the deliverable, not a rehearsal.
+  const ONE_SHOT = "summarize my inbox for me now";
+
+  function planGoal(goal: string) {
+    return planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+      registry,
+    );
+  }
+
+  it("the rendered menu always names the attended dry run with its honest disclosure", () => {
+    for (const goal of [GOLDEN, COMPETITOR, ONE_SHOT, HEAVY_GOAL]) {
+      const md = planGoal(goal).summary_markdown;
+      expect(md, goal.slice(0, 30)).toMatch(/^E\) Run it attended in this chat now/m);
+      expect(md).toContain("one-shot, nothing persists");
+      expect(md).toContain("no saved agent, no trigger, approval is this chat");
+    }
+  });
+
+  it("next_action_menu carries a stable dry_run_in_chat entry that offers export_build_brief", () => {
+    const menu = planGoal(GOLDEN).next_action_menu;
+    const entry = menu.find((a) => a.id === "dry_run_in_chat");
+    expect(entry).toBeDefined();
+    expect(entry!.label).toContain("one-shot dry run");
+    expect(entry!.label).toContain("nothing persists");
+    expect(entry!.label).toContain("export_build_brief");
+    expect(entry!.action).toBe("assistant:attended_dry_run_in_chat");
+  });
+
+  it("a build goal on a durable runtime states the chat run is a walking skeleton, not the build", () => {
+    for (const goal of [GOLDEN, COMPETITOR]) {
+      const r = planGoal(goal);
+      // premise: the plan itself says this must outlive the session.
+      expect(r.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(true);
+      const md = r.summary_markdown;
+      // The default menu points at the build-brief letter ("(C)"); the
+      // prepare-runtime menu has no build letter and names the tool directly.
+      expect(md).toContain("A walking skeleton, not the build; export_build_brief");
+      expect(md).toContain("is the deliverable");
+      // and it still fits the Layer-1 brevity bound with the added disclosure.
+      expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
+    }
+  });
+
+  it("a genuinely one-shot goal is NOT nagged toward export_build_brief", () => {
+    const r = planGoal(ONE_SHOT);
+    // premise: the recommended runtime is the chat itself — nothing to outlive.
+    expect(r.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(false);
+    const md = r.summary_markdown;
+    // the dry-run option is present…
+    expect(md).toMatch(/^E\) Run it attended in this chat now/m);
+    // …but with no walking-skeleton framing and no push to export_build_brief.
+    expect(md).not.toContain("walking skeleton");
+    expect(md).not.toContain("export_build_brief");
   });
 });
