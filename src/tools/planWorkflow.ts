@@ -47,6 +47,7 @@ import {
 import {
   hasWriteConstraint,
   hasUnattendedWaiver,
+  detectConstraintSignals,
   outboundComponentsExcludedByConstraints,
 } from "../lib/constraintSignals.js";
 import { computeCoverage, type Coverage } from "../graph/coverage.js";
@@ -74,7 +75,10 @@ import {
 import { toErrorResult } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import { riskStepNote } from "../lib/plainLanguage.js";
-import { GOOGLE_SCOPE_CATALOG } from "../lib/credentialScopeCatalog.js";
+import {
+  CALENDAR_INVITE_SIDE_EFFECT,
+  GOOGLE_SCOPE_CATALOG,
+} from "../lib/credentialScopeCatalog.js";
 import { PlanWorkflowOutputShape } from "./outputSchemas.js";
 import {
   buildObservabilityGuidance,
@@ -457,20 +461,42 @@ export { hasExplicitApprovalRequirement, hasUnattendedWaiver } from "../lib/cons
  * All three are checkable against the registry; none are LLM-generated.
  */
 /**
- * MAR-225: one bounded, multiple-choice clarifying question. `options` always
- * ends with a "Not sure yet" choice. The reading agent presents these to the
- * user and folds the answers into a re-call's goal — the MCP is stateless.
+ * MAR-225: one bounded, multiple-choice clarifying question. The reading agent
+ * presents these to the user and folds the answers into a re-call's goal — the
+ * MCP is stateless.
+ *
+ * Scope-completion questions end `options` with a "Not sure yet" choice: the
+ * user may legitimately not have decided yet, and the plan is still useful. A
+ * side-effect question (`calendar_notification`) does not — it exists precisely
+ * because the plan cannot be honest about the user-visible outcome until the
+ * fork is picked, so offering an escape hatch would defeat it.
  */
 export type ClarifyingQuestion = {
   id:
     | "run_trigger"
     | "write_permission"
     | "outbound_send"
+    | "calendar_notification"
     | "build_surface"
     | "hosting_monitoring"
     | "artifact_target";
   question: string;
   options: string[];
+  /**
+   * Stable ids for `options`, same length and order. Present when the answer
+   * names a concrete build decision the brief has to carry, rather than a
+   * free-text preference — the prose in `options` is for the user, these are
+   * for the agent relaying the answer back.
+   */
+  option_ids?: string[];
+  /**
+   * The `option_ids` entry the plan recommends, when the goal's own constraints
+   * imply one. Absent means the question is a genuine open fork — never default
+   * a side effect the user has not asked for.
+   */
+  recommended_option_id?: string;
+  /** One sentence: why this fork changes the user-visible outcome. */
+  why?: string;
 };
 
 /** Stable identifiers for the standardized next-action menu (MAR-226). */
@@ -1092,7 +1118,7 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
     },
     required_scopes: [...GOOGLE_SCOPE_CATALOG.calendar_write.scopes],
     gotchas: [
-      "Creating an event with attendees sends email invitations automatically — add sendUpdates=none to suppress",
+      CALENDAR_INVITE_SIDE_EFFECT,
       "Always specify timeZone in the event body; omitting it defaults to the calendar's timezone, which may differ from the user's",
     ],
   },
@@ -1806,8 +1832,110 @@ const ARTIFACT_STATED_SIGNALS = [
   "implementation prompt", "cursor prompt", "claude-code prompt",
 ];
 
+/**
+ * Goal phrases implying the calendar event involves SOMEONE ELSE — a person who
+ * would receive Google's invitation email. Deliberately requires a named
+ * counterpart or a correspondence verb: a solo goal ("block focus time on my
+ * calendar") routes calendar_write too, and has no one to notify, so the
+ * notification fork does not exist for it.
+ *
+ * Bare " with " is excluded on purpose — "block time with high priority" is not
+ * a meeting with a person.
+ */
+const CALENDAR_PARTICIPANT_SIGNALS = [
+  // The request came from someone, so a reply/booking goes back to them.
+  "meeting request", "meeting requests", "invitation", "invitations",
+  "invite", "invites", "inviting", "attendee", "attendees", "guest", "guests",
+  "reply", "replies", "replying", "respond to", "responding to",
+  // A meeting named with its counterpart.
+  "call with", "meeting with", "meet with", "chat with", "sync with",
+  "coffee with", "interview with", "session with", "time with", "book with",
+  "schedule with", "intro call", "discovery call", "sales call", "kickoff",
+  "1:1", "one-on-one", "one on one",
+  // The counterpart named as a role.
+  "the other person", "their calendar", "external attendee", "candidate",
+  "client", "customer", "prospect", "recruiter", "interviewer",
+];
+
+/**
+ * Goal phrases where the user has ALREADY decided the notification question —
+ * either way. Same never-nag rule as the rest of buildClarifyingQuestions: a
+ * goal that states the answer must not be asked for it.
+ */
+const CALENDAR_NOTIFICATION_STATED_SIGNALS = [
+  "sendupdates", "send updates", "private hold", "busy block", "hold on my calendar",
+  "don't notify", "do not notify", "dont notify", "without notifying",
+  "no notification", "no notifications", "notify the attendee", "notify attendees",
+  "send the invite", "send an invite", "send invites", "send the invitation",
+  "no invite", "no invites", "without an invite", "without invites",
+];
+
+/**
+ * The notification fork, in the user's language. `private_hold` first: when the
+ * goal carries a no-send constraint it is the recommended answer, and an agent
+ * relaying an unanswered question reads the first option as the lead.
+ */
+const CALENDAR_NOTIFICATION_CHOICES = [
+  {
+    id: "private_hold",
+    label:
+      "A private hold on my calendar — the other person is NOT notified (sendUpdates=none)",
+  },
+  {
+    id: "attendee_invite",
+    label:
+      "A real invitation the other person receives — Google may email them on my behalf",
+  },
+] as const;
+
 function anySignal(goal: string, signals: string[]): boolean {
   return signals.some((s) => goal.includes(s));
+}
+
+/**
+ * The calendar notification fork (§8.7 / §9.2 of the 2026-07-16 UX review).
+ *
+ * Creating an event with attendees makes Google email them unless the call sets
+ * sendUpdates=none — and suppressing it means the other participant never gets a
+ * confirmation. Either way it changes the user-visible side effect, so it is a
+ * decision the user has to make rather than a gotcha to bury next to the
+ * timezone advice. Returns null when the route has no calendar write, when
+ * nobody else is involved, or when the goal already states the answer.
+ */
+function buildCalendarNotificationQuestion(
+  goal: string,
+  lowerGoal: string,
+  routeComponentIds: string[],
+): ClarifyingQuestion | null {
+  if (!routeComponentIds.includes("calendar_write")) return null;
+  if (!anySignal(lowerGoal, CALENDAR_PARTICIPANT_SIGNALS)) return null;
+  if (anySignal(lowerGoal, CALENDAR_NOTIFICATION_STATED_SIGNALS)) return null;
+
+  // A stated no-send / draft-only constraint makes the invite email the very
+  // thing the user prohibited — recommend the hold. Without such a constraint
+  // the fork is genuinely open: an invitation is a normal thing to want, and
+  // defaulting to silence would suppress a confirmation the user never asked
+  // us to suppress.
+  const signals = detectConstraintSignals(goal);
+  const noSendConstraint = signals.no_outbound.detected || signals.draft_only.detected;
+
+  return {
+    id: "calendar_notification",
+    question:
+      "Should the approved action create a private hold on your calendar with no attendee " +
+      "notification, or a real invitation the other person receives (Google may email them)?",
+    options: CALENDAR_NOTIFICATION_CHOICES.map((c) => c.label),
+    option_ids: CALENDAR_NOTIFICATION_CHOICES.map((c) => c.id),
+    ...(noSendConstraint ? { recommended_option_id: "private_hold" } : {}),
+    // One sentence, and a short one: it renders into Layer-1, which is bounded
+    // (LAYER1_MAX_CHARS). The trade-off the hold costs — they get no
+    // confirmation — is already stated in the option label.
+    why: noSendConstraint
+      ? `“${signals.no_outbound.trigger ?? signals.draft_only.trigger}” makes an invitation ` +
+        "an email Google sends on your behalf."
+      : "An invitation is an email Google sends on your behalf; a private hold is visible " +
+        "only to you.",
+  };
 }
 
 /**
@@ -1816,6 +1944,19 @@ function anySignal(goal: string, signals: string[]): boolean {
  * stated that constraint — so it never nags a fully-specified goal. Stateless
  * and vocabulary-neutral (never steers "magic" trigger words); each question is
  * a real architecture fork that changes the route / safety / clearance.
+ *
+ * Two classes, and the difference is load-bearing:
+ *
+ *  - SCOPE-COMPLETION questions (run_trigger, write_permission, outbound_send)
+ *    mean the goal left an axis open. Any one of them firing is evidence the
+ *    goal is under-specified, which is what earns the generic back-fill below
+ *    ("since we're asking anyway, also pin down build surface / hosting").
+ *  - The SIDE-EFFECT question (calendar_notification) is not evidence of that.
+ *    A goal can specify every axis and still hit it, because it is the provider
+ *    that does something the goal never mentions. So it does NOT open the
+ *    back-fill: on an otherwise fully-specified goal it returns alone, which is
+ *    the whole point — it is the one thing the user has to decide, and burying
+ *    it among generic prompts is the failure this fixes.
  */
 export function buildClarifyingQuestions(
   goal: string,
@@ -1823,6 +1964,7 @@ export function buildClarifyingQuestions(
 ): ClarifyingQuestion[] {
   const g = goal.toLowerCase();
   const questions: ClarifyingQuestion[] = [];
+  const calendarNotification = buildCalendarNotificationQuestion(goal, g, routeComponentIds);
 
   // 1. Run trigger — they want automation but didn't say what fires it, and no
   //    trigger component is in the route.
@@ -1869,12 +2011,19 @@ export function buildClarifyingQuestions(
     });
   }
 
+  // No scope-completion question fired: the goal is fully specified on every
+  // axis we ask about, so the generic back-fill stays shut. The side-effect
+  // question still stands on its own if the provider raised one.
   if (questions.length === 0) {
-    return [];
+    return calendarNotification ? [calendarNotification] : [];
   }
 
+  // The side-effect question leads (it is the one with a real-world
+  // consequence) and counts against the cap of 3, so a goal that fires both
+  // classes still gets a bounded list rather than a wall of prompts.
+  const reserved = calendarNotification ? 1 : 0;
   const addIfNeeded = (question: ClarifyingQuestion) => {
-    if (questions.length >= 3) return;
+    if (questions.length + reserved >= 3) return;
     if (questions.some((q) => q.id === question.id)) return;
     questions.push(question);
   };
@@ -1903,18 +2052,48 @@ export function buildClarifyingQuestions(
     });
   }
 
+  if (calendarNotification) questions.unshift(calendarNotification);
   return questions.slice(0, 3);
 }
 
 /**
- * MAR-225: compact, brevity-safe render of clarifying questions (bullets only;
- * the call site supplies the heading). Options stay in structuredContent so
- * Layer-1 stays under the brevity bound.
+ * MAR-225: render clarifying questions as bullets (the call site supplies the
+ * heading). Options for the scope-completion questions stay in
+ * structuredContent so Layer-1 stays under the brevity bound.
+ *
+ * A question carrying `option_ids` names a fork with a real-world consequence,
+ * so it pays for prose in BOTH depths: the client agent relays what it can
+ * read, and a fork whose options exist only in structuredContent is a fork the
+ * user never hears about — which is exactly how the calendar notification
+ * decision went unasked. Layer-1 buys that visibility at one fused line
+ * (`compact`); `full` spells out every option for the depths that have room.
  */
-function renderClarifyingQuestions(questions: ClarifyingQuestion[]): string[] {
+function renderClarifyingQuestions(
+  questions: ClarifyingQuestion[],
+  detail: "compact" | "full",
+): string[] {
   const lines: string[] = [];
   for (const q of questions) {
     lines.push(`- ${q.question}`);
+    const ids = q.option_ids ?? [];
+    if (ids.length === 0) continue;
+
+    if (detail === "compact") {
+      // The question text already names both forks in user language, so the
+      // one line Layer-1 can afford spends itself on what the question cannot
+      // say: which way to go, and why.
+      const lead = q.recommended_option_id
+        ? `Recommended: \`${q.recommended_option_id}\` (sendUpdates=none)`
+        : ids.map((id) => `\`${id}\``).join(" or ");
+      lines.push(`  - ${lead}${q.why ? ` — ${q.why}` : ""}`);
+      continue;
+    }
+
+    if (q.why) lines.push(`  - Why it matters: ${q.why}`);
+    for (const [i, id] of ids.entries()) {
+      const recommended = id === q.recommended_option_id ? " — **recommended**" : "";
+      lines.push(`  - \`${id}\`: ${q.options[i]}${recommended}`);
+    }
   }
   if (lines.length > 0) lines.push(``);
   return lines;
@@ -3131,8 +3310,18 @@ function renderConstraintBlockFull(cc: ConstraintCoverage): string[] {
  * MAR-224: brevity bound on the Layer-1 (guided/brief) markdown. The
  * RESPONSE-UX-04 eval (MAR-227) asserts the rendered summary stays under this
  * so "report creep" fails CI instead of silently re-bloating Layer 1.
+ *
+ * 3600 → 3700 for the `calendar_notification` question: on a long goal (the
+ * P0-02 golden prompt renders 3289 chars before it) the question plus its
+ * one-line recommendation did not fit, and the alternative was to drop the
+ * recommendation into structuredContent — i.e. to bury the decision, the exact
+ * failure the question exists to fix (UX review 2026-07-16 §8.7/§9.2).
+ *
+ * This is a deliberate, bounded raise for ONE line of high-value content, not
+ * permission to re-bloat: the golden prompt is now itself asserted against this
+ * bound (responseUxEvals), so the remaining headroom is small and measured.
  */
-export const LAYER1_MAX_CHARS = 3600;
+export const LAYER1_MAX_CHARS = 3700;
 
 /**
  * MAR-250: the coverage gap block, shared by every depth. Empty when coverage
@@ -3674,8 +3863,15 @@ function buildGuidedPlanMarkdown(
   lines.push(`**Build controls:** ${buildControlsLine(steps)}`, ``);
 
   if (clarifyingQuestions.length > 0) {
-    lines.push(`**Quick checks to pin down the plan** (pick one each, or "Not sure yet"):`);
-    lines.push(...renderClarifyingQuestions(clarifyingQuestions));
+    // Only the scope-completion questions offer "Not sure yet" — promising it
+    // when the list is a side-effect question alone would be a lie.
+    const anyNotSure = clarifyingQuestions.some((q) => q.options.includes("Not sure yet"));
+    lines.push(
+      anyNotSure
+        ? `**Quick checks to pin down the plan** (pick one each, or "Not sure yet"):`
+        : `**Quick checks to pin down the plan** (pick one):`,
+    );
+    lines.push(...renderClarifyingQuestions(clarifyingQuestions, "compact"));
   }
 
   lines.push(...renderProductCardContinueMenu(goalToProductWizard));
@@ -3924,7 +4120,7 @@ function buildPlanMarkdown(
   // MAR-225: bounded clarifying questions (architecture-affecting only).
   if (clarifyingQuestions.length > 0) {
     lines.push(`### Quick checks to pin down the plan`, ``);
-    lines.push(...renderClarifyingQuestions(clarifyingQuestions));
+    lines.push(...renderClarifyingQuestions(clarifyingQuestions, "full"));
   }
 
   // MAR-226: standardized next-action menu — target-aware, prevents dead-ending.

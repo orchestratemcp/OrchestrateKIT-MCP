@@ -11,6 +11,7 @@
  */
 import { describe, it, expect } from "vitest";
 import {
+  CALENDAR_INVITE_SIDE_EFFECT,
   GOOGLE_SCOPE_CATALOG,
   GMAIL_SEND_SCOPE,
   googleScopesForComponents,
@@ -29,6 +30,44 @@ const DOGFOOD_GOAL =
   "checks my real Google Calendar, drafts a reply with two available 30-minute slots, " +
   "and only after I approve creates one Calendar event and one Gmail draft. " +
   "Never send the email. I will be present for approval and I want visible run logs.";
+
+describe("GOOGLE_SCOPE_CATALOG — scopes vs side effects", () => {
+  it("calendar_write's attendee-invite disclosure is a side effect, never a scope", () => {
+    // It used to sit in the registry's permissions.write list, so it rendered
+    // in credential_advisory.required_scopes as if it were something you grant
+    // at the consent screen. It is not: it is what Google DOES when the scope
+    // is exercised (UX review 2026-07-16 §9.2).
+    expect(GOOGLE_SCOPE_CATALOG.calendar_write.scopes).toEqual([
+      "https://www.googleapis.com/auth/calendar.events",
+    ]);
+    expect(GOOGLE_SCOPE_CATALOG.calendar_write.side_effect).toBe(CALENDAR_INVITE_SIDE_EFFECT);
+
+    const plan = planWorkflow(
+      { goal: DOGFOOD_GOAL, must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    const calendar = plan.credential_advisory.components_requiring_credentials.find(
+      (c) => c.component_id === "calendar_write",
+    );
+    expect(calendar!.required_scopes).toEqual(["calendar write scope"]);
+    for (const entry of plan.credential_advisory.components_requiring_credentials) {
+      for (const scope of entry.required_scopes) {
+        expect(scope, `${entry.component_id} scope must not disclose a side effect`).not.toContain(
+          "sends invites",
+        );
+      }
+    }
+  });
+
+  it("the invite disclosure has exactly one source — the build gotcha derives from it", () => {
+    const plan = planWorkflow(
+      { goal: DOGFOOD_GOAL, must_have_capabilities: [], must_avoid: [] },
+      registry,
+    );
+    const calendar = plan.what_you_need.find((n) => n.component_id === "calendar_write");
+    expect(calendar!.gotchas).toContain(CALENDAR_INVITE_SIDE_EFFECT);
+  });
+});
 
 describe("GOOGLE_SCOPE_CATALOG — single source of truth", () => {
   it("email_draft never includes gmail.send (users.drafts.create needs only gmail.compose)", () => {

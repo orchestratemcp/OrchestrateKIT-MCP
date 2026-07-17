@@ -18,7 +18,6 @@ permissions:
   read: []
   write:
     - calendar write scope
-    - sends invites to external attendees
   approval_required_for:
     - every create or update action
 requires:

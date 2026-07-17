@@ -859,6 +859,100 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
   });
 });
 
+// The calendar notification fork (UX review 2026-07-16 §8.7/§9.2). Creating an
+// event with attendees makes Google email them unless sendUpdates=none — and
+// suppressing it means the other participant never gets a confirmation. Either
+// way it changes the user-visible side effect, so it must be asked, not left in
+// calendar_write's gotchas.
+describe("planWorkflow — calendar notification clarifying question", () => {
+  const CAL_Q = "calendar_notification";
+
+  it("the P0-02 golden prompt is asked, with private_hold recommended by its no-send constraint", () => {
+    const r = plan(P0_02_DOGFOOD_GOAL);
+    expect(r.recommended_route.map((s) => s.component_id)).toContain("calendar_write");
+
+    const q = r.clarifying_questions.find((x) => x.id === CAL_Q);
+    expect(q, "golden prompt must be asked the notification question").toBeDefined();
+    expect(q!.question).toContain("private hold");
+    expect(q!.question).toContain("a real invitation the other person receives");
+    expect(q!.option_ids).toEqual(["private_hold", "attendee_invite"]);
+    // "Never send the email" is what decides it: an invite is an outbound email.
+    expect(q!.recommended_option_id).toBe("private_hold");
+    expect(q!.why).toBeTruthy();
+  });
+
+  it("a solo-calendar goal is NOT asked — nobody is there to notify", () => {
+    const r = plan("block focus time on my calendar every morning");
+    // The route writes to the calendar; the question is suppressed by the
+    // absence of a participant, not by the absence of calendar_write.
+    expect(r.recommended_route.map((s) => s.component_id)).toContain("calendar_write");
+    expect(r.clarifying_questions.map((q) => q.id)).not.toContain(CAL_Q);
+  });
+
+  it("a scheduling goal with no no-send constraint is asked, but no default is forced", () => {
+    const r = plan("schedule a 30 minute intro call with Dana next week on my Google Calendar");
+    const q = r.clarifying_questions.find((x) => x.id === CAL_Q);
+    expect(q).toBeDefined();
+    expect(q!.option_ids).toEqual(["private_hold", "attendee_invite"]);
+    // An invitation is a normal thing to want here — recommending silence would
+    // suppress a confirmation the user never asked us to suppress.
+    expect(q!.recommended_option_id).toBeUndefined();
+  });
+
+  it("is standalone: it does not open the generic scope-completion back-fill", () => {
+    // The golden prompt specifies every other axis, so the side-effect question
+    // must return alone rather than dragging in build_surface / hosting.
+    const r = plan(P0_02_DOGFOOD_GOAL);
+    expect(r.clarifying_questions.map((q) => q.id)).toEqual([CAL_Q]);
+  });
+
+  it("leads the list and stays within the cap when scope questions also fire", () => {
+    const qs = buildClarifyingQuestions(
+      "set up a meeting with the candidate on my calendar",
+      ["calendar_write"],
+    );
+    expect(qs.length).toBeLessThanOrEqual(3);
+    expect(qs[0].id).toBe(CAL_Q);
+  });
+
+  it("is suppressed when the goal already states the notification choice, either way", () => {
+    for (const goal of [
+      "reply to the meeting request and book it with sendUpdates=none",
+      "reply to the meeting request and send the invite to the attendee",
+      "book the intro call with Dana but do not notify her",
+    ]) {
+      expect(buildClarifyingQuestions(goal, ["calendar_write"]).map((q) => q.id)).not.toContain(
+        CAL_Q,
+      );
+    }
+  });
+
+  it("is not asked when the route never writes a calendar event", () => {
+    const qs = buildClarifyingQuestions("reply to the meeting request from Dana", ["email_draft"]);
+    expect(qs.map((q) => q.id)).not.toContain(CAL_Q);
+  });
+
+  it("Layer-1 markdown carries the question and its recommendation, not just structuredContent", () => {
+    const md = planWorkflow(
+      { goal: P0_02_DOGFOOD_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "guided" },
+      registry,
+    ).summary_markdown;
+    expect(md).toContain("private hold");
+    expect(md).toContain("`private_hold`");
+    expect(md).toContain("sendUpdates=none");
+    // Layer-1 must not promise an escape hatch this question does not offer.
+    expect(md).not.toContain('(pick one each, or "Not sure yet")');
+  });
+
+  it("technical depth spells out both options with the recommended one marked", () => {
+    const md = planTech(P0_02_DOGFOOD_GOAL).summary_markdown;
+    expect(md).toContain("Why it matters:");
+    expect(md).toContain("`private_hold`");
+    expect(md).toContain("`attendee_invite`");
+    expect(md).toContain("**recommended**");
+  });
+});
+
 // MAR-226: standardized, machine-consumable next-action menu.
 describe("planWorkflow — MAR-226 next-action menu", () => {
   const at = (goal: string, build_target?: "cowork" | "cursor" | "chatgpt_gpt" | "code") =>
