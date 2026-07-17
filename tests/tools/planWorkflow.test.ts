@@ -167,6 +167,30 @@ It must never send an email without my approval.`;
     expect(r.playbook?.id).toBe("email_calendar_assistant");
   });
 
+  // "Never send the email" is a no-send (no_outbound) constraint, not a
+  // read-only one: the goal explicitly REQUESTS two writes. Misclassifying it
+  // fired the MAR-142 read-only warning against calendar_write and
+  // gmail_draft_write — advising the user to remove exactly what they asked
+  // for (live golden-prompt finding, 2026-07-17).
+  it("'Never send the email' does not trigger the read-only conflict warning", () => {
+    const r = plan(P0_02_DOGFOOD_GOAL);
+    const readOnlyWarnings = r.safety_review.warnings.filter((w: string) =>
+      w.includes("Read-only / no-write constraint"),
+    );
+    expect(readOnlyWarnings).toEqual([]);
+  });
+
+  it("a genuine read-only constraint on a write-bearing playbook still warns (MAR-142)", () => {
+    // Deliberately contradictory goal: playbook-shaped email/calendar demand
+    // plus an explicit read-only constraint. The mechanism must still surface
+    // the conflict instead of silently serving the write-bearing route.
+    const r = plan(P0_02_DOGFOOD_GOAL + " Treat all external systems as read-only.");
+    expect(r.plan_source).toBe("playbook"); // guard the premise the warning depends on
+    expect(
+      r.safety_review.warnings.some((w: string) => w.includes("Read-only / no-write constraint")),
+    ).toBe(true);
+  });
+
   it("P0-04: the draft-save build asks for gmail.compose and never gmail.send", () => {
     const r = planTech(P0_02_DOGFOOD_GOAL);
     const need = r.what_you_need.find((n) => n.component_id === "gmail_draft_write");
