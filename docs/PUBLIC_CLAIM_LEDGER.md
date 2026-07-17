@@ -1,6 +1,6 @@
 # Public claim ledger
 
-**Evidence snapshot:** 2026-07-13
+**Evidence snapshot:** 2026-07-17
 
 **Owner:** OrchestrateMCP maintainers
 
@@ -12,10 +12,10 @@ This is the source of truth for public product claims. If a claim is not listed 
 
 | Claim | Evidence | Approved public wording |
 | --- | --- | --- |
-| Hosted registry | Hosted `health_check`, build fingerprint `885bacdd6a086b45`, built 2026-07-13 | “The hosted registry publishes 64 components, 151 connections, 12 routes, 12 playbooks, 4 workers, and 1 reference stack.” |
-| Registry edge references | Hosted `health_check`: `untested_edge_pct: 0` | “All 151 published connections carry registry test references.” |
-| Demo readiness | Hosted `health_check`: `safe_to_demo: true`, no demo blockers | “The current hosted registry passes its freshness and minimum-count demo gate.” |
-| Deterministic conformance | `pnpm benchmark:check`; source fingerprint `26b95a7a03de9ffd`; report fingerprint `45440db283407509` | “The deterministic registry benchmark passes 7/7 prompts and 50/50 required/forbidden assertions.” |
+| Hosted registry | Hosted `health_check`, build fingerprint `4722c8f8e0240af7`, content fingerprint `825e5120f319f842` (matches pinned P0-06 `EXPECTED_RELEASE_FINGERPRINT`, `matches_expected_release: true`), built 2026-07-17 | “The hosted registry publishes 65 components, 156 connections, 12 routes, 12 playbooks, 4 workers, and 1 reference stack.” |
+| Registry edge references | Hosted `health_check`: `untested_edge_pct: 0` | “All 156 published connections carry registry test references.” |
+| Demo readiness | Hosted `health_check`: `safe_to_demo: true`, no demo blockers, `matches_expected_release: true` | “The current hosted registry passes its freshness, minimum-count, and pinned-fingerprint demo gate.” |
+| Deterministic conformance | `pnpm benchmark:check`; source fingerprint `825e5120f319f842`; report fingerprint `b302b97a81286cc8` | “The deterministic registry benchmark passes 7/7 prompts and 50/50 required/forbidden assertions.” |
 | Honest failure visibility | Public benchmark report | “The report exposes 3 candidate routes and 3 compose-noise flags instead of hiding them.” |
 | Runtime boundary | Server implementation and tests | “OrchestrateMCP is a stateless, read-only design advisor. Its tools store no prompts or credentials, execute no workflow, and make no LLM calls.” |
 | Deterministic tool logic | Deterministic tool and benchmark tests | “Given the same versioned inputs, OrchestrateMCP’s tool logic returns deterministic structured results.” |
