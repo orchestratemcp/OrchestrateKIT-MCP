@@ -291,6 +291,34 @@ export const PlanWorkflowOutputShape = z
       })
       .passthrough()
       .optional(),
+    // constraint coverage — checkable goal commitments vs. route structure (MAR-250 phase 2)
+    constraint_coverage: z
+      .object({
+        checks: z.array(
+          z
+            .object({
+              constraint_class: z.enum([
+                "prohibition",
+                "ordering",
+                "quantity",
+                "duration",
+                "filter",
+                "exactly_once",
+              ]),
+              goal_phrase: z.string(),
+              status: z.enum(["structural", "delegated", "missing", "violated"]),
+              representation: z.string(),
+              acceptance_criterion: z.string().nullable(),
+            })
+            .passthrough(),
+        ),
+        structural_count: z.number(),
+        delegated_count: z.number(),
+        problem_count: z.number(),
+        constraint_label: z.enum(["structural", "delegated", "gaps"]),
+      })
+      .passthrough()
+      .optional(),
     // provenance model — grounded / computed / advisory tags per field (MAR-206)
     provenance: z
       .object({

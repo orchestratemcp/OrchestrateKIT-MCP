@@ -50,6 +50,11 @@ import {
   outboundComponentsExcludedByConstraints,
 } from "../lib/constraintSignals.js";
 import { computeCoverage, type Coverage } from "../graph/coverage.js";
+import {
+  computeConstraintCoverage,
+  type ConstraintCoverage,
+  type ConstraintStatus,
+} from "../graph/constraintCoverage.js";
 import { findOverlappingPlaybooks } from "../graph/playbookOverlap.js";
 import {
   composeWorkerPipeline,
@@ -700,6 +705,16 @@ export type PlanWorkflowOutput = {
    * ends instead of silently dropping or inventing scope.
    */
   coverage: Coverage;
+  /**
+   * Constraint coverage (MAR-250, phase 2): the goal's CHECKABLE constraints
+   * (prohibitions, approval ordering, quantities, durations, filters,
+   * exactly-once) with how the plan represents each — enforced in route
+   * structure, delegated to build-time acceptance, or missing/violated.
+   * Token coverage says which steps the route carries; this says which
+   * COMMITMENTS it keeps. "Full coverage" may not be claimed unqualified when
+   * problems exist here.
+   */
+  constraint_coverage: ConstraintCoverage;
   evals_to_add: string[];
   /**
    * Advisory design notes drawn from edge `control_flow_note` annotations (MAR-211).
@@ -2921,6 +2936,7 @@ function buildStatusHeader(
   approvalAdvisory: ApprovalGateAdvisory | null,
   clearance: AutomationClearance,
   coverage: Coverage,
+  constraintCoverage: ConstraintCoverage,
 ): string {
   const routeIcon =
     routeStatus === "validated" ? "✅" : routeStatus === "blocked_candidate" ? "❌" : "⚠️";
@@ -2993,17 +3009,36 @@ function buildStatusHeader(
     coverageLine = `${covIcon} ${coverage.coverage_label} — ${parts.join(", ")}`;
   }
 
-  return [
+  const headerLines = [
     `---`,
     `route_status:   ${routeIcon} ${routeStatus}`,
     `coverage:       ${coverageLine}`,
+  ];
+  // MAR-250 phase 2: the constraints line sits directly under coverage — step
+  // coverage and constraint coverage are the two halves of the honesty story,
+  // and "full" steps next to an unrepresented constraint must be visible here.
+  if (constraintCoverage.checks.length > 0) {
+    headerLines.push(`constraints:    ${constraintHeaderLine(constraintCoverage)}`);
+  }
+  headerLines.push(
     `safety:         ${safetyIcon} ${safety.status} (risk ${safety.risk_score}/100)`,
     `blocking:       ${blockingIcon} ${blockingCount} issue${blockingCount === 1 ? "" : "s"}`,
     `approval:       ${approval}`,
     `automation:     ${autoIcon} ${clearance.level} — ${autoText}`,
     `untested_edges: ${untestedIcon} ${untestedEdges.length}`,
     `---`,
-  ].join("\n");
+  );
+  return headerLines.join("\n");
+}
+
+/** One front-matter line summarizing constraint coverage (MAR-250 phase 2). */
+function constraintHeaderLine(cc: ConstraintCoverage): string {
+  const parts: string[] = [];
+  if (cc.structural_count > 0) parts.push(`${cc.structural_count} enforced in route`);
+  if (cc.delegated_count > 0) parts.push(`${cc.delegated_count} to verify at build`);
+  if (cc.problem_count > 0) parts.push(`${cc.problem_count} NOT represented`);
+  const icon = cc.constraint_label === "gaps" ? "⚠️" : "✅";
+  return `${icon} ${parts.join(" · ")}`;
 }
 
 function titleCaseStatus(value: string): string {
@@ -3020,12 +3055,19 @@ function buildCompactStatusHeader(
   enforcedGates: string[],
   approvalAdvisory: ApprovalGateAdvisory | null,
   coverage: Coverage,
+  constraintCoverage: ConstraintCoverage,
 ): string {
   const routeIcon =
     routeStatus === "validated" ? "✅" : routeStatus === "blocked_candidate" ? "❌" : "⚠️";
+  // MAR-250 phase 2: an unqualified "Full coverage" chip may not appear next to
+  // an unrepresented constraint — the compact header carries the caveat too.
   const coverageLabel =
     coverage.coverage_label === "full"
-      ? "Full coverage"
+      ? constraintCoverage.problem_count > 0
+        ? `Full step coverage · ${constraintCoverage.problem_count} constraint gap${
+            constraintCoverage.problem_count === 1 ? "" : "s"
+          }`
+        : "Full coverage"
       : `${titleCaseStatus(coverage.coverage_label)} coverage`;
   const approval =
     enforcedGates.length > 0
@@ -3042,6 +3084,47 @@ function buildCompactStatusHeader(
     `Risk ${safety.risk_score}/100`,
     `${untestedEdges.length} untested edge${untestedEdges.length === 1 ? "" : "s"}`,
   ].join(" · ");
+}
+
+/**
+ * MAR-250 phase 2: constraint-coverage rendering.
+ * Compact (guided/brief/standard): one summary line plus problem bullets — the
+ * decision layer must see gaps; delegated details live in the technical view.
+ */
+function renderConstraintBlockCompact(cc: ConstraintCoverage): string[] {
+  if (cc.checks.length === 0) return [];
+  const parts: string[] = [];
+  if (cc.structural_count > 0) parts.push(`${cc.structural_count} enforced by the route`);
+  if (cc.delegated_count > 0) parts.push(`${cc.delegated_count} to verify at build time`);
+  if (cc.problem_count > 0) parts.push(`${cc.problem_count} NOT represented`);
+  const lines = [`**Constraint check:** ${parts.join(" · ")}.`];
+  for (const c of cc.checks) {
+    if (c.status === "missing" || c.status === "violated") {
+      lines.push(
+        `- ❌ ${c.status.toUpperCase()} [${c.constraint_class}] "${c.goal_phrase}" — ${c.representation}`,
+      );
+    }
+  }
+  lines.push(``);
+  return lines;
+}
+
+/** Full per-check listing for technical/deep depths. */
+function renderConstraintBlockFull(cc: ConstraintCoverage): string[] {
+  if (cc.checks.length === 0) return [];
+  const icon = (s: ConstraintStatus) =>
+    s === "structural" ? "✅" : s === "delegated" ? "🔹" : "❌";
+  const lines = [`### Constraint coverage`, ``];
+  for (const c of cc.checks) {
+    lines.push(
+      `- ${icon(c.status)} ${c.status} [${c.constraint_class}] "${c.goal_phrase}" — ${c.representation}`,
+    );
+    if (c.acceptance_criterion) {
+      lines.push(`  - acceptance: ${c.acceptance_criterion}`);
+    }
+  }
+  lines.push(``);
+  return lines;
 }
 
 /**
@@ -3491,6 +3574,7 @@ function buildGuidedPlanMarkdown(
   nextActionMenu: NextAction[],
   clarifyingQuestions: ClarifyingQuestion[],
   coverage: Coverage,
+  constraintCoverage: ConstraintCoverage,
   hostingAndMonitoring: HostingAndMonitoring,
   goalToProductWizard: GoalToProductWizard,
   /**
@@ -3533,6 +3617,8 @@ function buildGuidedPlanMarkdown(
   lines.push(`**Connect:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}.`, ``);
 
   lines.push(...renderCoverageBlock(coverage, steps, goal));
+
+  lines.push(...renderConstraintBlockCompact(constraintCoverage));
 
   const cardRouteIds = new Set(steps.map((s) => s.component_id));
   let cardSafeguard: string;
@@ -3621,6 +3707,7 @@ function buildPlanMarkdown(
   nextActionMenu: NextAction[],
   clarifyingQuestions: ClarifyingQuestion[],
   coverage: Coverage,
+  constraintCoverage: ConstraintCoverage,
   hostingAndMonitoring: HostingAndMonitoring,
   goalToProductWizard: GoalToProductWizard,
 ): string {
@@ -3667,6 +3754,10 @@ function buildPlanMarkdown(
   if (coverageBlock.length > 0) {
     lines.push(`### Coverage gaps`, ``, ...coverageBlock);
   }
+
+  // MAR-250 phase 2: constraint coverage right after step coverage — the
+  // technical reader sees which commitments the route enforces vs. delegates.
+  lines.push(...renderConstraintBlockFull(constraintCoverage));
 
   lines.push(`### Model-tier profile`, ``);
   if (modelTiers.frontier.length > 0)
@@ -3891,6 +3982,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       enforced_approval_gates: "computed",
       approval_gate_advisory: "advisory",
       coverage: "computed", // MAR-250: matcher provenance + demand lexicon, no LLM
+      constraint_coverage: "computed", // MAR-250 phase 2: constraint lexicons + route structure, no LLM
       automation_clearance: "computed",
       worker_pipeline: "grounded",
       worker_pipeline_pointer: "advisory", // MAR-256: depth-omission pointer
@@ -4062,6 +4154,15 @@ export function planWorkflow(
   const hasGate = routeComponentIds.includes("human_approval_gate");
   const gatedWrites = routeComponentIds.filter((id) => ALWAYS_REQUIRES_GATE.has(id));
 
+  // ── MAR-250 phase 2: constraint coverage on the FINAL route ──
+  // Computed after the no-outbound exclusion filter so the prohibition check
+  // sees the route the user actually gets.
+  const constraint_coverage = computeConstraintCoverage({
+    goal: input.goal,
+    executionOrder,
+    gatedWriteIds: gatedWrites,
+  });
+
   // ── MAR-132: reconcile an explicit "unattended / no-gate" constraint ──
   // When the user opts out but an irreversible external write is present, keep
   // the gate in the route (never silently dropped) but downgrade it from a hard
@@ -4212,6 +4313,7 @@ export function planWorkflow(
           enforced_approval_gates,
           approval_gate_advisory,
           coverage,
+          constraint_coverage,
         )
       : buildStatusHeader(
     route_status,
@@ -4221,6 +4323,7 @@ export function planWorkflow(
     approval_gate_advisory,
     automation_clearance,
     coverage,
+    constraint_coverage,
         );
   let body: string;
   if (outputDepth === "guided" || outputDepth === "brief" || outputDepth === "standard") {
@@ -4237,6 +4340,7 @@ export function planWorkflow(
       next_action_menu,
       clarifying_questions,
       coverage,
+      constraint_coverage,
       hosting_and_monitoring,
       goal_to_product_wizard,
       outputDepth === "standard", // fullSteps: standard is the superset layer
@@ -4260,6 +4364,7 @@ export function planWorkflow(
       next_action_menu,
       clarifying_questions,
       coverage,
+      constraint_coverage,
       hosting_and_monitoring,
       goal_to_product_wizard,
     );
@@ -4286,6 +4391,7 @@ export function planWorkflow(
     enforced_approval_gates,
     approval_gate_advisory,
     coverage,
+    constraint_coverage,
     evals_to_add: composed.evals_to_add,
     design_notes,
     what_you_need,

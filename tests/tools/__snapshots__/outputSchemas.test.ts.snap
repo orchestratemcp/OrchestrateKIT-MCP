@@ -177,6 +177,13 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
   "avoid_when_violations": [],
   "clarifying_questions": [],
   "confidence_label": "high",
+  "constraint_coverage": {
+    "checks": [],
+    "constraint_label": "structural",
+    "delegated_count": 0,
+    "problem_count": 0,
+    "structural_count": 0,
+  },
   "coverage": {
     "coverage_label": "partial",
     "matched": [
@@ -701,6 +708,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "avoid_when_violations": "computed",
       "clarifying_questions": "advisory",
       "confidence_label": "computed",
+      "constraint_coverage": "computed",
       "coverage": "computed",
       "credential_advisory": "computed",
       "design_notes": "grounded",
@@ -866,6 +874,13 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
   "avoid_when_violations": [],
   "clarifying_questions": [],
   "confidence_label": "medium",
+  "constraint_coverage": {
+    "checks": [],
+    "constraint_label": "structural",
+    "delegated_count": 0,
+    "problem_count": 0,
+    "structural_count": 0,
+  },
   "coverage": {
     "coverage_label": "poor",
     "matched": [
@@ -1278,6 +1293,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "avoid_when_violations": "computed",
       "clarifying_questions": "advisory",
       "confidence_label": "computed",
+      "constraint_coverage": "computed",
       "coverage": "computed",
       "credential_advisory": "computed",
       "design_notes": "grounded",
@@ -1578,6 +1594,13 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
   "avoid_when_violations": [],
   "clarifying_questions": [],
   "confidence_label": "high",
+  "constraint_coverage": {
+    "checks": [],
+    "constraint_label": "structural",
+    "delegated_count": 0,
+    "problem_count": 0,
+    "structural_count": 0,
+  },
   "coverage": {
     "coverage_label": "partial",
     "matched": [
@@ -2102,6 +2125,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "avoid_when_violations": "computed",
       "clarifying_questions": "advisory",
       "confidence_label": "computed",
+      "constraint_coverage": "computed",
       "coverage": "computed",
       "credential_advisory": "computed",
       "design_notes": "grounded",

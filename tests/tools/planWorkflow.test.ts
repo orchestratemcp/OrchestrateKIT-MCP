@@ -205,6 +205,39 @@ It must never send an email without my approval.`;
     expect(scopeUrls).toContain("https://www.googleapis.com/auth/gmail.compose");
     expect(scopeUrls).not.toContain("https://www.googleapis.com/auth/gmail.send");
   });
+
+  // MAR-250 phase 2: coverage must speak for CONSTRAINTS, not just steps —
+  // "full coverage" next to an unrepresented commitment was the §8.5 overclaim.
+  it("MAR-250: golden-goal constraint coverage — structural prohibition/ordering, delegated counts", () => {
+    const r = plan(P0_02_DOGFOOD_GOAL);
+    const cc = r.constraint_coverage;
+
+    expect(cc.problem_count).toBe(0);
+    expect(cc.constraint_label).toBe("delegated");
+
+    const status = (cls: string, phrase: string) =>
+      cc.checks.find((c) => c.constraint_class === cls && c.goal_phrase === phrase)?.status;
+    // "Never send the email" is enforced by component absence, not promised.
+    expect(status("prohibition", "never send")).toBe("structural");
+    // "only after I approve" is proven by the gate's position in execution order.
+    expect(status("ordering", "only after i approve")).toBe("structural");
+    // Counts, duration and the unread filter are build-time commitments.
+    expect(status("filter", "unread")).toBe("delegated");
+    expect(status("duration", "30-minute")).toBe("delegated");
+    expect(
+      cc.checks.filter((c) => c.constraint_class === "quantity").length,
+    ).toBeGreaterThanOrEqual(3);
+
+    // The guided (default-depth) body carries the compact constraint line.
+    expect(r.summary_markdown).toContain("**Constraint check:**");
+  });
+
+  it("MAR-250: technical depth renders the constraints front-matter line and full section", () => {
+    const r = planTech(P0_02_DOGFOOD_GOAL);
+    expect(r.summary_markdown).toContain("constraints:");
+    expect(r.summary_markdown).toContain("### Constraint coverage");
+    expect(r.summary_markdown).toContain('"two available 30-minute slots"');
+  });
 });
 
 describe("planWorkflow — bounded loop contract (MAR-167)", () => {
