@@ -636,6 +636,22 @@ describe("export_build_brief - Tier 2 artifact compiler (MAR-249)", () => {
     expect(b.handoffs.linear).toContain(b.artifact_package.linear_issue_template_markdown);
   });
 
+  it("preserves the stateless compiler directive in builder handoffs", () => {
+    const b = planAndBrief(
+      "Scan a GitHub PR, summarize risks, and draft a reviewer notification for human approval.",
+      ["prompt", "linear"],
+    );
+    const noWriteDirective = b.artifact_package.directives.find((directive) =>
+      directive.includes("Do not write to Linear, Obsidian"),
+    );
+
+    expect(noWriteDirective).toBeDefined();
+    expect(b.artifact_package.build_prompt).toContain(noWriteDirective);
+    expect(b.artifact_package.linear_issue_template_markdown).toContain(noWriteDirective);
+    expect(b.handoffs.prompt).toContain(noWriteDirective);
+    expect(b.handoffs.linear).toContain(noWriteDirective);
+  });
+
   it("directs client LLMs to clarify, confirm scope, and mark unknowns instead of guessing", () => {
     const b = planAndBrief("Read emails and draft CRM follow-ups", ["linear"]);
     const directives = b.artifact_package.directives.join("\n");
