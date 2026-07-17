@@ -370,27 +370,51 @@ export const ReviewWorkflowDesignOutputShape = z
   })
   .passthrough();
 
+const ArtifactIssueFieldKeyShape = z.enum([
+  "title",
+  "goal",
+  "user_story",
+  "context",
+  "inputs",
+  "outputs",
+  "required_tools",
+  "data_model",
+  "step_by_step_implementation",
+  "edge_cases",
+  "failure_modes",
+  "security",
+  "approval_gates",
+  "acceptance_criteria",
+  "test_cases",
+  "definition_of_done",
+  "claude_code_cursor_prompt",
+  "files_likely_affected",
+  "non_goals",
+]);
+
+const ArtifactFieldValueShape = z.union([z.string(), z.array(z.string())]);
+
 const ArtifactIssueFieldsShape = z
   .object({
-    title: z.union([z.string(), z.array(z.string())]),
-    goal: z.union([z.string(), z.array(z.string())]),
-    user_story: z.union([z.string(), z.array(z.string())]),
-    context: z.union([z.string(), z.array(z.string())]),
-    inputs: z.union([z.string(), z.array(z.string())]),
-    outputs: z.union([z.string(), z.array(z.string())]),
-    required_tools: z.union([z.string(), z.array(z.string())]),
-    data_model: z.union([z.string(), z.array(z.string())]),
-    step_by_step_implementation: z.union([z.string(), z.array(z.string())]),
-    edge_cases: z.union([z.string(), z.array(z.string())]),
-    failure_modes: z.union([z.string(), z.array(z.string())]),
-    security: z.union([z.string(), z.array(z.string())]),
-    approval_gates: z.union([z.string(), z.array(z.string())]),
-    acceptance_criteria: z.union([z.string(), z.array(z.string())]),
-    test_cases: z.union([z.string(), z.array(z.string())]),
-    definition_of_done: z.union([z.string(), z.array(z.string())]),
-    claude_code_cursor_prompt: z.union([z.string(), z.array(z.string())]),
-    files_likely_affected: z.union([z.string(), z.array(z.string())]),
-    non_goals: z.union([z.string(), z.array(z.string())]),
+    title: ArtifactFieldValueShape,
+    goal: ArtifactFieldValueShape,
+    user_story: ArtifactFieldValueShape,
+    context: ArtifactFieldValueShape,
+    inputs: ArtifactFieldValueShape,
+    outputs: ArtifactFieldValueShape,
+    required_tools: ArtifactFieldValueShape,
+    data_model: ArtifactFieldValueShape,
+    step_by_step_implementation: ArtifactFieldValueShape,
+    edge_cases: ArtifactFieldValueShape,
+    failure_modes: ArtifactFieldValueShape,
+    security: ArtifactFieldValueShape,
+    approval_gates: ArtifactFieldValueShape,
+    acceptance_criteria: ArtifactFieldValueShape,
+    test_cases: ArtifactFieldValueShape,
+    definition_of_done: ArtifactFieldValueShape,
+    claude_code_cursor_prompt: ArtifactFieldValueShape,
+    files_likely_affected: ArtifactFieldValueShape,
+    non_goals: ArtifactFieldValueShape,
   })
   .passthrough();
 
@@ -506,11 +530,32 @@ export const ExportBuildBriefOutputShape = z
       .object({
         compiler: z.literal("export_build_brief.artifact_compiler.v1"),
         status: z.literal("compiled"),
+        scope_confirmation: z
+          .object({
+            assumed_confirmed: z.literal(true),
+            instruction: z.string(),
+          })
+          .passthrough(),
         directives: z.array(z.string()),
-        field_order: z.array(z.string()),
-        epic: z.object({ title: z.string(), goal: z.string() }).passthrough(),
+        field_order: z.array(ArtifactIssueFieldKeyShape),
+        epic: z
+          .object({
+            title: z.string(),
+            goal: z.string(),
+            context: z.string(),
+            non_goals: z.array(z.string()),
+            milestones: z.array(z.string()),
+          })
+          .passthrough(),
         milestones: z.array(
-          z.object({ id: z.string(), title: z.string(), issue_ids: z.array(z.string()) }).passthrough(),
+          z
+            .object({
+              id: z.string(),
+              title: z.string(),
+              goal: z.string(),
+              issue_ids: z.array(z.string()),
+            })
+            .passthrough(),
         ),
         linear_issue_templates: z.array(
           z
@@ -523,7 +568,13 @@ export const ExportBuildBriefOutputShape = z
             })
             .passthrough(),
         ),
-        few_shot_example: z.object({ title: z.string(), markdown: z.string() }).passthrough(),
+        few_shot_example: z
+          .object({
+            title: z.string(),
+            markdown: z.string(),
+            note: z.string(),
+          })
+          .passthrough(),
         build_prompt: z.string(),
         linear_issue_template_markdown: z.string(),
       })
