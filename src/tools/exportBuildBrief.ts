@@ -41,6 +41,7 @@ import {
   type ManifestBuildTarget,
 } from "../lib/observabilityContract.js";
 import { buildConnectArtifacts, s11Connect, type ConnectArtifacts } from "../lib/connectContract.js";
+import { connectionContractForComponents } from "./planWorkflow.js";
 import { ExportBuildBriefOutputShape } from "./outputSchemas.js";
 
 // ──────────────────────────────── input ────────────────────────────────
@@ -2001,6 +2002,12 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
   const registryFingerprint = input.registry_fingerprint ?? registryContentFingerprint();
   const buildTarget = input.build_target ?? "code";
 
+  // MAR-383: per-connection acquisition paths — same data the plan surfaces, so
+  // the brief, the manifest and plan_workflow can never disagree.
+  const connectionContract = connectionContractForComponents(
+    recommendedRoute.map((s) => s.component_id),
+  );
+
   // MAR-296: deterministic agent.manifest.json for DASH (no network, no LLM).
   const agent_manifest = buildAgentManifest({
     goal: input.goal,
@@ -2020,6 +2027,7 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
     registry_fingerprint: registryFingerprint,
     agent_name: input.agent_name,
     generated_at: input.generated_at,
+    connections: connectionContract,
   });
 
   // MAR-364: credential manifest + connect.mjs source, derived from the route.
@@ -2060,7 +2068,10 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
       input.enforced_approval_gates,
     ),
     s9_observability: s9Observability(agent_manifest),
-    s11_connect: s11Connect(connect),
+    // MAR-383: §11 now LEADS with the connection contract (how you obtain each
+    // connection, and who holds the token) and keeps the MAR-364 credential
+    // manifest + connect.mjs below it as the self-hosted escape hatch.
+    s11_connect: s11Connect(connect, connectionContract),
   };
 
   const sectionList = [

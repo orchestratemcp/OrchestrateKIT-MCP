@@ -41,7 +41,7 @@ Same spine — but **every layer is an artifact you can open, edit, and version*
 
 - The contract is a file (Plan Passport) — diffable, replayable, what CI validates against.
 - The route is inspectable per component: risk, failure modes, model tier, edges, provenance. `must_avoid` exists here; the simple path never shows it.
-- Connections expose actual scopes and token ownership (DASH / agent / external manager), with a "why each scope" line.
+- Connections expose actual scopes and token ownership (DASH / agent / external manager), with a "why each scope" line. Shipped as `connection_contract` (MAR-383): the simple path sees connection names and "each app authorizes its own connection"; scopes and the ranked acquisition paths open at technical depth. An OAuth grant made in another client never transfers — only the account, the scope contract and a login prefill carry over.
 - The build target is a choice: supported runtime adapter, build brief for Claude Code/Cursor/Codex, or portable prompt. The escape hatch is the *advanced* path, never the only path.
 - Evals and acceptance criteria ship with the contract; plan-vs-actual drift is a first-class view.
 
@@ -66,7 +66,7 @@ The hard parts exist: contract (passport + reflected goal), grounded planning, p
 | Dry run named + structured | attended-dry-run continuation mode in `plan_workflow` | in progress (parallel session) |
 | Material questions | calendar-notification clarifying question (review §8.7/§9.2) | queued (handoff prompt issued) |
 | Contract honesty | coverage semantics: quantities/ordering/cardinality (review P0.5, MAR-250 keystone) | queued |
-| Connect | Connection Center, MAR-383 — target: "a connection is a remote MCP server the user authorized once," broker-backed (see MAR-383 design-note comment 2026-07-17) | backlog |
+| Connect | Connection Center, MAR-383 — target: "a connection is a remote MCP server the user authorized once," broker-backed (see MAR-383 design-note comment 2026-07-17) | MCP half shipped: `plan_workflow` / `export_build_brief` emit a per-connection acquisition-path contract (broker → MCP server → `connect.mjs`) with ownership location and honest availability. DASH Connection Center still backlog |
 | Promote | one supported runtime adapter, MAR-379 / MAR-377 epic | backlog |
 | Observe | DASH run timeline + plan-vs-actual, MAR-298 / MAR-384 | backlog |
 

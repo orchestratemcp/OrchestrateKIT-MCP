@@ -85,6 +85,13 @@ import {
   buildObservabilityGuidance,
   type ObservabilityGuidance,
 } from "../lib/observabilityContract.js";
+import {
+  AUTHORIZATION_NOTE_SHORT,
+  buildConnectionContract,
+  compactConnectionContract,
+  connectionSpecFor,
+  type ConnectionRequirement,
+} from "../lib/connectionContract.js";
 
 // ───────────────────────────── types ─────────────────────────────
 
@@ -779,6 +786,17 @@ export type PlanWorkflowOutput = {
    * Empty when the route has no external dependencies.
    */
   what_you_need: IntegrationNeed[];
+  /**
+   * MAR-383 (Connect, UX spine step 4): the same integrations reframed as
+   * CONNECTIONS — one row per provider authorization rather than one per
+   * component, each carrying deterministically ranked acquisition paths
+   * (broker-backed connection MCP server → official/community MCP server → raw
+   * OAuth via connect.mjs), where the provider token would live, and an honest
+   * availability state. This is the contract the DASH Connection Center
+   * (MAR-383 / DASH-08) consumes; scopes stay here for technical depth and are
+   * never rendered at Layer 1.
+   */
+  connection_contract: ConnectionRequirement[];
   /**
    * Deterministic, target-aware next steps (MAR-208).
    * Tells the reading agent what to do NEXT so the session doesn't dead-end.
@@ -1567,6 +1585,34 @@ const INTEGRATION_CATALOG: Record<string, CatalogEntry> = {
     ],
   },
 };
+
+/**
+ * MAR-383: the connection contract for a bare list of route component ids.
+ *
+ * `buildWhatYouNeed` needs a registry snapshot (for component permission
+ * scopes); the connection contract does not — it reads only the integration
+ * catalog. export_build_brief has route components but no registry snapshot and
+ * no `what_you_need`, so it derives the contract through here, guaranteeing the
+ * brief's §11 and the plan's `connection_contract` are the SAME data.
+ */
+export function connectionContractForComponents(
+  componentIds: readonly string[],
+): ConnectionRequirement[] {
+  const needs = componentIds
+    .filter((id) => INTEGRATION_CATALOG[id] !== undefined)
+    .map((id) => {
+      const entry = INTEGRATION_CATALOG[id];
+      return {
+        component_id: id,
+        label: entry.label,
+        product_examples: entry.product_examples,
+        auth_model: entry.auth_model,
+        mcp_server: entry.mcp_server,
+        required_scopes: entry.required_scopes,
+      };
+    });
+  return buildConnectionContract(needs);
+}
 
 /**
  * MAR-208 / MAR-124: derive the concrete "products you'll wire up" list from
@@ -3701,7 +3747,10 @@ function buildProductCardConnectList(
     routeIds.has("email_read") ||
     hasGoalSignal(goal, ["gmail", "email inbox", "inbox", "new email", "new leads"])
   ) {
-    add("email_read", hasGoalSignal(goal, ["gmail"]) ? "Gmail / email inbox" : "Email inbox (Gmail / Outlook / IMAP)");
+    // MAR-383: keyed by CONNECTION, not component — the later per-component
+    // loop keys the same way, so Gmail's read/compose/draft-save components all
+    // collapse onto the one Gmail authorization instead of listing three rows.
+    add("gmail", hasGoalSignal(goal, ["gmail"]) ? "Gmail / email inbox" : "Email inbox (Gmail / Outlook / IMAP)");
   }
 
   if (
@@ -3710,7 +3759,7 @@ function buildProductCardConnectList(
     routeIds.has("deal_stage_update") ||
     hasGoalSignal(goal, ["crm", "hubspot", "salesforce", "pipedrive"])
   ) {
-    add("crm", "CRM, e.g. HubSpot (or Salesforce / Pipedrive)");
+    add("hubspot", "CRM, e.g. HubSpot (or Salesforce / Pipedrive)");
   }
 
   if (routeIds.has("slack_notification") || hasGoalSignal(goal, ["slack"])) {
@@ -3743,11 +3792,14 @@ function buildProductCardConnectList(
     add("sales_notification", "Sales notification channel");
   }
 
-  if (routeIds.has("email_draft")) {
-    const sender = routeIds.has("optional_email_send") && !explicitlyDraftOnly(goal)
-      ? "Email sender is optional; draft-only is enough unless approved replies should be sent"
-      : "Email draft account; draft-only is enough";
-    add("email_draft", sender);
+  // MAR-383: a draft-only route needs NO connection beyond the mailbox already
+  // listed above — drafting and reading are one authorization. Only a route that
+  // can actually send names a second, genuinely separate sender connection.
+  if (routeIds.has("email_draft") && routeIds.has("optional_email_send") && !explicitlyDraftOnly(goal)) {
+    add(
+      "email_sender",
+      "Email sender is optional; draft-only is enough unless approved replies should be sent",
+    );
   }
 
   for (const need of whatYouNeed) {
@@ -3783,6 +3835,16 @@ function buildProductCardConnectList(
       (routeIds.has("calendar_lookup") || routeIds.has("calendar_write")) &&
       !hasGoalSignal(goal, ["slack", "email notification", "webhook notification"])
     ) {
+      continue;
+    }
+    // MAR-383: when the component maps to a known provider connection, add it
+    // under the CONNECTION's identity — "Google Calendar", not "Calendar — read
+    // events (Google Calendar / Outlook Calendar)" plus a near-identical write
+    // row. One authorization is one row. Components with no provider mapping
+    // keep the descriptive catalog label.
+    const connection = connectionSpecFor(need.component_id);
+    if (connection) {
+      add(connection.connection_id, connection.label);
       continue;
     }
     const examples = formatExamples(need.product_examples);
@@ -3822,7 +3884,6 @@ function connectLine(goal: string, steps: RouteStep[], whatYouNeed: IntegrationN
         .replace("CRM, e.g. HubSpot (or Salesforce / Pipedrive)", "CRM (HubSpot/Salesforce/Pipedrive)")
         .replace("Slack channel", slackLabel)
         .replace("Email sender is optional; draft-only is enough unless approved replies should be sent", "optional email sender")
-        .replace("Email draft account; draft-only is enough", "email draft account")
         .replace(/\(choose one: ([^)]+)\)/, "($1)"),
     )
     .join(" · ");
@@ -4059,7 +4120,13 @@ function buildGuidedPlanMarkdown(
     lines.push(``);
   }
 
-  lines.push(`**Connect:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}.`, ``);
+  // MAR-383: names the connections, then states the ONE fact a reader at the
+  // decision layer can get wrong — that an existing claude.ai/Cursor grant will
+  // carry over. It will not. Scopes and package names stay at technical depth.
+  lines.push(
+    `**Connect:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}. ${AUTHORIZATION_NOTE_SHORT}.`,
+    ``,
+  );
 
   lines.push(...renderCoverageBlock(coverage, steps, goal));
 
@@ -4709,6 +4776,14 @@ export function planWorkflow(
 
   // ── MAR-208: what you'll need + target-aware next actions ──
   const what_you_need = buildWhatYouNeed(routeComponentIds, registry);
+  // ── MAR-383: per-connection acquisition paths (Connect, UX spine step 4) ──
+  // Full path prose at technical/deep; the decision-relevant fields at every
+  // depth (see compactConnectionContract for what is and is not dropped).
+  const fullConnectionContract = buildConnectionContract(what_you_need);
+  const connection_contract =
+    outputDepth === "technical" || outputDepth === "deep"
+      ? fullConnectionContract
+      : compactConnectionContract(fullConnectionContract);
   const suggested_next_actions = buildSuggestedNextActions(
     planSource,
     playbook,
@@ -4855,6 +4930,7 @@ export function planWorkflow(
     evals_to_add: composed.evals_to_add,
     design_notes,
     what_you_need,
+    connection_contract,
     suggested_next_actions,
     next_action_menu,
     clarifying_questions,
