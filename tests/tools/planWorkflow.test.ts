@@ -410,6 +410,10 @@ describe("planWorkflow — playbook routing (MAR-98 split)", () => {
     expect(r.safety_review.status).not.toBe("fail");
     expect(r.safety_review.blocking_issues).toEqual([]);
     expect(r.safety_review.approval_gates_required).toEqual([]);
+    expect(r.recommended_route.map((step) => step.component_id)).not.toContain(
+      "human_approval_gate",
+    );
+    expect(r.enforced_approval_gates).toEqual([]);
     // the MAR-132 advisory is retained, not silently dropped
     expect(
       r.safety_review.warnings.some((w) => w.toLowerCase().includes("advisory")),

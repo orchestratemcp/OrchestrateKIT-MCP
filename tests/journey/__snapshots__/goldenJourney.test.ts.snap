@@ -7,10 +7,13 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > comp
   "initial_goal": "[text]",
   "steps": [
     {
+      "automation_clearance_level": "L2",
       "clarifying_question_ids": [],
       "coverage_label": "full",
+      "enforced_approval_gates": [],
       "kind": "plan",
       "plan_source": "playbook",
+      "playbook_id": "competitor_price_monitor",
       "recommended_next_click": {
         "action": "assistant:attended_dry_run_in_chat",
         "id": "dry_run_in_chat",
@@ -57,6 +60,66 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > comp
 }
 `;
 
+exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > fully_unattended_price_monitor > matches the golden transcript snapshot 1`] = `
+{
+  "final_goal": "[text]",
+  "fixture": "fully_unattended_price_monitor",
+  "initial_goal": "[text]",
+  "steps": [
+    {
+      "automation_clearance_level": "L2",
+      "clarifying_question_ids": [],
+      "coverage_label": "full",
+      "enforced_approval_gates": [],
+      "kind": "plan",
+      "plan_source": "playbook",
+      "playbook_id": "competitor_price_monitor",
+      "recommended_next_click": {
+        "action": "assistant:attended_dry_run_in_chat",
+        "id": "dry_run_in_chat",
+        "label": "Dry run it attended in this chat now — nothing persists, then build",
+      },
+      "round": 0,
+      "route": [
+        "scheduled_trigger",
+        "page_monitor",
+        "deduplication",
+        "schema_validation",
+        "threshold_router",
+        "reviewer_notification",
+        "state_store",
+        "auth_failure_handler",
+        "slack_notification",
+        "audit_log",
+      ],
+      "route_status": "validated",
+    },
+    {
+      "durable_build_goal": false,
+      "honest_disclosure": true,
+      "kind": "attended_dry_run_option",
+      "present": true,
+      "walking_skeleton_disclosed": false,
+    },
+    {
+      "attended": true,
+      "kind": "dry_run",
+      "nothing_persists": true,
+      "scope_size": "medium",
+    },
+    {
+      "kind": "terminal:prepare_runtime",
+      "next_achievable_step": "[text]",
+      "recommended_setup_availability": "requires setup",
+      "recommended_setup_label": "Prepare runtime and connections",
+      "runtime_class": "managed_scheduled_job",
+    },
+  ],
+  "terminal": "prepare_runtime",
+  "transcript_version": "orchestratekit.golden_journey.v1",
+}
+`;
+
 exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > gmail_lead_to_crm > matches the golden transcript snapshot 1`] = `
 {
   "final_goal": "[text]",
@@ -64,10 +127,15 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > gmai
   "initial_goal": "[text]",
   "steps": [
     {
+      "automation_clearance_level": "L3",
       "clarifying_question_ids": [],
       "coverage_label": "full",
+      "enforced_approval_gates": [
+        "human_approval_gate",
+      ],
       "kind": "plan",
       "plan_source": "playbook",
+      "playbook_id": "email_lead_to_crm",
       "recommended_next_click": {
         "action": "assistant:attended_dry_run_in_chat",
         "id": "dry_run_in_chat",
@@ -103,6 +171,7 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > gmai
     {
       "all_sections_non_empty": true,
       "brief_markdown_non_empty": true,
+      "content_cross_references_valid": true,
       "kind": "terminal:build_brief",
       "llm_provider": "deterministic_first",
       "sections_present": [
@@ -132,12 +201,17 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > gold
   "initial_goal": "[text]",
   "steps": [
     {
+      "automation_clearance_level": "L3",
       "clarifying_question_ids": [
         "calendar_notification",
       ],
       "coverage_label": "full",
+      "enforced_approval_gates": [
+        "human_approval_gate",
+      ],
       "kind": "plan",
       "plan_source": "playbook",
+      "playbook_id": "email_calendar_assistant",
       "recommended_next_click": {
         "action": "assistant:ask_clarifying_questions",
         "id": "answer_clarifying_questions",
@@ -162,10 +236,15 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > gold
       "question_id": "calendar_notification",
     },
     {
+      "automation_clearance_level": "L3",
       "clarifying_question_ids": [],
       "coverage_label": "partial",
+      "enforced_approval_gates": [
+        "human_approval_gate",
+      ],
       "kind": "plan",
       "plan_source": "composed",
+      "playbook_id": null,
       "recommended_next_click": {
         "action": "assistant:attended_dry_run_in_chat",
         "id": "dry_run_in_chat",
@@ -219,10 +298,15 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > mult
   "initial_goal": "[text]",
   "steps": [
     {
+      "automation_clearance_level": "L3",
       "clarifying_question_ids": [],
       "coverage_label": "full",
+      "enforced_approval_gates": [
+        "human_approval_gate",
+      ],
       "kind": "plan",
       "plan_source": "composed",
+      "playbook_id": null,
       "recommended_next_click": {
         "action": "export_build_brief({ handoff_targets: ['linear'], delivery_mode: 'full' })",
         "id": "generate_linear_project",
@@ -269,10 +353,13 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > one_
   "initial_goal": "summarize my inbox for me now",
   "steps": [
     {
+      "automation_clearance_level": "L0",
       "clarifying_question_ids": [],
       "coverage_label": "full",
+      "enforced_approval_gates": [],
       "kind": "plan",
       "plan_source": "composed",
+      "playbook_id": null,
       "recommended_next_click": {
         "action": "assistant:attended_dry_run_in_chat",
         "id": "dry_run_in_chat",
@@ -310,6 +397,80 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > one_
 }
 `;
 
+exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > outbound_send_allowed > matches the golden transcript snapshot 1`] = `
+{
+  "final_goal": "[text]",
+  "fixture": "outbound_send_allowed",
+  "initial_goal": "[text]",
+  "steps": [
+    {
+      "automation_clearance_level": "L3",
+      "clarifying_question_ids": [],
+      "coverage_label": "partial",
+      "enforced_approval_gates": [
+        "human_approval_gate",
+      ],
+      "kind": "plan",
+      "plan_source": "composed",
+      "playbook_id": null,
+      "recommended_next_click": {
+        "action": "assistant:attended_dry_run_in_chat",
+        "id": "dry_run_in_chat",
+        "label": "Dry run it attended in this chat now — nothing persists, then build",
+      },
+      "round": 0,
+      "route": [
+        "email_read",
+        "schema_validation",
+        "intent_classifier",
+        "reviewer_notification",
+        "email_draft",
+        "human_approval_gate",
+        "auth_failure_handler",
+        "optional_email_send",
+        "audit_log",
+      ],
+      "route_status": "candidate",
+    },
+    {
+      "durable_build_goal": false,
+      "honest_disclosure": true,
+      "kind": "attended_dry_run_option",
+      "present": true,
+      "walking_skeleton_disclosed": false,
+    },
+    {
+      "attended": true,
+      "kind": "dry_run",
+      "nothing_persists": true,
+      "scope_size": "medium",
+    },
+    {
+      "all_sections_non_empty": true,
+      "brief_markdown_non_empty": true,
+      "content_cross_references_valid": true,
+      "kind": "terminal:build_brief",
+      "llm_provider": "deterministic_first",
+      "sections_present": [
+        "s0_constraints",
+        "s1_summary",
+        "s2_route",
+        "s3_worker_contracts",
+        "s4_loop_contract",
+        "s5_safety",
+        "s6_do_not_add",
+        "s7_review_loopback",
+        "s8_definition_of_done",
+        "s9_observability",
+        "s11_connect",
+      ],
+    },
+  ],
+  "terminal": "build_brief",
+  "transcript_version": "orchestratekit.golden_journey.v1",
+}
+`;
+
 exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > readonly_attended_inbox_summary > matches the golden transcript snapshot 1`] = `
 {
   "final_goal": "[text]",
@@ -317,10 +478,13 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > read
   "initial_goal": "[text]",
   "steps": [
     {
+      "automation_clearance_level": "L0",
       "clarifying_question_ids": [],
       "coverage_label": "full",
+      "enforced_approval_gates": [],
       "kind": "plan",
       "plan_source": "composed",
+      "playbook_id": null,
       "recommended_next_click": {
         "action": "assistant:attended_dry_run_in_chat",
         "id": "dry_run_in_chat",
@@ -351,6 +515,198 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > read
     },
   ],
   "terminal": "attended_dry_run",
+  "transcript_version": "orchestratekit.golden_journey.v1",
+}
+`;
+
+exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > vague_email_assistant > matches the golden transcript snapshot 1`] = `
+{
+  "final_goal": "[text]",
+  "fixture": "vague_email_assistant",
+  "initial_goal": "Build an email assistant.",
+  "steps": [
+    {
+      "automation_clearance_level": "L3",
+      "clarifying_question_ids": [
+        "write_permission",
+        "build_surface",
+        "hosting_monitoring",
+      ],
+      "coverage_label": "full",
+      "enforced_approval_gates": [
+        "human_approval_gate",
+      ],
+      "kind": "plan",
+      "plan_source": "composed",
+      "playbook_id": null,
+      "recommended_next_click": {
+        "action": "assistant:ask_clarifying_questions",
+        "id": "answer_clarifying_questions",
+        "label": "Answer the quick questions",
+      },
+      "round": 0,
+      "route": [
+        "email_read",
+        "schema_validation",
+        "email_draft",
+        "human_approval_gate",
+        "auth_failure_handler",
+        "optional_email_send",
+        "audit_log",
+      ],
+      "route_status": "candidate",
+    },
+    {
+      "canned_answer": "It may write or update only after my approval.",
+      "kind": "answer_clarifying_question",
+      "question_id": "write_permission",
+    },
+    {
+      "canned_answer": "Build it inside ChatGPT.",
+      "kind": "answer_clarifying_question",
+      "question_id": "build_surface",
+    },
+    {
+      "canned_answer": "Run it inside ChatGPT and I will check it manually.",
+      "kind": "answer_clarifying_question",
+      "question_id": "hosting_monitoring",
+    },
+    {
+      "automation_clearance_level": "L3",
+      "clarifying_question_ids": [],
+      "coverage_label": "partial",
+      "enforced_approval_gates": [
+        "human_approval_gate",
+      ],
+      "kind": "plan",
+      "plan_source": "composed",
+      "playbook_id": null,
+      "recommended_next_click": {
+        "action": "assistant:attended_dry_run_in_chat",
+        "id": "dry_run_in_chat",
+        "label": "Dry run it attended in this chat now — nothing persists, then build",
+      },
+      "round": 1,
+      "route": [
+        "email_read",
+        "schema_validation",
+        "reviewer_notification",
+        "email_draft",
+        "human_approval_gate",
+        "auth_failure_handler",
+        "optional_email_send",
+        "audit_log",
+      ],
+      "route_status": "candidate",
+    },
+    {
+      "durable_build_goal": false,
+      "honest_disclosure": true,
+      "kind": "attended_dry_run_option",
+      "present": true,
+      "walking_skeleton_disclosed": false,
+    },
+    {
+      "attended": true,
+      "kind": "dry_run",
+      "nothing_persists": true,
+      "scope_size": "medium",
+    },
+    {
+      "all_sections_non_empty": true,
+      "brief_markdown_non_empty": true,
+      "content_cross_references_valid": true,
+      "kind": "terminal:build_brief",
+      "llm_provider": "deterministic_first",
+      "sections_present": [
+        "s0_constraints",
+        "s1_summary",
+        "s2_route",
+        "s3_worker_contracts",
+        "s4_loop_contract",
+        "s5_safety",
+        "s6_do_not_add",
+        "s7_review_loopback",
+        "s8_definition_of_done",
+        "s9_observability",
+        "s11_connect",
+      ],
+    },
+  ],
+  "terminal": "build_brief",
+  "transcript_version": "orchestratekit.golden_journey.v1",
+}
+`;
+
+exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > validated_content_pipeline > matches the golden transcript snapshot 1`] = `
+{
+  "final_goal": "[text]",
+  "fixture": "validated_content_pipeline",
+  "initial_goal": "[text]",
+  "steps": [
+    {
+      "automation_clearance_level": "L4",
+      "clarifying_question_ids": [],
+      "coverage_label": "full",
+      "enforced_approval_gates": [
+        "human_approval_gate",
+      ],
+      "kind": "plan",
+      "plan_source": "playbook",
+      "playbook_id": "content_approval_pipeline",
+      "recommended_next_click": {
+        "action": "assistant:attended_dry_run_in_chat",
+        "id": "dry_run_in_chat",
+        "label": "Dry run it attended in this chat now — nothing persists, then build",
+      },
+      "round": 0,
+      "route": [
+        "content_idea_intake",
+        "schema_validation",
+        "copy_generation",
+        "design_brief_generation",
+        "reviewer_notification",
+        "human_approval_gate",
+        "external_publish",
+        "audit_log",
+      ],
+      "route_status": "validated",
+    },
+    {
+      "durable_build_goal": false,
+      "honest_disclosure": true,
+      "kind": "attended_dry_run_option",
+      "present": true,
+      "walking_skeleton_disclosed": false,
+    },
+    {
+      "attended": true,
+      "kind": "dry_run",
+      "nothing_persists": true,
+      "scope_size": "medium",
+    },
+    {
+      "all_sections_non_empty": true,
+      "brief_markdown_non_empty": true,
+      "content_cross_references_valid": true,
+      "kind": "terminal:build_brief",
+      "llm_provider": "deterministic_first",
+      "sections_present": [
+        "s0_constraints",
+        "s1_summary",
+        "s2_route",
+        "s3_worker_contracts",
+        "s4_loop_contract",
+        "s5_safety",
+        "s6_do_not_add",
+        "s7_review_loopback",
+        "s8_definition_of_done",
+        "s9_observability",
+        "s11_connect",
+      ],
+    },
+  ],
+  "terminal": "build_brief",
   "transcript_version": "orchestratekit.golden_journey.v1",
 }
 `;

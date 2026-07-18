@@ -57,11 +57,44 @@ export type SeededAttendedExecution = {
   expected_bullet_count: number;
 };
 
+export type JourneyCoverageTag =
+  | "read_only"
+  | "fully_unattended"
+  | "outbound_send_allowed"
+  | "multiple_clarifying_questions"
+  | "validated_playbook"
+  | "deliberately_vague";
+
+export type JourneyQuestionExpectation = {
+  id: string;
+  /** Case-insensitive fragments that must remain in the user-facing question. */
+  question_includes: string[];
+  /** Exact user-facing alternatives, in display order. */
+  options: string[];
+};
+
+export type JourneyPlanExpectation = {
+  plan_source?: "playbook" | "composed";
+  playbook_id?: string | null;
+  recommended_next_click_id?: string;
+  route_includes?: string[];
+  route_excludes?: string[];
+  enforced_approval_gates?: string[];
+  automation_clearance_level?: string;
+  /** Exact question set and order for this planning phase. */
+  clarifying_questions?: JourneyQuestionExpectation[];
+};
+
 export type JourneyFixture = {
   name: string;
   goal: string;
   canned_answers: Record<string, string>;
   notes: string;
+  coverage_tags: JourneyCoverageTag[];
+  expectations?: {
+    initial?: JourneyPlanExpectation;
+    resolved?: JourneyPlanExpectation;
+  };
   /** Optional synthetic task data for exercising an attended run without a live integration. */
   seeded_attended_execution?: SeededAttendedExecution;
 };
@@ -201,9 +234,12 @@ export type PlanJourneyStep = {
   kind: "plan";
   round: number;
   plan_source: string;
+  playbook_id: string | null;
   route_status: string;
   coverage_label: string;
   route: string[];
+  automation_clearance_level: string;
+  enforced_approval_gates: string[];
   clarifying_question_ids: string[];
   recommended_next_click: { id: string; label: string; action: string };
 };
@@ -228,6 +264,7 @@ export type BuildBriefJourneyStep = {
   sections_present: string[];
   all_sections_non_empty: true;
   brief_markdown_non_empty: true;
+  content_cross_references_valid: true;
 };
 
 export type PrepareRuntimeJourneyStep = {
@@ -313,12 +350,97 @@ export function planStep(p: PlanWorkflowOutput, round: number): PlanJourneyStep 
     kind: "plan",
     round,
     plan_source: p.plan_source,
+    playbook_id: p.playbook?.id ?? null,
     route_status: p.route_status,
     coverage_label: p.coverage.coverage_label,
     route: p.recommended_route.map((s) => s.component_id),
+    automation_clearance_level: p.automation_clearance.level,
+    enforced_approval_gates: [...p.enforced_approval_gates],
     clarifying_question_ids: p.clarifying_questions.map((q) => q.id),
     recommended_next_click: { id: click.id, label: click.label, action: click.action },
   };
+}
+
+/**
+ * Assert fixture-owned facts about a planning phase. These checks pin semantic
+ * content that transcript shape alone cannot protect: the intended playbook,
+ * safety boundary, route membership, and the actual questions/options shown to
+ * the user. The Lab imports this function so deterministic and model-driven
+ * runs use one contract.
+ */
+export function assertFixturePlanExpectation(
+  p: PlanWorkflowOutput,
+  fixture: JourneyFixture,
+  phase: "initial" | "resolved",
+): void {
+  const expected = fixture.expectations?.[phase];
+  if (!expected) return;
+
+  const fail = (why: string): never => {
+    throw new Error(`[golden-journey:${fixture.name}] ${phase} plan expectation: ${why}`);
+  };
+  const equalArray = (actual: string[], wanted: string[], label: string): void => {
+    if (JSON.stringify(actual) !== JSON.stringify(wanted)) {
+      fail(`${label} expected ${JSON.stringify(wanted)}, observed ${JSON.stringify(actual)}`);
+    }
+  };
+
+  if (expected.plan_source !== undefined && p.plan_source !== expected.plan_source) {
+    fail(`plan_source expected "${expected.plan_source}", observed "${p.plan_source}"`);
+  }
+  const playbookId = p.playbook?.id ?? null;
+  if (expected.playbook_id !== undefined && playbookId !== expected.playbook_id) {
+    fail(`playbook_id expected ${JSON.stringify(expected.playbook_id)}, observed ${JSON.stringify(playbookId)}`);
+  }
+  const clickId = p.goal_to_product_wizard.recommended_next_click.id;
+  if (
+    expected.recommended_next_click_id !== undefined &&
+    clickId !== expected.recommended_next_click_id
+  ) {
+    fail(`recommended_next_click_id expected "${expected.recommended_next_click_id}", observed "${clickId}"`);
+  }
+
+  const route = p.recommended_route.map((step) => step.component_id);
+  for (const componentId of expected.route_includes ?? []) {
+    if (!route.includes(componentId)) fail(`route is missing required component "${componentId}"`);
+  }
+  for (const componentId of expected.route_excludes ?? []) {
+    if (route.includes(componentId)) fail(`route contains forbidden component "${componentId}"`);
+  }
+  if (expected.enforced_approval_gates !== undefined) {
+    equalArray(
+      p.enforced_approval_gates,
+      expected.enforced_approval_gates,
+      "enforced_approval_gates",
+    );
+  }
+  if (
+    expected.automation_clearance_level !== undefined &&
+    p.automation_clearance.level !== expected.automation_clearance_level
+  ) {
+    fail(
+      `automation_clearance_level expected "${expected.automation_clearance_level}", ` +
+        `observed "${p.automation_clearance.level}"`,
+    );
+  }
+
+  if (expected.clarifying_questions !== undefined) {
+    equalArray(
+      p.clarifying_questions.map((question) => question.id),
+      expected.clarifying_questions.map((question) => question.id),
+      "clarifying question ids",
+    );
+    expected.clarifying_questions.forEach((questionExpectation, index) => {
+      const actual = p.clarifying_questions[index];
+      const questionLower = actual.question.toLocaleLowerCase();
+      for (const fragment of questionExpectation.question_includes) {
+        if (!questionLower.includes(fragment.toLocaleLowerCase())) {
+          fail(`question "${actual.id}" no longer includes ${JSON.stringify(fragment)}`);
+        }
+      }
+      equalArray(actual.options, questionExpectation.options, `options for question "${actual.id}"`);
+    });
+  }
 }
 
 /**
@@ -411,12 +533,40 @@ export function followBuildBrief(p: PlanWorkflowOutput, fixture: string): BuildB
     throw new Error(`[golden-journey:${fixture}] build brief brief_markdown is empty`);
   }
 
+  for (const step of p.recommended_route) {
+    if (!sections.s2_route.includes(`\`${step.component_id}\``)) {
+      throw new Error(
+        `[golden-journey:${fixture}] build brief route omits component "${step.component_id}"`,
+      );
+    }
+  }
+  for (const gate of p.enforced_approval_gates) {
+    if (!sections.s5_safety.includes(`\`${gate}\``)) {
+      throw new Error(
+        `[golden-journey:${fixture}] build brief safety omits enforced gate "${gate}"`,
+      );
+    }
+  }
+  const constraintsLower = sections.s0_constraints.toLocaleLowerCase();
+  for (const check of p.constraint_coverage.checks) {
+    if (
+      check.constraint_class === "prohibition" &&
+      !constraintsLower.includes(check.goal_phrase.toLocaleLowerCase())
+    ) {
+      throw new Error(
+        `[golden-journey:${fixture}] build brief constraints omit prohibition phrase ` +
+          JSON.stringify(check.goal_phrase),
+      );
+    }
+  }
+
   return {
     kind: "terminal:build_brief",
     llm_provider: MECHANICAL_LLM_PROVIDER,
     sections_present: [...REQUIRED_BRIEF_SECTIONS],
     all_sections_non_empty: true,
     brief_markdown_non_empty: true,
+    content_cross_references_valid: true,
   };
 }
 
@@ -551,6 +701,8 @@ export function runMechanicalJourney(
   let current = planForJourney(goal, registry);
   let round = 0;
 
+  assertFixturePlanExpectation(current, fixture, "initial");
+
   // ── Fold canned answers until the recommended click stops asking questions ──
   while (current.goal_to_product_wizard.recommended_next_click.id === "answer_clarifying_questions") {
     steps.push(planStep(current, round));
@@ -580,6 +732,7 @@ export function runMechanicalJourney(
   }
 
   // ── The terminal plan the client acts on ──
+  assertFixturePlanExpectation(current, fixture, "resolved");
   steps.push(planStep(current, round));
   steps.push(assertAttendedDryRun(current, fixture.name));
 

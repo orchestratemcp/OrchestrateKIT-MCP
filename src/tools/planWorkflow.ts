@@ -4635,9 +4635,11 @@ export function planWorkflow(
         `deliberately only if you accept unattended external writes with no human review.`,
     };
   } else {
-    enforced_approval_gates = hasGate
-      ? ["human_approval_gate"]
-      : composed.required_approval_gates;
+    // This field describes controls that are actually present on the chosen
+    // route. A playbook may beat the composed candidate while carrying a
+    // different gate shape, so never leak the losing candidate's requirements.
+    // Missing-but-required gates remain visible in safety_review.
+    enforced_approval_gates = hasGate ? ["human_approval_gate"] : [];
   }
 
   // ── MAR-142: warn when a playbook route contains writes the goal explicitly forbade ──
