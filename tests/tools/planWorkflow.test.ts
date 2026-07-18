@@ -810,6 +810,15 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
     expect(qs.map((q) => q.id)).not.toContain("write_permission");
   });
 
+  it("buildClarifyingQuestions: explicit attended one-shot constraints ask nothing", () => {
+    const qs = buildClarifyingQuestions(
+      "Read my unread inbox now and summarize it in this chat. This is read-only and attended; " +
+        "do not create a scheduled or persistent agent.",
+      ["email_read"],
+    );
+    expect(qs).toEqual([]);
+  });
+
   it("buildClarifyingQuestions: a named trigger suppresses the trigger question", () => {
     const qs = buildClarifyingQuestions(
       "every hour, automatically check the page",

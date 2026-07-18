@@ -565,7 +565,8 @@ function suppressWeakOnlyDomain(
  * phrases like "no emails sent" that contain a domain keyword in a negated
  * context (MAR-140).
  */
-const NEGATION_WORDS = new Set(["no", "not", "never", "without"]);
+const NEGATION_WORDS = new Set(["no", "not", "never", "without", "don't", "dont"]);
+const NEGATION_SCOPE_WORDS = 8;
 
 /**
  * Returns true when `keyword` appears in `text` and the preceding 1-3 words
@@ -575,12 +576,41 @@ const NEGATION_WORDS = new Set(["no", "not", "never", "without"]);
  * constraint, not a workflow step, and must never be reported as unmatched demand.
  */
 export function isNegatedInContext(text: string, keyword: string): boolean {
-  const idx = text.indexOf(keyword);
-  if (idx === -1) return false;
-  // Grab up to 25 chars before the keyword and split into words.
-  const before = text.slice(Math.max(0, idx - 25), idx).trim();
-  const words = before.split(/\s+/).slice(-3);
-  return words.some((w) => NEGATION_WORDS.has(w));
+  let from = 0;
+  let found = false;
+  for (;;) {
+    const idx = text.indexOf(keyword, from);
+    if (idx === -1) return found;
+    found = true;
+
+    const sentenceStart = Math.max(
+      text.lastIndexOf(".", idx - 1),
+      text.lastIndexOf(";", idx - 1),
+      text.lastIndexOf("!", idx - 1),
+      text.lastIndexOf("?", idx - 1),
+      text.lastIndexOf("\n", idx - 1),
+    );
+    const words =
+      text
+        .slice(sentenceStart + 1, idx)
+        .toLowerCase()
+        .match(/[a-z']+/g)
+        ?.slice(-NEGATION_SCOPE_WORDS) ?? [];
+    let negationIndex = -1;
+    for (let i = words.length - 1; i >= 0; i -= 1) {
+      if (NEGATION_WORDS.has(words[i])) {
+        negationIndex = i;
+        break;
+      }
+    }
+    const adversativeAfterNegation =
+      negationIndex >= 0 &&
+      words
+        .slice(negationIndex + 1)
+        .some((word) => ["but", "however", "except"].includes(word));
+    if (negationIndex === -1 || adversativeAfterNegation) return false;
+    from = idx + keyword.length;
+  }
 }
 
 /**
@@ -901,6 +931,22 @@ function suppressEmailDraftForDocumentSource(
   // goal keeps them.
   domainAllowed.delete("data_scraper");
   domainAllowed.delete("page_monitor");
+}
+
+const EMAIL_SUMMARY_INTENT = ["summarize", "summarise", "summary", "digest", "bullet"];
+
+/** Email is a read-only source in a summary goal unless correspondence is explicit. */
+function suppressEmailDraftForInboxSummary(
+  goalLower: string,
+  domainAllowed: Set<string>,
+): void {
+  if (!domainAllowed.has("email_read")) return;
+  if (!EMAIL_SOURCE_TOKENS.some((token) => goalLower.includes(token))) return;
+  if (!EMAIL_SUMMARY_INTENT.some((token) => goalLower.includes(token))) return;
+  if (EMAIL_CORRESPONDENCE_INTENT.some((token) => goalLower.includes(token))) return;
+  domainAllowed.delete("email_draft");
+  domainAllowed.delete("gmail_draft_write");
+  domainAllowed.delete("optional_email_send");
 }
 
 /**
@@ -1977,6 +2023,7 @@ export function matchCapabilities(
   // MAR-302: email-as-document-source (invoice/PO ingest, no correspondence
   // intent) drops the email drafting/sending path — email is a SOURCE here.
   suppressEmailDraftForDocumentSource(goalLower, domainAllowed, goalDomains);
+  suppressEmailDraftForInboxSummary(goalLower, domainAllowed);
   // MAR-303: a database-source report goal with no CRM-write intent drops the
   // crm_note_write false-positive ("sales" data subject → crm_sales domain).
   suppressCrmNoteForDataReport(goalLower, domainAllowed);
@@ -2011,7 +2058,7 @@ export function matchCapabilities(
 
   // Pass 1: keyword hint dictionary (gated)
   for (const [keyword, ids] of Object.entries(KEYWORD_HINTS)) {
-    if (goalLower.includes(keyword)) {
+    if (goalLower.includes(keyword) && !isNegatedInContext(goalLower, keyword)) {
       for (const id of ids) {
         if (domainAllowed.has(id)) bump(id, 2, keyword, "hint");
       }

@@ -28,6 +28,25 @@ describe("matchCapabilities", () => {
     expect(ids).toContain("email_draft");
   });
 
+  it("does not turn negated scheduled/persistent intent into durable components", () => {
+    const ids = matchedIds(
+      "Read my unread inbox now and give me a five-bullet summary in this chat. " +
+        "This is read-only and attended: do not send, delete, archive, label, or modify any email; " +
+        "do not create a scheduled or persistent agent.",
+    );
+    expect(ids).toContain("email_read");
+    expect(ids).not.toContain("scheduled_trigger");
+    expect(ids).not.toContain("state_store");
+    expect(ids).not.toContain("email_draft");
+  });
+
+  it("keeps affirmative scheduling after an earlier negated occurrence", () => {
+    const ids = matchedIds(
+      "Do not schedule drafts; schedule a daily read-only inbox summary instead.",
+    );
+    expect(ids).toContain("scheduled_trigger");
+  });
+
   it("matches research components for a research goal", () => {
     const { matches } = matchCapabilities("research and summarize a topic with citations", [], [], components);
     const ids = matches.map((m) => m.component.id);

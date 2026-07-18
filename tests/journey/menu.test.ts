@@ -66,11 +66,18 @@ describe("MAR-387 — the rendered menu is machine-readable", () => {
     expect(optionForLetter(menu, "Z")).toBeUndefined();
   });
 
-  it("marks the option the menu itself labels Recommended", () => {
-    const plan = planForJourney(fixtureByName("one_shot_inbox_summary").goal, registry);
-    const menu = parseMenu(plan.summary_markdown);
-    const recommended = menu.filter((o) => o.marked_recommended);
-    expect(recommended).toHaveLength(1);
-    expect(recommended[0].action_id).toBe("build_brief");
+  it("the rendered Recommended option matches the machine-readable click", () => {
+    for (const fixture of JOURNEY_FIXTURES) {
+      const plan = planForJourney(fixture.goal, registry);
+      const expected = clickIdToMenuAction(plan.goal_to_product_wizard.recommended_next_click.id);
+      const recommended = parseMenu(plan.summary_markdown).filter((o) => o.marked_recommended);
+
+      if (expected === "answer_clarifying_questions") {
+        expect(recommended, `fixture ${fixture.name}`).toHaveLength(0);
+      } else {
+        expect(recommended, `fixture ${fixture.name}`).toHaveLength(1);
+        expect(recommended[0].action_id, `fixture ${fixture.name}`).toBe(expected);
+      }
+    }
   });
 });

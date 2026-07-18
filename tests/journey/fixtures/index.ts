@@ -12,6 +12,7 @@
  *   • golden_email_calendar → answer_clarifying_questions → dry run → prepare_runtime (medium, durable)
  *   • competitor_price_monitor → dry run → prepare_runtime (medium, durable, no questions)
  *   • one_shot_inbox_summary → dry run → attended_dry_run terminal (small — the run IS the deliverable)
+ *   • readonly_attended_inbox_summary → explicit no-write/no-durable regression (small)
  *   • gmail_lead_to_crm → dry run → build_brief (medium, attended runtime)
  *   • multi_agent_coder_loop → generate_linear_project → linear_issues (large — plan it)
  */
@@ -54,6 +55,17 @@ export const JOURNEY_FIXTURES: JourneyFixture[] = [
     notes:
       "Genuinely one-shot / small scope (nothing must outlive the session), so the ⭐ is " +
       "the attended dry run itself (terminal), and it carries NO walking-skeleton nag.",
+  },
+  {
+    name: "readonly_attended_inbox_summary",
+    goal:
+      "Read my unread inbox now and give me a concise five-bullet summary in this chat. " +
+      "This is read-only and attended: do not send, delete, archive, label, or modify any email; " +
+      "do not create a scheduled or persistent agent.",
+    canned_answers: {},
+    notes:
+      "Explicit read-only/attended boundary: negated scheduled and persistent terms must not " +
+      "create durable components or redundant build/hosting questions.",
   },
   {
     name: "gmail_lead_to_crm",

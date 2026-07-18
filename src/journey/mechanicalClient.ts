@@ -342,7 +342,7 @@ export function followPrepareRuntime(p: PlanWorkflowOutput, fixture: string): Pr
  * the plan as Linear issues via the existing full-delivery build brief, and
  * assert the Linear handoff is present and non-empty.
  */
-function followLinearIssues(p: PlanWorkflowOutput, fixture: string): LinearIssuesTerminalStep {
+export function followLinearIssues(p: PlanWorkflowOutput, fixture: string): LinearIssuesTerminalStep {
   const brief = exportBuildBrief({
     goal: p.goal,
     plan_source: p.plan_source,
@@ -385,6 +385,43 @@ function followLinearIssues(p: PlanWorkflowOutput, fixture: string): LinearIssue
 function isRuntimeFirst(p: PlanWorkflowOutput): boolean {
   const rr = p.goal_to_product_wizard.runtime_requirements;
   return rr.must_run_while_user_offline || rr.trigger_mode === "interactive";
+}
+
+export type DryRunRecommendationResult = {
+  terminal: JourneyTerminal;
+  steps: Array<DryRunTraversalStep | AttendedDryRunTerminalStep | BuildBriefJourneyStep | PrepareRuntimeJourneyStep>;
+};
+
+/**
+ * Follow the scope-aware attended dry-run recommendation to its real terminal.
+ * Exported so the Lab's model-driven client and this mechanical client share
+ * one continuation rule instead of independently deciding what follows E).
+ */
+export function followDryRunRecommendation(
+  p: PlanWorkflowOutput,
+  fixture: string,
+): DryRunRecommendationResult {
+  const scopeSize = p.scope_assessment.size;
+  if (scopeSize === "large") {
+    throw new Error(
+      `[golden-journey:${fixture}] dry_run_in_chat cannot be the recommended click for large scope`,
+    );
+  }
+
+  const steps: DryRunRecommendationResult["steps"] = [
+    { kind: "dry_run", attended: true, nothing_persists: true, scope_size: scopeSize },
+  ];
+  if (scopeSize === "small") {
+    steps.push({ kind: "terminal:attended_dry_run", offer_save_as_routine: true });
+    return { terminal: "attended_dry_run", steps };
+  }
+
+  if (isRuntimeFirst(p)) {
+    steps.push(followPrepareRuntime(p, fixture));
+    return { terminal: "prepare_runtime", steps };
+  }
+  steps.push(followBuildBrief(p, fixture));
+  return { terminal: "build_brief", steps };
 }
 
 /**
@@ -437,31 +474,11 @@ export function runMechanicalJourney(
   steps.push(assertAttendedDryRun(current, fixture.name));
 
   const click = current.goal_to_product_wizard.recommended_next_click;
-  const scopeSize = current.scope_assessment.size;
   let terminal: JourneyTerminal;
   if (click.id === "dry_run_in_chat") {
-    // MAR-386: the scope-aware ⭐. Take the attended dry run as a traversal step…
-    steps.push({
-      kind: "dry_run",
-      attended: true,
-      nothing_persists: true,
-      scope_size: scopeSize,
-    });
-    if (scopeSize === "small") {
-      // …a genuinely small task: the dry run IS the deliverable. Offer save-as-routine.
-      steps.push({ kind: "terminal:attended_dry_run", offer_save_as_routine: true });
-      terminal = "attended_dry_run";
-    } else {
-      // …a medium task: after the dry run, the build deliverable follows —
-      // prepare_runtime when the plan must outlive the session, else build_brief.
-      if (isRuntimeFirst(current)) {
-        steps.push(followPrepareRuntime(current, fixture.name));
-        terminal = "prepare_runtime";
-      } else {
-        steps.push(followBuildBrief(current, fixture.name));
-        terminal = "build_brief";
-      }
-    }
+    const dryRun = followDryRunRecommendation(current, fixture.name);
+    steps.push(...dryRun.steps);
+    terminal = dryRun.terminal;
   } else if (click.id === "generate_linear_project") {
     steps.push(followLinearIssues(current, fixture.name));
     terminal = "linear_issues";

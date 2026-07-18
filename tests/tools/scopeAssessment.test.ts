@@ -21,6 +21,10 @@ function plan(goal: string) {
 }
 
 const SMALL_ONE_SHOT = "summarize my inbox for me now";
+const SMALL_CONSTRAINED_ONE_SHOT =
+  "Read my unread inbox now and give me a concise five-bullet summary in this chat. " +
+  "This is read-only and attended: do not send, delete, archive, label, or modify any email; " +
+  "do not create a scheduled or persistent agent.";
 const MEDIUM_GMAIL_LEAD =
   "Build an agent that reads new leads from Gmail, drafts a reply, updates the CRM, and alerts sales in Slack after approval.";
 const MEDIUM_COMPETITOR =
@@ -41,6 +45,17 @@ describe("MAR-386 — scope classification across S/M/L fixtures", () => {
     expect(r.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(false);
     expect(r.scope_assessment.recommended_path.toLowerCase()).toContain("run it now");
     expect(r.scope_assessment.drivers.length).toBeGreaterThan(0);
+  });
+
+  it("honours negated durable intent on an explicit one-shot goal", () => {
+    const r = plan(SMALL_CONSTRAINED_ONE_SHOT);
+    const ids = r.recommended_route.map((step) => step.component_id);
+    expect(r.scope_assessment.size).toBe("small");
+    expect(r.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(false);
+    expect(r.goal_to_product_wizard.recommended_next_click.id).toBe("dry_run_in_chat");
+    expect(ids).not.toEqual(
+      expect.arrayContaining(["scheduled_trigger", "state_store", "email_draft"]),
+    );
   });
 
   it("the Gmail-lead / competitor / email-calendar dogfoods are MEDIUM — build it", () => {
@@ -133,8 +148,11 @@ describe("MAR-386 — scope never gates capability (all options present at every
       // The attended dry run (E) is present at EVERY size — a large task can still
       // be dry-run, a small one can still be saved/built.
       expect(md).toMatch(/^E\) Run it attended in this chat now/m);
-      // Save-to-Linear is present at every size too.
-      expect(md).toContain("Save this plan to Linear / Obsidian / Notion");
+      // Plan export is present at every size too; large scope names the exact
+      // Linear action while keeping the other destinations visible.
+      expect(md).toMatch(
+        /Save this plan to Linear \/ Obsidian \/ Notion|Generate this plan as Linear issues; Obsidian \/ Notion export remains available/,
+      );
     }
   });
 
@@ -148,8 +166,8 @@ describe("MAR-386 — scope never gates capability (all options present at every
     expect(mediumMd).not.toMatch(/^C\).*Recommended$/m);
 
     const largeMd = plan(LARGE_MULTI_AGENT).summary_markdown;
-    // The Save-to-Linear line carries the ⭐; the dry run does not.
-    expect(largeMd).toMatch(/Save this plan to Linear \/ Obsidian \/ Notion — Recommended/);
+    // The visible label names the same Linear-issues action as the machine click.
+    expect(largeMd).toMatch(/Generate this plan as Linear issues.*— Recommended/);
     expect(largeMd).not.toMatch(/^E\).*— Recommended$/m);
 
     // Never more than one recommendation in a single menu.

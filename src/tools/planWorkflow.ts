@@ -1683,7 +1683,10 @@ const BUILD_INTENT_SIGNALS = [
   "build me", "an agent that", "an assistant that",
 ];
 export function goalHasBuildIntent(goal: string): boolean {
-  return anySignal(goal.toLowerCase(), BUILD_INTENT_SIGNALS);
+  const g = goal.toLowerCase();
+  return BUILD_INTENT_SIGNALS.some(
+    (signal) => g.includes(signal) && !isNegatedInContext(g, signal),
+  );
 }
 
 /**
@@ -1892,6 +1895,7 @@ const TRIGGER_SPECIFIED_SIGNALS = [
   "each morning", "each day", "cron", "webhook", "on push", "pull request",
   "when an email", "when a new", "on receiving", "on receipt", "manually",
   "on demand", "i run", "button", "in chat", "mention", "arrives", "is received",
+  "in this chat",
   "incoming", "new lead", "new leads", "new email", "new emails", "new message",
   "new messages", "new gmail",
 ];
@@ -2047,7 +2051,9 @@ export function buildClarifyingQuestions(
   //    trigger component is in the route.
   const hasTriggerComponent = routeComponentIds.some((id) => id.endsWith("_trigger"));
   if (
-    anySignal(g, AUTOMATION_INTENT_SIGNALS) &&
+    AUTOMATION_INTENT_SIGNALS.some(
+      (signal) => g.includes(signal) && !isNegatedInContext(g, signal),
+    ) &&
     !anySignal(g, TRIGGER_SPECIFIED_SIGNALS) &&
     !hasTriggerComponent
   ) {
@@ -3957,6 +3963,9 @@ function renderProductCardContinueMenu(
   const starDryRun = !questionsPending && (scope.size === "small" || scope.size === "medium");
   const starLinear = !questionsPending && scope.size === "large";
   const mark = (line: string, on: boolean) => (on ? `${line} — Recommended` : line);
+  const savePlanLine = starLinear
+    ? "Generate this plan as Linear issues; Obsidian / Notion export remains available"
+    : "Save this plan to Linear / Obsidian / Notion";
 
   if (showRuntimeLayout) {
     const eLine = dryRunMenuLine("E", buildDeliverable, "");
@@ -3966,7 +3975,7 @@ function renderProductCardContinueMenu(
       `A) ${wizard.recommended_setup.label} — Next achievable step`,
       `B) Review or change Runtime, Control surface, Interaction surface, or Trigger`,
       `C) Show the technical plan and deployment alternatives`,
-      mark(`D) Save this plan to Linear / Obsidian / Notion`, starLinear),
+      mark(`D) ${savePlanLine}`, starLinear),
       mark(eLine, starDryRun),
       ``,
     ];
@@ -3975,7 +3984,7 @@ function renderProductCardContinueMenu(
   return [
     `### How do you want to continue?`,
     ``,
-    mark(`A) Save this plan to Linear / Obsidian / Notion`, starLinear),
+    mark(`A) ${savePlanLine}`, starLinear),
     `B) Generate a portable agent handoff prompt`,
     `C) Turn it into a build prompt for Claude Code / Codex / Cursor`,
     `D) Review or change the plan`,

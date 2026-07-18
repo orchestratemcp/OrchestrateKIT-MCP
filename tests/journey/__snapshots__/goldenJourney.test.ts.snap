@@ -309,3 +309,48 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > one_
   "transcript_version": "orchestratekit.golden_journey.v1",
 }
 `;
+
+exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > readonly_attended_inbox_summary > matches the golden transcript snapshot 1`] = `
+{
+  "final_goal": "[text]",
+  "fixture": "readonly_attended_inbox_summary",
+  "initial_goal": "[text]",
+  "steps": [
+    {
+      "clarifying_question_ids": [],
+      "coverage_label": "full",
+      "kind": "plan",
+      "plan_source": "composed",
+      "recommended_next_click": {
+        "action": "assistant:attended_dry_run_in_chat",
+        "id": "dry_run_in_chat",
+        "label": "Run it attended in this chat now — nothing persists",
+      },
+      "round": 0,
+      "route": [
+        "email_read",
+      ],
+      "route_status": "candidate",
+    },
+    {
+      "durable_build_goal": false,
+      "honest_disclosure": true,
+      "kind": "attended_dry_run_option",
+      "present": true,
+      "walking_skeleton_disclosed": false,
+    },
+    {
+      "attended": true,
+      "kind": "dry_run",
+      "nothing_persists": true,
+      "scope_size": "small",
+    },
+    {
+      "kind": "terminal:attended_dry_run",
+      "offer_save_as_routine": true,
+    },
+  ],
+  "terminal": "attended_dry_run",
+  "transcript_version": "orchestratekit.golden_journey.v1",
+}
+`;
