@@ -76,7 +76,7 @@ export type LlmJourneyResult = {
   raw_replies: string[];
 };
 
-const SYSTEM_PROMPT = [
+export const SYSTEM_PROMPT = [
   "You are an MCP client assisting a user who is designing an AI agent workflow.",
   "You have just called the `plan_workflow` tool and received its rendered response.",
   "",
@@ -96,7 +96,12 @@ const SYSTEM_PROMPT = [
   "}",
 ].join("\n");
 
-function userPrompt(plan: PlanWorkflowOutput): string {
+/**
+ * The user-turn prompt. Exported so `--print-prompt` can emit the exact text the
+ * harness would send, for pasting into a chat UI to sanity-check a model by hand
+ * before spending a full scripted run on it.
+ */
+export function userPrompt(plan: PlanWorkflowOutput): string {
   const questions = plan.clarifying_questions;
   const parts = ["Here is the `plan_workflow` response:", "", plan.summary_markdown];
   if (questions.length > 0) {

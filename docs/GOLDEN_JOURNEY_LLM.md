@@ -84,3 +84,18 @@ than trust it. Treat a violation as *evidence to read*, not a proven defect.
   checks, the harness folds in the fixture's `canned_answers` — the same text the
   mechanical client uses. The model is graded on *deciding to ask*, not on
   inventing the user's answer.
+
+## Hand-checking a model first
+
+```bash
+pnpm journey:llm --print-prompt                        # first fixture
+pnpm journey:llm --print-prompt one_shot_inbox_summary # a named one
+```
+
+Prints the exact system + user turn the harness would send, with no API call, so
+you can paste it into any chat UI and see how a model behaves before spending a
+scripted run on it. The ⭐ the harness expects is printed as a comment — that is
+the answer key, so don't paste that line to the model.
+
+Note the env vars are the same ones OrchestrateLab uses
+(`OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL`), so a key that works there works here.

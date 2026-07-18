@@ -19,8 +19,13 @@
  * is reported, not punished, because a user could genuinely click that option.
  */
 import { loadRegistry } from "../src/registry/registryLoader.js";
-import { runMechanicalJourney } from "../src/journey/mechanicalClient.js";
-import { runLlmJourney, openRouterChat } from "../src/journey/llmClient.js";
+import { runMechanicalJourney, planForJourney } from "../src/journey/mechanicalClient.js";
+import {
+  runLlmJourney,
+  openRouterChat,
+  SYSTEM_PROMPT,
+  userPrompt,
+} from "../src/journey/llmClient.js";
 import { diffJourney, formatReport, type JourneyDiff } from "../src/journey/journeyDiff.js";
 import { JOURNEY_FIXTURES } from "../tests/journey/fixtures/index.js";
 
@@ -31,7 +36,32 @@ function argValue(flag: string): string | undefined {
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
+/**
+ * `--print-prompt [fixture]` emits the exact system + user turn the harness would
+ * send, without calling any API. Paste it into any chat UI to hand-check a model
+ * before spending a scripted run on it.
+ */
+function printPrompt(): void {
+  const wanted = argValue("--print-prompt");
+  const fixture =
+    (wanted && JOURNEY_FIXTURES.find((f) => f.name === wanted)) ?? JOURNEY_FIXTURES[0];
+  const plan = planForJourney(fixture.goal, loadRegistry());
+
+  console.log(`# fixture: ${fixture.name}`);
+  console.log(`# ⭐ the harness expects: ${plan.goal_to_product_wizard.recommended_next_click.id}`);
+  console.log(`# (do NOT paste the line above to the model — it is the answer key)`);
+  console.log("\n───────── SYSTEM ─────────\n");
+  console.log(SYSTEM_PROMPT);
+  console.log("\n───────── USER ─────────\n");
+  console.log(userPrompt(plan));
+}
+
 async function main(): Promise<void> {
+  if (process.argv.includes("--print-prompt")) {
+    printPrompt();
+    return;
+  }
+
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     console.error(
