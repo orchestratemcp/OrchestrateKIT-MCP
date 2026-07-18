@@ -63,9 +63,56 @@ export const JOURNEY_FIXTURES: JourneyFixture[] = [
       "This is read-only and attended: do not send, delete, archive, label, or modify any email; " +
       "do not create a scheduled or persistent agent.",
     canned_answers: {},
+    seeded_attended_execution: {
+      kind: "inbox_summary",
+      expected_bullet_count: 5,
+      messages: [
+        {
+          id: "seed-ops-417",
+          from: "release@example.test",
+          subject: "OPS-417 release review moved",
+          body: "The release review moved to Tuesday at 14:00 UTC. No response is requested.",
+          unread: true,
+          required_anchor: "OPS-417",
+        },
+        {
+          id: "seed-inv-204",
+          from: "billing@example.test",
+          subject: "Invoice INV-204 due Friday",
+          body: "Invoice INV-204 is due Friday and is awaiting internal review.",
+          unread: true,
+          required_anchor: "INV-204",
+        },
+        {
+          id: "seed-sec-881",
+          from: "security@example.test",
+          subject: "SEC-881 blocked login",
+          body: "Security blocked a new login under alert SEC-881. No account change is required.",
+          unread: true,
+          required_anchor: "SEC-881",
+        },
+        {
+          id: "seed-dr-52",
+          from: "design@example.test",
+          subject: "DR-52 feedback requested",
+          body: "Feedback on design review DR-52 is requested by Wednesday.",
+          unread: true,
+          required_anchor: "DR-52",
+        },
+        {
+          id: "seed-lunch-19",
+          from: "events@example.test",
+          subject: "LUNCH-19 order confirmed",
+          body: "The LUNCH-19 team order is confirmed for lobby delivery at 12:30.",
+          unread: true,
+          required_anchor: "LUNCH-19",
+        },
+      ],
+    },
     notes:
       "Explicit read-only/attended boundary: negated scheduled and persistent terms must not " +
-      "create durable components or redundant build/hosting questions.",
+      "create durable components or redundant build/hosting questions. Carries a five-message " +
+      "synthetic inbox for an opt-in, integration-free execution check in the Lab.",
   },
   {
     name: "gmail_lead_to_crm",

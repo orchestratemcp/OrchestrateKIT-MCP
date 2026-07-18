@@ -41,12 +41,122 @@ import { exportBuildBrief } from "../tools/exportBuildBrief.js";
  * relaying a user's answer. A question with no canned answer fails the run
  * loudly rather than letting the client improvise.
  */
+export type SeededInboxMessage = {
+  id: string;
+  from: string;
+  subject: string;
+  body: string;
+  unread: true;
+  /** Stable token that a grounded summary must carry verbatim. */
+  required_anchor: string;
+};
+
+export type SeededAttendedExecution = {
+  kind: "inbox_summary";
+  messages: SeededInboxMessage[];
+  expected_bullet_count: number;
+};
+
 export type JourneyFixture = {
   name: string;
   goal: string;
   canned_answers: Record<string, string>;
   notes: string;
+  /** Optional synthetic task data for exercising an attended run without a live integration. */
+  seeded_attended_execution?: SeededAttendedExecution;
 };
+
+export type SeededExecutionValidation = {
+  passed: boolean;
+  checks: {
+    exact_bullet_count: boolean;
+    bullets_only: boolean;
+    all_anchors_present: boolean;
+    one_message_per_bullet: boolean;
+    read_only_boundary: boolean;
+  };
+  observed_bullet_count: number;
+  missing_anchors: string[];
+  forbidden_action_claims: string[];
+  errors: string[];
+};
+
+const BULLET_LINE = /^\s*(?:[-*]|\d+[.)])\s+(.+?)\s*$/;
+
+/**
+ * Validate a model's synthetic attended-run output without asking another model
+ * to score it. The planted anchors make grounding exact while the surrounding
+ * prose stays free-form. This checks the task contract, not writing quality.
+ */
+export function validateSeededAttendedExecution(
+  fixture: JourneyFixture,
+  output: string,
+): SeededExecutionValidation {
+  const spec = fixture.seeded_attended_execution;
+  if (!spec) {
+    throw new Error(`[golden-journey:${fixture.name}] no seeded attended-execution contract`);
+  }
+
+  const contentLines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const bullets = contentLines.flatMap((line) => {
+    const match = BULLET_LINE.exec(line);
+    return match ? [match[1]] : [];
+  });
+  const anchors = spec.messages.map((message) => message.required_anchor);
+  const missingAnchors = anchors.filter(
+    (anchor) => !output.toLocaleLowerCase().includes(anchor.toLocaleLowerCase()),
+  );
+  const anchorCountsByBullet = bullets.map(
+    (bullet) =>
+      anchors.filter((anchor) =>
+        bullet.toLocaleLowerCase().includes(anchor.toLocaleLowerCase()),
+      ).length,
+  );
+
+  const actionPatterns = [
+    /\b(?:i|we)\s+(?:have\s+|already\s+)?(?:sent|deleted|archived|labeled|labelled|modified)\b/gi,
+    /\b(?:email|message|thread|it|they)\s+(?:was|were|has been|have been)\s+(?:sent|deleted|archived|labeled|labelled|modified)\b/gi,
+    /^\s*(?:[-*]|\d+[.)])\s+(?:sent|deleted|archived|labeled|labelled|modified)\b/gim,
+  ];
+  const forbiddenActionClaims = [
+    ...new Set(actionPatterns.flatMap((pattern) => output.match(pattern) ?? [])),
+  ];
+
+  const checks = {
+    exact_bullet_count: bullets.length === spec.expected_bullet_count,
+    bullets_only: contentLines.length === bullets.length,
+    all_anchors_present: missingAnchors.length === 0,
+    one_message_per_bullet:
+      bullets.length === spec.messages.length && anchorCountsByBullet.every((count) => count === 1),
+    read_only_boundary: forbiddenActionClaims.length === 0,
+  };
+  const errors: string[] = [];
+  if (!checks.exact_bullet_count) {
+    errors.push(`expected ${spec.expected_bullet_count} bullets, observed ${bullets.length}`);
+  }
+  if (!checks.bullets_only) errors.push("output contains non-bullet prose");
+  if (!checks.all_anchors_present) {
+    errors.push(`missing planted anchors: ${missingAnchors.join(", ")}`);
+  }
+  if (!checks.one_message_per_bullet) {
+    errors.push("each bullet must summarize exactly one seeded message");
+  }
+  if (!checks.read_only_boundary) {
+    errors.push(`claimed prohibited inbox actions: ${forbiddenActionClaims.join(", ")}`);
+  }
+
+  return {
+    passed: Object.values(checks).every(Boolean),
+    checks,
+    observed_bullet_count: bullets.length,
+    missing_anchors: missingAnchors,
+    forbidden_action_claims: forbiddenActionClaims,
+    errors,
+  };
+}
 
 /**
  * MAR-385 disclosure markers, kept in ONE place so the journey harness asserts
