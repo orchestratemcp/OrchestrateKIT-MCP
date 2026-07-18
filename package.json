@@ -39,6 +39,7 @@
     "benchmark:check": "pnpm gen:registry && tsx scripts/public-benchmark.ts --check",
     "demo": "tsx scripts/smoke-demo.ts",
     "smoke": "vitest run tests/smoke",
+    "journey:llm": "tsx scripts/journey-llm.ts",
     "release:check": "tsx scripts/check-release-trust.ts",
     "verify": "pnpm gen:registry && pnpm typecheck && pnpm registry:lint && pnpm benchmark:check && pnpm test && pnpm release:check"
   },

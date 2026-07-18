@@ -145,14 +145,20 @@ export type JourneyTranscript = {
   steps: JourneyStep[];
 };
 
-function plan(goal: string, registry: RegistrySnapshot): PlanWorkflowOutput {
+/**
+ * The single `plan_workflow` call shape every journey client makes. Exported so
+ * the real-LLM variant drives the planner through the IDENTICAL entry point —
+ * if the two clients called the planner differently, a diff between them would
+ * measure the harness, not the client.
+ */
+export function planForJourney(goal: string, registry: RegistrySnapshot): PlanWorkflowOutput {
   return planWorkflow(
     { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
     registry,
   );
 }
 
-function planStep(p: PlanWorkflowOutput, round: number): PlanJourneyStep {
+export function planStep(p: PlanWorkflowOutput, round: number): PlanJourneyStep {
   const click = p.goal_to_product_wizard.recommended_next_click;
   return {
     kind: "plan",
@@ -174,7 +180,7 @@ function planStep(p: PlanWorkflowOutput, round: number): PlanJourneyStep {
  * goal (no nagging). Throws on any violation so a drift fails the journey with a
  * named step, not a mystery snapshot diff.
  */
-function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): DryRunJourneyStep {
+export function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): DryRunJourneyStep {
   const md = p.summary_markdown;
   const durable = p.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline;
   const fail = (why: string): never => {
@@ -212,7 +218,7 @@ function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): DryRunJou
  * as the recommended action prescribes and assert the brief is well-formed —
  * every required section present and non-empty, and a non-empty rendered brief.
  */
-function followBuildBrief(p: PlanWorkflowOutput, fixture: string): BuildBriefJourneyStep {
+export function followBuildBrief(p: PlanWorkflowOutput, fixture: string): BuildBriefJourneyStep {
   const brief = exportBuildBrief({
     goal: p.goal,
     plan_source: p.plan_source,
@@ -266,7 +272,7 @@ function followBuildBrief(p: PlanWorkflowOutput, fixture: string): BuildBriefJou
  * named runtime class — is present. This is the terminal deliverable for a plan
  * the plan itself says must run while the user is offline.
  */
-function followPrepareRuntime(p: PlanWorkflowOutput, fixture: string): PrepareRuntimeJourneyStep {
+export function followPrepareRuntime(p: PlanWorkflowOutput, fixture: string): PrepareRuntimeJourneyStep {
   const w = p.goal_to_product_wizard;
   const setup = w.recommended_setup;
   if (!setup.next_achievable_step || setup.next_achievable_step.trim().length === 0) {
@@ -301,7 +307,7 @@ export function runMechanicalJourney(
 ): JourneyTranscript {
   const steps: JourneyStep[] = [];
   let goal = fixture.goal;
-  let current = plan(goal, registry);
+  let current = planForJourney(goal, registry);
   let round = 0;
 
   // ── Fold canned answers until the recommended click stops asking questions ──
@@ -329,7 +335,7 @@ export function runMechanicalJourney(
       steps.push({ kind: "answer_clarifying_question", question_id: q.id, canned_answer: canned });
     }
     round += 1;
-    current = plan(goal, registry);
+    current = planForJourney(goal, registry);
   }
 
   // ── The terminal plan the client acts on ──
