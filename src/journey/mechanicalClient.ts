@@ -147,9 +147,10 @@ export type JourneyTranscript = {
 
 /**
  * The single `plan_workflow` call shape every journey client makes. Exported so
- * the real-LLM variant drives the planner through the IDENTICAL entry point —
- * if the two clients called the planner differently, a diff between them would
- * measure the harness, not the client.
+ * the Lab's real-LLM variant (which owns the model gateway and the run history)
+ * drives the planner through the IDENTICAL entry point — if the two clients
+ * called the planner differently, a diff between them would measure the harness,
+ * not the client. The Lab reaches this through its `lib/mcpBridge.ts` seam.
  */
 export function planForJourney(goal: string, registry: RegistrySnapshot): PlanWorkflowOutput {
   return planWorkflow(

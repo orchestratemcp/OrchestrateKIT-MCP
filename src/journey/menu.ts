@@ -1,14 +1,18 @@
 /**
- * MAR-387 (real-LLM variant) — the menu contract, parsed from the rendered
- * `summary_markdown`.
+ * MAR-387 — the menu contract, parsed from the rendered `summary_markdown`.
  *
  * The whole point of the golden journey is that a client should WALK THE MENU.
- * So the grader must read the menu the same way a client does: off the rendered
- * markdown, not off an internal field. This module turns the "How do you want to
- * continue?" block into lettered options with a semantic action id, so an LLM's
- * answer ("C") can be compared against the mechanical golden's
- * `recommended_next_click.id` without either side hardcoding per-fixture
- * expectations.
+ * That contract only means something if the menu is machine-readable off the
+ * RENDERED markdown — the surface a client actually sees — rather than off an
+ * internal field a real client never reads. This module turns the "How do you
+ * want to continue?" block into lettered options with a semantic action id, so a
+ * client's answer ("C") can be compared against `recommended_next_click.id`
+ * without either side hardcoding per-fixture expectations.
+ *
+ * Scope note: the MCP owns *parseability* — it guarantees its own menu can be
+ * read back. Grading whether a given client made an acceptable choice is the
+ * Lab's job, since the Lab owns the model gateway and the run history. The MCP
+ * stays deterministic: no LLM, no network, no key.
  *
  * Two menu shapes exist today (see planWorkflow's next-action menu): a
  * runtime-first menu (A = the next achievable setup step) and an artifact menu
