@@ -3248,6 +3248,23 @@ function countScopeConnections(whatYouNeed: IntegrationNeed[]): number {
  *     trigger, ≤ L2 clearance, ≤ 2 connections. The dry run basically IS the
  *     deliverable; offer "save as a routine" after.
  *
+ * MAR-396: SMALL is also a claim that the goal is one-shottable — it is what
+ * points the ⭐ at "build it in a no-code assistant". A goal with a step nothing
+ * in the route carries (`coverage.unmatched_demand`, which now includes the
+ * clauses coverage could not parse at all) is not one-shottable anywhere:
+ * whatever that step needs, no assistant surface has it. Such a plan floors at
+ * MEDIUM regardless of how few connections it has.
+ *
+ * This is the half of MAR-396 that stops the silent-drop bug from being
+ * DELIVERED. Without it an honest `unmatched_demand` would still ship under a ⭐
+ * saying the goal is small enough to one-shot — the user would read the gap and
+ * the recommendation contradicting each other, and follow the recommendation.
+ *
+ * The gate deliberately keys off `unmatched_demand` rather than the narrower
+ * `unrecognized_demand`: an uncovered step is uncovered whether or not the
+ * lexicon happened to know its words, and keying off the lexicon would silently
+ * re-open this bug the moment a verb gets added to DEMAND_VERBS.
+ *
  * Pure function of the plan; invents no vocabulary.
  */
 function buildScopeAssessment(input: {
@@ -3256,6 +3273,8 @@ function buildScopeAssessment(input: {
   mustRunOffline: boolean;
   routeComponentIds: string[];
   loopShaped: boolean;
+  /** MAR-396: goal steps no route component carries — floors scope at medium. */
+  unmatchedDemand: string[];
 }): ScopeAssessment {
   const connectionCount = countScopeConnections(input.whatYouNeed);
   const clearanceRank = CLEARANCE_RANK[input.clearance.level];
@@ -3270,13 +3289,30 @@ function buildScopeAssessment(input: {
   let size: ScopeAssessment["size"];
   let recommended_path: string;
 
+  // MAR-396: an uncovered step is a scope UNKNOWN, and an unknown cannot be
+  // called small. It does not force LARGE — the rest of the plan may genuinely
+  // be modest — it just forbids the "one-shot it" claim.
+  const uncoveredStep = input.unmatchedDemand.length > 0;
+
   if (multiAgent || connectionCount > 3) {
     size = "large";
     if (multiAgent) drivers.push("Multi-agent route (a loop or parallel fan-out of workers)");
     if (connectionCount > 3) drivers.push(`${connectionCount} connections to wire up`);
     recommended_path = "Generate a Linear project from the plan, then build it as slices";
-  } else if (durableTrigger || clearanceRank >= CLEARANCE_RANK.L3 || connectionCount === 3) {
+  } else if (
+    durableTrigger ||
+    clearanceRank >= CLEARANCE_RANK.L3 ||
+    connectionCount === 3 ||
+    uncoveredStep
+  ) {
     size = "medium";
+    if (uncoveredStep) {
+      const first = input.unmatchedDemand[0];
+      drivers.push(
+        `Names a step this registry has no component for ("${first}") — ` +
+          `scope can't be settled until that step has a home`,
+      );
+    }
     if (durableTrigger) {
       drivers.push(
         input.mustRunOffline
@@ -3288,7 +3324,9 @@ function buildScopeAssessment(input: {
       drivers.push(`Writes to an external business system (${input.clearance.level}) — human by default`);
     }
     drivers.push(`${connectionCount} connection${connectionCount === 1 ? "" : "s"} to wire up`);
-    recommended_path = "Dry run it first, then build the durable agent";
+    recommended_path = uncoveredStep
+      ? "Settle the uncovered step first (it has no component here), then dry run what's left"
+      : "Dry run it first, then build the durable agent";
   } else {
     size = "small";
     drivers.push("Attended — nothing needs to run while you're away");
@@ -3397,6 +3435,8 @@ function buildGoalToProductWizard(input: {
   outputDepth: "guided" | "brief" | "standard" | "technical" | "deep";
   clearance: AutomationClearance;
   loopShaped: boolean;
+  /** MAR-396: goal steps no route component carries — floors scope at medium. */
+  unmatchedDemand: string[];
 }): { wizard: GoalToProductWizard; scope: ScopeAssessment } {
   const buildChoices = buildWizardChoices(input.buildTarget);
   const artifactChoices = buildArtifactChoices();
@@ -3423,6 +3463,7 @@ function buildGoalToProductWizard(input: {
     mustRunOffline: placement.runtime_requirements.must_run_while_user_offline,
     routeComponentIds: input.steps.map((s) => s.component_id),
     loopShaped: input.loopShaped,
+    unmatchedDemand: input.unmatchedDemand,
   });
   const wizard: GoalToProductWizard = {
     steps: input.steps.map((s) => ({
@@ -4949,6 +4990,7 @@ export function planWorkflow(
     outputDepth,
     clearance: automation_clearance,
     loopShaped: loop_guidance !== null,
+    unmatchedDemand: coverage.unmatched_demand,
   });
 
   // ── Step 6: fused markdown ──

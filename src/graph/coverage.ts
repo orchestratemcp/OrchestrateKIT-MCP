@@ -27,8 +27,26 @@ export type Coverage = {
    * Goal clauses that name workflow work (a demand verb/noun from the lexicon)
    * which NO selected component claimed. These steps are outside the registry —
    * the reading agent must treat them as 🔵 unguided, not silently drop them.
+   *
+   * Superset of `unrecognized_demand` — a caller reading only this field still
+   * hears about clauses the lexicon could not parse.
    */
   unmatched_demand: string[];
+  /**
+   * MAR-396: goal clauses that name an ACTION whose vocabulary is outside the
+   * demand lexicon entirely. These used to hit a bare `continue` and vanish —
+   * judged "not a demand" rather than judged uncovered, which is how "issue the
+   * refund to the customer" produced a refund-free route with
+   * `unmatched_demand: []`.
+   *
+   * Kept separate from `unmatched_demand` because the two say different things
+   * and a builder must be able to tell them apart: an unmatched clause means
+   * "we understood this step and nothing carries it"; an unrecognized clause
+   * means "we could not parse this step at all — assume nothing about it".
+   * The registry may or may not have a component; the honest answer is that
+   * coverage does not know.
+   */
+  unrecognized_demand: string[];
   /**
    * Route components selected on fuzzy evidence alone (capability/summary word
    * overlap; no keyword hint, no identifier match). No goal phrase asked for
@@ -51,6 +69,15 @@ const DEMAND_VERBS = new Set([
   "enrich", "update", "write", "validate", "deduplicate", "scrape", "review",
   "approve", "upload", "download", "sync", "translate", "transcribe", "book",
   "tell", "tells",
+  // MAR-396: money-moving and irreversible actions. These are additive polish,
+  // NOT the fix — the structural detector below is what makes the NEXT unknown
+  // verb fail safely. They earn their place by giving the commonest cases a
+  // precise clause reading instead of a shape-inferred one.
+  //
+  // Deliberately NOT added: "issue", which is a noun at least as often as a verb
+  // in this domain ("open an issue", "Linear issues") and would false-flag.
+  // The money NOUNS below anchor those clauses without the ambiguity.
+  "refund", "charge", "transfer", "reimburse", "delete", "cancel",
 ]);
 
 /**
@@ -74,6 +101,11 @@ const DEMAND_NOUNS = new Set([
   "gitlab", "wordpress", "twitter", "linkedin", "instagram", "facebook",
   "youtube", "tiktok", "shopify", "zendesk", "intercom", "sms", "whatsapp",
   "dropbox", "s3",
+  // MAR-396: money artifacts. The registry has NO payment-write component (only
+  // stripe_data_read), so an unclaimed hit here is exactly the gap that must be
+  // said out loud rather than routed around.
+  "refund", "refunds", "payment", "payments", "payout", "payouts",
+  "chargeback", "chargebacks", "disbursement",
 ]);
 
 /** Multi-word demand phrases checked before single tokens. */
@@ -85,6 +117,110 @@ const DEMAND_PHRASES = [
   "code review",
   "risky changes",
 ];
+
+/**
+ * MAR-396 — structural action-clause detection, used ONLY for clauses the
+ * demand lexicon did not recognise at all.
+ *
+ * The lexicon can never be complete: "issue a refund", "revoke a credential",
+ * "evict a lease" are all workflow steps built from words no fixed vocabulary
+ * would contain. So the unknown case is decided by SHAPE rather than by
+ * membership — a clause reads as an action when it is a verb phrase applied to
+ * an object: `[openers] VERB … DETERMINER NOUN`.
+ *
+ * This is deliberately the narrow, high-precision half of the judgement. A
+ * clause reaching this test already has zero known demand vocabulary, so the
+ * only question left is "does this look like work at all?" — and the cost of a
+ * false positive (a spurious gap) is much lower than the cost of the false
+ * negative this issue is about (a silently dropped money transfer).
+ */
+
+/**
+ * Words that can open a clause without being its action verb: subordinators,
+ * prepositions, pronouns, auxiliaries, contraction remnants and sequencing
+ * adverbs. Skipped when hunting for the verb candidate, so "When I ask" tests
+ * "ask" and "I'll approve each one" tests "approve".
+ */
+const CLAUSE_OPENERS = new Set([
+  "when", "if", "after", "before", "while", "once", "whenever", "unless",
+  "until", "as", "on", "in", "at", "for", "with", "from", "to", "by", "of",
+  "so", "that", "which", "who", "then", "there", "here", "also", "just",
+  "only", "first", "next", "finally", "please", "let",
+  "i", "you", "we", "they", "he", "she", "it", "me", "us", "them",
+  "ll", "ve", "re", "don", "doesn", "didn", "won", "isn", "aren",
+  "can", "could", "should", "would", "will", "shall", "may", "might", "must",
+  "do", "does", "did", "is", "are", "was", "were", "be", "been", "being", "am",
+  "have", "has", "had", "want", "wants", "need", "needs",
+  "not", "never", "no", "always", "automatically", "manually", "fully",
+  "every", "each", "all", "any", "some", "this", "these", "those",
+]);
+
+/**
+ * Determiners and possessives that open an object noun phrase. Finding one
+ * AFTER the verb candidate is what turns "issue …" into "issue THE refund" —
+ * a verb with something to act on, i.e. a step.
+ */
+const OBJECT_MARKERS = new Set([
+  "the", "a", "an", "our", "my", "your", "their", "its", "his", "her",
+  "this", "that", "these", "those", "each", "every", "all", "any", "one",
+  "both", "another",
+]);
+
+/**
+ * Indirect objects that make the clause a delivery to the USER in the current
+ * channel ("give me a summary", "show us the result"). The assistant surface
+ * satisfies these by construction, so they are output, not uncovered work.
+ * Without this rule the read-only inbox-summary goal reports its own answer as
+ * a missing step.
+ */
+const USER_RECIPIENTS = new Set(["me", "us"]);
+
+/**
+ * True when a clause with NO known demand vocabulary still reads as a step that
+ * NOTHING in the route claims.
+ *
+ * Two independent conditions, and both must hold:
+ *
+ *   (a) SHAPE — the clause is a verb applied to an object, not negated, not a
+ *       delivery to the user.
+ *   (b) UNCLAIMED — no content word in the clause was matched by any route
+ *       component.
+ *
+ * (b) is what keeps this honest rather than merely loud. The recognized path
+ * has always checked claims (`clauseIsUncovered`); an unrecognized clause that
+ * skipped that check would flag work the route genuinely does under different
+ * words — "keeps a change log for 30 days" is carried by `audit_log`, and
+ * "reads new leads from Gmail" by `email_read`, even though neither clause
+ * contains a lexicon token. Flagging those would make the honesty layer cry
+ * wolf on validated playbooks, and a gap report nobody trusts is worth less
+ * than no gap report at all.
+ */
+function looksLikeUnrecognizedAction(
+  clause: string,
+  goalLower: string,
+  claimedTokens: Set<string>,
+): boolean {
+  const words = clause.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  let i = 0;
+  while (i < words.length && CLAUSE_OPENERS.has(words[i])) i += 1;
+  const verb = words[i];
+  // Nothing but function words, or a bare one/two-letter token: not a step.
+  if (verb === undefined || verb.length < 3) return false;
+  // A negated verb is a CONSTRAINT ("never send the email", "do not delete any
+  // record"), and constraints must never read as demand — that would invert the
+  // safety meaning of the goal. Checked against the whole goal so a negation
+  // sitting just before the clause boundary still counts.
+  if (isNegatedInContext(goalLower, verb)) return false;
+  // "give me a summary" — delivery to the user, already satisfied in-channel.
+  if (words[i + 1] !== undefined && USER_RECIPIENTS.has(words[i + 1])) return false;
+  // (a) shape: a verb with something to act on.
+  if (!words.slice(i + 1).some((w) => OBJECT_MARKERS.has(w))) return false;
+  // (b) claim: any route component already speaking to this clause clears it.
+  const contentWords = words.filter(
+    (w) => w.length > 2 && !CLAUSE_OPENERS.has(w) && !OBJECT_MARKERS.has(w),
+  );
+  return !contentWords.some((w) => isClaimed(w, claimedTokens));
+}
 
 /**
  * Clause boundaries: punctuation and step conjunctions. "and" is included so a
@@ -243,6 +379,7 @@ export function computeCoverage(input: CoverageInput): Coverage {
 
   // ── unmatched demand: clause-by-clause ──
   const unmatched_demand: string[] = [];
+  const unrecognized_demand: string[] = [];
   for (const rawClause of goal.split(CLAUSE_SPLIT)) {
     const clause = rawClause.trim();
     if (clause.length < 4) continue;
@@ -263,13 +400,25 @@ export function computeCoverage(input: CoverageInput): Coverage {
     const verbs = words.filter(
       (w) => DEMAND_VERBS.has(w) && !isNegatedInContext(goalLower, w),
     );
-    if (nounUnits.length === 0 && verbs.length === 0) continue;
+    const shown =
+      clause.length > CLAUSE_MAX_CHARS
+        ? `${clause.slice(0, CLAUSE_MAX_CHARS - 1).trimEnd()}…`
+        : clause;
+
+    // MAR-396: the clause carries no lexicon vocabulary. It used to `continue`
+    // here — judged "not a demand" — which is how a refund step disappeared
+    // from a plan without a trace. Decide it by SHAPE instead: if it reads as
+    // a verb applied to an object, it is a step we could not parse, and
+    // silence about it is the one answer that is definitely wrong.
+    if (nounUnits.length === 0 && verbs.length === 0) {
+      if (looksLikeUnrecognizedAction(clause, goalLower, claimedTokens)) {
+        unrecognized_demand.push(shown);
+        unmatched_demand.push(shown);
+      }
+      continue;
+    }
 
     if (clauseIsUncovered(nounUnits, verbs, claimedTokens)) {
-      const shown =
-        clause.length > CLAUSE_MAX_CHARS
-          ? `${clause.slice(0, CLAUSE_MAX_CHARS - 1).trimEnd()}…`
-          : clause;
       unmatched_demand.push(shown);
     }
   }
@@ -304,5 +453,5 @@ export function computeCoverage(input: CoverageInput): Coverage {
       ? "poor"
       : "partial";
 
-  return { matched, unmatched_demand, unsupported_supply, coverage_label };
+  return { matched, unmatched_demand, unrecognized_demand, unsupported_supply, coverage_label };
 }
