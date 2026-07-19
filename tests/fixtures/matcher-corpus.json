@@ -1,6 +1,7 @@
 {
   "generated_by": "OrchestrateLab LAB-03 (MAR-106) corpus export",
   "version": 1,
+  "goal_count": 51,
   "goals": [
     {
       "slug": "blog_social_variants_reviewer_notify",
@@ -20,31 +21,6 @@
       "forbidden": [],
       "missing_but_expected": [],
       "source": "dogfood",
-      "level": "composed",
-      "xfail": ""
-    },
-    {
-      "slug": "build_a_simple_assistant_for_handling_meeting_requests_it_sh_a77d84cc",
-      "goal": "Build a simple assistant for handling meeting requests. It should look at new emails, check my calendar, suggest two times that work, let me choose one, add the meeting to my calendar, and prepare a reply. It must never send an email without my approval.",
-      "domain": "adv:meeting_scheduling",
-      "must_have": [
-        "audit_log",
-        "auth_failure_handler",
-        "calendar_lookup",
-        "calendar_write",
-        "email_draft",
-        "email_read",
-        "human_approval_gate",
-        "intent_classifier",
-        "schema_validation",
-        "state_store"
-      ],
-      "nice_to_have": [],
-      "forbidden": [
-        "optional_email_send"
-      ],
-      "missing_but_expected": [],
-      "source": "session:a77d84cc-581f-4251-8df6-5ab3e04e8e7f",
       "level": "composed",
       "xfail": ""
     },
@@ -80,8 +56,8 @@
       "xfail": ""
     },
     {
-      "slug": "meeting_reply_saved_draft_no_outbound_email",
-      "goal": "Handle meeting-request emails from Gmail: read the message, look at my calendar, suggest two 30-minute openings, wait for my approval, create the event, and save the reply in Gmail drafts. No outbound email should be sent.",
+      "slug": "calendar_gmail_draft_saved_after_approval_p0_04",
+      "goal": "Build an email and calendar assistant that reads unread Gmail meeting requests, checks my real Google Calendar, drafts a reply with two available 30-minute slots, and only after I approve creates one Calendar event and one Gmail draft. Never send the email. I will be present for approval and I want visible run logs.",
       "domain": "email_calendar",
       "must_have": [
         "audit_log",
@@ -93,11 +69,14 @@
         "human_approval_gate"
       ],
       "nice_to_have": [
-        "intent_classifier"
+        "auth_failure_handler",
+        "intent_classifier",
+        "schema_validation"
       ],
       "forbidden": [
         "discord_notification",
         "external_publish",
+        "log_monitor",
         "optional_email_send",
         "reviewer_notification",
         "slack_notification",
@@ -105,7 +84,7 @@
         "telegram_notification"
       ],
       "missing_but_expected": [],
-      "source": "linear:P0-02",
+      "source": "linear:P0-04",
       "level": "composed",
       "xfail": ""
     },
@@ -661,6 +640,23 @@
       "xfail": ""
     },
     {
+      "slug": "genuine_application_log_monitoring_still_matches",
+      "goal": "Monitor application logs for errors and page the on-call engineer.",
+      "domain": "monitoring",
+      "must_have": [
+        "log_monitor"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "page_monitor"
+      ],
+      "forbidden": [],
+      "missing_but_expected": [],
+      "source": "linear:P0-03",
+      "level": "raw",
+      "xfail": ""
+    },
+    {
       "slug": "github_pr_devalerts_slack_notify",
       "goal": "When a new GitHub PR is opened, post a summary to our #dev-alerts Slack channel. No email, no CRM, just Slack. Fully automated, no human review needed.",
       "domain": "notification_bot",
@@ -739,24 +735,33 @@
       "xfail": ""
     },
     {
-      "slug": "monitor_docs_changes",
-      "goal": "Monitor documentation pages for changes and summarize significant updates.",
-      "domain": "monitoring",
+      "slug": "meeting_reply_saved_draft_no_outbound_email",
+      "goal": "Handle meeting-request emails from Gmail: read the message, look at my calendar, suggest two 30-minute openings, wait for my approval, create the event, and save the reply in Gmail drafts. No outbound email should be sent.",
+      "domain": "email_calendar",
       "must_have": [
-        "page_monitor"
+        "audit_log",
+        "calendar_lookup",
+        "calendar_write",
+        "email_draft",
+        "email_read",
+        "gmail_draft_write",
+        "human_approval_gate"
       ],
       "nice_to_have": [
-        "research_synthesis",
-        "source_freshness_check",
-        "state_store"
+        "intent_classifier"
       ],
       "forbidden": [
-        "data_scraper",
-        "pr_summary"
+        "discord_notification",
+        "external_publish",
+        "optional_email_send",
+        "reviewer_notification",
+        "slack_notification",
+        "teams_notification",
+        "telegram_notification"
       ],
       "missing_but_expected": [],
-      "source": "manual",
-      "level": "raw",
+      "source": "linear:P0-02",
+      "level": "composed",
       "xfail": ""
     },
     {
@@ -782,10 +787,31 @@
         "research_synthesis"
       ],
       "missing_but_expected": [
-        "linear_issue_create",
-        "agent_handoff"
+        "agent_handoff",
+        "linear_issue_create"
       ],
       "source": "linear:MAR-251",
+      "level": "raw",
+      "xfail": ""
+    },
+    {
+      "slug": "monitor_docs_changes",
+      "goal": "Monitor documentation pages for changes and summarize significant updates.",
+      "domain": "monitoring",
+      "must_have": [
+        "page_monitor"
+      ],
+      "nice_to_have": [
+        "research_synthesis",
+        "source_freshness_check",
+        "state_store"
+      ],
+      "forbidden": [
+        "data_scraper",
+        "pr_summary"
+      ],
+      "missing_but_expected": [],
+      "source": "manual",
       "level": "raw",
       "xfail": ""
     },
@@ -1166,6 +1192,30 @@
       "xfail": ""
     },
     {
+      "slug": "run_visibility_email_calendar_no_log_provider",
+      "goal": "Build an email and calendar assistant that reads unread Gmail meeting requests, checks my real Google Calendar, drafts a reply with two available 30-minute slots, and only after I approve creates one Calendar event and one Gmail draft. Never send the email. I will be present for approval and I want visible run logs.",
+      "domain": "email_calendar",
+      "must_have": [
+        "calendar_lookup",
+        "calendar_write",
+        "email_draft",
+        "email_read",
+        "gmail_draft_write",
+        "human_approval_gate"
+      ],
+      "nice_to_have": [
+        "audit_log",
+        "reviewer_notification"
+      ],
+      "forbidden": [
+        "log_monitor"
+      ],
+      "missing_but_expected": [],
+      "source": "linear:P0-03",
+      "level": "raw",
+      "xfail": ""
+    },
+    {
       "slug": "scheduled_data_report",
       "goal": "Every Monday at 8am, pull last week's sales numbers from our Postgres database, generate a PDF summary report, and post it to our team Slack channel. Fully unattended, no human in the loop.",
       "domain": "data_etl",
@@ -1241,30 +1291,6 @@
       "xfail": ""
     },
     {
-      "slug": "run_visibility_email_calendar_no_log_provider",
-      "goal": "Build an email and calendar assistant that reads unread Gmail meeting requests, checks my real Google Calendar, drafts a reply with two available 30-minute slots, and only after I approve creates one Calendar event and one Gmail draft. Never send the email. I will be present for approval and I want visible run logs.",
-      "domain": "email_calendar",
-      "must_have": [
-        "calendar_lookup",
-        "calendar_write",
-        "email_draft",
-        "email_read",
-        "gmail_draft_write",
-        "human_approval_gate"
-      ],
-      "nice_to_have": [
-        "audit_log",
-        "reviewer_notification"
-      ],
-      "forbidden": [
-        "log_monitor"
-      ],
-      "missing_but_expected": [],
-      "source": "linear:P0-03",
-      "level": "raw",
-      "xfail": ""
-    },
-    {
       "slug": "watch_it_run_lead_drafts_no_log_provider",
       "goal": "Draft replies to new leads and hold them for approval before sending. I want to watch it run and check the logs of what happened.",
       "domain": "email_calendar",
@@ -1283,57 +1309,6 @@
       "source": "linear:P0-03",
       "level": "raw",
       "xfail": ""
-    },
-    {
-      "slug": "genuine_application_log_monitoring_still_matches",
-      "goal": "Monitor application logs for errors and page the on-call engineer.",
-      "domain": "monitoring",
-      "must_have": [
-        "log_monitor"
-      ],
-      "nice_to_have": [
-        "audit_log",
-        "page_monitor"
-      ],
-      "forbidden": [],
-      "missing_but_expected": [],
-      "source": "linear:P0-03",
-      "level": "raw",
-      "xfail": ""
-    },
-    {
-      "slug": "calendar_gmail_draft_saved_after_approval_p0_04",
-      "goal": "Build an email and calendar assistant that reads unread Gmail meeting requests, checks my real Google Calendar, drafts a reply with two available 30-minute slots, and only after I approve creates one Calendar event and one Gmail draft. Never send the email. I will be present for approval and I want visible run logs.",
-      "domain": "email_calendar",
-      "must_have": [
-        "audit_log",
-        "calendar_lookup",
-        "calendar_write",
-        "email_draft",
-        "email_read",
-        "gmail_draft_write",
-        "human_approval_gate"
-      ],
-      "nice_to_have": [
-        "auth_failure_handler",
-        "intent_classifier",
-        "schema_validation"
-      ],
-      "forbidden": [
-        "discord_notification",
-        "external_publish",
-        "log_monitor",
-        "optional_email_send",
-        "reviewer_notification",
-        "slack_notification",
-        "teams_notification",
-        "telegram_notification"
-      ],
-      "missing_but_expected": [],
-      "source": "linear:P0-04",
-      "level": "composed",
-      "xfail": ""
     }
-  ],
-  "goal_count": 52
+  ]
 }
