@@ -2726,7 +2726,11 @@ function buildWizardChoices(buildTarget: BuildTarget | undefined): WizardChoice[
       best_for: "No-code assistant configuration and human-in-the-loop operation.",
       tradeoffs: "Less control over custom runtime details.",
       recommended: buildChoiceRecommended(buildTarget, "cowork"),
-      action: "assistant:generate_cowork_prompt",
+      // MAR-396: a real destination. This used to be a bare assistant directive
+      // with no generator behind it, and export_build_brief ignored build_target
+      // for prompt shape — so "build it in Cowork" led nowhere.
+      action:
+        "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cowork', delivery_mode: 'compact' })",
     },
     {
       id: "gpt_agents",
@@ -2735,7 +2739,8 @@ function buildWizardChoices(buildTarget: BuildTarget | undefined): WizardChoice[
       best_for: "ChatGPT-hosted assistant with Actions-style integrations.",
       tradeoffs: "Good UX; hosting/runtime control is more constrained.",
       recommended: buildChoiceRecommended(buildTarget, "gpt_agents"),
-      action: "assistant:generate_chatgpt_gpt",
+      action:
+        "export_build_brief({ handoff_targets: ['prompt'], build_target: 'chatgpt_gpt', delivery_mode: 'compact' })",
     },
   ];
 }
@@ -3315,14 +3320,16 @@ function assistantSurfaceClick(
     return {
       id: "build_in_assistant",
       label: "Build it in Claude Cowork — small enough to one-shot there",
-      action: "assistant:generate_cowork_prompt",
+      action:
+        "export_build_brief({ handoff_targets: ['prompt'], build_target: 'cowork', delivery_mode: 'compact' })",
     };
   }
   if (buildTarget === "chatgpt_gpt") {
     return {
       id: "build_in_assistant",
       label: "Build it as a ChatGPT GPT — small enough to one-shot there",
-      action: "assistant:generate_chatgpt_gpt",
+      action:
+        "export_build_brief({ handoff_targets: ['prompt'], build_target: 'chatgpt_gpt', delivery_mode: 'compact' })",
     };
   }
   return {

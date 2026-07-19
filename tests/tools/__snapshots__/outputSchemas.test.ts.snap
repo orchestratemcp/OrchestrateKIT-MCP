@@ -329,7 +329,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "tradeoffs": "Best once the scope is locked; answer clarifying questions first.",
       },
       {
-        "action": "assistant:generate_cowork_prompt",
+        "action": "[text]",
         "best_for": "No-code assistant configuration and human-in-the-loop operation.",
         "id": "cowork",
         "kind": "build",
@@ -338,7 +338,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "tradeoffs": "Less control over custom runtime details.",
       },
       {
-        "action": "assistant:generate_chatgpt_gpt",
+        "action": "[text]",
         "best_for": "ChatGPT-hosted assistant with Actions-style integrations.",
         "id": "gpt_agents",
         "kind": "build",
@@ -1869,7 +1869,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "tradeoffs": "Best once the scope is locked; answer clarifying questions first.",
       },
       {
-        "action": "assistant:generate_cowork_prompt",
+        "action": "[text]",
         "best_for": "No-code assistant configuration and human-in-the-loop operation.",
         "id": "cowork",
         "kind": "build",
@@ -1878,7 +1878,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "tradeoffs": "Less control over custom runtime details.",
       },
       {
-        "action": "assistant:generate_chatgpt_gpt",
+        "action": "[text]",
         "best_for": "ChatGPT-hosted assistant with Actions-style integrations.",
         "id": "gpt_agents",
         "kind": "build",
