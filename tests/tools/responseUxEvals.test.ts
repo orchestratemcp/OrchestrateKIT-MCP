@@ -58,9 +58,11 @@ function expectTargetProductCard(md: string) {
   expect(md).toContain("**Key safeguard:**");
   expect(md).toContain("**Build controls:**");
   expect(md).toContain("### How do you want to continue?");
-  expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
+  // MAR-395: F) — the no-code assistant surface — is always offered too.
+  expect(md.match(/^[A-F]\) /gm)?.length).toBe(6);
   // MAR-385: the attended in-chat dry run is always a named option, never improvised.
   expect(md).toMatch(/^E\) Run it attended in this chat now/m);
+  expect(md).toMatch(/^F\) Build it in a no-code assistant/m);
   expect(md).toContain("one-shot, nothing persists");
   if (/^A\) Prepare .+ — Next achievable step$/m.test(md)) {
     expect(md).toMatch(/^A\) Prepare .+ — Next achievable step$/m);
@@ -76,9 +78,14 @@ function expectTargetProductCard(md: string) {
     expect(md).not.toMatch(/^C\) Turn it into a build prompt.*Recommended$/m);
     expect(md).toContain("D) Review or change the plan");
   }
-  // MAR-386: every goal routed through this helper is small/medium with no
-  // pending question, so the attended dry run (E) is the recommended ⭐.
-  expect(md).toMatch(/^E\) Run it attended in this chat now.*— Recommended$/m);
+  // MAR-386/395: every goal routed through this helper is small/medium with no
+  // pending question, so the ⭐ is either the assistant surface (F, small) or the
+  // attended dry run (E, medium) — and exactly one of them is marked.
+  const menuTail = md.slice(md.indexOf("### How do you want to continue?"));
+  const starredDryRun = /^E\) Run it attended in this chat now.*— Recommended$/m.test(menuTail);
+  const starredAssistant = /^F\) Build it in a no-code assistant.*— Recommended$/m.test(menuTail);
+  expect(starredDryRun || starredAssistant).toBe(true);
+  expect((menuTail.match(/— Recommended/g) ?? []).length).toBe(1);
   expect(md).not.toContain("**Route spine:**");
   expect(md).not.toContain("**Recommended playbook:**");
   expect(md).not.toContain("**Next — pick one:**");

@@ -272,9 +272,9 @@ exports[`MAR-378 — corrected runtime-fit wizard > locks the corrected three-pr
       },
     },
     "recommended_next_click": {
-      "action": "assistant:attended_dry_run_in_chat",
-      "id": "dry_run_in_chat",
-      "label": "Run it attended in this chat now — nothing persists",
+      "action": "assistant:choose_assistant_surface",
+      "id": "build_in_assistant",
+      "label": "Build it in a no-code assistant (Claude Cowork or a ChatGPT GPT) — small enough to one-shot there",
     },
     "recommended_setup": {
       "action": null,
