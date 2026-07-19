@@ -29,6 +29,7 @@
 import type { RegistrySnapshot } from "../graph/routeComposer.js";
 import {
   planWorkflow,
+  goalHasBuildIntent,
   type PlanWorkflowOutput,
 } from "../tools/planWorkflow.js";
 import { exportBuildBrief } from "../tools/exportBuildBrief.js";
@@ -40,12 +41,155 @@ import { exportBuildBrief } from "../tools/exportBuildBrief.js";
  * relaying a user's answer. A question with no canned answer fails the run
  * loudly rather than letting the client improvise.
  */
+export type SeededInboxMessage = {
+  id: string;
+  from: string;
+  subject: string;
+  body: string;
+  unread: true;
+  /** Stable token that a grounded summary must carry verbatim. */
+  required_anchor: string;
+};
+
+export type SeededAttendedExecution = {
+  kind: "inbox_summary";
+  messages: SeededInboxMessage[];
+  expected_bullet_count: number;
+};
+
+export type JourneyCoverageTag =
+  | "read_only"
+  | "fully_unattended"
+  | "outbound_send_allowed"
+  | "multiple_clarifying_questions"
+  | "validated_playbook"
+  | "deliberately_vague";
+
+export type JourneyQuestionExpectation = {
+  id: string;
+  /** Case-insensitive fragments that must remain in the user-facing question. */
+  question_includes: string[];
+  /** Exact user-facing alternatives, in display order. */
+  options: string[];
+};
+
+export type JourneyPlanExpectation = {
+  plan_source?: "playbook" | "composed";
+  playbook_id?: string | null;
+  recommended_next_click_id?: string;
+  route_includes?: string[];
+  route_excludes?: string[];
+  enforced_approval_gates?: string[];
+  automation_clearance_level?: string;
+  /** Exact question set and order for this planning phase. */
+  clarifying_questions?: JourneyQuestionExpectation[];
+};
+
 export type JourneyFixture = {
   name: string;
   goal: string;
   canned_answers: Record<string, string>;
   notes: string;
+  coverage_tags: JourneyCoverageTag[];
+  expectations?: {
+    initial?: JourneyPlanExpectation;
+    resolved?: JourneyPlanExpectation;
+  };
+  /** Optional synthetic task data for exercising an attended run without a live integration. */
+  seeded_attended_execution?: SeededAttendedExecution;
 };
+
+export type SeededExecutionValidation = {
+  passed: boolean;
+  checks: {
+    exact_bullet_count: boolean;
+    bullets_only: boolean;
+    all_anchors_present: boolean;
+    one_message_per_bullet: boolean;
+    read_only_boundary: boolean;
+  };
+  observed_bullet_count: number;
+  missing_anchors: string[];
+  forbidden_action_claims: string[];
+  errors: string[];
+};
+
+const BULLET_LINE = /^\s*(?:[-*]|\d+[.)])\s+(.+?)\s*$/;
+
+/**
+ * Validate a model's synthetic attended-run output without asking another model
+ * to score it. The planted anchors make grounding exact while the surrounding
+ * prose stays free-form. This checks the task contract, not writing quality.
+ */
+export function validateSeededAttendedExecution(
+  fixture: JourneyFixture,
+  output: string,
+): SeededExecutionValidation {
+  const spec = fixture.seeded_attended_execution;
+  if (!spec) {
+    throw new Error(`[golden-journey:${fixture.name}] no seeded attended-execution contract`);
+  }
+
+  const contentLines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const bullets = contentLines.flatMap((line) => {
+    const match = BULLET_LINE.exec(line);
+    return match ? [match[1]] : [];
+  });
+  const anchors = spec.messages.map((message) => message.required_anchor);
+  const missingAnchors = anchors.filter(
+    (anchor) => !output.toLocaleLowerCase().includes(anchor.toLocaleLowerCase()),
+  );
+  const anchorCountsByBullet = bullets.map(
+    (bullet) =>
+      anchors.filter((anchor) =>
+        bullet.toLocaleLowerCase().includes(anchor.toLocaleLowerCase()),
+      ).length,
+  );
+
+  const actionPatterns = [
+    /\b(?:i|we)\s+(?:have\s+|already\s+)?(?:sent|deleted|archived|labeled|labelled|modified)\b/gi,
+    /\b(?:email|message|thread|it|they)\s+(?:was|were|has been|have been)\s+(?:sent|deleted|archived|labeled|labelled|modified)\b/gi,
+    /^\s*(?:[-*]|\d+[.)])\s+(?:sent|deleted|archived|labeled|labelled|modified)\b/gim,
+  ];
+  const forbiddenActionClaims = [
+    ...new Set(actionPatterns.flatMap((pattern) => output.match(pattern) ?? [])),
+  ];
+
+  const checks = {
+    exact_bullet_count: bullets.length === spec.expected_bullet_count,
+    bullets_only: contentLines.length === bullets.length,
+    all_anchors_present: missingAnchors.length === 0,
+    one_message_per_bullet:
+      bullets.length === spec.messages.length && anchorCountsByBullet.every((count) => count === 1),
+    read_only_boundary: forbiddenActionClaims.length === 0,
+  };
+  const errors: string[] = [];
+  if (!checks.exact_bullet_count) {
+    errors.push(`expected ${spec.expected_bullet_count} bullets, observed ${bullets.length}`);
+  }
+  if (!checks.bullets_only) errors.push("output contains non-bullet prose");
+  if (!checks.all_anchors_present) {
+    errors.push(`missing planted anchors: ${missingAnchors.join(", ")}`);
+  }
+  if (!checks.one_message_per_bullet) {
+    errors.push("each bullet must summarize exactly one seeded message");
+  }
+  if (!checks.read_only_boundary) {
+    errors.push(`claimed prohibited inbox actions: ${forbiddenActionClaims.join(", ")}`);
+  }
+
+  return {
+    passed: Object.values(checks).every(Boolean),
+    checks,
+    observed_bullet_count: bullets.length,
+    missing_anchors: missingAnchors,
+    forbidden_action_claims: forbiddenActionClaims,
+    errors,
+  };
+}
 
 /**
  * MAR-385 disclosure markers, kept in ONE place so the journey harness asserts
@@ -90,9 +234,12 @@ export type PlanJourneyStep = {
   kind: "plan";
   round: number;
   plan_source: string;
+  playbook_id: string | null;
   route_status: string;
   coverage_label: string;
   route: string[];
+  automation_clearance_level: string;
+  enforced_approval_gates: string[];
   clarifying_question_ids: string[];
   recommended_next_click: { id: string; label: string; action: string };
 };
@@ -117,6 +264,7 @@ export type BuildBriefJourneyStep = {
   sections_present: string[];
   all_sections_non_empty: true;
   brief_markdown_non_empty: true;
+  content_cross_references_valid: true;
 };
 
 export type PrepareRuntimeJourneyStep = {
@@ -127,14 +275,51 @@ export type PrepareRuntimeJourneyStep = {
   runtime_class: string;
 };
 
+/**
+ * MAR-386: the attended dry run is now the scope-aware ⭐ for small/medium goals.
+ * The mechanical client "takes" it as a traversal step (there is no deterministic
+ * tool to call — it is an assistant action, `assistant:attended_dry_run_in_chat`)
+ * and then, for a medium goal, continues to the build deliverable; for a small
+ * goal the dry run IS the deliverable.
+ */
+export type DryRunTraversalStep = {
+  kind: "dry_run";
+  attended: true;
+  nothing_persists: true;
+  scope_size: ScopeSize;
+};
+
+/** Small-scope terminal: the dry run is the deliverable; save-as-routine offered. */
+export type AttendedDryRunTerminalStep = {
+  kind: "terminal:attended_dry_run";
+  offer_save_as_routine: true;
+};
+
+/** Large-scope terminal: the plan becomes tracked Linear work (export_build_brief). */
+export type LinearIssuesTerminalStep = {
+  kind: "terminal:linear_issues";
+  handoff_target: "linear";
+  delivery_mode: "full";
+  linear_handoff_non_empty: true;
+};
+
 export type JourneyStep =
   | PlanJourneyStep
   | AnswerJourneyStep
   | DryRunJourneyStep
+  | DryRunTraversalStep
   | BuildBriefJourneyStep
-  | PrepareRuntimeJourneyStep;
+  | PrepareRuntimeJourneyStep
+  | AttendedDryRunTerminalStep
+  | LinearIssuesTerminalStep;
 
-export type JourneyTerminal = "build_brief" | "prepare_runtime";
+export type ScopeSize = "small" | "medium" | "large";
+
+export type JourneyTerminal =
+  | "build_brief"
+  | "prepare_runtime"
+  | "attended_dry_run"
+  | "linear_issues";
 
 export type JourneyTranscript = {
   transcript_version: "orchestratekit.golden_journey.v1";
@@ -165,12 +350,97 @@ export function planStep(p: PlanWorkflowOutput, round: number): PlanJourneyStep 
     kind: "plan",
     round,
     plan_source: p.plan_source,
+    playbook_id: p.playbook?.id ?? null,
     route_status: p.route_status,
     coverage_label: p.coverage.coverage_label,
     route: p.recommended_route.map((s) => s.component_id),
+    automation_clearance_level: p.automation_clearance.level,
+    enforced_approval_gates: [...p.enforced_approval_gates],
     clarifying_question_ids: p.clarifying_questions.map((q) => q.id),
     recommended_next_click: { id: click.id, label: click.label, action: click.action },
   };
+}
+
+/**
+ * Assert fixture-owned facts about a planning phase. These checks pin semantic
+ * content that transcript shape alone cannot protect: the intended playbook,
+ * safety boundary, route membership, and the actual questions/options shown to
+ * the user. The Lab imports this function so deterministic and model-driven
+ * runs use one contract.
+ */
+export function assertFixturePlanExpectation(
+  p: PlanWorkflowOutput,
+  fixture: JourneyFixture,
+  phase: "initial" | "resolved",
+): void {
+  const expected = fixture.expectations?.[phase];
+  if (!expected) return;
+
+  const fail = (why: string): never => {
+    throw new Error(`[golden-journey:${fixture.name}] ${phase} plan expectation: ${why}`);
+  };
+  const equalArray = (actual: string[], wanted: string[], label: string): void => {
+    if (JSON.stringify(actual) !== JSON.stringify(wanted)) {
+      fail(`${label} expected ${JSON.stringify(wanted)}, observed ${JSON.stringify(actual)}`);
+    }
+  };
+
+  if (expected.plan_source !== undefined && p.plan_source !== expected.plan_source) {
+    fail(`plan_source expected "${expected.plan_source}", observed "${p.plan_source}"`);
+  }
+  const playbookId = p.playbook?.id ?? null;
+  if (expected.playbook_id !== undefined && playbookId !== expected.playbook_id) {
+    fail(`playbook_id expected ${JSON.stringify(expected.playbook_id)}, observed ${JSON.stringify(playbookId)}`);
+  }
+  const clickId = p.goal_to_product_wizard.recommended_next_click.id;
+  if (
+    expected.recommended_next_click_id !== undefined &&
+    clickId !== expected.recommended_next_click_id
+  ) {
+    fail(`recommended_next_click_id expected "${expected.recommended_next_click_id}", observed "${clickId}"`);
+  }
+
+  const route = p.recommended_route.map((step) => step.component_id);
+  for (const componentId of expected.route_includes ?? []) {
+    if (!route.includes(componentId)) fail(`route is missing required component "${componentId}"`);
+  }
+  for (const componentId of expected.route_excludes ?? []) {
+    if (route.includes(componentId)) fail(`route contains forbidden component "${componentId}"`);
+  }
+  if (expected.enforced_approval_gates !== undefined) {
+    equalArray(
+      p.enforced_approval_gates,
+      expected.enforced_approval_gates,
+      "enforced_approval_gates",
+    );
+  }
+  if (
+    expected.automation_clearance_level !== undefined &&
+    p.automation_clearance.level !== expected.automation_clearance_level
+  ) {
+    fail(
+      `automation_clearance_level expected "${expected.automation_clearance_level}", ` +
+        `observed "${p.automation_clearance.level}"`,
+    );
+  }
+
+  if (expected.clarifying_questions !== undefined) {
+    equalArray(
+      p.clarifying_questions.map((question) => question.id),
+      expected.clarifying_questions.map((question) => question.id),
+      "clarifying question ids",
+    );
+    expected.clarifying_questions.forEach((questionExpectation, index) => {
+      const actual = p.clarifying_questions[index];
+      const questionLower = actual.question.toLocaleLowerCase();
+      for (const fragment of questionExpectation.question_includes) {
+        if (!questionLower.includes(fragment.toLocaleLowerCase())) {
+          fail(`question "${actual.id}" no longer includes ${JSON.stringify(fragment)}`);
+        }
+      }
+      equalArray(actual.options, questionExpectation.options, `options for question "${actual.id}"`);
+    });
+  }
 }
 
 /**
@@ -183,7 +453,12 @@ export function planStep(p: PlanWorkflowOutput, round: number): PlanJourneyStep 
  */
 export function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): DryRunJourneyStep {
   const md = p.summary_markdown;
-  const durable = p.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline;
+  // MAR-385's actual predicate for the walking-skeleton disclosure: the runtime
+  // must outlive the session AND the goal expresses build intent. (A durable goal
+  // phrased as a one-off task — e.g. "run agents in a loop" — earns no nag.)
+  const durableBuildGoal =
+    p.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline &&
+    goalHasBuildIntent(p.goal);
   const fail = (why: string): never => {
     throw new Error(`[golden-journey:${fixture}] attended dry-run invariant: ${why}`);
   };
@@ -193,7 +468,7 @@ export function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): Dr
   if (!md.includes(ATTENDED_DRY_RUN_MARKERS.no_durable_agent)) fail("dry-run option omits the 'no saved agent' framing");
 
   let walkingSkeleton = false;
-  if (durable) {
+  if (durableBuildGoal) {
     if (
       !md.includes(ATTENDED_DRY_RUN_MARKERS.walking_skeleton) ||
       !md.includes(ATTENDED_DRY_RUN_MARKERS.deliverable)
@@ -202,14 +477,14 @@ export function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): Dr
     }
     walkingSkeleton = true;
   } else if (md.includes("walking skeleton") || md.includes("export_build_brief")) {
-    fail("genuinely one-shot goal was nagged toward export_build_brief");
+    fail("non-durable / one-shot goal was nagged toward export_build_brief");
   }
 
   return {
     kind: "attended_dry_run_option",
     present: true,
     honest_disclosure: true,
-    durable_build_goal: durable,
+    durable_build_goal: durableBuildGoal,
     walking_skeleton_disclosed: walkingSkeleton,
   };
 }
@@ -258,12 +533,40 @@ export function followBuildBrief(p: PlanWorkflowOutput, fixture: string): BuildB
     throw new Error(`[golden-journey:${fixture}] build brief brief_markdown is empty`);
   }
 
+  for (const step of p.recommended_route) {
+    if (!sections.s2_route.includes(`\`${step.component_id}\``)) {
+      throw new Error(
+        `[golden-journey:${fixture}] build brief route omits component "${step.component_id}"`,
+      );
+    }
+  }
+  for (const gate of p.enforced_approval_gates) {
+    if (!sections.s5_safety.includes(`\`${gate}\``)) {
+      throw new Error(
+        `[golden-journey:${fixture}] build brief safety omits enforced gate "${gate}"`,
+      );
+    }
+  }
+  const constraintsLower = sections.s0_constraints.toLocaleLowerCase();
+  for (const check of p.constraint_coverage.checks) {
+    if (
+      check.constraint_class === "prohibition" &&
+      !constraintsLower.includes(check.goal_phrase.toLocaleLowerCase())
+    ) {
+      throw new Error(
+        `[golden-journey:${fixture}] build brief constraints omit prohibition phrase ` +
+          JSON.stringify(check.goal_phrase),
+      );
+    }
+  }
+
   return {
     kind: "terminal:build_brief",
     llm_provider: MECHANICAL_LLM_PROVIDER,
     sections_present: [...REQUIRED_BRIEF_SECTIONS],
     all_sections_non_empty: true,
     brief_markdown_non_empty: true,
+    content_cross_references_valid: true,
   };
 }
 
@@ -295,6 +598,93 @@ export function followPrepareRuntime(p: PlanWorkflowOutput, fixture: string): Pr
 }
 
 /**
+ * Follow the `generate_linear_project` recommended click (large scope): export
+ * the plan as Linear issues via the existing full-delivery build brief, and
+ * assert the Linear handoff is present and non-empty.
+ */
+export function followLinearIssues(p: PlanWorkflowOutput, fixture: string): LinearIssuesTerminalStep {
+  const brief = exportBuildBrief({
+    goal: p.goal,
+    plan_source: p.plan_source,
+    route_status: p.route_status,
+    recommended_route: p.recommended_route,
+    safety_review: p.safety_review,
+    automation_clearance: p.automation_clearance,
+    enforced_approval_gates: p.enforced_approval_gates,
+    untested_edges: p.untested_edges,
+    avoid_when_violations: p.avoid_when_violations,
+    evals_to_add: p.evals_to_add,
+    design_notes: p.design_notes,
+    worker_pipeline: p.worker_pipeline,
+    loop_guidance: p.loop_guidance,
+    approval_gate_advisory: p.approval_gate_advisory,
+    handoff_targets: ["linear"],
+    delivery_mode: "full",
+    llm_provider: MECHANICAL_LLM_PROVIDER,
+    generated_at: FIXED_GENERATED_AT,
+  });
+  if ("status" in brief && (brief as { status?: string }).status === "needs_input") {
+    throw new Error(
+      `[golden-journey:${fixture}] Linear export returned needs_input despite a fixed provider`,
+    );
+  }
+  const linear = (brief as { handoffs?: { linear?: string } }).handoffs?.linear;
+  if (typeof linear !== "string" || linear.trim().length === 0) {
+    throw new Error(`[golden-journey:${fixture}] Linear handoff is missing or empty`);
+  }
+  return {
+    kind: "terminal:linear_issues",
+    handoff_target: "linear",
+    delivery_mode: "full",
+    linear_handoff_non_empty: true,
+  };
+}
+
+/** The planner's runtime-first rule, mirrored so the client can pick the
+ * post-dry-run build deliverable (prepare_runtime vs build_brief) for medium. */
+function isRuntimeFirst(p: PlanWorkflowOutput): boolean {
+  const rr = p.goal_to_product_wizard.runtime_requirements;
+  return rr.must_run_while_user_offline || rr.trigger_mode === "interactive";
+}
+
+export type DryRunRecommendationResult = {
+  terminal: JourneyTerminal;
+  steps: Array<DryRunTraversalStep | AttendedDryRunTerminalStep | BuildBriefJourneyStep | PrepareRuntimeJourneyStep>;
+};
+
+/**
+ * Follow the scope-aware attended dry-run recommendation to its real terminal.
+ * Exported so the Lab's model-driven client and this mechanical client share
+ * one continuation rule instead of independently deciding what follows E).
+ */
+export function followDryRunRecommendation(
+  p: PlanWorkflowOutput,
+  fixture: string,
+): DryRunRecommendationResult {
+  const scopeSize = p.scope_assessment.size;
+  if (scopeSize === "large") {
+    throw new Error(
+      `[golden-journey:${fixture}] dry_run_in_chat cannot be the recommended click for large scope`,
+    );
+  }
+
+  const steps: DryRunRecommendationResult["steps"] = [
+    { kind: "dry_run", attended: true, nothing_persists: true, scope_size: scopeSize },
+  ];
+  if (scopeSize === "small") {
+    steps.push({ kind: "terminal:attended_dry_run", offer_save_as_routine: true });
+    return { terminal: "attended_dry_run", steps };
+  }
+
+  if (isRuntimeFirst(p)) {
+    steps.push(followPrepareRuntime(p, fixture));
+    return { terminal: "prepare_runtime", steps };
+  }
+  steps.push(followBuildBrief(p, fixture));
+  return { terminal: "build_brief", steps };
+}
+
+/**
  * Walk one golden journey mechanically and return its transcript. Pure: no LLM,
  * no network, no mutation of inputs. Throws (fails loudly) on any of: an
  * unanswered clarifying question, a clarifying loop that never converges, a
@@ -310,6 +700,8 @@ export function runMechanicalJourney(
   let goal = fixture.goal;
   let current = planForJourney(goal, registry);
   let round = 0;
+
+  assertFixturePlanExpectation(current, fixture, "initial");
 
   // ── Fold canned answers until the recommended click stops asking questions ──
   while (current.goal_to_product_wizard.recommended_next_click.id === "answer_clarifying_questions") {
@@ -340,12 +732,20 @@ export function runMechanicalJourney(
   }
 
   // ── The terminal plan the client acts on ──
+  assertFixturePlanExpectation(current, fixture, "resolved");
   steps.push(planStep(current, round));
   steps.push(assertAttendedDryRun(current, fixture.name));
 
   const click = current.goal_to_product_wizard.recommended_next_click;
   let terminal: JourneyTerminal;
-  if (click.id === "build_brief") {
+  if (click.id === "dry_run_in_chat") {
+    const dryRun = followDryRunRecommendation(current, fixture.name);
+    steps.push(...dryRun.steps);
+    terminal = dryRun.terminal;
+  } else if (click.id === "generate_linear_project") {
+    steps.push(followLinearIssues(current, fixture.name));
+    terminal = "linear_issues";
+  } else if (click.id === "build_brief") {
     steps.push(followBuildBrief(current, fixture.name));
     terminal = "build_brief";
   } else if (click.id === "prepare_runtime") {

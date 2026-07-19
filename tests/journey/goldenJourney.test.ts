@@ -17,6 +17,8 @@
 import { describe, it, expect } from "vitest";
 import { loadRegistry } from "../../src/registry/registryLoader.js";
 import {
+  followBuildBrief,
+  planForJourney,
   runMechanicalJourney,
   type JourneyTranscript,
 } from "../../src/journey/mechanicalClient.js";
@@ -53,7 +55,12 @@ describe("MAR-387 — golden journey (mechanical client, always picks ⭐)", () 
       });
 
       it("reaches a terminal deliverable with no unknown/unhandled option", () => {
-        expect(transcript.terminal === "build_brief" || transcript.terminal === "prepare_runtime").toBe(true);
+        expect([
+          "build_brief",
+          "prepare_runtime",
+          "attended_dry_run",
+          "linear_issues",
+        ]).toContain(transcript.terminal);
         const last = transcript.steps[transcript.steps.length - 1];
         expect(last.kind).toBe(`terminal:${transcript.terminal}`);
         // Every plan step carried a recommended click the client could follow —
@@ -70,6 +77,15 @@ describe("MAR-387 — golden journey (mechanical client, always picks ⭐)", () 
         expect(dryRun, "attended dry-run option step present").toBeDefined();
         expect(dryRun).toMatchObject({ present: true, honest_disclosure: true });
       });
+
+      if (transcript.terminal === "build_brief") {
+        it("cross-references route, gates, and prohibitions in the build brief", () => {
+          expect(transcript.steps.at(-1)).toMatchObject({
+            kind: "terminal:build_brief",
+            content_cross_references_valid: true,
+          });
+        });
+      }
     });
   }
 
@@ -97,8 +113,42 @@ describe("MAR-387 — golden journey (mechanical client, always picks ⭐)", () 
       expect(t.steps.some((s) => s.kind === "plan")).toBe(true);
       expect(t.steps.some((s) => s.kind === "attended_dry_run_option")).toBe(true);
     }
-    // The fixture set must exercise BOTH terminal shapes, not just one path.
+    // MAR-386: the fixture set must exercise every scope-aware ⭐ terminal shape —
+    // small (attended dry run), medium→build (build_brief), medium→durable
+    // (prepare_runtime), and large (linear_issues).
+    expect(seenTerminals.has("attended_dry_run")).toBe(true);
     expect(seenTerminals.has("build_brief")).toBe(true);
     expect(seenTerminals.has("prepare_runtime")).toBe(true);
+    expect(seenTerminals.has("linear_issues")).toBe(true);
+  });
+
+  it("covers every MAR-392 goal shape explicitly", () => {
+    const tags = new Set(JOURNEY_FIXTURES.flatMap((fixture) => fixture.coverage_tags));
+    expect([...tags].sort()).toEqual(
+      [
+        "read_only",
+        "fully_unattended",
+        "outbound_send_allowed",
+        "multiple_clarifying_questions",
+        "validated_playbook",
+        "deliberately_vague",
+      ].sort(),
+    );
+  });
+
+  it("cross-references a real route, gate, and prohibition in one compiled brief", () => {
+    const fixture = JOURNEY_FIXTURES.find((item) => item.name === "golden_email_calendar");
+    if (!fixture) throw new Error("golden_email_calendar fixture is missing");
+    const answer = fixture.canned_answers.calendar_notification;
+    const plan = planForJourney(`${fixture.goal} ${answer}`, registry);
+
+    expect(plan.recommended_route.length).toBeGreaterThan(1);
+    expect(plan.enforced_approval_gates).toContain("human_approval_gate");
+    expect(
+      plan.constraint_coverage.checks.some((check) => check.constraint_class === "prohibition"),
+    ).toBe(true);
+    expect(followBuildBrief(plan, "brief-content-cross-reference")).toMatchObject({
+      content_cross_references_valid: true,
+    });
   });
 });

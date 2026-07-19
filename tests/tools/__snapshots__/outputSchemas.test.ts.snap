@@ -468,9 +468,9 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       },
     },
     "recommended_next_click": {
-      "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
-      "id": "build_brief",
-      "label": "Export Build brief for Codex",
+      "action": "assistant:attended_dry_run_in_chat",
+      "id": "dry_run_in_chat",
+      "label": "Dry run it attended in this chat now — nothing persists, then build",
     },
     "recommended_setup": {
       "action": null,
@@ -732,6 +732,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "route_score": "computed",
       "route_status": "grounded",
       "safety_review": "computed",
+      "scope_assessment": "computed",
       "stack": "grounded",
       "suggested_next_actions": "advisory",
       "untested_edges": "grounded",
@@ -840,6 +841,14 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     "risk_score": 0,
     "status": "pass",
     "warnings": [],
+  },
+  "scope_assessment": {
+    "drivers": [
+      "Writes to an external business system (L3) — human by default",
+      "0 connections to wire up",
+    ],
+    "recommended_path": "Dry run it first, then build the durable agent",
+    "size": "medium",
   },
   "stack": {
     "id": "default_orchestratekit_stack",
@@ -1040,9 +1049,9 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       },
     },
     "recommended_next_click": {
-      "action": "see:goal_to_product_wizard.recommended_setup",
-      "id": "prepare_runtime",
-      "label": "[text]",
+      "action": "assistant:attended_dry_run_in_chat",
+      "id": "dry_run_in_chat",
+      "label": "Dry run it attended in this chat now — nothing persists, then build",
     },
     "recommended_setup": {
       "action": null,
@@ -1322,6 +1331,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "route_score": "computed",
       "route_status": "computed",
       "safety_review": "computed",
+      "scope_assessment": "computed",
       "stack": "grounded",
       "suggested_next_actions": "advisory",
       "untested_edges": "grounded",
@@ -1466,6 +1476,15 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "Multi-step workflow has no persistent state store declared.",
       "External API/network calls present without a retry policy.",
     ],
+  },
+  "scope_assessment": {
+    "drivers": [
+      "Must keep running while you're offline (durable runtime needed)",
+      "Writes to an external business system (L4) — human by default",
+      "2 connections to wire up",
+    ],
+    "recommended_path": "Dry run it first, then build the durable agent",
+    "size": "medium",
   },
   "stack": {
     "id": "default_orchestratekit_stack",
@@ -1895,9 +1914,9 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       },
     },
     "recommended_next_click": {
-      "action": "export_build_brief({ handoff_targets: ['prompt'], delivery_mode: 'compact' })",
-      "id": "build_brief",
-      "label": "Export Build brief for Codex",
+      "action": "assistant:attended_dry_run_in_chat",
+      "id": "dry_run_in_chat",
+      "label": "Dry run it attended in this chat now — nothing persists, then build",
     },
     "recommended_setup": {
       "action": null,
@@ -2159,6 +2178,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "route_score": "computed",
       "route_status": "grounded",
       "safety_review": "computed",
+      "scope_assessment": "computed",
       "stack": "grounded",
       "suggested_next_actions": "advisory",
       "untested_edges": "grounded",
@@ -2267,6 +2287,14 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     "risk_score": 0,
     "status": "pass",
     "warnings": [],
+  },
+  "scope_assessment": {
+    "drivers": [
+      "Writes to an external business system (L3) — human by default",
+      "0 connections to wire up",
+    ],
+    "recommended_path": "Dry run it first, then build the durable agent",
+    "size": "medium",
   },
   "stack": {
     "id": "default_orchestratekit_stack",

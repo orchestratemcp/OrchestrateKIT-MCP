@@ -64,6 +64,7 @@ import {
 import {
   computeAutomationClearance,
   type AutomationClearance,
+  type ClearanceLevel,
 } from "../graph/automationClearance.js";
 import { buildReviewContext } from "./reviewWorkflowDesign.js";
 import { ALL_RULES } from "../review/rules/index.js";
@@ -672,6 +673,26 @@ export type GoalToProductWizard = {
   };
 };
 
+/**
+ * MAR-386: deterministic SCOPE ASSESSMENT — how big is this task, derived from
+ * the plan itself (no LLM). Same discipline as coverage / automation_clearance:
+ * the plan sizes itself so the product can recommend the matching first move
+ * (small tasks never see hosting questions; large ones aren't pretended into a
+ * single build prompt). See docs/UX_FLOWCHART.md "Scope sizing — deterministic
+ * drivers".
+ *
+ * HARD design rule: scope NEVER gates capability. Every continuation option
+ * stays present at every size — scope only changes which one is ⭐ recommended
+ * first (see pickRecommendedNextClick / renderProductCardContinueMenu).
+ */
+export type ScopeAssessment = {
+  size: "small" | "medium" | "large";
+  /** Human-readable reasons drawn from the plan (the drivers that set the size). */
+  drivers: string[];
+  /** Short label for the recommended first move at this size. */
+  recommended_path: string;
+};
+
 export type ProvenanceTag = "grounded" | "computed" | "advisory";
 
 export type ProvenanceModel = {
@@ -796,6 +817,12 @@ export type PlanWorkflowOutput = {
    * `hosting_and_monitoring`.
    */
   goal_to_product_wizard: GoalToProductWizard;
+  /**
+   * MAR-386: deterministic Small / Medium / Large sizing of the task, derived
+   * from this plan's own fields (runtime, clearance, connection count, route
+   * shape). Drives the scope-aware ⭐ in the menu. Scope never gates capability.
+   */
+  scope_assessment: ScopeAssessment;
   /**
    * Advisory multi-worker BUILD pipeline (MAR-166): the specialist workers
    * (planner → coder → reviewer → tester) recommended to implement this plan in
@@ -1655,8 +1682,11 @@ const BUILD_INTENT_SIGNALS = [
   "set up", "set-up", "make an agent", "stand up", "build an agent",
   "build me", "an agent that", "an assistant that",
 ];
-function goalHasBuildIntent(goal: string): boolean {
-  return anySignal(goal.toLowerCase(), BUILD_INTENT_SIGNALS);
+export function goalHasBuildIntent(goal: string): boolean {
+  const g = goal.toLowerCase();
+  return BUILD_INTENT_SIGNALS.some(
+    (signal) => g.includes(signal) && !isNegatedInContext(g, signal),
+  );
 }
 
 /**
@@ -1865,6 +1895,7 @@ const TRIGGER_SPECIFIED_SIGNALS = [
   "each morning", "each day", "cron", "webhook", "on push", "pull request",
   "when an email", "when a new", "on receiving", "on receipt", "manually",
   "on demand", "i run", "button", "in chat", "mention", "arrives", "is received",
+  "in this chat",
   "incoming", "new lead", "new leads", "new email", "new emails", "new message",
   "new messages", "new gmail",
 ];
@@ -2020,7 +2051,9 @@ export function buildClarifyingQuestions(
   //    trigger component is in the route.
   const hasTriggerComponent = routeComponentIds.some((id) => id.endsWith("_trigger"));
   if (
-    anySignal(g, AUTOMATION_INTENT_SIGNALS) &&
+    AUTOMATION_INTENT_SIGNALS.some(
+      (signal) => g.includes(signal) && !isNegatedInContext(g, signal),
+    ) &&
     !anySignal(g, TRIGGER_SPECIFIED_SIGNALS) &&
     !hasTriggerComponent
   ) {
@@ -3064,13 +3097,119 @@ function buildPlacementContract(input: {
   };
 }
 
+/**
+ * MAR-386 scope drivers, all read from an EXISTING plan — no new matcher
+ * vocabulary. `DURABLE_TRIGGER_COMPONENTS` are the registry triggers that make a
+ * plan outlive the session (a schedule / inbound event / page watch); their
+ * presence is the "durable trigger or schedule" driver. `MULTI_AGENT_COMPONENTS`
+ * are the orchestration primitives that make a route multi-agent (a bounded loop
+ * of workers, or a parallel fan-out) — the "multi-agent route" driver.
+ */
+const DURABLE_TRIGGER_COMPONENTS = new Set<string>([
+  "scheduled_trigger",
+  "webhook_trigger",
+  "github_trigger",
+  "page_monitor",
+]);
+const MULTI_AGENT_COMPONENTS = new Set<string>(["loop_controller", "fan_out_collector"]);
+
+const CLEARANCE_RANK: Record<ClearanceLevel, number> = {
+  L0: 0,
+  L1: 1,
+  L2: 2,
+  L3: 3,
+  L4: 4,
+};
+
+/**
+ * Count the connections this plan asks the user to wire up — unique integrations
+ * from `what_you_need`, EXCLUDING optional-sender components (an `optional_*`
+ * integration the user may never connect must not inflate the task's size). This
+ * is the deterministic connection count the scope thresholds compare against.
+ */
+function countScopeConnections(whatYouNeed: IntegrationNeed[]): number {
+  const seen = new Set<string>();
+  for (const need of whatYouNeed) {
+    if (need.component_id.startsWith("optional_")) continue;
+    const name = need.product_examples[0];
+    if (name) seen.add(name);
+  }
+  return seen.size;
+}
+
+/**
+ * MAR-386: size the task from the plan itself. Precedence large → medium → small.
+ *
+ *   LARGE — plan it: a multi-agent route (loop_controller / fan_out_collector),
+ *     OR more than 3 connections. These are the plans that must be broken into
+ *     tracked slices, not pretended into one build prompt.
+ *   MEDIUM — build it: a durable trigger/schedule (must_run_while_user_offline
+ *     OR a DURABLE_TRIGGER_COMPONENT in the route), OR an L3 business-system
+ *     write (human-by-default), OR exactly 3 connections. The "stand up a real
+ *     agent" band.
+ *   SMALL — run it: everything else — attended (not offline), no durable
+ *     trigger, ≤ L2 clearance, ≤ 2 connections. The dry run basically IS the
+ *     deliverable; offer "save as a routine" after.
+ *
+ * Pure function of the plan; invents no vocabulary.
+ */
+function buildScopeAssessment(input: {
+  clearance: AutomationClearance;
+  whatYouNeed: IntegrationNeed[];
+  mustRunOffline: boolean;
+  routeComponentIds: string[];
+  loopShaped: boolean;
+}): ScopeAssessment {
+  const connectionCount = countScopeConnections(input.whatYouNeed);
+  const clearanceRank = CLEARANCE_RANK[input.clearance.level];
+  const durableTrigger =
+    input.mustRunOffline ||
+    input.routeComponentIds.some((id) => DURABLE_TRIGGER_COMPONENTS.has(id));
+  const multiAgent =
+    input.loopShaped ||
+    input.routeComponentIds.some((id) => MULTI_AGENT_COMPONENTS.has(id));
+
+  const drivers: string[] = [];
+  let size: ScopeAssessment["size"];
+  let recommended_path: string;
+
+  if (multiAgent || connectionCount > 3) {
+    size = "large";
+    if (multiAgent) drivers.push("Multi-agent route (a loop or parallel fan-out of workers)");
+    if (connectionCount > 3) drivers.push(`${connectionCount} connections to wire up`);
+    recommended_path = "Generate a Linear project from the plan, then build it as slices";
+  } else if (durableTrigger || clearanceRank >= CLEARANCE_RANK.L3 || connectionCount === 3) {
+    size = "medium";
+    if (durableTrigger) {
+      drivers.push(
+        input.mustRunOffline
+          ? "Must keep running while you're offline (durable runtime needed)"
+          : "Durable trigger in the route (schedule / inbound event / page watch)",
+      );
+    }
+    if (clearanceRank >= CLEARANCE_RANK.L3) {
+      drivers.push(`Writes to an external business system (${input.clearance.level}) — human by default`);
+    }
+    drivers.push(`${connectionCount} connection${connectionCount === 1 ? "" : "s"} to wire up`);
+    recommended_path = "Dry run it first, then build the durable agent";
+  } else {
+    size = "small";
+    drivers.push("Attended — nothing needs to run while you're away");
+    drivers.push(`Low blast radius (${input.clearance.level})`);
+    drivers.push(`${connectionCount} connection${connectionCount === 1 ? "" : "s"} to wire up`);
+    recommended_path = "Run it now in this chat, then save it as a routine if you want it again";
+  }
+
+  return { size, drivers, recommended_path };
+}
+
 function pickRecommendedNextClick(
   clarifyingQuestions: ClarifyingQuestion[],
-  buildChoices: WizardChoice[],
   artifactChoices: WizardChoice[],
-  placement: ReturnType<typeof buildPlacementContract>,
-  runtimeFirst: boolean,
+  scope: ScopeAssessment,
 ): GoalToProductWizard["recommended_next_click"] {
+  // Questions always come first — a fork the plan can't resolve outranks any
+  // scope-based recommendation.
   if (clarifyingQuestions.length > 0) {
     return {
       id: "answer_clarifying_questions",
@@ -3078,19 +3217,26 @@ function pickRecommendedNextClick(
       action: "assistant:ask_clarifying_questions",
     };
   }
-  if (runtimeFirst) {
+  // MAR-386: the ⭐ is scope-aware. Large → turn the plan into tracked Linear
+  // work (a real destination — the existing export_build_brief linear path, not
+  // a new tool). Small & medium → the attended dry run is the ⭐ first move
+  // ("try it once on real data now"); build_brief / prepare_runtime remain in the
+  // menu as the next step. Capability is never gated — only the ⭐ moves.
+  if (scope.size === "large") {
+    const linear = artifactChoices.find((c) => c.id === "linear_issues") ?? artifactChoices[0];
     return {
-      id: "prepare_runtime",
-      label: placement.recommended_setup.next_achievable_step,
-      action: "see:goal_to_product_wizard.recommended_setup",
+      id: "generate_linear_project",
+      label: "Generate the plan as Linear issues",
+      action: linear.action,
     };
   }
-  const build = buildChoices.find((c) => c.recommended) ?? buildChoices[0];
-  const artifact = artifactChoices.find((c) => c.recommended) ?? artifactChoices[0];
   return {
-    id: artifact.id,
-    label: `Export ${artifact.label} for ${build.label}`,
-    action: artifact.action,
+    id: "dry_run_in_chat",
+    label:
+      scope.size === "small"
+        ? "Run it attended in this chat now — nothing persists"
+        : "Dry run it attended in this chat now — nothing persists, then build",
+    action: "assistant:attended_dry_run_in_chat",
   };
 }
 
@@ -3103,7 +3249,9 @@ function buildGoalToProductWizard(input: {
   hostingAndMonitoring: HostingAndMonitoring;
   clarifyingQuestions: ClarifyingQuestion[];
   outputDepth: "guided" | "brief" | "standard" | "technical" | "deep";
-}): GoalToProductWizard {
+  clearance: AutomationClearance;
+  loopShaped: boolean;
+}): { wizard: GoalToProductWizard; scope: ScopeAssessment } {
   const buildChoices = buildWizardChoices(input.buildTarget);
   const artifactChoices = buildArtifactChoices();
   const placement = buildPlacementContract({
@@ -3116,7 +3264,16 @@ function buildGoalToProductWizard(input: {
     placement.runtime_requirements.must_run_while_user_offline ||
     placement.runtime_requirements.trigger_mode === "interactive";
   const technicalDepth = input.outputDepth === "technical" || input.outputDepth === "deep";
-  return {
+  // MAR-386: scope is derived from the plan (clearance, connections, route shape,
+  // runtime), then drives the scope-aware ⭐ in pickRecommendedNextClick.
+  const scope = buildScopeAssessment({
+    clearance: input.clearance,
+    whatYouNeed: input.whatYouNeed,
+    mustRunOffline: placement.runtime_requirements.must_run_while_user_offline,
+    routeComponentIds: input.steps.map((s) => s.component_id),
+    loopShaped: input.loopShaped,
+  });
+  const wizard: GoalToProductWizard = {
     steps: input.steps.map((s) => ({
       step: s.step,
       label: wizardStepLabel(s),
@@ -3132,12 +3289,11 @@ function buildGoalToProductWizard(input: {
     clarifying_questions: input.clarifyingQuestions,
     recommended_next_click: pickRecommendedNextClick(
       input.clarifyingQuestions,
-      buildChoices,
       artifactChoices,
-      placement,
-      runtimeFirst,
+      scope,
     ),
   };
+  return { wizard, scope };
 }
 
 /**
@@ -3166,6 +3322,7 @@ function buildStatusHeader(
   clearance: AutomationClearance,
   coverage: Coverage,
   constraintCoverage: ConstraintCoverage,
+  scope: ScopeAssessment,
 ): string {
   const routeIcon =
     routeStatus === "validated" ? "✅" : routeStatus === "blocked_candidate" ? "❌" : "⚠️";
@@ -3255,6 +3412,8 @@ function buildStatusHeader(
     `approval:       ${approval}`,
     `automation:     ${autoIcon} ${clearance.level} — ${autoText}`,
     `untested_edges: ${untestedIcon} ${untestedEdges.length}`,
+    // MAR-386: scope sizing (S/M/L) with the recommended first move.
+    `scope:          ${scope.size.toUpperCase()} — ${scope.recommended_path}`,
     `---`,
   );
   return headerLines.join("\n");
@@ -3285,6 +3444,7 @@ function buildCompactStatusHeader(
   approvalAdvisory: ApprovalGateAdvisory | null,
   coverage: Coverage,
   constraintCoverage: ConstraintCoverage,
+  scope: ScopeAssessment,
 ): string {
   const routeIcon =
     routeStatus === "validated" ? "✅" : routeStatus === "blocked_candidate" ? "❌" : "⚠️";
@@ -3312,7 +3472,20 @@ function buildCompactStatusHeader(
     approval,
     `Risk ${safety.risk_score}/100`,
     `${untestedEdges.length} untested edge${untestedEdges.length === 1 ? "" : "s"}`,
+    // MAR-386: scope chip. Medium is the terse "Scope M"; small/large carry the
+    // one-word action hint because their ⭐ differs from the build default. Folded
+    // here (not a new body line) to stay inside LAYER1_MAX_CHARS.
+    scopeChip(scope),
   ].join(" · ");
+}
+
+/** MAR-386: the compact scope chip for the Layer-1 status header. */
+function scopeChip(scope: ScopeAssessment): string {
+  return scope.size === "small"
+    ? "Scope S (run it)"
+    : scope.size === "large"
+    ? "Scope L (plan it)"
+    : "Scope M";
 }
 
 /**
@@ -3765,32 +3938,57 @@ function buildProductCardNotes(
   return notes.slice(0, 3);
 }
 
-function renderProductCardContinueMenu(wizard: GoalToProductWizard, goal: string): string[] {
+function renderProductCardContinueMenu(
+  wizard: GoalToProductWizard,
+  goal: string,
+  scope: ScopeAssessment,
+): string[] {
   // MAR-385: a chat run is a dry-run/walking skeleton only when the goal asks to
   // build a durable agent AND the runtime must outlive the session; a genuinely
   // attended/one-shot goal (client-chat runtime) is never nagged toward the brief.
   const buildDeliverable =
     wizard.runtime_requirements.must_run_while_user_offline && goalHasBuildIntent(goal);
-  if (wizard.recommended_next_click.id === "prepare_runtime") {
+  // Same layout split as before (was keyed off the old prepare_runtime click):
+  // the runtime-first layout appears when the plan needs a durable/interactive
+  // runtime and no question is pending.
+  const questionsPending = wizard.clarifying_questions.length > 0;
+  const showRuntimeLayout =
+    !questionsPending &&
+    (wizard.runtime_requirements.must_run_while_user_offline ||
+      wizard.runtime_requirements.trigger_mode === "interactive");
+  // MAR-386: the ⭐ is scope-aware, but ONLY once questions are answered — while a
+  // question is pending, answering it (the "Quick checks" block above) is the ⭐,
+  // so no menu line is marked. Capability is never gated: every A–E option is
+  // always present; scope only moves which one says "Recommended".
+  const starDryRun = !questionsPending && (scope.size === "small" || scope.size === "medium");
+  const starLinear = !questionsPending && scope.size === "large";
+  const mark = (line: string, on: boolean) => (on ? `${line} — Recommended` : line);
+  const savePlanLine = starLinear
+    ? "Generate this plan as Linear issues; Obsidian / Notion export remains available"
+    : "Save this plan to Linear / Obsidian / Notion";
+
+  if (showRuntimeLayout) {
+    const eLine = dryRunMenuLine("E", buildDeliverable, "");
     return [
       `### How do you want to continue?`,
       ``,
       `A) ${wizard.recommended_setup.label} — Next achievable step`,
       `B) Review or change Runtime, Control surface, Interaction surface, or Trigger`,
       `C) Show the technical plan and deployment alternatives`,
-      `D) Save this plan to Linear / Obsidian / Notion`,
-      dryRunMenuLine("E", buildDeliverable, ""),
+      mark(`D) ${savePlanLine}`, starLinear),
+      mark(eLine, starDryRun),
       ``,
     ];
   }
+  const eLine = dryRunMenuLine("E", buildDeliverable, " (C)");
   return [
     `### How do you want to continue?`,
     ``,
-    `A) Save this plan to Linear / Obsidian / Notion`,
+    mark(`A) ${savePlanLine}`, starLinear),
     `B) Generate a portable agent handoff prompt`,
-    `C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended`,
+    `C) Turn it into a build prompt for Claude Code / Codex / Cursor`,
     `D) Review or change the plan`,
-    dryRunMenuLine("E", buildDeliverable, " (C)"),
+    mark(eLine, starDryRun),
     ``,
   ];
 }
@@ -3823,6 +4021,7 @@ function buildGuidedPlanMarkdown(
   constraintCoverage: ConstraintCoverage,
   hostingAndMonitoring: HostingAndMonitoring,
   goalToProductWizard: GoalToProductWizard,
+  scope: ScopeAssessment,
   /**
    * MAR-224: when true (`standard` depth) the recommended route is rendered as a
    * full numbered step list with per-step risk instead of the one-line chain —
@@ -3931,7 +4130,7 @@ function buildGuidedPlanMarkdown(
     lines.push(...renderClarifyingQuestions(clarifyingQuestions, "compact"));
   }
 
-  lines.push(...renderProductCardContinueMenu(goalToProductWizard, goal));
+  lines.push(...renderProductCardContinueMenu(goalToProductWizard, goal, scope));
 
   lines.push(
     `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +
@@ -4248,6 +4447,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       clarifying_questions: "advisory", // MAR-225: bounded constraint questions
       hosting_and_monitoring: "computed", // MAR-315: deterministic route-shape derivation
       goal_to_product_wizard: "advisory", // MAR-333: deterministic menu contract for clients
+      scope_assessment: "computed", // MAR-386: S/M/L derived from plan fields, no LLM
       next_steps: "advisory",
     },
     grounding_note:
@@ -4435,9 +4635,11 @@ export function planWorkflow(
         `deliberately only if you accept unattended external writes with no human review.`,
     };
   } else {
-    enforced_approval_gates = hasGate
-      ? ["human_approval_gate"]
-      : composed.required_approval_gates;
+    // This field describes controls that are actually present on the chosen
+    // route. A playbook may beat the composed candidate while carrying a
+    // different gate shape, so never leak the losing candidate's requirements.
+    // Missing-but-required gates remain visible in safety_review.
+    enforced_approval_gates = hasGate ? ["human_approval_gate"] : [];
   }
 
   // ── MAR-142: warn when a playbook route contains writes the goal explicitly forbade ──
@@ -4539,7 +4741,7 @@ export function planWorkflow(
 
   // ── MAR-225: bounded clarifying questions for missing architecture constraints ──
   const clarifying_questions = buildClarifyingQuestions(input.goal, routeComponentIds);
-  const goal_to_product_wizard = buildGoalToProductWizard({
+  const { wizard: goal_to_product_wizard, scope: scope_assessment } = buildGoalToProductWizard({
     goal: input.goal,
     steps,
     whatYouNeed: what_you_need,
@@ -4548,6 +4750,8 @@ export function planWorkflow(
     hostingAndMonitoring: hosting_and_monitoring,
     clarifyingQuestions: clarifying_questions,
     outputDepth,
+    clearance: automation_clearance,
+    loopShaped: loop_guidance !== null,
   });
 
   // ── Step 6: fused markdown ──
@@ -4567,6 +4771,7 @@ export function planWorkflow(
           approval_gate_advisory,
           coverage,
           constraint_coverage,
+          scope_assessment,
         )
       : buildStatusHeader(
     route_status,
@@ -4577,6 +4782,7 @@ export function planWorkflow(
     automation_clearance,
     coverage,
     constraint_coverage,
+    scope_assessment,
         );
   let body: string;
   if (outputDepth === "guided" || outputDepth === "brief" || outputDepth === "standard") {
@@ -4596,6 +4802,7 @@ export function planWorkflow(
       constraint_coverage,
       hosting_and_monitoring,
       goal_to_product_wizard,
+      scope_assessment,
       outputDepth === "standard", // fullSteps: standard is the superset layer
     );
   } else {
@@ -4653,6 +4860,7 @@ export function planWorkflow(
     clarifying_questions,
     hosting_and_monitoring,
     goal_to_product_wizard,
+    scope_assessment,
     worker_pipeline,
     worker_pipeline_pointer,
     loop_guidance,

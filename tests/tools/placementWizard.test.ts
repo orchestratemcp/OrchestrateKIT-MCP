@@ -94,7 +94,8 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
     expect(wizard.runtime_recommendation.label).toBe("Managed scheduled job");
     expect(wizard.runtime_requirements.operation_mode).toBe("scheduled");
     expect(wizard.runtime_requirements.persistent_state_needed).toBe(true);
-    expect(wizard.control_surface.recommended.id).toBe("provider_neutral_approval_inbox");
+    expect(wizard.runtime_requirements.durable_approval_needed).toBe(false);
+    expect(wizard.control_surface.recommended.id).toBe("runtime_provider_control");
     expect(wizard.interaction_surface.recommended.id).toBe("slack_interaction");
     expect(wizard.interaction_surface.recommended.limitation).toContain(
       "approve every post or automate low-risk alerts",

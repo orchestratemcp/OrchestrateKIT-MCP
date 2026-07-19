@@ -70,9 +70,15 @@ function expectTargetProductCard(md: string) {
   } else {
     expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
     expect(md).toContain("B) Generate a portable agent handoff prompt");
-    expect(md).toMatch(/^C\) Turn it into a build prompt for Claude Code \/ Codex \/ Cursor .+ Recommended$/m);
+    // MAR-386: the build prompt is no longer the blanket ⭐. It stays present but
+    // unmarked; the scope-aware ⭐ is the dry run (small/medium) or Linear (large).
+    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor");
+    expect(md).not.toMatch(/^C\) Turn it into a build prompt.*Recommended$/m);
     expect(md).toContain("D) Review or change the plan");
   }
+  // MAR-386: every goal routed through this helper is small/medium with no
+  // pending question, so the attended dry run (E) is the recommended ⭐.
+  expect(md).toMatch(/^E\) Run it attended in this chat now.*— Recommended$/m);
   expect(md).not.toContain("**Route spine:**");
   expect(md).not.toContain("**Recommended playbook:**");
   expect(md).not.toContain("**Next — pick one:**");
@@ -143,9 +149,11 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     expect(md).toContain("### How do you want to continue?");
     expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
     expect(md).toContain("B) Generate a portable agent handoff prompt");
-    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
+    // MAR-386: HEAVY_GOAL is medium → the dry run (E) is the ⭐, not the build prompt.
+    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor");
+    expect(md).not.toMatch(/^C\).*Recommended$/m);
     expect(md).toContain("D) Review or change the plan");
-    expect(md).toContain("E) Run it attended in this chat now — one-shot, nothing persists");
+    expect(md).toMatch(/^E\) Run it attended in this chat now.*— Recommended$/m);
     expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
     expect(md).not.toContain("**Alternatives:**");
     expect(md).not.toContain("**Next — pick one:**");
@@ -273,7 +281,11 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     for (const choice of w.artifact_choices.filter((c) => c.id !== "linear_issues")) {
       expect(choice.action).toContain("delivery_mode: 'compact'");
     }
-    expect(w.recommended_next_click.label).toContain("Export");
+    // MAR-386: HEAVY_GOAL is medium (L3 write, no durable trigger), so the ⭐ is
+    // the attended dry run — not the build-brief export.
+    expect(r.scope_assessment.size).toBe("medium");
+    expect(w.recommended_next_click.id).toBe("dry_run_in_chat");
+    expect(w.recommended_next_click.action).toBe("assistant:attended_dry_run_in_chat");
   });
 
   it("MAR-345: Layer-1 markdown renders as a product card, not a settings menu", () => {
@@ -369,13 +381,14 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
       expect(md).not.toContain("5. **Artifact**");
       expect(md).not.toContain("Show technical plan");
       expect(md).not.toContain("Open validated playbook");
-      const runtimeFirst = wizard.runtime_requirements.must_run_while_user_offline;
+      // MAR-386: the ⭐ is scope-aware — questions first, else Linear for large,
+      // else the attended dry run for small/medium.
       expect(wizard.recommended_next_click.id).toBe(
         wizard.clarifying_questions.length > 0
           ? "answer_clarifying_questions"
-          : runtimeFirst
-          ? "prepare_runtime"
-          : "build_brief",
+          : r.scope_assessment.size === "large"
+          ? "generate_linear_project"
+          : "dry_run_in_chat",
       );
       expect(wizard.clarifying_questions).toEqual(r.clarifying_questions);
     });
@@ -395,7 +408,9 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
     expect(r.playbook?.id).toBe("email_lead_to_crm");
     expect(r.coverage.coverage_label).toBe("full");
     expect(r.clarifying_questions).toEqual([]);
-    expect(r.goal_to_product_wizard.recommended_next_click.id).toBe("build_brief");
+    // MAR-386: medium scope (L3 CRM write) → the ⭐ is the attended dry run.
+    expect(r.scope_assessment.size).toBe("medium");
+    expect(r.goal_to_product_wizard.recommended_next_click.id).toBe("dry_run_in_chat");
     expect(r.recommended_route.map((s) => s.component_id)).toEqual(
       expect.arrayContaining([
         "email_read",
@@ -422,8 +437,10 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
     expect(md).toContain("### How do you want to continue?");
     expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
     expect(md).toContain("B) Generate a portable agent handoff prompt");
-    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor — Recommended");
+    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor");
+    expect(md).not.toMatch(/^C\).*Recommended$/m);
     expect(md).toContain("D) Review or change the plan");
+    expect(md).toMatch(/^E\) Run it attended in this chat now.*— Recommended$/m);
     expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
     expect(md).not.toContain("**Next — pick one:**");
     expect(md).not.toContain("**Next:");
@@ -622,7 +639,13 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
 
       expect(wizard.steps.length).toBeGreaterThan(0);
       expect(wizard.connections_required.length).toBeGreaterThan(0);
-      if (wizard.recommended_next_click.id === "prepare_runtime") {
+      // MAR-386: the ⭐ click is now scope-aware (dry run / Linear), so the
+      // build-vs-runtime layout split keys off the runtime-first signal directly,
+      // not the recommended click id.
+      const runtimeFirst =
+        wizard.runtime_requirements.must_run_while_user_offline ||
+        wizard.runtime_requirements.trigger_mode === "interactive";
+      if (runtimeFirst) {
         expect(wizard.build_choices).toEqual([]);
         expect(wizard.host_monitor_choices).toEqual([]);
         expect(wizard.artifact_choices).toEqual([]);

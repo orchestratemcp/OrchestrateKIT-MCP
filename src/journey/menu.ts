@@ -27,6 +27,7 @@ export type MenuActionId =
   | "prepare_runtime"
   | "build_brief"
   | "attended_dry_run"
+  | "linear_issues"
   | "save_plan"
   | "handoff_prompt"
   | "review_plan"
@@ -48,6 +49,7 @@ export type MenuOption = {
  */
 const ACTION_SIGNATURES: Array<{ id: MenuActionId; test: RegExp }> = [
   { id: "attended_dry_run", test: /^Run it attended in this chat now/i },
+  { id: "linear_issues", test: /^Generate this plan as Linear issues/i },
   { id: "build_brief", test: /^Turn it into a build prompt/i },
   { id: "handoff_prompt", test: /^Generate a portable agent handoff prompt/i },
   { id: "save_plan", test: /^Save this plan to/i },
@@ -106,6 +108,8 @@ export function parseMenu(summaryMarkdown: string): MenuOption[] {
  */
 export function clickIdToMenuAction(clickId: string): MenuActionId | "answer_clarifying_questions" {
   if (clickId === "answer_clarifying_questions") return "answer_clarifying_questions";
+  if (clickId === "dry_run_in_chat") return "attended_dry_run";
+  if (clickId === "generate_linear_project") return "linear_issues";
   if (clickId === "prepare_runtime") return "prepare_runtime";
   if (clickId === "build_brief") return "build_brief";
   return "unknown";
