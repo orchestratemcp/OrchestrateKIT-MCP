@@ -311,6 +311,16 @@ export const PlanWorkflowOutputShape = z
       .passthrough()
       .optional(),
     // MAR-386: deterministic Small / Medium / Large scope sizing of the task.
+    // MAR-397: advisory signal about the INPUT — whether the goal reads like
+    // the user's own sentence or a model's rewrite. Never moves the route.
+    goal_fidelity: z
+      .object({
+        looks_like_paraphrase: z.boolean(),
+        signals: z.array(z.string()),
+        note: z.string(),
+      })
+      .passthrough()
+      .optional(),
     scope_assessment: z
       .object({
         size: z.enum(["small", "medium", "large"]),

@@ -842,6 +842,22 @@ export type PlanWorkflowOutput = {
    */
   scope_assessment: ScopeAssessment;
   /**
+   * MAR-397: what the tool was actually asked, and whether it reads like the
+   * user's own sentence.
+   *
+   * `plan_workflow` is deterministic, so the plan is a pure function of the
+   * goal STRING. Dogfooding showed the calling model — not the user — decides
+   * that string, and a rewrite changed route, risk (3 → 11) and clearance
+   * (L1 → L2) for one unchanged user intent. SERVER_INSTRUCTIONS has always
+   * asked callers to pass the goal as the user phrases it; nothing detected
+   * when they didn't.
+   *
+   * Advisory ONLY: it never moves the route. The tool cannot see the
+   * conversation and so can never *know* a goal was rewritten — it can only
+   * report the tell and let a human confirm.
+   */
+  goal_fidelity: GoalFidelity;
+  /**
    * Advisory multi-worker BUILD pipeline (MAR-166): the specialist workers
    * (planner → coder → reviewer → tester) recommended to implement this plan in
    * the user's own runtime, with their handoff contracts. Deterministic and the
@@ -2066,6 +2082,77 @@ function buildCalendarNotificationQuestion(
 }
 
 /**
+ * MAR-397: goal-fidelity signal — does the goal read as the user's own
+ * sentence, or as a spec a model wrote on their behalf?
+ */
+export type GoalFidelity = {
+  /**
+   * True when the goal carries a tell that it was rewritten before it was sent.
+   *
+   * Note there is deliberately no `goal_received` echo here: the plan's
+   * top-level `goal` field already IS the verbatim echo of the string this plan
+   * was computed from, and duplicating it cost ~200 bytes of a bounded Layer-1
+   * payload to say the same thing twice.
+   */
+  looks_like_paraphrase: boolean;
+  /** The specific tells found. Empty when not flagged. */
+  signals: string[];
+  /**
+   * What the client should do about it — empty string when not flagged, since
+   * the common case carries no information and Layer-1 bytes are budgeted.
+   */
+  note: string;
+};
+
+/**
+ * The one high-precision tell: the goal hands the planner its OWN vocabulary
+ * back. Users describe outcomes ("I'll approve each one"); they do not write
+ * "with a human approval gate" — that phrase is a component id in prose, and
+ * its presence means something translated the goal into registry terms first.
+ *
+ * Precision over recall, deliberately. This flag is shown to a human and says
+ * "your assistant may have rewritten you" — a false accusation costs more trust
+ * than a missed detection, and a missed one is only a return to today's
+ * behaviour. So a plain spec-register goal with no component vocabulary
+ * ("Check 5 pages every hour; detect changes; send an alert") is NOT flagged,
+ * even though it lacks first-person pronouns; that is how plenty of people
+ * genuinely write.
+ */
+function detectGoalFidelity(goal: string, componentIds: string[]): GoalFidelity {
+  const g = goal.toLowerCase();
+  const signals: string[] = [];
+
+  for (const id of componentIds) {
+    // "human_approval_gate" → "human approval gate".
+    //
+    // THREE-plus words only. One- and two-word component names collide with
+    // ordinary English far too often to be evidence of anything: "write a PR
+    // summary" is how a person naturally asks for a PR summary, and it matched
+    // `pr_summary` — flagging that goal accused a real user of being a bot.
+    // Three-word snake_case compounds ("human approval gate", "crm note write",
+    // "optional email send") are engineering nomenclature; nobody arrives at
+    // them by describing what they want.
+    const words = id.split("_");
+    if (words.length < 3) continue;
+    const phrase = words.join(" ");
+    if (g.includes(phrase)) {
+      signals.push(`names the component "${phrase}" in registry vocabulary`);
+    }
+  }
+
+  const looks_like_paraphrase = signals.length > 0;
+  return {
+    looks_like_paraphrase,
+    signals,
+    note: looks_like_paraphrase
+      ? "This goal uses internal component vocabulary, so it was probably rewritten " +
+        "before it reached the planner. Re-plan with the user's own words — a rewrite " +
+        "can change the route, the risk score and the clearance."
+      : "",
+  };
+}
+
+/**
  * MAR-225: bounded multiple-choice clarifying questions. Returns at most 3,
  * each only when the route makes the axis relevant AND the goal has NOT already
  * stated that constraint — so it never nags a fully-specified goal. Stateless
@@ -2088,8 +2175,31 @@ function buildCalendarNotificationQuestion(
 export function buildClarifyingQuestions(
   goal: string,
   routeComponentIds: string[],
+  /**
+   * MAR-397: components the matcher selected on fuzzy evidence alone — no goal
+   * phrase asked for them (`coverage.unsupported_supply`). A question triggered
+   * ONLY by one of these is a question about the planner's own artifact, not
+   * about the user's goal, and asking it makes the question set depend on
+   * phrasing rather than intent.
+   *
+   * That is not hypothetical: it is the whole of the MAR-397 asymmetry. The
+   * paraphrase's "…with a human approval gate" pulled `reviewer_notification`
+   * into the route; that raised `outbound_send`; that opened the generic
+   * back-fill — three questions the verbatim goal never saw, for one identical
+   * user intent. The user who spoke plainly got fewer safety prompts.
+   *
+   * Defaults to empty so existing callers keep today's behaviour.
+   */
+  unsupportedSupply: string[] = [],
 ): ClarifyingQuestion[] {
   const g = goal.toLowerCase();
+  const unsupported = new Set(unsupportedSupply);
+  /**
+   * Components that can legitimately raise a question: the ones some goal
+   * phrase actually asked for. Injected safety infrastructure counts — it is
+   * policy-justified, not fuzzy-matched.
+   */
+  const askable = routeComponentIds.filter((id) => !unsupported.has(id));
   const questions: ClarifyingQuestion[] = [];
   const calendarNotification = buildCalendarNotificationQuestion(goal, g, routeComponentIds);
 
@@ -2112,7 +2222,7 @@ export function buildClarifyingQuestions(
 
   // 2. Write-permission — the route makes changes but the goal never authorised
   //    writes (no write verb) and didn't say read-only.
-  const hasWrite = routeComponentIds.some((id) => ALWAYS_REQUIRES_GATE.has(id));
+  const hasWrite = askable.some((id) => ALWAYS_REQUIRES_GATE.has(id));
   if (
     hasWrite &&
     !anySignal(g, WRITE_INTENT_SIGNALS) &&
@@ -2127,7 +2237,7 @@ export function buildClarifyingQuestions(
 
   // 3. Outbound-send — the route sends/posts externally but the goal never asked
   //    for an external send and didn't say draft/internal-only.
-  const hasOutbound = routeComponentIds.some((id) => OUTBOUND_SEND_COMPONENTS.has(id));
+  const hasOutbound = askable.some((id) => OUTBOUND_SEND_COMPONENTS.has(id));
   if (
     hasOutbound &&
     !anySignal(g, OUTBOUND_SIGNALS) &&
@@ -4978,7 +5088,17 @@ export function planWorkflow(
   );
 
   // ── MAR-225: bounded clarifying questions for missing architecture constraints ──
-  const clarifying_questions = buildClarifyingQuestions(input.goal, routeComponentIds);
+  const clarifying_questions = buildClarifyingQuestions(
+    input.goal,
+    routeComponentIds,
+    coverage.unsupported_supply,
+  );
+  // MAR-397: advisory only — computed after the route so it can name the
+  // registry vocabulary the goal echoed back, and used by nothing downstream.
+  const goal_fidelity = detectGoalFidelity(
+    input.goal,
+    registry.components.map((c) => c.id),
+  );
   const { wizard: goal_to_product_wizard, scope: scope_assessment } = buildGoalToProductWizard({
     goal: input.goal,
     steps,
@@ -5101,6 +5221,7 @@ export function planWorkflow(
     hosting_and_monitoring,
     goal_to_product_wizard,
     scope_assessment,
+    goal_fidelity,
     worker_pipeline,
     worker_pipeline_pointer,
     loop_guidance,
@@ -5294,8 +5415,15 @@ export function registerPlanWorkflow(server: McpServer): void {
         "Replaces the manual sequence of list_known_routes → get_route → compose_workflow_route → " +
         "get_stack_recommendation → review_workflow_design. " +
         "Prefer this as the entry point for designing a new AI workflow. " +
-        "IMPORTANT: render the returned `summary_markdown` to the user VERBATIM — do not " +
+        "IMPORTANT: pass the user's goal VERBATIM — their sentence, not a tidied-up rewrite. " +
+        "The plan is a pure function of that exact string, so a rewrite changes the route, the " +
+        "risk score and the clearance level; `goal_fidelity` in the response flags it when it " +
+        "looks like one. " +
+        "Render the returned `summary_markdown` to the user VERBATIM — do not " +
         "paraphrase or summarize it, and do not drop the A) B) C) D) E) continuation menu at the end. " +
+        "This tool is the ONLY menu author: append your own analysis freely, but never author a " +
+        "second lettered menu and never renumber this one — to recommend a different option, name " +
+        "its existing letter. " +
         "If you run the plan in-chat via connectors, declare it as the attended dry-run option (E) — " +
         "nothing persists — and offer `export_build_brief` afterward; a chat run never fulfills a build goal.",
       inputSchema: InputShape,

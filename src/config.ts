@@ -120,6 +120,21 @@ than guessing.
   VERBATIM — do not paraphrase, summarize, or compress it, and do not drop the
   "How do you want to continue?" A) B) C) D) E) menu at the end. That menu is the
   product; a paraphrase that collapses it into prose breaks the experience.
+- \`plan_workflow\` is the ONLY menu author. Its lettered menu is the only one
+  the user may see. Append your own analysis freely — if you spot a gap the plan
+  missed, say so, at length — but never author a SECOND lettered menu, and never
+  renumber the tool's. Two menus with conflicting letters force the user to
+  cross-reference ("D) Run it attended in this chat now (E in the plan menu)"),
+  which is what happened in dogfooding. To recommend a different option, name
+  the tool's own letter for it.
+- Pass the user's goal to \`plan_workflow\` VERBATIM — their sentence, not your
+  tidied-up version of it. The plan is a pure function of that exact string: in
+  dogfooding, one rewrite moved the risk score from 3 to 11 and the clearance
+  from L1 to L2 for an unchanged user intent, and the plainly-phrased original
+  received FEWER safety questions than the embellished rewrite. Never translate
+  the goal into component vocabulary ("with a human approval gate") — the
+  planner reads natural phrasing, and \`goal_fidelity\` in the response will flag
+  the rewrite anyway.
 - If you execute the plan in-chat via connectors, you MUST declare it as the
   attended dry-run option (E) — a one-shot walking skeleton where nothing
   persists and there is no trigger — and offer \`export_build_brief\` afterward.
