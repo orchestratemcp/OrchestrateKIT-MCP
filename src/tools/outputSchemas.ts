@@ -33,6 +33,39 @@ const PlacementOptionShape = z
   })
   .passthrough();
 
+/**
+ * MAR-383 connection contract. `availability` reuses the same PlacementOption
+ * vocabulary above on purpose — a client that already renders availability for
+ * runtimes and control surfaces needs no new words for connections.
+ */
+const AcquisitionPathShape = z
+  .object({
+    kind: z.enum(["broker_connection_mcp", "mcp_server", "raw_oauth"]),
+    rank: z.number(),
+    label: z.string(),
+    ownership_location: z.enum(["dash", "agent", "external_manager"]),
+    availability: z.enum(["available now", "requires setup", "planned", "advanced"]),
+    how: z.string(),
+    reuse: z.string(),
+    caveat: z.string().optional(),
+  })
+  .passthrough();
+
+export const connectionContractSchema = z.array(
+  z
+    .object({
+      connection_id: z.string(),
+      label: z.string(),
+      serves_components: z.array(z.string()),
+      grants: z.string(),
+      acquisition_paths: z.array(AcquisitionPathShape),
+      actionable_path_kind: z.enum(["broker_connection_mcp", "mcp_server", "raw_oauth"]),
+      verification_requirement: z.string().nullable(),
+      scopes: z.array(z.string()),
+    })
+    .passthrough(),
+);
+
 const PlacementAxisShape = z
   .object({
     recommended: PlacementOptionShape,
@@ -141,6 +174,8 @@ export const PlanWorkflowOutputShape = z
           .passthrough(),
       )
       .optional(),
+    // per-connection acquisition paths — the DASH Connection Center contract (MAR-383)
+    connection_contract: connectionContractSchema.optional(),
     // target-aware next steps — prevents post-plan dead-ending (MAR-208)
     suggested_next_actions: z.array(z.string()).optional(),
     // standardized, machine-consumable next-action menu (MAR-226)

@@ -15,6 +15,8 @@
  * fingerprint) plus the user-stated output_location.
  */
 
+import type { ConnectionRequirement } from "./connectionContract.js";
+
 /** Contract version — bumped in lockstep with orchestratedash's schemas. */
 export const MANIFEST_VERSION = 1 as const;
 
@@ -140,6 +142,17 @@ export type AgentManifest = {
     token_env: string;
     output_location: string;
   };
+  /**
+   * MAR-383: the connection contract, so the DASH Connection Center can render
+   * an imported agent's connection rows — service, what it grants, ranked
+   * acquisition paths, and where the token lives — straight from the manifest
+   * without a second contract or a round-trip to plan_workflow.
+   *
+   * Metadata only. No secret, no token, and no credential VALUE is ever written
+   * here: the manifest is a client-readable artifact, and DASH-08's acceptance
+   * forbids secrets in manifests.
+   */
+  connections: ConnectionRequirement[];
   provenance: {
     generated_by: string;
     registry_fingerprint: string;
@@ -177,6 +190,8 @@ export function buildAgentManifest(input: {
   registry_fingerprint: string;
   agent_name?: string;
   generated_at?: string;
+  /** MAR-383 connection contract (metadata only — never a credential value). */
+  connections?: ConnectionRequirement[];
 }): AgentManifest {
   return {
     manifest_version: MANIFEST_VERSION,
@@ -205,6 +220,7 @@ export function buildAgentManifest(input: {
       token_env: DASH_TOKEN_ENV,
       output_location: input.output_location,
     },
+    connections: input.connections ?? [],
     provenance: {
       generated_by: MANIFEST_GENERATED_BY,
       registry_fingerprint: input.registry_fingerprint,

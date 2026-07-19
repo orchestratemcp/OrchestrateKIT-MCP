@@ -75,6 +75,39 @@ export const GOOGLE_SCOPE_CATALOG: Readonly<Record<string, GoogleScopeCatalogEnt
 };
 
 /**
+ * Scopes the PROVIDER classifies as restricted — not merely sensitive. Google
+ * puts every Gmail scope in this tier: an app that requests one and is used by
+ * anyone outside its own test-user list must pass Google verification, and may
+ * additionally need a CASA security assessment.
+ *
+ * This is the biggest hidden cost of a "one-click Gmail" connection under ANY
+ * architecture (MAR-383 design note), so it is disclosed rather than absorbed
+ * silently. Calendar scopes are sensitive but NOT restricted — they do not
+ * trigger CASA — so they are deliberately absent here.
+ * https://developers.google.com/identity/protocols/oauth2/production-readiness
+ */
+export const RESTRICTED_SCOPES: readonly string[] = [
+  GMAIL_READONLY_SCOPE,
+  GMAIL_COMPOSE_SCOPE,
+  GMAIL_SEND_SCOPE,
+];
+
+/**
+ * The disclosure to render when a connection carries a restricted scope, or
+ * null when it carries none. Returned as a whole sentence so no caller has to
+ * compose (and risk softening) the wording.
+ */
+export function restrictedScopeDisclosure(scopes: readonly string[]): string | null {
+  const restricted = scopes.filter((s) => RESTRICTED_SCOPES.includes(s));
+  if (restricted.length === 0) return null;
+  return (
+    "Google classifies these as restricted scopes: publishing an app that requests them " +
+    "requires Google verification and may require a CASA security assessment. Until that is " +
+    "done, only accounts you add as test users can authorize this connection."
+  );
+}
+
+/**
  * Dedup-merge the Google scopes needed for a set of route component ids, in
  * stable catalog order (Gmail before Calendar, read before write).
  */

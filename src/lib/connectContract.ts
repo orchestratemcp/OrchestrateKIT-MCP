@@ -22,6 +22,10 @@
  */
 
 import { GOOGLE_SCOPE_CATALOG, googleScopesForComponents } from "./credentialScopeCatalog.js";
+import {
+  renderConnectionContract,
+  type ConnectionRequirement,
+} from "./connectionContract.js";
 
 // ──────────────────────────────── types ────────────────────────────────
 
@@ -926,15 +930,34 @@ export function buildConnectArtifacts(input: {
   };
 }
 
-/** §11 section for the brief markdown. */
-export function s11Connect(artifacts: ConnectArtifacts): string {
-  const lines = [
-    "**§11 Connect — fast credential setup** _(MAR-364 — deterministic manifest, probes run on the user's machine)_",
+/**
+ * §11 section for the brief markdown.
+ *
+ * MAR-383 reframed this section: it LEADS with the connection contract (per
+ * provider, the ranked ways to obtain the connection and who ends up holding
+ * the token), then keeps the MAR-364 credential manifest below it. connect.mjs
+ * is demoted from the default to the advanced, self-hosted escape hatch — it is
+ * deliberately still emitted in full, because a self-hoster with no broker and
+ * no MCP server has nothing else.
+ */
+export function s11Connect(
+  artifacts: ConnectArtifacts,
+  connections: readonly ConnectionRequirement[] = [],
+): string {
+  const lines: string[] = [];
+
+  const contract = renderConnectionContract(connections);
+  if (contract.length > 0) {
+    lines.push("**§11 Connect — connections**", "", ...contract, "");
+  }
+
+  lines.push(
+    "**§11 Connect — direct credentials (advanced / self-hosted)** _(MAR-364 — deterministic manifest, probes run on the user's machine)_",
     "",
     `Write \`connect_script\` to \`${artifacts.script_path}\` and run \`node ${artifacts.script_path}\`: ` +
       "deep-link → paste (or Google OAuth loopback) → live probe → .env → optional `gh secret set`.",
     "",
-  ];
+  );
   for (const c of artifacts.credential_manifest) {
     const req = c.required ? "required" : "optional";
     lines.push(
