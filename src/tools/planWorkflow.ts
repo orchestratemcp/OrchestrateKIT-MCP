@@ -2187,8 +2187,7 @@ export function buildClarifyingQuestions(
 
 /**
  * MAR-225: render clarifying questions as bullets (the call site supplies the
- * heading). Options for the scope-completion questions stay in
- * structuredContent so Layer-1 stays under the brevity bound.
+ * heading).
  *
  * A question carrying `option_ids` names a fork with a real-world consequence,
  * so it pays for prose in BOTH depths: the client agent relays what it can
@@ -2196,7 +2195,34 @@ export function buildClarifyingQuestions(
  * user never hears about — which is exactly how the calendar notification
  * decision went unasked. Layer-1 buys that visibility at one fused line
  * (`compact`); `full` spells out every option for the depths that have room.
+ *
+ * MAR-392 extends that same reasoning to the scope-completion questions, which
+ * carry no `option_ids`. They used to render their question line ALONE — their
+ * `options` reached `structuredContent` but never the prose — a deliberate
+ * trade-off to protect `LAYER1_MAX_CHARS`.
+ *
+ * Measurement retired that trade-off. A client cannot relay alternatives it was
+ * never shown, and the LAB's relay grader caught exactly that live: GPT-5.4
+ * asked all three scope questions and collapsed every one into an open-ended
+ * prompt, on a run the deterministic layer scored a clean match. The reasoning
+ * above — "a fork the user never hears about" — applies verbatim, and the
+ * budget objection does not survive the numbers: the goal that raises three of
+ * these questions renders at 2,915 of 3,700 chars, and one fused line each
+ * costs about 300.
+ *
+ * Questions that DO carry `option_ids` keep their existing compact rendering
+ * untouched. The tightest Layer-1 case (`golden_email_calendar`, 137 chars of
+ * headroom) is one of those, so it is deliberately not made any heavier.
  */
+/**
+ * The "Not sure yet" escape hatch is a way to decline the decision, not one of
+ * the forks being decided between. Kept as a helper so the rendering and any
+ * future consumer agree on what counts as a real alternative.
+ */
+function isDeclineToDecide(option: string): boolean {
+  return option.trim().toLowerCase() === "not sure yet";
+}
+
 function renderClarifyingQuestions(
   questions: ClarifyingQuestion[],
   detail: "compact" | "full",
@@ -2205,7 +2231,27 @@ function renderClarifyingQuestions(
   for (const q of questions) {
     lines.push(`- ${q.question}`);
     const ids = q.option_ids ?? [];
-    if (ids.length === 0) continue;
+
+    if (ids.length === 0) {
+      // No stable ids to reference, so the labels ARE the choice. Without this
+      // the question reaches the user as an open prompt and they never learn
+      // the forks exist (MAR-392).
+      const choices = q.options.filter((o) => !isDeclineToDecide(o));
+      if (choices.length === 0) continue;
+
+      if (detail === "compact") {
+        // "Not sure yet" is dropped from this line on purpose: the section
+        // heading already offers it across every question, so repeating it per
+        // question spends Layer-1 budget to say the same thing three times.
+        lines.push(`  - Options: ${choices.join(" · ")}`);
+      } else {
+        if (q.why) lines.push(`  - Why it matters: ${q.why}`);
+        // `full` has the room to show the escape hatch in place, so it lists
+        // `q.options` rather than the filtered set.
+        for (const option of q.options) lines.push(`  - ${option}`);
+      }
+      continue;
+    }
 
     if (detail === "compact") {
       // The question text already names both forks in user language, so the

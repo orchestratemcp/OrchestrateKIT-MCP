@@ -872,6 +872,56 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
       expect(Array.isArray(q.options)).toBe(true);
     }
   });
+
+  // MAR-392. These questions carry no `option_ids`, and their `options` used to
+  // stay in structuredContent only — so a client relaying the plan in prose
+  // could not offer alternatives it had never been shown. The LAB relay grader
+  // caught that live: three questions asked, every one collapsed into an
+  // open-ended prompt, on a run the deterministic layer called a clean match.
+  it("scope-completion questions put their real alternatives in the Layer-1 markdown", () => {
+    const r = plan("Build an email assistant.");
+    const scoped = r.clarifying_questions.filter((q) => (q.option_ids ?? []).length === 0);
+    expect(scoped.length).toBeGreaterThan(0);
+
+    for (const q of scoped) {
+      for (const option of q.options.filter((o) => o !== "Not sure yet")) {
+        expect(
+          r.summary_markdown,
+          `option "${option}" of ${q.id} must be visible to a client reading the markdown`,
+        ).toContain(option);
+      }
+    }
+  });
+
+  it("does not repeat the 'Not sure yet' escape hatch once per question in Layer-1", () => {
+    // The section heading already offers it across every question. Repeating it
+    // per question spends the char budget to say the same thing three times.
+    const md = plan("Build an email assistant.").summary_markdown;
+    expect(md).toContain("Not sure yet");
+    expect(md.split("Not sure yet").length - 1).toBe(1);
+  });
+
+  it("technical depth spells out every option, escape hatch included", () => {
+    const r = planTech("Build an email assistant.");
+    const scoped = r.clarifying_questions.filter((q) => (q.option_ids ?? []).length === 0);
+    expect(scoped.length).toBeGreaterThan(0);
+
+    for (const q of scoped) {
+      for (const option of q.options) {
+        expect(r.summary_markdown).toContain(option);
+      }
+    }
+  });
+
+  it("leaves questions that carry option_ids rendering exactly as they did", () => {
+    // The tightest Layer-1 budget case is the golden prompt, whose only question
+    // has option_ids and already rendered a compact recommended line. MAR-392
+    // deliberately did not make that path heavier — a regression here would eat
+    // the headroom the brevity bound depends on.
+    const md = plan(P0_02_DOGFOOD_GOAL).summary_markdown;
+    expect(md).toContain("Recommended: `private_hold`");
+    expect(md).not.toContain("  - Options: ");
+  });
 });
 
 // The calendar notification fork (UX review 2026-07-16 §8.7/§9.2). Creating an
