@@ -361,9 +361,9 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > one_
       "plan_source": "composed",
       "playbook_id": null,
       "recommended_next_click": {
-        "action": "assistant:attended_dry_run_in_chat",
-        "id": "dry_run_in_chat",
-        "label": "Run it attended in this chat now — nothing persists",
+        "action": "assistant:choose_assistant_surface",
+        "id": "build_in_assistant",
+        "label": "[text]",
       },
       "round": 0,
       "route": [
@@ -382,17 +382,12 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > one_
       "walking_skeleton_disclosed": false,
     },
     {
-      "attended": true,
-      "kind": "dry_run",
-      "nothing_persists": true,
-      "scope_size": "small",
-    },
-    {
-      "kind": "terminal:attended_dry_run",
-      "offer_save_as_routine": true,
+      "action": "assistant:choose_assistant_surface",
+      "kind": "terminal:assistant_surface",
+      "named_surface": null,
     },
   ],
-  "terminal": "attended_dry_run",
+  "terminal": "assistant_surface",
   "transcript_version": "orchestratekit.golden_journey.v1",
 }
 `;
@@ -486,9 +481,9 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > read
       "plan_source": "composed",
       "playbook_id": null,
       "recommended_next_click": {
-        "action": "assistant:attended_dry_run_in_chat",
-        "id": "dry_run_in_chat",
-        "label": "Run it attended in this chat now — nothing persists",
+        "action": "assistant:choose_assistant_surface",
+        "id": "build_in_assistant",
+        "label": "[text]",
       },
       "round": 0,
       "route": [
@@ -504,17 +499,12 @@ exports[`MAR-387 — golden journey (mechanical client, always picks ⭐) > read
       "walking_skeleton_disclosed": false,
     },
     {
-      "attended": true,
-      "kind": "dry_run",
-      "nothing_persists": true,
-      "scope_size": "small",
-    },
-    {
-      "kind": "terminal:attended_dry_run",
-      "offer_save_as_routine": true,
+      "action": "assistant:choose_assistant_surface",
+      "kind": "terminal:assistant_surface",
+      "named_surface": null,
     },
   ],
-  "terminal": "attended_dry_run",
+  "terminal": "assistant_surface",
   "transcript_version": "orchestratekit.golden_journey.v1",
 }
 `;

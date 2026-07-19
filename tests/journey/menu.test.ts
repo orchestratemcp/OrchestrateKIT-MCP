@@ -55,6 +55,26 @@ describe("MAR-387 — the rendered menu is machine-readable", () => {
     }
   });
 
+  // MAR-395 / MAR-388 regression: a new ⭐ click id that is not added to
+  // clickIdToMenuAction grades as "unknown" SILENTLY, which misgrades the whole
+  // golden-journey harness. Pin the mapping explicitly rather than relying on
+  // the fixture sweep above, which only covers ids the fixtures happen to hit.
+  it("maps the no-code assistant-surface click onto its menu action", () => {
+    expect(clickIdToMenuAction("build_in_assistant")).toBe("assistant_surface");
+  });
+
+  it("a small goal renders the assistant surface as a parseable, starred option", () => {
+    const plan = planForJourney(fixtureByName("one_shot_inbox_summary").goal, registry);
+    const menu = parseMenu(plan.summary_markdown);
+    const assistant = menu.find((o) => o.action_id === "assistant_surface");
+    expect(assistant, "assistant-surface option is offered").toBeDefined();
+    expect(assistant?.marked_recommended).toBe(true);
+    // …and the dry run is still OFFERED, just no longer starred.
+    const dryRun = menu.find((o) => o.action_id === "attended_dry_run");
+    expect(dryRun, "attended dry run is still offered").toBeDefined();
+    expect(dryRun?.marked_recommended).toBe(false);
+  });
+
   it("returns no options when there is no menu block", () => {
     expect(parseMenu("## Just a plan\n\nNo menu here.")).toEqual([]);
   });

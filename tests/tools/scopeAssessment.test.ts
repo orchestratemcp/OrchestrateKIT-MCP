@@ -5,7 +5,11 @@
  * route shape) with no LLM — same discipline as coverage / automation_clearance.
  * These tests pin the classification across the canonical goals, prove the ⭐
  * recommendation shifts with scope, and prove the HARD design rule: scope never
- * gates capability — every A–E continuation option is present at every size.
+ * gates capability — every A–F continuation option is present at every size.
+ *
+ * MAR-395: the SMALL ⭐ now points at a no-code assistant surface (Cowork or a
+ * ChatGPT GPT) rather than the in-chat dry run. The dry run remains offered as
+ * an alternative — it is a preview of the goal, not a home for it.
  */
 import { describe, it, expect } from "vitest";
 import { planWorkflow } from "../../src/tools/planWorkflow.js";
@@ -13,9 +17,9 @@ import { loadRegistry } from "../../src/registry/registryLoader.js";
 
 const registry = loadRegistry();
 
-function plan(goal: string) {
+function plan(goal: string, extra: { build_target?: "cowork" | "chatgpt_gpt" | "cursor" | "code" } = {}) {
   return planWorkflow(
-    { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
+    { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief", ...extra },
     registry,
   );
 }
@@ -52,7 +56,8 @@ describe("MAR-386 — scope classification across S/M/L fixtures", () => {
     const ids = r.recommended_route.map((step) => step.component_id);
     expect(r.scope_assessment.size).toBe("small");
     expect(r.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(false);
-    expect(r.goal_to_product_wizard.recommended_next_click.id).toBe("dry_run_in_chat");
+    // MAR-395: small + attended → the no-code assistant surface is the ⭐.
+    expect(r.goal_to_product_wizard.recommended_next_click.id).toBe("build_in_assistant");
     expect(ids).not.toEqual(
       expect.arrayContaining(["scheduled_trigger", "state_store", "email_draft"]),
     );
@@ -98,10 +103,52 @@ describe("MAR-386 — scope classification across S/M/L fixtures", () => {
 });
 
 describe("MAR-386 — the ⭐ recommendation is scope-aware", () => {
-  it("SMALL → the attended dry run is the ⭐", () => {
+  // MAR-395: SMALL used to star the in-chat dry run. A dry run is a preview, not
+  // a home — a small, attended goal now gets recommended INTO a no-code assistant
+  // surface it can actually live in.
+  it("SMALL → a no-code assistant surface is the ⭐", () => {
     const w = plan(SMALL_ONE_SHOT).goal_to_product_wizard;
-    expect(w.recommended_next_click.id).toBe("dry_run_in_chat");
-    expect(w.recommended_next_click.action).toBe("assistant:attended_dry_run_in_chat");
+    expect(w.recommended_next_click.id).toBe("build_in_assistant");
+  });
+
+  it("SMALL → the ⭐ names the CLASS when no build_target was passed", () => {
+    // The MCP cannot know which surface the caller has, so it must not assert
+    // one. Naming both is the honest form; the menu lists them.
+    const w = plan(SMALL_ONE_SHOT).goal_to_product_wizard;
+    expect(w.recommended_next_click.label).toMatch(/Cowork/i);
+    expect(w.recommended_next_click.label).toMatch(/ChatGPT GPT/i);
+    expect(w.recommended_next_click.action).toBe("assistant:choose_assistant_surface");
+  });
+
+  it("SMALL → the ⭐ honours an assistant build_target the caller passed", () => {
+    const cowork = plan(SMALL_ONE_SHOT, { build_target: "cowork" }).goal_to_product_wizard;
+    expect(cowork.recommended_next_click.id).toBe("build_in_assistant");
+    expect(cowork.recommended_next_click.label).toMatch(/Cowork/i);
+    expect(cowork.recommended_next_click.label).not.toMatch(/ChatGPT/i);
+    expect(cowork.recommended_next_click.action).toBe("assistant:generate_cowork_prompt");
+
+    const gpt = plan(SMALL_ONE_SHOT, { build_target: "chatgpt_gpt" }).goal_to_product_wizard;
+    expect(gpt.recommended_next_click.id).toBe("build_in_assistant");
+    expect(gpt.recommended_next_click.label).toMatch(/ChatGPT GPT/i);
+    expect(gpt.recommended_next_click.label).not.toMatch(/Cowork/i);
+    expect(gpt.recommended_next_click.action).toBe("assistant:generate_chatgpt_gpt");
+  });
+
+  it("SMALL → a CODE build_target is honoured too: no no-code ⭐", () => {
+    // Honouring `build_target` cuts both ways. A caller who said "cursor"/"code"
+    // has told us they build in code; starring a no-code surface would contradict
+    // them, so those goals keep the prior dry-run ⭐.
+    for (const build_target of ["cursor", "code"] as const) {
+      const w = plan(SMALL_ONE_SHOT, { build_target }).goal_to_product_wizard;
+      expect(w.recommended_next_click.id, build_target).toBe("dry_run_in_chat");
+    }
+  });
+
+  it("SMALL → the attended dry run is still OFFERED, just not starred", () => {
+    // Capability is never gated: the ⭐ moved, the option did not disappear.
+    const md = plan(SMALL_ONE_SHOT).summary_markdown;
+    expect(md).toMatch(/^E\) Run it attended in this chat now/m);
+    expect(md).not.toMatch(/^E\).*— Recommended$/m);
   });
 
   it("MEDIUM → the attended dry run is the ⭐ (dry run first, then build)", () => {
@@ -157,9 +204,11 @@ describe("MAR-386 — scope never gates capability (all options present at every
   });
 
   it("exactly one menu option is marked Recommended, and it follows scope", () => {
-    // small/medium → the dry run (E); large → the Linear/save option.
+    // MAR-395: small → the assistant surface (F); medium → the dry run (E);
+    // large → the Linear/save option.
     const smallMd = plan(SMALL_ONE_SHOT).summary_markdown;
-    expect(smallMd).toMatch(/^E\).*— Recommended$/m);
+    expect(smallMd).toMatch(/^F\).*— Recommended$/m);
+    expect(smallMd).not.toMatch(/^E\).*— Recommended$/m);
 
     const mediumMd = plan(MEDIUM_GMAIL_LEAD).summary_markdown;
     expect(mediumMd).toMatch(/^E\).*— Recommended$/m);

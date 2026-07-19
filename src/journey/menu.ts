@@ -32,6 +32,8 @@ export type MenuActionId =
   | "handoff_prompt"
   | "review_plan"
   | "technical_plan"
+  /** MAR-395: the no-code assistant surface (Cowork / a ChatGPT GPT). */
+  | "assistant_surface"
   | "unknown";
 
 export type MenuOption = {
@@ -49,6 +51,7 @@ export type MenuOption = {
  */
 const ACTION_SIGNATURES: Array<{ id: MenuActionId; test: RegExp }> = [
   { id: "attended_dry_run", test: /^Run it attended in this chat now/i },
+  { id: "assistant_surface", test: /^Build it in a no-code assistant/i },
   { id: "linear_issues", test: /^Generate this plan as Linear issues/i },
   { id: "build_brief", test: /^Turn it into a build prompt/i },
   { id: "handoff_prompt", test: /^Generate a portable agent handoff prompt/i },
@@ -112,6 +115,10 @@ export function clickIdToMenuAction(clickId: string): MenuActionId | "answer_cla
   if (clickId === "generate_linear_project") return "linear_issues";
   if (clickId === "prepare_runtime") return "prepare_runtime";
   if (clickId === "build_brief") return "build_brief";
+  // MAR-395: small+attended goals star the no-code assistant surface. Omitting
+  // this mapping is exactly the MAR-388 bug — the harness would grade a correct
+  // client answer as `unknown` instead of a match, silently.
+  if (clickId === "build_in_assistant") return "assistant_surface";
   return "unknown";
 }
 

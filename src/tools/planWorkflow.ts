@@ -3295,10 +3295,50 @@ function buildScopeAssessment(input: {
   return { size, drivers, recommended_path };
 }
 
+/**
+ * MAR-395: the no-code assistant surface a SMALL, attended goal should be built
+ * in. The MCP cannot know which surface the caller actually has, so the honest
+ * default names the CLASS ("Claude Cowork or a ChatGPT GPT") rather than
+ * asserting one. When the caller passed `build_target` they have already told us
+ * which surface they use, so we honour it and name that one. This mirrors the
+ * hedge the tool description already uses ("Claude Cowork where available") —
+ * the planner never claims availability the product cannot verify.
+ *
+ * The concrete `action` reuses the assistant directives the existing
+ * `buildChoices` entries (`cowork`, `gpt_agents`) already carry; nothing new is
+ * generated here. Building the Cowork brief itself is deliberately out of scope.
+ */
+function assistantSurfaceClick(
+  buildTarget: BuildTarget | undefined,
+): GoalToProductWizard["recommended_next_click"] {
+  if (buildTarget === "cowork") {
+    return {
+      id: "build_in_assistant",
+      label: "Build it in Claude Cowork — small enough to one-shot there",
+      action: "assistant:generate_cowork_prompt",
+    };
+  }
+  if (buildTarget === "chatgpt_gpt") {
+    return {
+      id: "build_in_assistant",
+      label: "Build it as a ChatGPT GPT — small enough to one-shot there",
+      action: "assistant:generate_chatgpt_gpt",
+    };
+  }
+  return {
+    id: "build_in_assistant",
+    label:
+      "Build it in a no-code assistant (Claude Cowork or a ChatGPT GPT) — " +
+      "small enough to one-shot there",
+    action: "assistant:choose_assistant_surface",
+  };
+}
+
 function pickRecommendedNextClick(
   clarifyingQuestions: ClarifyingQuestion[],
   artifactChoices: WizardChoice[],
   scope: ScopeAssessment,
+  buildTarget: BuildTarget | undefined,
 ): GoalToProductWizard["recommended_next_click"] {
   // Questions always come first — a fork the plan can't resolve outranks any
   // scope-based recommendation.
@@ -3311,9 +3351,7 @@ function pickRecommendedNextClick(
   }
   // MAR-386: the ⭐ is scope-aware. Large → turn the plan into tracked Linear
   // work (a real destination — the existing export_build_brief linear path, not
-  // a new tool). Small & medium → the attended dry run is the ⭐ first move
-  // ("try it once on real data now"); build_brief / prepare_runtime remain in the
-  // menu as the next step. Capability is never gated — only the ⭐ moves.
+  // a new tool). Capability is never gated — only the ⭐ moves.
   if (scope.size === "large") {
     const linear = artifactChoices.find((c) => c.id === "linear_issues") ?? artifactChoices[0];
     return {
@@ -3322,12 +3360,21 @@ function pickRecommendedNextClick(
       action: linear.action,
     };
   }
+  // MAR-395: small goals now get a DESTINATION, not a preview. `size === "small"`
+  // already encodes attended + no durable trigger + ≤ L2 + ≤ 2 connections (see
+  // buildScopeAssessment), which is exactly the band a no-code assistant surface
+  // can host end to end. The attended dry run stays in the menu as an
+  // alternative — it is a rehearsal, not a home for the goal.
+  // A caller who passed a CODE build target (`cursor` / `code`) has already told
+  // us they build in code; starring a no-code assistant would contradict them.
+  // Honouring `build_target` cuts both ways — those goals keep the prior ⭐.
+  const codeTarget = buildTarget === "cursor" || buildTarget === "code";
+  if (scope.size === "small" && !codeTarget) {
+    return assistantSurfaceClick(buildTarget);
+  }
   return {
     id: "dry_run_in_chat",
-    label:
-      scope.size === "small"
-        ? "Run it attended in this chat now — nothing persists"
-        : "Dry run it attended in this chat now — nothing persists, then build",
+    label: "Dry run it attended in this chat now — nothing persists, then build",
     action: "assistant:attended_dry_run_in_chat",
   };
 }
@@ -3352,9 +3399,14 @@ function buildGoalToProductWizard(input: {
     whatYouNeed: input.whatYouNeed,
     enforcedGates: input.enforcedGates,
   });
-  const runtimeFirst =
-    placement.runtime_requirements.must_run_while_user_offline ||
-    placement.runtime_requirements.trigger_mode === "interactive";
+  // MAR-395: the choice-suppression rule used to be `offline || interactive`.
+  // The `interactive` half was backwards: "when I ask in chat" is EXACTLY the
+  // shape that belongs in a no-code assistant surface, yet it suppressed the
+  // Cowork / ChatGPT-GPT options to []. Suppression now keys off the DURABLE
+  // half only — a goal that must keep running while the user is offline really
+  // does need its runtime settled before a build target means anything.
+  // Attended/interactive goals keep their build choices.
+  const durableRuntimeFirst = placement.runtime_requirements.must_run_while_user_offline;
   const technicalDepth = input.outputDepth === "technical" || input.outputDepth === "deep";
   // MAR-386: scope is derived from the plan (clearance, connections, route shape,
   // runtime), then drives the scope-aware ⭐ in pickRecommendedNextClick.
@@ -3373,16 +3425,19 @@ function buildGoalToProductWizard(input: {
       component_id: s.component_id,
     })),
     connections_required: groupConnections(input.goal, input.whatYouNeed, input.enforcedGates, input.steps),
-    build_choices: runtimeFirst && !technicalDepth ? [] : buildChoices,
+    build_choices: durableRuntimeFirst && !technicalDepth ? [] : buildChoices,
     host_monitor_choices:
-      runtimeFirst && !technicalDepth ? [] : buildHostMonitorChoices(input.hostingAndMonitoring),
-    artifact_choices: runtimeFirst && !technicalDepth ? [] : artifactChoices,
+      durableRuntimeFirst && !technicalDepth
+        ? []
+        : buildHostMonitorChoices(input.hostingAndMonitoring),
+    artifact_choices: durableRuntimeFirst && !technicalDepth ? [] : artifactChoices,
     ...placement,
     clarifying_questions: input.clarifyingQuestions,
     recommended_next_click: pickRecommendedNextClick(
       input.clarifyingQuestions,
       artifactChoices,
       scope,
+      input.buildTarget,
     ),
   };
   return { wizard, scope };
@@ -4048,7 +4103,6 @@ function buildProductCardNotes(
 function renderProductCardContinueMenu(
   wizard: GoalToProductWizard,
   goal: string,
-  scope: ScopeAssessment,
 ): string[] {
   // MAR-385: a chat run is a dry-run/walking skeleton only when the goal asks to
   // build a durable agent AND the runtime must outlive the session; a genuinely
@@ -4065,14 +4119,27 @@ function renderProductCardContinueMenu(
       wizard.runtime_requirements.trigger_mode === "interactive");
   // MAR-386: the ⭐ is scope-aware, but ONLY once questions are answered — while a
   // question is pending, answering it (the "Quick checks" block above) is the ⭐,
-  // so no menu line is marked. Capability is never gated: every A–E option is
+  // so no menu line is marked. Capability is never gated: every A–F option is
   // always present; scope only moves which one says "Recommended".
-  const starDryRun = !questionsPending && (scope.size === "small" || scope.size === "medium");
-  const starLinear = !questionsPending && scope.size === "large";
+  //
+  // MAR-395: the marks are read off `recommended_next_click.id` rather than
+  // re-derived from scope. The two used to be computed independently, which let
+  // them drift the moment the ⭐ depended on anything but size (it now also
+  // depends on `build_target`). One source of truth, no drift.
+  const starred = wizard.recommended_next_click.id;
+  const starDryRun = starred === "dry_run_in_chat";
+  const starLinear = starred === "generate_linear_project";
+  const starAssistant = starred === "build_in_assistant";
   const mark = (line: string, on: boolean) => (on ? `${line} — Recommended` : line);
   const savePlanLine = starLinear
     ? "Generate this plan as Linear issues; Obsidian / Notion export remains available"
     : "Save this plan to Linear / Obsidian / Notion";
+  // Always offered (capability is never gated); only the ⭐ moves. The wording
+  // names the class, matching assistantSurfaceClick's honesty rule.
+  const fLine = mark(
+    `F) Build it in a no-code assistant — Claude Cowork or a ChatGPT GPT`,
+    starAssistant,
+  );
 
   if (showRuntimeLayout) {
     const eLine = dryRunMenuLine("E", buildDeliverable, "");
@@ -4084,6 +4151,7 @@ function renderProductCardContinueMenu(
       `C) Show the technical plan and deployment alternatives`,
       mark(`D) ${savePlanLine}`, starLinear),
       mark(eLine, starDryRun),
+      fLine,
       ``,
     ];
   }
@@ -4096,6 +4164,7 @@ function renderProductCardContinueMenu(
     `C) Turn it into a build prompt for Claude Code / Codex / Cursor`,
     `D) Review or change the plan`,
     mark(eLine, starDryRun),
+    fLine,
     ``,
   ];
 }
@@ -4243,7 +4312,7 @@ function buildGuidedPlanMarkdown(
     lines.push(...renderClarifyingQuestions(clarifyingQuestions, "compact"));
   }
 
-  lines.push(...renderProductCardContinueMenu(goalToProductWizard, goal, scope));
+  lines.push(...renderProductCardContinueMenu(goalToProductWizard, goal));
 
   lines.push(
     `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +

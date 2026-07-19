@@ -59,6 +59,7 @@ describe("MAR-387 — golden journey (mechanical client, always picks ⭐)", () 
           "build_brief",
           "prepare_runtime",
           "attended_dry_run",
+          "assistant_surface",
           "linear_issues",
         ]).toContain(transcript.terminal);
         const last = transcript.steps[transcript.steps.length - 1];
@@ -113,10 +114,17 @@ describe("MAR-387 — golden journey (mechanical client, always picks ⭐)", () 
       expect(t.steps.some((s) => s.kind === "plan")).toBe(true);
       expect(t.steps.some((s) => s.kind === "attended_dry_run_option")).toBe(true);
     }
-    // MAR-386: the fixture set must exercise every scope-aware ⭐ terminal shape —
-    // small (attended dry run), medium→build (build_brief), medium→durable
-    // (prepare_runtime), and large (linear_issues).
-    expect(seenTerminals.has("attended_dry_run")).toBe(true);
+    // MAR-386/395: the fixture set must exercise every scope-aware ⭐ terminal
+    // shape — small (a no-code assistant surface), medium→build (build_brief),
+    // medium→durable (prepare_runtime), and large (linear_issues).
+    //
+    // MAR-395 note: `attended_dry_run` is deliberately NOT asserted here any
+    // more. It is still a reachable terminal, but only for a small goal whose
+    // caller passed a CODE `build_target` (cursor/code) — and `JourneyFixture`
+    // carries no build_target, so no fixture can reach it. Asserting it would
+    // fail for a reason that has nothing to do with the journey. The
+    // build_target fork is covered directly in tests/tools/scopeAssessment.test.ts.
+    expect(seenTerminals.has("assistant_surface")).toBe(true);
     expect(seenTerminals.has("build_brief")).toBe(true);
     expect(seenTerminals.has("prepare_runtime")).toBe(true);
     expect(seenTerminals.has("linear_issues")).toBe(true);

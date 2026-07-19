@@ -33,6 +33,7 @@ import {
   type PlanWorkflowOutput,
 } from "../tools/planWorkflow.js";
 import { exportBuildBrief } from "../tools/exportBuildBrief.js";
+import { parseMenu } from "./menu.js";
 
 /**
  * A golden journey to walk. `canned_answers` maps a clarifying-question id
@@ -303,6 +304,20 @@ export type LinearIssuesTerminalStep = {
   linear_handoff_non_empty: true;
 };
 
+/**
+ * MAR-395 small-scope terminal: the goal is small enough to live in a no-code
+ * assistant surface, so that is where the client is sent. Like the attended
+ * dry run this is an assistant action with no deterministic tool behind it —
+ * the mechanical client records the surface it was pointed at. Generating the
+ * Cowork brief itself is a separate follow-up and deliberately not done here.
+ */
+export type AssistantSurfaceTerminalStep = {
+  kind: "terminal:assistant_surface";
+  /** `null` when the plan named the CLASS rather than one concrete surface. */
+  named_surface: "cowork" | "chatgpt_gpt" | null;
+  action: string;
+};
+
 export type JourneyStep =
   | PlanJourneyStep
   | AnswerJourneyStep
@@ -311,6 +326,7 @@ export type JourneyStep =
   | BuildBriefJourneyStep
   | PrepareRuntimeJourneyStep
   | AttendedDryRunTerminalStep
+  | AssistantSurfaceTerminalStep
   | LinearIssuesTerminalStep;
 
 export type ScopeSize = "small" | "medium" | "large";
@@ -319,6 +335,7 @@ export type JourneyTerminal =
   | "build_brief"
   | "prepare_runtime"
   | "attended_dry_run"
+  | "assistant_surface"
   | "linear_issues";
 
 export type JourneyTranscript = {
@@ -640,6 +657,38 @@ export function followLinearIssues(p: PlanWorkflowOutput, fixture: string): Line
   };
 }
 
+/**
+ * MAR-395: follow the `build_in_assistant` recommended click (small scope).
+ * Asserts the menu actually OFFERS the surface it stars — a ⭐ with no
+ * corresponding menu line is the failure mode this harness exists to catch.
+ */
+export function followAssistantSurface(
+  p: PlanWorkflowOutput,
+  fixture: string,
+): AssistantSurfaceTerminalStep {
+  if (p.scope_assessment.size !== "small") {
+    throw new Error(
+      `[golden-journey:${fixture}] build_in_assistant is only valid for small scope, ` +
+        `observed "${p.scope_assessment.size}"`,
+    );
+  }
+  const menu = parseMenu(p.summary_markdown);
+  const offered = menu.find((o) => o.action_id === "assistant_surface");
+  if (!offered) {
+    throw new Error(
+      `[golden-journey:${fixture}] ⭐ is build_in_assistant but the menu offers no assistant-surface option`,
+    );
+  }
+  const action = p.goal_to_product_wizard.recommended_next_click.action;
+  const named_surface =
+    action === "assistant:generate_cowork_prompt"
+      ? "cowork"
+      : action === "assistant:generate_chatgpt_gpt"
+        ? "chatgpt_gpt"
+        : null;
+  return { kind: "terminal:assistant_surface", named_surface, action };
+}
+
 /** The planner's runtime-first rule, mirrored so the client can pick the
  * post-dry-run build deliverable (prepare_runtime vs build_brief) for medium. */
 function isRuntimeFirst(p: PlanWorkflowOutput): boolean {
@@ -751,6 +800,9 @@ export function runMechanicalJourney(
   } else if (click.id === "prepare_runtime") {
     steps.push(followPrepareRuntime(current, fixture.name));
     terminal = "prepare_runtime";
+  } else if (click.id === "build_in_assistant") {
+    steps.push(followAssistantSurface(current, fixture.name));
+    terminal = "assistant_surface";
   } else {
     throw new Error(
       `[golden-journey:${fixture.name}] unknown/unhandled recommended_next_click "${click.id}" — no terminal deliverable`,

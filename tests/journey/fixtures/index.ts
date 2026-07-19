@@ -8,13 +8,17 @@
  * the identical fixtures and diff an LLM's choices against the mechanical golden.
  *
  * Coverage across the set is deliberate: every scope-aware ⭐ terminal shape is
- * exercised (MAR-386) —
+ * exercised (MAR-386, updated by MAR-395) —
  *   • golden_email_calendar → answer_clarifying_questions → dry run → prepare_runtime (medium, durable)
  *   • competitor_price_monitor → dry run → prepare_runtime (medium, durable, no questions)
- *   • one_shot_inbox_summary → dry run → attended_dry_run terminal (small — the run IS the deliverable)
- *   • readonly_attended_inbox_summary → explicit no-write/no-durable regression (small)
+ *   • one_shot_inbox_summary → build_in_assistant → assistant_surface terminal (small)
+ *   • readonly_attended_inbox_summary → build_in_assistant → assistant_surface (small, explicit no-write/no-durable regression)
  *   • gmail_lead_to_crm → dry run → build_brief (medium, attended runtime)
  *   • multi_agent_coder_loop → generate_linear_project → linear_issues (large — plan it)
+ *
+ * MAR-395: the two SMALL fixtures used to terminate on `attended_dry_run`. A
+ * small, attended goal is now recommended INTO a no-code assistant surface it
+ * can actually live in; the in-chat dry run stays in the menu as a preview.
  *
  * MAR-392 also locks six semantic goal shapes across the matrix: read-only,
  * fully unattended, explicitly allowed outbound sends, multiple clarifying
@@ -91,9 +95,15 @@ export const JOURNEY_FIXTURES: JourneyFixture[] = [
     goal: "summarize my inbox for me now",
     canned_answers: {},
     coverage_tags: [],
+    expectations: {
+      initial: {
+        recommended_next_click_id: "build_in_assistant",
+      },
+    },
     notes:
-      "Genuinely one-shot / small scope (nothing must outlive the session), so the ⭐ is " +
-      "the attended dry run itself (terminal), and it carries NO walking-skeleton nag.",
+      "Genuinely one-shot / small scope (nothing must outlive the session). MAR-395: the ⭐ " +
+      "is a no-code assistant surface the goal can actually live in, not the in-chat dry run; " +
+      "the dry run stays offered as a preview and carries NO walking-skeleton nag.",
   },
   {
     name: "readonly_attended_inbox_summary",
@@ -118,6 +128,8 @@ export const JOURNEY_FIXTURES: JourneyFixture[] = [
         enforced_approval_gates: [],
         automation_clearance_level: "L0",
         clarifying_questions: [],
+        // MAR-395: small + attended + read-only → a no-code assistant surface.
+        recommended_next_click_id: "build_in_assistant",
       },
     },
     seeded_attended_execution: {
