@@ -101,7 +101,17 @@ describe("MAR-296 — agent_manifest validates against the frozen DASH-01 schema
       expect(b.sections.s9_observability).toContain("§9 Observability wiring");
       expect(b.sections.s9_observability).toContain(`build_target: \`${t}\``);
       expect(b.brief_markdown).toContain("§9 Observability wiring");
-      expect(b.handoffs.prompt).toContain("§9 Observability wiring");
+      // MAR-396: every target still explains how the built agent is observed, but
+      // the ASSISTANT-surface targets cannot emit DASH run events — no code runs
+      // that could. They carry the honest equivalent (the surface's own history)
+      // plus the explicit statement that an external monitor cannot see this
+      // agent. §9 itself and the agent_manifest are unchanged for all four.
+      if (t === "cowork" || t === "chatgpt_gpt") {
+        expect(b.handoffs.prompt, t).toContain("## How you'll know it ran");
+        expect(b.handoffs.prompt, t).toContain("cannot see it");
+      } else {
+        expect(b.handoffs.prompt, t).toContain("§9 Observability wiring");
+      }
     }
   });
 });

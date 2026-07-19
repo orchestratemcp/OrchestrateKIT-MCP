@@ -125,13 +125,16 @@ describe("MAR-386 — the ⭐ recommendation is scope-aware", () => {
     expect(cowork.recommended_next_click.id).toBe("build_in_assistant");
     expect(cowork.recommended_next_click.label).toMatch(/Cowork/i);
     expect(cowork.recommended_next_click.label).not.toMatch(/ChatGPT/i);
-    expect(cowork.recommended_next_click.action).toBe("assistant:generate_cowork_prompt");
+    // MAR-396: a real export call, not a bare directive — the generator exists now.
+    expect(cowork.recommended_next_click.action).toContain("export_build_brief");
+    expect(cowork.recommended_next_click.action).toContain("build_target: 'cowork'");
 
     const gpt = plan(SMALL_ONE_SHOT, { build_target: "chatgpt_gpt" }).goal_to_product_wizard;
     expect(gpt.recommended_next_click.id).toBe("build_in_assistant");
     expect(gpt.recommended_next_click.label).toMatch(/ChatGPT GPT/i);
     expect(gpt.recommended_next_click.label).not.toMatch(/Cowork/i);
-    expect(gpt.recommended_next_click.action).toBe("assistant:generate_chatgpt_gpt");
+    expect(gpt.recommended_next_click.action).toContain("export_build_brief");
+    expect(gpt.recommended_next_click.action).toContain("build_target: 'chatgpt_gpt'");
   });
 
   it("SMALL → a CODE build_target is honoured too: no no-code ⭐", () => {

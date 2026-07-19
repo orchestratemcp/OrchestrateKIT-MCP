@@ -42,6 +42,10 @@ import {
 } from "../lib/observabilityContract.js";
 import { buildConnectArtifacts, s11Connect, type ConnectArtifacts } from "../lib/connectContract.js";
 import { connectionContractForComponents } from "./planWorkflow.js";
+import {
+  AUTHORIZATION_NOTE,
+  type ConnectionRequirement,
+} from "../lib/connectionContract.js";
 import { ExportBuildBriefOutputShape } from "./outputSchemas.js";
 
 // ──────────────────────────────── input ────────────────────────────────
@@ -1804,6 +1808,240 @@ function buildPromptHandoff(
   );
 }
 
+/**
+ * MAR-396: the no-code ASSISTANT-SURFACE brief (Claude Cowork / a ChatGPT GPT).
+ *
+ * This is a second brief SHAPE, not a reworded first one. Every other handoff in
+ * this module is code-shaped — it talks about repositories, files, issue
+ * templates and an implementation plan, because its reader builds software. A
+ * Cowork/GPT reader has no repo and writes no code: they paste instructions into
+ * an assistant and connect tools through a UI. So the repo-only apparatus
+ * (`files_likely_affected`, the artifact compiler package, `connect.mjs`,
+ * `record_session_feedback`) is deliberately absent here rather than reworded —
+ * carrying it over is exactly what made `build_target: 'cowork'` produce a
+ * byte-identical code brief before this change.
+ *
+ * What it keeps is the part that is actually registry-grounded and transfers to
+ * any surface: the route as ordered plain-English actions, the connections and
+ * what each one grants, the approval boundary, and the Definition of Done.
+ *
+ * Deterministic: every line is derived from the plan the caller passed. Nothing
+ * is invented, and no availability claim is made about either surface — the
+ * heading names whichever surface the caller selected via `build_target`.
+ */
+function buildAssistantSurfaceHandoff(input: {
+  goal: string;
+  buildTarget: "cowork" | "chatgpt_gpt";
+  route: z.infer<typeof RouteStepShape>[];
+  connections: ConnectionRequirement[];
+  clearance: z.infer<typeof AutomationClearanceShape>;
+  enforcedGates: string[];
+  approvalAdvisory: { gate: string; write_components: string[]; reason: string } | null | undefined;
+  avoidWhenViolations: Array<{ edge?: string; reason?: string }>;
+  safetyStatus: "pass" | "warnings" | "fail";
+  routeStatus: string;
+}): string {
+  const surface = input.buildTarget === "cowork" ? "Claude Cowork" : "a ChatGPT GPT";
+  const lines: string[] = [];
+
+  lines.push(`# Assistant setup — ${surface}`, ``);
+  lines.push(
+    `Paste the sections below into ${surface} as the assistant's instructions, then ` +
+      `connect the tools listed under "Connect these first". Everything here is derived ` +
+      `from a registry-grounded OrchestrateMCP plan — do not add steps or tools that are ` +
+      `not named below without re-running \`plan_workflow\`.`,
+    ``,
+  );
+
+  lines.push(`## What this assistant does`, ``, `> ${input.goal}`, ``);
+
+  // The route, as ordered actions rather than implementation steps.
+  lines.push(`## How it works, every time it runs`, ``);
+  input.route.forEach((step, i) => {
+    const name = step.component_name ?? step.component_id;
+    const purpose = step.purpose ? ` — ${step.purpose}` : "";
+    lines.push(`${i + 1}. **${name}**${purpose}`);
+  });
+  lines.push(``);
+
+  // Connections: plain-English grants only. Scopes stay at technical depth.
+  lines.push(`## Connect these first`, ``);
+  if (input.connections.length === 0) {
+    lines.push(
+      `No external tool connections are required for this plan — it runs on the ` +
+        `assistant's own model and whatever you paste into the conversation.`,
+    );
+  } else {
+    for (const c of input.connections) {
+      lines.push(`- **${c.label}** — ${c.grants}`);
+    }
+    lines.push(``, AUTHORIZATION_NOTE);
+  }
+  lines.push(``);
+
+  // The approval boundary — the single most important thing to get right on a
+  // surface where the assistant can act inside a live account.
+  lines.push(`## Ask me before you act`, ``);
+  const gates = [...input.enforcedGates];
+  if (gates.length > 0) {
+    lines.push(
+      `Stop and ask for explicit confirmation before any of the following, and ` +
+        `show me exactly what you are about to do:`,
+      ``,
+    );
+    // The gated ACTIONS, by name, not the gate component id. `component_id` is
+    // an internal registry handle; pasting it into an assistant's instructions
+    // tells the reader nothing they can act on. `highest_action_components` is
+    // the plan's own record of which steps actually reach outside.
+    const writeIds = new Set(input.clearance.highest_action_components);
+    const gatedActions = input.route.filter((s) => writeIds.has(s.component_id));
+    if (gatedActions.length > 0) {
+      for (const step of gatedActions) {
+        lines.push(`- **${step.component_name ?? step.component_id}**${step.purpose ? ` — ${step.purpose}` : ""}`);
+      }
+    } else {
+      // No component was flagged as an outside-reaching action, but a gate is
+      // enforced — fall back to naming the gate in prose rather than silently
+      // rendering nothing.
+      for (const gate of gates) lines.push(`- ${gate.replace(/_/g, " ")}`);
+    }
+  } else if (input.approvalAdvisory) {
+    lines.push(
+      `No approval gate is enforced by the route, but this plan writes to an ` +
+        `external system (${input.approvalAdvisory.write_components.join(", ")}). ` +
+        `${input.approvalAdvisory.reason} Confirm with me before the first write.`,
+    );
+  } else if (input.clearance.autonomous_allowed) {
+    lines.push(
+      `Nothing in this plan requires approval — clearance is ${input.clearance.level} ` +
+        `(${input.clearance.reason}). You may complete the whole run and show me the result.`,
+    );
+  } else {
+    lines.push(
+      `Clearance is ${input.clearance.level} and this plan is not cleared to run ` +
+        `unattended (${input.clearance.reason}). Confirm with me before acting.`,
+    );
+  }
+  // The plan's control checklist is written for a code runtime the operator
+  // controls (idempotency, kill switch, rollback). On a no-code assistant surface
+  // the user cannot implement most of them — so the list is FRAMED honestly
+  // rather than dumped as if it were a to-do the reader could action. A MISSING
+  // control is surfaced as a caution, because "this plan expects a safeguard the
+  // surface cannot provide" is the single most useful thing to say here.
+  if (input.clearance.required_controls.length > 0) {
+    lines.push(
+      ``,
+      `**Controls this plan assumes.** Some describe a code runtime and have no direct ` +
+        `equivalent in ${surface} — they are listed so you can judge whether this goal ` +
+        `belongs on a no-code surface at all, not as steps to implement here.`,
+      ``,
+    );
+    for (const control of input.clearance.required_controls) lines.push(`- ${control}`);
+    const missing = input.clearance.required_controls.filter((c) => /MISSING/i.test(c));
+    if (missing.length > 0) {
+      lines.push(
+        ``,
+        `> ⚠️ ${missing.length} control${missing.length === 1 ? " is" : "s are"} marked ` +
+          `MISSING in the plan. ${surface} cannot add ${missing.length === 1 ? "it" : "them"}. ` +
+          `If the missing control matters for this goal, build it as code instead — ` +
+          `re-run \`export_build_brief\` with a code \`build_target\`.`,
+      );
+    }
+  }
+  lines.push(``);
+
+  lines.push(`## Never do this`, ``);
+  lines.push(
+    `- Do not take actions outside the steps listed above, even if they seem helpful.`,
+  );
+  lines.push(
+    `- Do not connect tools or accounts beyond the ones listed under "Connect these first".`,
+  );
+  if (gates.length > 0) {
+    lines.push(`- Do not perform any gated action before I have confirmed it.`);
+  }
+  for (const violation of input.avoidWhenViolations) {
+    if (violation.reason) lines.push(`- ${violation.reason}`);
+  }
+  lines.push(``);
+
+  // Observability, honestly. §9 is DASH event-emission wiring (`emit run_started
+  // → …`) which assumes code the operator runs — an assistant surface cannot emit
+  // it. Silently omitting observability would leave a Cowork agent invisible with
+  // no explanation, so the limitation is stated instead of hidden. The
+  // `agent_manifest` is still produced in the brief for anyone who later rebuilds
+  // this as code.
+  lines.push(`## How you'll know it ran`, ``);
+  lines.push(
+    `- ${surface} keeps its own conversation and activity history — that is your run log.`,
+    `- Ask it to report what it did at the end of every run, including skipped steps.`,
+    `- This agent does not emit machine-readable run events, so an external monitor ` +
+      `(such as DASH) cannot see it. If you need monitored runs, alerting, or a ` +
+      `durable audit trail, build this as code instead — re-run \`export_build_brief\` ` +
+      `with a code \`build_target\`.`,
+    ``,
+  );
+
+  lines.push(`## When you're not sure`, ``);
+  lines.push(
+    `- If a step is ambiguous or the data is missing, ask me one specific question ` +
+      `rather than guessing.`,
+    `- If something fails, tell me what failed and stop — do not retry a write or ` +
+      `improvise an alternative route.`,
+    `- Report what you actually did, including steps you skipped.`,
+    ``,
+  );
+
+  // A Cowork/GPT-shaped Definition of Done. §8 is deliberately NOT reused: it
+  // checks `node scripts/connect.mjs --check`, idempotency, kill switches and
+  // audit-log wiring — real gates for a deployed code agent, meaningless on a
+  // surface with no repo and no runtime the user operates. The registry-grounded
+  // facts §8 carries (route status, safety, clearance) are restated here in the
+  // terms this reader can actually check.
+  lines.push(`## You're done when`, ``);
+  const done: string[] = [];
+  if (input.connections.length > 0) {
+    done.push(
+      `Every tool under "Connect these first" is connected, and you have confirmed ` +
+        `the assistant can actually reach it.`,
+    );
+  }
+  done.push(`You have run it once on real data and the result was what you expected.`);
+  if (gates.length > 0) {
+    done.push(
+      `You have confirmed it STOPS and asks before each gated action — test this ` +
+        `deliberately before relying on it.`,
+    );
+  }
+  done.push(`It stayed inside the steps above and took no action you did not expect.`);
+  if (input.safetyStatus === "warnings" || input.safetyStatus === "fail") {
+    done.push(
+      `You have reviewed the plan's safety warnings (safety review: ` +
+        `${input.safetyStatus}) and accept them for this surface.`,
+    );
+  }
+  if (input.routeStatus !== "validated") {
+    done.push(
+      `Note this route is \`${input.routeStatus}\`, not validated — treat the first ` +
+        `few runs as a trial and check the output rather than trusting it.`,
+    );
+  }
+  for (const item of done) lines.push(`- [ ] ${item}`);
+  lines.push(``);
+
+  lines.push(
+    `---`,
+    ``,
+    `_Generated by OrchestrateMCP \`export_build_brief\` (MAR-396) for ` +
+      `\`build_target: ${input.buildTarget}\`. Route status: ${input.routeStatus}. ` +
+      `Registry-grounded and deterministic — no LLM-generated content, and no external ` +
+      `system was written to. OrchestrateMCP cannot verify that ${surface} is available ` +
+      `on your plan._`,
+  );
+
+  return lines.join("\n");
+}
+
 function buildLinearHandoff(
   goal: string,
   sections: BuildBriefOutput["sections"],
@@ -2163,7 +2401,28 @@ export function exportBuildBrief(input: ExportBuildBriefInput): AnyBuildBriefOut
     : legacyBriefMarkdown;
 
   const handoffs: BuildBriefOutput["handoffs"] = {};
-  if (deliveryMode === "compact" && input.handoff_targets.includes("prompt")) {
+  // MAR-396: an assistant-surface target gets the assistant-shaped brief in BOTH
+  // delivery modes. The compact/full split exists to index the large issue-template
+  // package away — but that package is code-only and the assistant brief never
+  // carries it, so there is nothing to index and nothing to truncate. Splitting
+  // here would hand the caller a "request delivery_mode: full" stub for content
+  // that is already complete.
+  const assistantSurface =
+    buildTarget === "cowork" || buildTarget === "chatgpt_gpt" ? buildTarget : null;
+  if (assistantSurface && input.handoff_targets.includes("prompt")) {
+    handoffs.prompt = buildAssistantSurfaceHandoff({
+      goal: input.goal,
+      buildTarget: assistantSurface,
+      route: input.recommended_route,
+      connections: connectionContractForComponents(routeComponents),
+      clearance: input.automation_clearance,
+      enforcedGates: input.enforced_approval_gates,
+      approvalAdvisory: input.approval_gate_advisory,
+      avoidWhenViolations: input.avoid_when_violations,
+      safetyStatus: input.safety_review.status,
+      routeStatus: input.route_status,
+    });
+  } else if (deliveryMode === "compact" && input.handoff_targets.includes("prompt")) {
     handoffs.prompt = buildCompactPromptHandoff(input.goal, delivery);
   } else if (input.handoff_targets.includes("prompt")) {
     handoffs.prompt = buildPromptHandoff(input.goal, sections, artifact_package, connect);
