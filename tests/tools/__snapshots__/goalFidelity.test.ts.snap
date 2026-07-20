@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`MAR-397 AC4 — verbatim vs paraphrase output is pinned > pins the shape of both phrasings so drift is caught 1`] = `
+{
+  "paraphrase": {
+    "paraphrase_flagged": true,
+    "route": [
+      "pdf_extraction",
+      "stripe_data_read",
+      "reviewer_notification",
+      "human_approval_gate",
+      "auth_failure_handler",
+      "audit_log",
+    ],
+    "safety_questions": [],
+  },
+  "verbatim": {
+    "paraphrase_flagged": false,
+    "route": [
+      "pdf_extraction",
+      "stripe_data_read",
+      "job_queue",
+      "human_approval_gate",
+      "auth_failure_handler",
+    ],
+    "safety_questions": [],
+  },
+}
+`;

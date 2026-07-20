@@ -262,6 +262,11 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     "human_approval_gate",
   ],
   "goal": "scan a codebase, plan changes, edit code, run tests and write a PR summary",
+  "goal_fidelity": {
+    "looks_like_paraphrase": false,
+    "note": "",
+    "signals": [],
+  },
   "goal_to_product_wizard": {
     "artifact_choices": [
       {
@@ -1071,6 +1076,11 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     "audit_log",
   ],
   "goal": "[text]",
+  "goal_fidelity": {
+    "looks_like_paraphrase": false,
+    "note": "",
+    "signals": [],
+  },
   "goal_to_product_wizard": {
     "artifact_choices": [],
     "build_choices": [],
@@ -1806,6 +1816,11 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     "human_approval_gate",
   ],
   "goal": "scan a codebase, plan changes, edit code, run tests and write a PR summary",
+  "goal_fidelity": {
+    "looks_like_paraphrase": false,
+    "note": "",
+    "signals": [],
+  },
   "goal_to_product_wizard": {
     "artifact_choices": [
       {
