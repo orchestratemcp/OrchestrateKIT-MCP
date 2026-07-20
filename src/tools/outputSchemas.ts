@@ -330,6 +330,10 @@ export const PlanWorkflowOutputShape = z
             .passthrough(),
         ),
         unmatched_demand: z.array(z.string()),
+        // MAR-396: the subset of unmatched_demand whose vocabulary the demand
+        // lexicon could not parse at all — "we did not understand this step",
+        // as distinct from "we understood it and nothing carries it".
+        unrecognized_demand: z.array(z.string()),
         unsupported_supply: z.array(z.string()),
         coverage_label: z.enum(["full", "partial", "poor"]),
       })

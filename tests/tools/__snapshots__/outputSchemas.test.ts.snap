@@ -233,6 +233,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     "unmatched_demand": [
       "write a PR summary",
     ],
+    "unrecognized_demand": [],
     "unsupported_supply": [],
   },
   "credential_advisory": {
@@ -845,10 +846,11 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
   },
   "scope_assessment": {
     "drivers": [
+      "[text]",
       "Writes to an external business system (L3) — human by default",
       "0 connections to wire up",
     ],
-    "recommended_path": "Dry run it first, then build the durable agent",
+    "recommended_path": "[text]",
     "size": "medium",
   },
   "stack": {
@@ -1028,6 +1030,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     "unmatched_demand": [
       "pull last week's signups from our analytics API",
     ],
+    "unrecognized_demand": [],
     "unsupported_supply": [
       "reviewer_notification",
     ],
@@ -1573,11 +1576,12 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
   },
   "scope_assessment": {
     "drivers": [
+      "[text]",
       "Must keep running while you're offline (durable runtime needed)",
       "Writes to an external business system (L4) — human by default",
       "2 connections to wire up",
     ],
-    "recommended_path": "Dry run it first, then build the durable agent",
+    "recommended_path": "[text]",
     "size": "medium",
   },
   "stack": {
@@ -1773,6 +1777,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     "unmatched_demand": [
       "write a PR summary",
     ],
+    "unrecognized_demand": [],
     "unsupported_supply": [],
   },
   "credential_advisory": {
@@ -2385,10 +2390,11 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
   },
   "scope_assessment": {
     "drivers": [
+      "[text]",
       "Writes to an external business system (L3) — human by default",
       "0 connections to wire up",
     ],
-    "recommended_path": "Dry run it first, then build the durable agent",
+    "recommended_path": "[text]",
     "size": "medium",
   },
   "stack": {
