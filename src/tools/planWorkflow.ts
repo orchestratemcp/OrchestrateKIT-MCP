@@ -701,6 +701,61 @@ export type ScopeAssessment = {
   recommended_path: string;
 };
 
+/**
+ * MAR-401 (GOLD-01): one clickable option in a question-flow round. `id` is
+ * stable so the LAB harness and DASH can switch on it; `label` is the prose the
+ * user sees on the chip.
+ */
+export type QuestionFlowOption = {
+  id: string;
+  label: string;
+};
+
+/**
+ * MAR-401 (GOLD-01): one round of the sequential question flow. A client walks
+ * the rounds ONE AT A TIME using its native clickable choice UI, marking the
+ * recommended option. Every value here is a pure re-projection of existing plan
+ * machinery (scope_assessment, hosting_and_monitoring, recommended_next_click,
+ * clarifying_questions) — no new inference, and the MCP stays stateless: it
+ * never sees the answers unless the client folds them into a re-call goal.
+ */
+export type QuestionFlowRound = {
+  /**
+   * `confirm_card` / `build_surface` / `process` / `monitoring` for the fixed
+   * spine; conditional rounds reuse the MAR-225 ClarifyingQuestion ids.
+   */
+  id: string;
+  question: string;
+  options: QuestionFlowOption[];
+  /**
+   * The option the plan recommends. `null` only when the fork must never be
+   * defaulted (MAR-225 side-effect questions, e.g. calendar notifications).
+   */
+  recommended_option_id: string | null;
+  /** One sentence on why this fork changes the outcome, when the source has one. */
+  why?: string;
+  /**
+   * True when the answer refines the goal itself and belongs in a
+   * `plan_workflow` re-call (conditional clarifying rounds, or a "change
+   * something" on the confirm round). False for rounds the client can act on
+   * directly without re-planning.
+   */
+  fold_answer_into_recall: boolean;
+};
+
+/**
+ * MAR-401 (GOLD-01): the sequential clickable question flow that follows the
+ * Layer-1 card. Round 0 is always `confirm_card`. `fallback_menu_markdown` is
+ * the lettered A–D menu for clients with NO native choice UI — it is the only
+ * place the lettered menu renders by default (MAR-402) and stays parseable by
+ * the MAR-387 menu contract (src/journey/menu.ts).
+ */
+export type QuestionFlow = {
+  contract: "orchestratekit.question_flow.v1";
+  rounds: QuestionFlowRound[];
+  fallback_menu_markdown: string;
+};
+
 export type ProvenanceTag = "grounded" | "computed" | "advisory";
 
 export type ProvenanceModel = {
@@ -842,6 +897,14 @@ export type PlanWorkflowOutput = {
    * shape). Drives the scope-aware ⭐ in the menu. Scope never gates capability.
    */
   scope_assessment: ScopeAssessment;
+  /**
+   * MAR-401 (GOLD-01): the sequential clickable question flow a client walks
+   * one round at a time after rendering the card — confirm the card, pick the
+   * build surface, pick the process, pick monitoring, then any conditional
+   * clarifying rounds. Pure re-projection of the wizard / scope / hosting /
+   * clarifying machinery; stable option ids; deterministic recommended picks.
+   */
+  question_flow: QuestionFlow;
   /**
    * MAR-397: what the tool was actually asked, and whether it reads like the
    * user's own sentence.
@@ -3654,6 +3717,135 @@ function buildGoalToProductWizard(input: {
   return { wizard, scope };
 }
 
+// ───────────────────── MAR-401: sequential question flow ─────────────────────
+
+/**
+ * The recommended build surface, re-projected from machinery that already
+ * exists — the MAR-386/395 ⭐ (a small attended goal stars the no-code
+ * assistant surface) and the MAR-315 hosting recommendation (which already
+ * encodes durable-vs-attended and local-vs-hosted). One source of truth, no
+ * new inference: this function only MAPS those ids onto the surface vocabulary.
+ */
+function recommendedBuildSurface(
+  wizard: GoalToProductWizard,
+  hm: HostingAndMonitoring,
+): string {
+  if (wizard.recommended_next_click.id === "build_in_assistant") return "cowork";
+  const hosting = hm.hosting.recommended.id;
+  if (hosting === "in_client") return "cowork";
+  if (hosting === "hosted_cron" || hosting === "hosted_endpoint") return "self_host_hosted";
+  return "self_host_local"; // local_cron, manual_local
+}
+
+/** The recommended monitoring surface, mapped from the MAR-315 recommendation. */
+function recommendedMonitoringSurface(hm: HostingAndMonitoring): string {
+  if (hm.hosting.recommended.id === "in_client") return "cowork";
+  const monitoring = hm.monitoring.recommended.id;
+  if (monitoring === "dash_import") return "dash";
+  if (monitoring === "log_to_file") return "lab";
+  return "other"; // manual_none
+}
+
+/**
+ * MAR-401 (GOLD-01): build the sequential question flow.
+ *
+ * Round order is fixed: confirm_card → build_surface → process → monitoring →
+ * conditional clarifying rounds (MAR-225, folded in with their existing
+ * option_ids — no parallel vocabulary). Every recommended pick is derived from
+ * a field the plan already computed; a clarifying round with no
+ * `recommended_option_id` stays null because that fork must never be defaulted.
+ *
+ * `fallback_menu_markdown` is the rendered lettered menu
+ * (renderProductCardContinueMenu) — the no-choice-UI fallback surface, and the
+ * one the MAR-387 menu contract parses.
+ */
+function buildQuestionFlow(
+  wizard: GoalToProductWizard,
+  hm: HostingAndMonitoring,
+  clarifyingQuestions: ClarifyingQuestion[],
+  goal: string,
+): QuestionFlow {
+  const rounds: QuestionFlowRound[] = [
+    {
+      id: "confirm_card",
+      question: "Is this correct?",
+      options: [
+        { id: "yes", label: "Yes — continue" },
+        { id: "change_something", label: "Change something (tell me what)" },
+      ],
+      recommended_option_id: "yes",
+      fold_answer_into_recall: true,
+    },
+    {
+      id: "build_surface",
+      question: "Where should this agent live?",
+      options: [
+        { id: "cowork", label: "Cowork — a no-code assistant surface" },
+        {
+          id: "self_host_local",
+          label: "Self-host on your computer — only while your computer is on",
+        },
+        { id: "self_host_hosted", label: "Self-host hosted — always on" },
+        { id: "other", label: "Somewhere else" },
+      ],
+      recommended_option_id: recommendedBuildSurface(wizard, hm),
+      fold_answer_into_recall: false,
+    },
+    {
+      id: "process",
+      question: "How do you want to take the plan forward?",
+      options: [
+        { id: "save_plan", label: "Save the plan — Linear / Notion / Obsidian" },
+        {
+          id: "build_prompt",
+          label: "Turn it into a build prompt — Claude Code / Cursor / Codex",
+        },
+      ],
+      recommended_option_id:
+        wizard.recommended_next_click.id === "generate_linear_project"
+          ? "save_plan"
+          : "build_prompt",
+      fold_answer_into_recall: false,
+    },
+    {
+      id: "monitoring",
+      question: "How do you want to watch it once it runs?",
+      options: [
+        { id: "cowork", label: "In the client session (Cowork) — you watch it run" },
+        { id: "lab", label: "LAB — log each run locally" },
+        { id: "dash", label: "DASH — import the agent manifest and monitor runs" },
+        { id: "other", label: "Somewhere else / none" },
+      ],
+      recommended_option_id: recommendedMonitoringSurface(hm),
+      fold_answer_into_recall: false,
+    },
+  ];
+
+  // Conditional rounds: fold in the MAR-225 clarifying questions verbatim.
+  // Questions that carry option_ids keep them; the scope-completion questions
+  // (prose options only) get deterministic per-question ids so a client can
+  // still switch on the answer.
+  for (const q of clarifyingQuestions) {
+    const ids = q.option_ids ?? q.options.map((_, i) => `${q.id}_option_${i + 1}`);
+    rounds.push({
+      id: q.id,
+      question: q.question,
+      options: ids.map((id, i) => ({ id, label: q.options[i] })),
+      recommended_option_id: q.recommended_option_id ?? null,
+      ...(q.why ? { why: q.why } : {}),
+      fold_answer_into_recall: true,
+    });
+  }
+
+  return {
+    contract: "orchestratekit.question_flow.v1",
+    rounds,
+    fallback_menu_markdown: renderProductCardContinueMenu(wizard, goal)
+      .join("\n")
+      .trim(),
+  };
+}
+
 /**
  * MAR-101: scannable front-matter status block prepended to every
  * `summary_markdown`, regardless of `output_depth`. It surfaces the four facts
@@ -4935,6 +5127,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       hosting_and_monitoring: "computed", // MAR-315: deterministic route-shape derivation
       goal_to_product_wizard: "advisory", // MAR-333: deterministic menu contract for clients
       scope_assessment: "computed", // MAR-386: S/M/L derived from plan fields, no LLM
+      question_flow: "advisory", // MAR-401: re-projection of wizard/scope/hosting picks
       next_steps: "advisory",
     },
     grounding_note:
@@ -5260,6 +5453,14 @@ export function planWorkflow(
     unmatchedDemand: coverage.unmatched_demand,
   });
 
+  // ── MAR-401: the sequential clickable question flow (pure re-projection) ──
+  const question_flow = buildQuestionFlow(
+    goal_to_product_wizard,
+    hosting_and_monitoring,
+    clarifying_questions,
+    input.goal,
+  );
+
   // ── Step 6: fused markdown ──
   // MAR-101: every depth leads with the same scannable status front-matter so
   // route_status / safety / blocking / approval / untested-edge count are
@@ -5368,6 +5569,7 @@ export function planWorkflow(
     hosting_and_monitoring,
     goal_to_product_wizard,
     scope_assessment,
+    question_flow,
     goal_fidelity,
     worker_pipeline,
     worker_pipeline_pointer,

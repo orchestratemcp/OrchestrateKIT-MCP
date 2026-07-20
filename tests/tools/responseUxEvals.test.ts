@@ -871,7 +871,9 @@ describe("OUTPUT-06 (MAR-256) — worker_pipeline gated on depth, integrations d
   // MAR-315: compact hosting_and_monitoring JSON (recommended picks only at
   // default depth) + two menu entries add ~780 bytes. MAR-378 adds the
   // runtime/control/interaction placement contract to the default payload.
-  const G1_DEFAULT_JSON_MAX_BYTES = 25_000;
+  // MAR-401: question_flow (four fixed rounds + the lettered fallback menu)
+  // adds ~800 bytes — G1 measured 25,764 post-change; deliberate bounded raise.
+  const G1_DEFAULT_JSON_MAX_BYTES = 26_500;
 
   it(`default-depth G1 response JSON stays under ${G1_DEFAULT_JSON_MAX_BYTES} bytes`, () => {
     const bytes = Buffer.byteLength(JSON.stringify(planDepth(G1_EMAIL)), "utf8");

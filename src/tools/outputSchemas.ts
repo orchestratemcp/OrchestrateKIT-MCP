@@ -329,6 +329,29 @@ export const PlanWorkflowOutputShape = z
       })
       .passthrough()
       .optional(),
+    // MAR-401 (GOLD-01): sequential clickable question rounds a client walks one
+    // at a time via its native choice UI; fallback_menu_markdown is the lettered
+    // no-choice-UI rendering (parseable by the MAR-387 menu contract).
+    question_flow: z
+      .object({
+        contract: z.literal("orchestratekit.question_flow.v1"),
+        rounds: z.array(
+          z
+            .object({
+              id: z.string(),
+              question: z.string(),
+              options: z.array(
+                z.object({ id: z.string(), label: z.string() }).passthrough(),
+              ),
+              recommended_option_id: z.string().nullable(),
+              fold_answer_into_recall: z.boolean(),
+            })
+            .passthrough(),
+        ),
+        fallback_menu_markdown: z.string(),
+      })
+      .passthrough()
+      .optional(),
     coverage: z
       .object({
         matched: z.array(
