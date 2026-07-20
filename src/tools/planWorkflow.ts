@@ -701,6 +701,61 @@ export type ScopeAssessment = {
   recommended_path: string;
 };
 
+/**
+ * MAR-401 (GOLD-01): one clickable option in a question-flow round. `id` is
+ * stable so the LAB harness and DASH can switch on it; `label` is the prose the
+ * user sees on the chip.
+ */
+export type QuestionFlowOption = {
+  id: string;
+  label: string;
+};
+
+/**
+ * MAR-401 (GOLD-01): one round of the sequential question flow. A client walks
+ * the rounds ONE AT A TIME using its native clickable choice UI, marking the
+ * recommended option. Every value here is a pure re-projection of existing plan
+ * machinery (scope_assessment, hosting_and_monitoring, recommended_next_click,
+ * clarifying_questions) — no new inference, and the MCP stays stateless: it
+ * never sees the answers unless the client folds them into a re-call goal.
+ */
+export type QuestionFlowRound = {
+  /**
+   * `confirm_card` / `build_surface` / `process` / `monitoring` for the fixed
+   * spine; conditional rounds reuse the MAR-225 ClarifyingQuestion ids.
+   */
+  id: string;
+  question: string;
+  options: QuestionFlowOption[];
+  /**
+   * The option the plan recommends. `null` only when the fork must never be
+   * defaulted (MAR-225 side-effect questions, e.g. calendar notifications).
+   */
+  recommended_option_id: string | null;
+  /** One sentence on why this fork changes the outcome, when the source has one. */
+  why?: string;
+  /**
+   * True when the answer refines the goal itself and belongs in a
+   * `plan_workflow` re-call (conditional clarifying rounds, or a "change
+   * something" on the confirm round). False for rounds the client can act on
+   * directly without re-planning.
+   */
+  fold_answer_into_recall: boolean;
+};
+
+/**
+ * MAR-401 (GOLD-01): the sequential clickable question flow that follows the
+ * Layer-1 card. Round 0 is always `confirm_card`. `fallback_menu_markdown` is
+ * the lettered A–D menu for clients with NO native choice UI — it is the only
+ * place the lettered menu renders by default (MAR-402) and stays parseable by
+ * the MAR-387 menu contract (src/journey/menu.ts).
+ */
+export type QuestionFlow = {
+  contract: "orchestratekit.question_flow.v1";
+  rounds: QuestionFlowRound[];
+  fallback_menu_markdown: string;
+};
+
 export type ProvenanceTag = "grounded" | "computed" | "advisory";
 
 export type ProvenanceModel = {
@@ -842,6 +897,14 @@ export type PlanWorkflowOutput = {
    * shape). Drives the scope-aware ⭐ in the menu. Scope never gates capability.
    */
   scope_assessment: ScopeAssessment;
+  /**
+   * MAR-401 (GOLD-01): the sequential clickable question flow a client walks
+   * one round at a time after rendering the card — confirm the card, pick the
+   * build surface, pick the process, pick monitoring, then any conditional
+   * clarifying rounds. Pure re-projection of the wizard / scope / hosting /
+   * clarifying machinery; stable option ids; deterministic recommended picks.
+   */
+  question_flow: QuestionFlow;
   /**
    * MAR-397: what the tool was actually asked, and whether it reads like the
    * user's own sentence.
@@ -2632,36 +2695,32 @@ function renderHostingAndMonitoringFull(hm: HostingAndMonitoring): string[] {
 }
 
 /**
- * MAR-398 — the two runtime facts that belong on the CARD, and only when they
- * are a live question.
+ * MAR-402 (GOLD-02) — card section 4: "Recommended setup", one ⭐ line.
  *
- * MAR-378 put the whole operating bundle in Layer 1; MAR-398 says move it behind
- * `standard`. Rendering it on the dogfood goals shows both are partly right, and
- * the split is by runtime rather than by depth:
- *
- *   - On a DURABLE goal the bundle is the best content in the plan. "Where does
- *     this live when my laptop is shut, and what starts it?" is the decision,
- *     and "a short morning check needs a durable timer, not an always-on worker"
- *     is a real call the user cannot make themselves.
- *   - On an ATTENDED goal it is actively WRONG, not merely verbose. The refund
- *     plan says "stops when the client/session closes; that is correct for
- *     explicitly attended work" and then recommends a control surface to
- *     "persist approvals while the user is offline". "summarize my inbox for me
- *     now" is told to "manage schedule, secrets, status, retries" — there is no
- *     schedule. The surface lines default to the durable answer regardless of
- *     runtime; that is the same template-leak class as the calendar copy.
- *
- * So the card carries runtime + trigger when the plan must outlive the session,
- * and nothing otherwise. The control/interaction-surface lines — the two that
- * leak — stay at `standard` at every runtime, where their reasons are shown in
- * full and can be judged rather than skimmed.
+ * Successor to MAR-398's renderRuntimeEssentialsCard, keeping its runtime split
+ * (evidence: the durable answer is actively WRONG on an attended goal, not just
+ * verbose): a durable goal is told where it lives and what wakes it; an
+ * attended goal is told it runs in-session with nothing in the background.
+ * Both variants re-project fields the plan already computed (runtime
+ * recommendation, trigger explanation, MAR-315 hosting/monitoring) — the full
+ * operating bundle stays at `standard`.
  */
-function renderRuntimeEssentialsCard(wizard: GoalToProductWizard): string[] {
-  if (!wizard.runtime_requirements.must_run_while_user_offline) return [];
-  const runtime = wizard.runtime_recommendation;
+function renderRecommendedSetupCard(
+  wizard: GoalToProductWizard,
+  hm: HostingAndMonitoring,
+): string[] {
+  const monitoring = hm.monitoring.recommended.label;
+  if (wizard.runtime_requirements.must_run_while_user_offline) {
+    const runtime = wizard.runtime_recommendation;
+    return [
+      `**Recommended setup:** ⭐ ${runtime.label} _(${runtime.availability})_ — ` +
+        `wakes on: ${wizard.trigger_explanation.label}. Monitoring: ${monitoring}.`,
+      ``,
+    ];
+  }
   return [
-    `**Runs on:** ${runtime.label} _(${runtime.availability})_ — ${runtime.reason}`,
-    `**Wakes on:** ${wizard.trigger_explanation.label} — ${runtime.offline_behavior}`,
+    `**Recommended setup:** ⭐ ${hm.hosting.recommended.label} — attended; ` +
+      `nothing runs in the background. Monitoring: ${monitoring}.`,
     ``,
   ];
 }
@@ -3654,6 +3713,144 @@ function buildGoalToProductWizard(input: {
   return { wizard, scope };
 }
 
+// ───────────────────── MAR-401: sequential question flow ─────────────────────
+
+/**
+ * The recommended build surface, re-projected from machinery that already
+ * exists — the MAR-386/395 ⭐ (a small attended goal stars the no-code
+ * assistant surface) and the MAR-315 hosting recommendation (which already
+ * encodes durable-vs-attended and local-vs-hosted). One source of truth, no
+ * new inference: this function only MAPS those ids onto the surface vocabulary.
+ */
+function recommendedBuildSurface(
+  wizard: GoalToProductWizard,
+  hm: HostingAndMonitoring,
+): string {
+  if (wizard.recommended_next_click.id === "build_in_assistant") return "cowork";
+  const hosting = hm.hosting.recommended.id;
+  if (hosting === "in_client") return "cowork";
+  if (hosting === "hosted_cron" || hosting === "hosted_endpoint") return "self_host_hosted";
+  return "self_host_local"; // local_cron, manual_local
+}
+
+/** The recommended monitoring surface, mapped from the MAR-315 recommendation. */
+function recommendedMonitoringSurface(hm: HostingAndMonitoring): string {
+  if (hm.hosting.recommended.id === "in_client") return "cowork";
+  const monitoring = hm.monitoring.recommended.id;
+  if (monitoring === "dash_import") return "dash";
+  if (monitoring === "log_to_file") return "lab";
+  return "other"; // manual_none
+}
+
+/**
+ * MAR-401 (GOLD-01): build the sequential question flow.
+ *
+ * Round order is fixed: confirm_card → build_surface → process → monitoring →
+ * conditional clarifying rounds (MAR-225, folded in with their existing
+ * option_ids — no parallel vocabulary). Every recommended pick is derived from
+ * a field the plan already computed; a clarifying round with no
+ * `recommended_option_id` stays null because that fork must never be defaulted.
+ *
+ * `fallback_menu_markdown` is the rendered lettered menu
+ * (renderProductCardContinueMenu) — the no-choice-UI fallback surface, and the
+ * one the MAR-387 menu contract parses.
+ */
+function buildQuestionFlow(
+  wizard: GoalToProductWizard,
+  hm: HostingAndMonitoring,
+  clarifyingQuestions: ClarifyingQuestion[],
+  goal: string,
+): QuestionFlow {
+  const rounds: QuestionFlowRound[] = [
+    {
+      id: "confirm_card",
+      question: "Is this correct?",
+      options: [
+        { id: "yes", label: "Yes — continue" },
+        { id: "change_something", label: "Change something (tell me what)" },
+      ],
+      recommended_option_id: "yes",
+      fold_answer_into_recall: true,
+    },
+    {
+      id: "build_surface",
+      question: "Where should this agent live?",
+      options: [
+        { id: "cowork", label: "Cowork — a no-code assistant surface" },
+        {
+          id: "self_host_local",
+          label: "Self-host on your computer — only while your computer is on",
+        },
+        { id: "self_host_hosted", label: "Self-host hosted — always on" },
+        { id: "other", label: "Somewhere else" },
+      ],
+      recommended_option_id: recommendedBuildSurface(wizard, hm),
+      fold_answer_into_recall: false,
+    },
+    {
+      id: "process",
+      question: "How do you want to take the plan forward?",
+      options: [
+        { id: "save_plan", label: "Save the plan — Linear / Notion / Obsidian" },
+        {
+          id: "build_prompt",
+          label: "Turn it into a build prompt — Claude Code / Cursor / Codex",
+        },
+      ],
+      recommended_option_id:
+        wizard.recommended_next_click.id === "generate_linear_project"
+          ? "save_plan"
+          : "build_prompt",
+      fold_answer_into_recall: false,
+    },
+    {
+      id: "monitoring",
+      question: "How do you want to watch it once it runs?",
+      options: [
+        { id: "cowork", label: "In the client session (Cowork) — you watch it run" },
+        { id: "lab", label: "LAB — log each run locally" },
+        { id: "dash", label: "DASH — import the agent manifest and monitor runs" },
+        { id: "other", label: "Somewhere else / none" },
+      ],
+      recommended_option_id: recommendedMonitoringSurface(hm),
+      fold_answer_into_recall: false,
+    },
+  ];
+
+  // Conditional rounds: fold in the MAR-225 clarifying questions verbatim.
+  // Questions that carry option_ids keep them; the scope-completion questions
+  // (prose options only) get deterministic per-question ids so a client can
+  // still switch on the answer.
+  //
+  // The three scope-completion ids whose fork the fixed spine ALREADY asks
+  // (`build_surface`, `hosting_monitoring`, `artifact_target`) are not folded:
+  // rounds 1–3 above carry those exact decisions, so folding them again would
+  // ask the user the same fork twice and collide round ids. They stay untouched
+  // in `clarifying_questions` (and in the `standard` prose block) for clients
+  // on the fallback path.
+  const SPINE_COVERED_QUESTION_IDS = new Set(["build_surface", "hosting_monitoring", "artifact_target"]);
+  for (const q of clarifyingQuestions) {
+    if (SPINE_COVERED_QUESTION_IDS.has(q.id)) continue;
+    const ids = q.option_ids ?? q.options.map((_, i) => `${q.id}_option_${i + 1}`);
+    rounds.push({
+      id: q.id,
+      question: q.question,
+      options: ids.map((id, i) => ({ id, label: q.options[i] })),
+      recommended_option_id: q.recommended_option_id ?? null,
+      ...(q.why ? { why: q.why } : {}),
+      fold_answer_into_recall: true,
+    });
+  }
+
+  return {
+    contract: "orchestratekit.question_flow.v1",
+    rounds,
+    fallback_menu_markdown: renderProductCardContinueMenu(wizard, goal)
+      .join("\n")
+      .trim(),
+  };
+}
+
 /**
  * MAR-101: scannable front-matter status block prepended to every
  * `summary_markdown`, regardless of `output_depth`. It surfaces the four facts
@@ -3869,6 +4066,25 @@ function renderConstraintBlockCompact(cc: ConstraintCoverage): string[] {
   return lines;
 }
 
+/**
+ * MAR-402 (GOLD-02): the constraint rows that stay ON the card — ❌
+ * missing/violated only. The counts summary ("N enforced · N to verify") moved
+ * to `standard`: the compact status header already carries those counts, and a
+ * gap the route does NOT represent is the one thing that may never be buried
+ * (MAR-250 honesty keystone).
+ */
+function renderConstraintProblemRows(cc: ConstraintCoverage): string[] {
+  const rows = cc.checks.filter((c) => c.status === "missing" || c.status === "violated");
+  if (rows.length === 0) return [];
+  return [
+    ...rows.map(
+      (c) =>
+        `- ❌ ${c.status.toUpperCase()} [${c.constraint_class}] "${c.goal_phrase}" — ${c.representation}`,
+    ),
+    ``,
+  ];
+}
+
 /** Full per-check listing for technical/deep depths. */
 function renderConstraintBlockFull(cc: ConstraintCoverage): string[] {
   if (cc.checks.length === 0) return [];
@@ -3892,17 +4108,16 @@ function renderConstraintBlockFull(cc: ConstraintCoverage): string[] {
  * RESPONSE-UX-04 eval (MAR-227) asserts the rendered summary stays under this
  * so "report creep" fails CI instead of silently re-bloating Layer 1.
  *
- * 3600 → 3700 for the `calendar_notification` question: on a long goal (the
- * P0-02 golden prompt renders 3289 chars before it) the question plus its
- * one-line recommendation did not fit, and the alternative was to drop the
- * recommendation into structuredContent — i.e. to bury the decision, the exact
- * failure the question exists to fix (UX review 2026-07-16 §8.7/§9.2).
- *
- * This is a deliberate, bounded raise for ONE line of high-value content, not
- * permission to re-bloat: the golden prompt is now itself asserted against this
- * bound (responseUxEvals), so the remaining headroom is small and measured.
+ * 3700 → 2000 (MAR-402, GOLD-02): the Layer-1 default is now the four-section
+ * golden card — What you'll get / Risks & safeguards / Connections /
+ * Recommended setup — with the Quick-checks block and the lettered menu moved
+ * into `question_flow` (clickable rounds + no-choice-UI fallback). Measured
+ * across the dogfood + golden goals post-shrink: 909–1,675 chars, so the bound
+ * is ratcheted DOWN to keep the card inside one viewport; the ~1,500 target
+ * plus conditional honesty rows (❌ constraint gaps, uncovered goal steps) is
+ * the only content allowed to spend the remaining headroom.
  */
-export const LAYER1_MAX_CHARS = 3700;
+export const LAYER1_MAX_CHARS = 2000;
 
 /**
  * MAR-250: the coverage gap block, shared by every depth. Empty when coverage
@@ -3911,7 +4126,19 @@ export const LAYER1_MAX_CHARS = 3700;
  */
 const COVERAGE_MAX_SHOWN = 5;
 
-function renderCoverageBlock(coverage: Coverage, steps: RouteStep[] = [], goal = ""): string[] {
+function renderCoverageBlock(
+  coverage: Coverage,
+  steps: RouteStep[] = [],
+  goal = "",
+  /**
+   * MAR-402: the card keeps the SHORTFALL half only (uncovered goal steps —
+   * the MAR-250 honesty keystone). The surplus half ("in the route but not
+   * asked for") is a verification chore, not a decision, and renders from
+   * `standard` depth; the compact status header still downgrades the coverage
+   * label when it is non-empty.
+   */
+  includeUnsupportedSupply = true,
+): string[] {
   const lines: string[] = [];
   const routeIds = new Set(steps.map((step) => step.component_id));
   const priceMonitorMappingGap =
@@ -3942,7 +4169,7 @@ function renderCoverageBlock(coverage: Coverage, steps: RouteStep[] = [], goal =
       ``,
     );
   }
-  if (coverage.unsupported_supply.length > 0) {
+  if (includeUnsupportedSupply && coverage.unsupported_supply.length > 0) {
     lines.push(
       `**In the route but not asked for:** ${coverage.unsupported_supply
         .map((id) => `\`${id}\``)
@@ -4464,8 +4691,9 @@ function buildGuidedPlanMarkdown(
 ): string {
   const lines: string[] = [];
 
+  // MAR-402 (GOLD-02) — card section 1: What you'll get (title, goal, route).
   lines.push(`## ${productCardTitle(goal, planSource, playbook, steps)}`, ``);
-  lines.push(`**You want:** ${truncateGoalForCard(goal)}`, ``);
+  lines.push(`**What you'll get:** ${truncateGoalForCard(goal)}`, ``);
 
   lines.push(`**Route:** ${routeSpine(goal, steps)}`, ``);
 
@@ -4487,12 +4715,9 @@ function buildGuidedPlanMarkdown(
     lines.push(``);
 
     lines.push(...renderOperatingBundleCompact(goalToProductWizard));
-  } else {
-    // MAR-398: on a durable goal, "where does this run and what starts it" is a
-    // card-level decision — see renderRuntimeEssentialsCard. Empty on attended
-    // goals, where the same block contradicts the runtime it just recommended.
-    lines.push(...renderRuntimeEssentialsCard(goalToProductWizard));
   }
+  // MAR-402: the card's runtime answer now lives in section 4
+  // (renderRecommendedSetupCard), rendered after Connections below.
 
   if (fullSteps) {
     lines.push(`**Steps:**`);
@@ -4505,40 +4730,7 @@ function buildGuidedPlanMarkdown(
     lines.push(``);
   }
 
-  // MAR-383: names the connections, then states the ONE fact a reader at the
-  // decision layer can get wrong — that an existing claude.ai/Cursor grant will
-  // carry over. It will not. Scopes and package names stay at technical depth.
-  lines.push(
-    `**Connect:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}. ${AUTHORIZATION_NOTE_SHORT}.`,
-    ``,
-  );
-
-  const coverageLines = renderCoverageBlock(coverage, steps, goal);
-  lines.push(...coverageLines);
-
-  const constraintLines = renderConstraintBlockCompact(constraintCoverage);
-  lines.push(...constraintLines);
-
-  // MAR-398: "what's missing" is one of the five card blocks, and it has to
-  // answer even when the answer is "nothing". A gap block that is simply ABSENT
-  // when coverage is clean reads identically to a gap block that was never
-  // computed — which is the exact ambiguity that let a missing refund step pass
-  // for a complete plan. Say it out loud.
-  //
-  // The question is about goal STEPS, so it keys off the uncovered-demand
-  // heading alone. Unsupported supply ("in the route but not asked for") is the
-  // opposite complaint — surplus, not shortfall — and constraint gaps get their
-  // own block; neither one answers "did you drop part of what I asked for?".
-  const saysMissing = coverageLines.some((line) =>
-    line.startsWith("**Not covered by the registry:**"),
-  );
-  if (!fullSteps && !saysMissing) {
-    lines.push(
-      `**What's missing:** Nothing — every step in your goal is carried by this route.`,
-      ``,
-    );
-  }
-
+  // ── MAR-402 card section 2: Risks & safeguards ──
   const cardRouteIds = new Set(steps.map((s) => s.component_id));
   let cardSafeguard: string;
   if (enforcedGates.length > 0) {
@@ -4598,14 +4790,64 @@ function buildGuidedPlanMarkdown(
       : clearance.level === "L4"
       ? "human always required"
       : "human-in-the-loop by default";
-  lines.push(`**Key safeguard:** ${cardSafeguard}. This is ${clearance.level} ${cardAutoText}.`, ``);
+  lines.push(`**Risks & safeguards:** ${cardSafeguard}. This is ${clearance.level} ${cardAutoText}.`, ``);
+
+  // ❌ missing/violated constraint rows stay on the card (MAR-250 honesty
+  // keystone); the counts summary + delegated detail render from `standard`.
+  lines.push(
+    ...(fullSteps
+      ? renderConstraintBlockCompact(constraintCoverage)
+      : renderConstraintProblemRows(constraintCoverage)),
+  );
+
+  // Uncovered goal steps stay on the card; unsupported-supply verification
+  // notes move to `standard` (MAR-402) — the status header still carries the
+  // downgraded coverage label either way.
+  const coverageLines = renderCoverageBlock(coverage, steps, goal, fullSteps);
+  lines.push(...coverageLines);
+
+  // MAR-398: "what's missing" has to answer even when the answer is "nothing".
+  // A gap block that is simply ABSENT when coverage is clean reads identically
+  // to a gap block that was never computed — the exact ambiguity that let a
+  // missing refund step pass for a complete plan. Say it out loud. Keys off the
+  // uncovered-demand heading alone: unsupported supply is surplus, not
+  // shortfall, and constraint gaps have their own rows above.
+  const saysMissing = coverageLines.some((line) =>
+    line.startsWith("**Not covered by the registry:**"),
+  );
+  if (!fullSteps && !saysMissing) {
+    lines.push(
+      `**What's missing:** Nothing — every step in your goal is carried by this route.`,
+      ``,
+    );
+  }
+
+  // ── MAR-402 card section 3: Connections ──
+  // MAR-383: names the connections, then states the ONE fact a reader at the
+  // decision layer can get wrong — that an existing claude.ai/Cursor grant will
+  // carry over. It will not. Scopes and package names stay at technical depth.
+  lines.push(
+    `**Connections:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}. ${AUTHORIZATION_NOTE_SHORT}.`,
+    ``,
+  );
+
+  // ── MAR-402 card section 4: Recommended setup (⭐, card only — standard
+  // renders the full operating bundle instead) ──
+  if (!fullSteps) {
+    lines.push(...renderRecommendedSetupCard(goalToProductWizard, hostingAndMonitoring));
+  }
+
   // MAR-398: build controls are near-identical advice on every plan — real, but
   // not a decision. Standard depth onward.
   if (fullSteps) {
     lines.push(`**Build controls:** ${buildControlsLine(steps)}`, ``);
   }
 
-  if (clarifyingQuestions.length > 0) {
+  // MAR-402 (GOLD-02): the "Quick checks" block and the lettered menu stop
+  // rendering on the card — `question_flow` carries the same forks as clickable
+  // rounds, and the lettered menu lives on as the no-choice-UI fallback in
+  // `question_flow.fallback_menu_markdown`. Both still render at `standard`.
+  if (fullSteps && clarifyingQuestions.length > 0) {
     // Only the scope-completion questions offer "Not sure yet" — promising it
     // when the list is a side-effect question alone would be a lie.
     const anyNotSure = clarifyingQuestions.some((q) => q.options.includes("Not sure yet"));
@@ -4617,7 +4859,9 @@ function buildGuidedPlanMarkdown(
     lines.push(...renderClarifyingQuestions(clarifyingQuestions, "compact"));
   }
 
-  lines.push(...renderProductCardContinueMenu(goalToProductWizard, goal));
+  if (fullSteps) {
+    lines.push(...renderProductCardContinueMenu(goalToProductWizard, goal));
+  }
 
   lines.push(
     `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +
@@ -4935,6 +5179,7 @@ function buildProvenance(planSource: PlanSource): ProvenanceModel {
       hosting_and_monitoring: "computed", // MAR-315: deterministic route-shape derivation
       goal_to_product_wizard: "advisory", // MAR-333: deterministic menu contract for clients
       scope_assessment: "computed", // MAR-386: S/M/L derived from plan fields, no LLM
+      question_flow: "advisory", // MAR-401: re-projection of wizard/scope/hosting picks
       next_steps: "advisory",
     },
     grounding_note:
@@ -5260,6 +5505,14 @@ export function planWorkflow(
     unmatchedDemand: coverage.unmatched_demand,
   });
 
+  // ── MAR-401: the sequential clickable question flow (pure re-projection) ──
+  const question_flow = buildQuestionFlow(
+    goal_to_product_wizard,
+    hosting_and_monitoring,
+    clarifying_questions,
+    input.goal,
+  );
+
   // ── Step 6: fused markdown ──
   // MAR-101: every depth leads with the same scannable status front-matter so
   // route_status / safety / blocking / approval / untested-edge count are
@@ -5368,6 +5621,7 @@ export function planWorkflow(
     hosting_and_monitoring,
     goal_to_product_wizard,
     scope_assessment,
+    question_flow,
     goal_fidelity,
     worker_pipeline,
     worker_pipeline_pointer,
@@ -5416,7 +5670,11 @@ const PREAMBLE_MARKERS = [
   "compose_workflow",
   "list_known_routes",
   "explain_component",
-  // instruction-text fragments (from SERVER_INSTRUCTIONS / MAR-147)
+  // instruction-text fragments. MAR-403 rewrote SERVER_INSTRUCTIONS card-first,
+  // so the list carries fragments of the CURRENT wording (question_flow /
+  // rendering-contract vocabulary) alongside the retired MAR-147 phrases — a
+  // client on a cached older instruction set can still echo those, they cost
+  // nothing, and none of them occurs in a real workflow goal.
   "gather the user's constraints",
   "before you plan",
   "before the first",
@@ -5427,6 +5685,16 @@ const PREAMBLE_MARKERS = [
   "outbound sends",
   "plain english goal",
   "plain-english goal",
+  // MAR-403 card-first instruction fragments. Deliberately NOT included:
+  // "summary_markdown" and "render the returned …" — a real goal about some
+  // OTHER tool's output could legitimately contain either ("email me the
+  // summary_markdown my pipeline produces"), and this guard is high-precision
+  // by design.
+  "question_flow",
+  "fallback_menu_markdown",
+  "askuserquestion",
+  "clickable choice ui",
+  "plan immediately, ask after",
   // model self-narration / persona echoes
   "you are an ai",
   "you are a workflow",
@@ -5566,12 +5834,15 @@ export function registerPlanWorkflow(server: McpServer): void {
         "The plan is a pure function of that exact string, so a rewrite changes the route, the " +
         "risk score and the clearance level; `goal_fidelity` in the response flags it when it " +
         "looks like one. " +
-        "Render the returned `summary_markdown` to the user VERBATIM — do not " +
-        "paraphrase or summarize it, and do not drop the A) B) C) D) E) continuation menu at the end. " +
+        "Render the returned `summary_markdown` card to the user VERBATIM — do not paraphrase or " +
+        "summarize it — then present the `question_flow` rounds ONE AT A TIME using your client's " +
+        "native clickable choice UI (AskUserQuestion-style chips), marking the recommended option. " +
+        "The first response is the card plus round 0 ('Is this correct?') and nothing else; never " +
+        "dump all rounds at once as text. Only when the client has no clickable choice UI, render " +
+        "`question_flow.fallback_menu_markdown` as a lettered list instead. " +
         "This tool is the ONLY menu author: append your own analysis freely, but never author a " +
-        "second lettered menu and never renumber this one — to recommend a different option, name " +
-        "its existing letter. " +
-        "If you run the plan in-chat via connectors, declare it as the attended dry-run option (E) — " +
+        "second lettered menu or a competing option list of your own. " +
+        "If you run the plan in-chat via connectors, declare it as the attended dry-run option — " +
         "nothing persists — and offer `export_build_brief` afterward; a chat run never fulfills a build goal.",
       inputSchema: InputShape,
       outputSchema: PlanWorkflowOutputShape,

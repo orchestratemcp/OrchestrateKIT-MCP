@@ -45,16 +45,20 @@ const TECHNICAL_MARKERS = [
   "**Provenance:**", // the full provenance BLOCK (the one-line note is different)
 ];
 
-function expectTargetProductCard(md: string) {
+type PlanForCard = ReturnType<typeof plan>;
+
+function expectTargetProductCard(r: PlanForCard) {
+  const md = r.summary_markdown;
   const header = md.split("\n\n")[0];
   expect(header).toMatch(/coverage/i);
   expect(header).toContain("Risk ");
   expect(md).toMatch(/\n## [^\n]+/);
-  expect(md).toContain("**You want:**");
+  // MAR-402 (GOLD-02): the four golden-card sections.
+  expect(md).toContain("**What you'll get:**");
   expect(md).toContain("**Route:**");
-  expect(md).toContain("**Connect:**");
-  expect(md).toContain("**Key safeguard:**");
-  expect(md).toContain("### How do you want to continue?");
+  expect(md).toContain("**Risks & safeguards:**");
+  expect(md).toContain("**Connections:**");
+  expect(md).toContain("**Recommended setup:** ⭐");
 
   // MAR-398: Layer 1 is a decision card, not a report. The step walkthrough and
   // the build-controls advice are the same on nearly every plan, so they moved
@@ -62,28 +66,33 @@ function expectTargetProductCard(md: string) {
   expect(md).not.toContain("**How it works**");
   expect(md).not.toContain("**Build controls:**");
 
+  // MAR-402: the lettered menu no longer renders on the card — question_flow
+  // replaces it with clickable rounds; the letters live on ONLY in the
+  // no-choice-UI fallback surface.
+  expect(md).not.toContain("### How do you want to continue?");
+  expect(md).not.toMatch(/^[A-Z]\) /m);
+  const menu = r.question_flow.fallback_menu_markdown;
+  expect(menu).toContain("### How do you want to continue?");
+
   // MAR-398: at most four options, contiguous from A. Six options with one
   // starred is a list to read, not a decision to make.
-  const letters = md.match(/^[A-Z]\) /gm) ?? [];
+  const letters = menu.match(/^[A-Z]\) /gm) ?? [];
   expect(letters.length).toBeGreaterThan(0);
   expect(letters.length).toBeLessThanOrEqual(4);
   expect(letters).toEqual(["A) ", "B) ", "C) ", "D) "].slice(0, letters.length));
 
   // MAR-385: the attended in-chat dry run is always a named option, never
-  // improvised, and always carries its ephemerality disclosure. MAR-398 makes
-  // the assertion letter-agnostic — the option's PRESENCE and WORDING are the
-  // invariant; which letter it lands on is layout.
-  expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
-  expect(md).toContain("one-shot, nothing persists");
+  // improvised, and always carries its ephemerality disclosure.
+  expect(menu).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
+  expect(menu).toContain("one-shot, nothing persists");
 
   // MAR-386/395/398: every goal routed through this helper is small/medium with
   // no pending question, so the ⭐ is either the no-code assistant surface
   // (small) or the attended dry run (medium) — and exactly one is marked.
-  const menuTail = md.slice(md.indexOf("### How do you want to continue?"));
-  const starredDryRun = /^[A-Z]\) Run it attended in this chat now.*— Recommended$/m.test(menuTail);
-  const starredAssistant = /^[A-Z]\) Build it in a no-code assistant.*— Recommended$/m.test(menuTail);
+  const starredDryRun = /^[A-Z]\) Run it attended in this chat now.*— Recommended$/m.test(menu);
+  const starredAssistant = /^[A-Z]\) Build it in a no-code assistant.*— Recommended$/m.test(menu);
   expect(starredDryRun || starredAssistant).toBe(true);
-  expect((menuTail.match(/— Recommended/g) ?? []).length).toBe(1);
+  expect((menu.match(/— Recommended/g) ?? []).length).toBe(1);
   expect(md).not.toContain("**Route spine:**");
   expect(md).not.toContain("**Recommended playbook:**");
   expect(md).not.toContain("**Next — pick one:**");
@@ -149,23 +158,28 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     }
   });
 
-  it("Layer-1 shows a user-facing continuation menu, with structured menu kept in JSON", () => {
-    const md = plan("guided").summary_markdown;
-    expect(md).toContain("### How do you want to continue?");
-    expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
-    // MAR-386: HEAVY_GOAL is medium → the dry run (E) is the ⭐, not the build prompt.
-    expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
-    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+  it("Layer-1 keeps the menu out of the card; the fallback surface carries it (MAR-402)", () => {
+    const r = plan("guided");
+    const md = r.summary_markdown;
+    // The card itself carries no lettered menu — question_flow's clickable
+    // rounds replace it; the letters live only in the no-choice-UI fallback.
+    expect(md).not.toContain("### How do you want to continue?");
+    expect(md).not.toMatch(/^[A-Z]\) /m);
+    const menu = r.question_flow.fallback_menu_markdown;
+    expect(menu).toContain("### How do you want to continue?");
+    expect(menu).toContain("A) Save this plan to Linear / Obsidian / Notion");
+    // MAR-386: HEAVY_GOAL is medium → the dry run is the ⭐, not the build prompt.
+    expect(menu).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
+    expect(menu.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(md).not.toContain("**Alternatives:**");
     expect(md).not.toContain("**Next — pick one:**");
     expect(md).not.toContain("Show technical plan");
     expect(md).not.toContain("Open validated playbook");
     expect(md).not.toContain("Recommended next click");
-    const tail = md.slice(md.indexOf("### How do you want to continue?"));
     for (const marker of TECHNICAL_MARKERS) {
-      expect(tail).not.toContain(marker);
+      expect(menu).not.toContain(marker);
     }
-    expect(plan("guided").next_action_menu.length).toBeGreaterThan(3);
+    expect(r.next_action_menu.length).toBeGreaterThan(3);
   });
 
   // RESPONSE-UX-03 (MAR-226): the menu is a stable, machine-consumable set
@@ -290,12 +304,12 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
   });
 
   it("MAR-345: Layer-1 markdown renders as a product card, not a settings menu", () => {
-    const md = plan("brief").summary_markdown;
-    expectTargetProductCard(md);
+    const r = plan("brief");
+    const md = r.summary_markdown;
+    expectTargetProductCard(r);
     expect(md).toContain("## ");
     expect(md).toContain("**Route:**");
-    expect(md).toContain("**Connect:**");
-    expect(md).toContain("### How do you want to continue?");
+    expect(md).toContain("**Connections:**");
     expect(md).not.toContain("**Goal -> Product wizard**");
     expect(md).not.toContain("3. **Build in**");
     expect(md).not.toContain("4. **Host / monitor with**");
@@ -308,18 +322,26 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
   });
 
   // RESPONSE-UX-02 (MAR-225): bounded clarifying questions when a constraint is missing
-  it("an under-specified goal includes bounded clarifying_questions (≤3) in JSON + markdown", () => {
+  it("an under-specified goal includes bounded clarifying_questions (≤3) as clickable rounds", () => {
+    const goal = "go through my inbox and handle the sales leads automatically";
     const r = planWorkflow(
-      {
-        goal: "go through my inbox and handle the sales leads automatically",
-        must_have_capabilities: [],
-        must_avoid: [],
-        output_depth: "brief",
-      },
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
       registry,
     );
     expect(r.clarifying_questions.length).toBe(3);
-    expect(r.summary_markdown).toContain("Quick checks to pin down the plan");
+    // MAR-402: the card no longer renders the Quick-checks block — the same
+    // questions ride as question_flow rounds 4+ (MAR-401)…
+    expect(r.summary_markdown).not.toContain("Quick checks to pin down the plan");
+    const SPINE_COVERED = new Set(["build_surface", "hosting_monitoring", "artifact_target"]);
+    expect(r.question_flow.rounds.slice(4).map((x) => x.id)).toEqual(
+      r.clarifying_questions.filter((q) => !SPINE_COVERED.has(q.id)).map((q) => q.id),
+    );
+    // …and standard still renders the block (moved, not deleted).
+    const std = planWorkflow(
+      { goal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" },
+      registry,
+    );
+    expect(std.summary_markdown).toContain("Quick checks to pin down the plan");
   });
 
   it("a fully-specified goal has NO clarifying_questions (no nagging)", () => {
@@ -367,10 +389,9 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
       const md = r.summary_markdown;
       const wizard = r.goal_to_product_wizard;
 
-      expectTargetProductCard(md);
+      expectTargetProductCard(r);
       expect(md).toContain("**Route:**");
-      expect(md).toContain("**Connect:**");
-      expect(md).toContain("### How do you want to continue?");
+      expect(md).toContain("**Connections:**");
       expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
       expect(md).not.toContain("### Steps");
       expect(md).not.toContain("### Safety review");
@@ -400,7 +421,7 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
     );
     const md = r.summary_markdown;
 
-    expectTargetProductCard(md);
+    expectTargetProductCard(r);
     expect(r.plan_source).toBe("playbook");
     expect(r.playbook?.id).toBe("email_lead_to_crm");
     expect(r.coverage.coverage_label).toBe("full");
@@ -421,16 +442,17 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
       "reviewer_notification",
     );
     expect(md).toContain("## Email Lead → CRM + Slack");
-    expect(md).toContain("**You want:** Read new Gmail leads, draft a reply, update CRM, and alert sales in Slack after human approval.");
+    expect(md).toContain("**What you'll get:** Read new Gmail leads, draft a reply, update CRM, and alert sales in Slack after human approval.");
     expect(md).toMatch(
       /\*\*Route:\*\* .*Schema Validation.*Email Draft.*Human Approval Gate.*Slack Notification.*CRM Note Write.*Audit Log/,
     );
-    expect(md).toContain("**Connect:** Gmail inbox · CRM (HubSpot/Salesforce/Pipedrive) · Slack sales channel · optional email sender · Model provider.");
+    expect(md).toContain("**Connections:** Gmail inbox · CRM (HubSpot/Salesforce/Pipedrive) · Slack sales channel · optional email sender · Model provider.");
     expect(md).toContain("v1 should probably stay draft-only");
-    expect(md).toContain("### How do you want to continue?");
-    expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
-    expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
-    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    // MAR-402: the lettered menu lives in the no-choice-UI fallback surface.
+    const menu = r.question_flow.fallback_menu_markdown;
+    expect(menu).toContain("A) Save this plan to Linear / Obsidian / Notion");
+    expect(menu).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
+    expect(menu.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(md).not.toContain("**Next — pick one:**");
     expect(md).not.toContain("**Next:");
     expect(md).not.toContain("Show technical plan");
@@ -517,7 +539,9 @@ describe("MAR-346 - first-run honesty for weak composed matches", () => {
     expect(md).toContain('"I want something that checks competitor prices every morning"');
     expect(md).toContain('"tells sales if anything changed"');
     expect(md).not.toContain("No external product connection required");
-    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    // MAR-402: letters render only on the no-choice-UI fallback surface.
+    expect(md).not.toMatch(/^[A-D]\) /m);
+    expect(r.question_flow.fallback_menu_markdown.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(r.next_action_menu.length).toBeGreaterThan(3);
   });
 
@@ -548,7 +572,9 @@ describe("MAR-346 - first-run honesty for weak composed matches", () => {
     expect(md).toContain("**Not covered by the registry:**");
     expect(md).toContain('"When a PR opens"');
     expect(md).toContain('"review it for risky changes but don\'t edit anything"');
-    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+    // MAR-402: letters render only on the no-choice-UI fallback surface.
+    expect(md).not.toMatch(/^[A-D]\) /m);
+    expect(r.question_flow.fallback_menu_markdown.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(r.next_action_menu.length).toBeGreaterThan(3);
   });
 });
@@ -601,21 +627,21 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
       const md = r.summary_markdown;
       const wizard = r.goal_to_product_wizard;
 
-      expectTargetProductCard(md);
+      expectTargetProductCard(r);
       expect(md.length, `${starter.title} must fit Layer-1`).toBeLessThanOrEqual(
         LAYER1_MAX_CHARS,
       );
       expect(md).toContain("## ");
       expect(md).toContain(starter.expectedTitle);
-      expect(md).toContain("**You want:**");
+      expect(md).toContain("**What you'll get:**");
       expect(md).toContain("**Route:**");
-      expect(md).toContain("**Connect:**");
+      expect(md).toContain("**Connections:**");
       for (const expectedConnect of starter.expectedConnect) {
         expect(md).toContain(expectedConnect);
       }
-      expect(md).toContain("**Key safeguard:**");
-      expect(md).toContain("### How do you want to continue?");
-      expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
+      expect(md).toContain("**Risks & safeguards:**");
+      // MAR-402: letters live only on the no-choice-UI fallback surface.
+      expect(r.question_flow.fallback_menu_markdown.match(/^[A-D]\) /gm)?.length).toBe(4);
       expect(md).not.toContain("**Next — pick one:**");
       expect(md).not.toContain("**Next:");
       expect(md).not.toContain("Show technical plan");
@@ -690,7 +716,7 @@ describe("MAR-250 — coverage honesty in the rendered output", () => {
     expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
   });
 
-  it("unsupported extras are named in Layer 1 (fuzzy-matched extra, flagged not dropped)", () => {
+  it("unsupported extras stay flagged: JSON + status label at brief, named from standard (MAR-402)", () => {
     const r = planWorkflow(
       { goal: UNSUPPORTED_EXTRA_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "brief" },
       registry,
@@ -698,10 +724,19 @@ describe("MAR-250 — coverage honesty in the rendered output", () => {
     const md = r.summary_markdown;
     // demand is covered — no false gap block…
     expect(md).not.toContain("Not covered by the registry");
-    // …but the fuzzy-matched extra (reviewer_notification, no phrase asked for it)
-    // is still called out for verification.
-    expect(md).toContain("In the route but not asked for:");
-    expect(md).toContain("`reviewer_notification`");
+    // …and the fuzzy-matched extra (reviewer_notification, no phrase asked for
+    // it) is still flagged: in the JSON, in the downgraded coverage label the
+    // header carries, and by name from standard depth (moved, not dropped —
+    // it is a verification chore, not a card-level decision).
+    expect(r.coverage.unsupported_supply).toContain("reviewer_notification");
+    expect(md.split("\n\n")[0]).not.toContain("Full coverage");
+    expect(md).not.toContain("In the route but not asked for:");
+    const std = planWorkflow(
+      { goal: UNSUPPORTED_EXTRA_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "standard" },
+      registry,
+    );
+    expect(std.summary_markdown).toContain("In the route but not asked for:");
+    expect(std.summary_markdown).toContain("`reviewer_notification`");
     expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
   });
 
@@ -871,7 +906,9 @@ describe("OUTPUT-06 (MAR-256) — worker_pipeline gated on depth, integrations d
   // MAR-315: compact hosting_and_monitoring JSON (recommended picks only at
   // default depth) + two menu entries add ~780 bytes. MAR-378 adds the
   // runtime/control/interaction placement contract to the default payload.
-  const G1_DEFAULT_JSON_MAX_BYTES = 25_000;
+  // MAR-401: question_flow (four fixed rounds + the lettered fallback menu)
+  // adds ~800 bytes — G1 measured 25,764 post-change; deliberate bounded raise.
+  const G1_DEFAULT_JSON_MAX_BYTES = 26_500;
 
   it(`default-depth G1 response JSON stays under ${G1_DEFAULT_JSON_MAX_BYTES} bytes`, () => {
     const bytes = Buffer.byteLength(JSON.stringify(planDepth(G1_EMAIL)), "utf8");
@@ -893,7 +930,7 @@ function howItWorksLines(md: string): string[] {
 
 /** The single "Connect:" line body from the product card (empty when absent). */
 function connectLineBody(md: string): string {
-  return md.match(/\*\*Connect:\*\* (.+)/)?.[1] ?? "";
+  return md.match(/\*\*Connections:\*\* (.+)/)?.[1] ?? "";
 }
 
 /**
@@ -1068,12 +1105,14 @@ describe("MAR-385 — attended in-chat dry run is a named option, honest about s
     );
   }
 
-  it("the rendered menu always names the attended dry run with its honest disclosure", () => {
+  it("the fallback menu always names the attended dry run with its honest disclosure", () => {
+    // MAR-402: the lettered menu renders only on the no-choice-UI fallback
+    // surface, so the MAR-385 disclosure invariant is asserted there.
     for (const goal of [GOLDEN, COMPETITOR, ONE_SHOT, HEAVY_GOAL]) {
-      const md = planGoal(goal).summary_markdown;
-      expect(md, goal.slice(0, 30)).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
-      expect(md).toContain("one-shot, nothing persists");
-      expect(md).toContain("no saved agent, no trigger, approval is this chat");
+      const menu = planGoal(goal).question_flow.fallback_menu_markdown;
+      expect(menu, goal.slice(0, 30)).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
+      expect(menu).toContain("one-shot, nothing persists");
+      expect(menu).toContain("no saved agent, no trigger, approval is this chat");
     }
   });
 
@@ -1092,13 +1131,11 @@ describe("MAR-385 — attended in-chat dry run is a named option, honest about s
       const r = planGoal(goal);
       // premise: the plan itself says this must outlive the session.
       expect(r.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(true);
-      const md = r.summary_markdown;
-      // The default menu points at the build-brief letter ("(C)"); the
-      // prepare-runtime menu has no build letter and names the tool directly.
-      expect(md).toContain("A walking skeleton, not the build; export_build_brief");
-      expect(md).toContain("is the deliverable");
-      // and it still fits the Layer-1 brevity bound with the added disclosure.
-      expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
+      const menu = r.question_flow.fallback_menu_markdown;
+      expect(menu).toContain("A walking skeleton, not the build; export_build_brief");
+      expect(menu).toContain("is the deliverable");
+      // and the card itself still fits the Layer-1 brevity bound.
+      expect(r.summary_markdown.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
     }
   });
 
@@ -1106,11 +1143,14 @@ describe("MAR-385 — attended in-chat dry run is a named option, honest about s
     const r = planGoal(ONE_SHOT);
     // premise: the recommended runtime is the chat itself — nothing to outlive.
     expect(r.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(false);
-    const md = r.summary_markdown;
+    const menu = r.question_flow.fallback_menu_markdown;
     // the dry-run option is present…
-    expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
-    // …but with no walking-skeleton framing and no push to export_build_brief.
-    expect(md).not.toContain("walking skeleton");
-    expect(md).not.toContain("export_build_brief");
+    expect(menu).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
+    // …but with no walking-skeleton framing and no push to export_build_brief,
+    // on either surface.
+    for (const surface of [menu, r.summary_markdown]) {
+      expect(surface).not.toContain("walking skeleton");
+      expect(surface).not.toContain("export_build_brief");
+    }
   });
 });

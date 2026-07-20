@@ -66,13 +66,20 @@ describe("MAR-398 AC1 — brief renders a card, measurably shorter on all three 
       expect(md).not.toContain("**Interaction surface:**");
     });
 
-    it(`${name} keeps the five card blocks`, () => {
-      const md = plan(goal).summary_markdown;
-      expect(md).toContain("**You want:**");
+    it(`${name} keeps the four golden-card sections (MAR-402)`, () => {
+      const out = plan(goal);
+      const md = out.summary_markdown;
+      expect(md).toContain("**What you'll get:**");
       expect(md).toContain("**Route:**");
-      expect(md).toContain("**Connect:**");
-      expect(md).toContain("**Key safeguard:**");
-      expect(md).toContain("### How do you want to continue?");
+      expect(md).toContain("**Risks & safeguards:**");
+      expect(md).toContain("**Connections:**");
+      expect(md).toContain("**Recommended setup:** ⭐");
+      // The lettered menu left the card — it lives on as the no-choice-UI
+      // fallback (MAR-402), and the clickable rounds replace it (MAR-401).
+      expect(md).not.toContain("### How do you want to continue?");
+      expect(out.question_flow.fallback_menu_markdown).toContain(
+        "### How do you want to continue?",
+      );
     });
 
     it(`${name} states what is missing, explicitly, either way`, () => {
@@ -107,8 +114,12 @@ describe("MAR-398 — runtime facts appear on the card only when they are a live
   it("a durable goal is told where it runs and what wakes it", () => {
     const out = plan(PRICING);
     expect(out.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(true);
-    expect(out.summary_markdown).toContain("**Runs on:**");
-    expect(out.summary_markdown).toContain("**Wakes on:**");
+    // MAR-402: the two runtime facts now live on the one ⭐ Recommended-setup line.
+    expect(out.summary_markdown).toContain("**Recommended setup:** ⭐");
+    expect(out.summary_markdown).toContain("wakes on:");
+    expect(out.summary_markdown).toContain(
+      out.goal_to_product_wizard.runtime_recommendation.label,
+    );
   });
 
   it("an attended goal is not told to build durable infrastructure", () => {
@@ -153,10 +164,12 @@ describe("MAR-398 AC2 — demoted content is moved, not deleted", () => {
   }
 });
 
-describe("MAR-398 AC3 — the menu is at most four options with one recommendation", () => {
+describe("MAR-398 AC3 — the fallback menu is at most four options with one recommendation", () => {
+  // MAR-402: the lettered menu renders by default only in the no-choice-UI
+  // fallback surface, so the AC3 bounds are asserted there.
   for (const [name, goal] of DOGFOOD) {
     it(`${name} offers at most four lettered options`, () => {
-      const md = plan(goal).summary_markdown;
+      const md = plan(goal).question_flow.fallback_menu_markdown;
       const letters = md.match(/^[A-Z]\) /gm) ?? [];
       expect(letters.length).toBeGreaterThan(0);
       expect(letters.length).toBeLessThanOrEqual(4);
@@ -166,9 +179,9 @@ describe("MAR-398 AC3 — the menu is at most four options with one recommendati
 
     it(`${name} marks exactly one option recommended`, () => {
       const out = plan(goal);
-      const marks = out.summary_markdown.match(/— Recommended$/gm) ?? [];
+      const marks = out.question_flow.fallback_menu_markdown.match(/— Recommended$/gm) ?? [];
       // While a clarifying question is pending, answering it is the recommended
-      // action and it is rendered above the menu, not inside it.
+      // action (a question_flow round now), so no menu line is marked.
       const expected = out.clarifying_questions.length > 0 ? 0 : 1;
       expect(marks.length).toBe(expected);
     });
@@ -180,7 +193,7 @@ describe("MAR-398 AC3 — the menu is at most four options with one recommendati
       if (out.clarifying_questions.length > 0) continue;
       const starred = out.goal_to_product_wizard.recommended_next_click.id;
       if (starred === "answer_clarifying_questions") continue;
-      expect(out.summary_markdown).toMatch(/— Recommended$/m);
+      expect(out.question_flow.fallback_menu_markdown).toMatch(/— Recommended$/m);
     }
   });
 });
@@ -243,12 +256,16 @@ describe("MAR-398 — Option F is not offered where it cannot work", () => {
     const out = plan(PRICING);
     expect(out.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(true);
     expect(out.summary_markdown).not.toContain("no-code assistant");
+    expect(out.question_flow.fallback_menu_markdown).not.toContain("no-code assistant");
   });
 
   it("a small attended goal still gets the assistant surface", () => {
-    // Bleed-guard for MAR-395: the option must survive where it does work.
+    // Bleed-guard for MAR-395: the option must survive where it does work —
+    // starred in the fallback menu, and the ⭐ build surface round agrees.
     const out = plan("summarize my inbox for me now");
     expect(out.goal_to_product_wizard.recommended_next_click.id).toBe("build_in_assistant");
-    expect(out.summary_markdown).toContain("no-code assistant");
+    expect(out.question_flow.fallback_menu_markdown).toContain("no-code assistant");
+    const buildSurface = out.question_flow.rounds.find((r) => r.id === "build_surface");
+    expect(buildSurface?.recommended_option_id).toBe("cowork");
   });
 });

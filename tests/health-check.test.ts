@@ -279,20 +279,40 @@ describe("health_check tool", () => {
     expect(SERVER_INSTRUCTIONS).toContain("explain_component");
   });
 
-  // MAR-147: instructions guide the client to elicit user constraints
-  // (read-only / unattended / no outbound) before planning, and explicitly
-  // forbid coaching "magic" trigger vocabulary.
-  it("SERVER_INSTRUCTIONS guides constraint elicitation without magic vocab (MAR-147)", () => {
+  // MAR-403 (card-first flip): MAR-147's constraint elicitation is INVERTED —
+  // plan_workflow is called immediately on the raw goal and `question_flow`
+  // carries the missing-constraint rounds after the card; only the magic-vocab
+  // ban and the natural-phrasing rule survive from MAR-147.
+  it("SERVER_INSTRUCTIONS is card-first: plan immediately, constraints after (MAR-403)", () => {
     const lower = SERVER_INSTRUCTIONS.toLowerCase();
-    // elicits the three constraint axes seen in dogfooding
+    // plan first, never interrogate first
+    expect(lower).toContain("immediately");
+    expect(lower).toContain("do not interrogate");
+    // the MAR-147 pre-plan elicitation is gone
+    expect(lower).not.toContain("briefly ask the user");
+    expect(lower).not.toContain("gather the user's constraints");
+    expect(lower).toContain("question_flow");
+    // the constraint axes are still named — as things NOT to pre-ask
     expect(lower).toContain("read-only");
     expect(lower).toContain("unattended");
     expect(lower).toMatch(/outbound|publish externally|send email/);
-    // tells the client to ask before planning
     expect(lower).toContain("constraint");
-    // forbids coaching magic vocabulary
+    // magic-vocab ban intact (MAR-147's surviving half)
     expect(lower).toContain("magic");
     expect(lower).toMatch(/natural phrasing|user actually phrases|plain language/);
+  });
+
+  // MAR-403: the native-choice rendering contract — card verbatim, then
+  // question_flow rounds one at a time via clickable chips, recommended option
+  // marked, lettered fallback only for clients with no choice UI.
+  it("SERVER_INSTRUCTIONS carries the native-choice rendering contract (MAR-403)", () => {
+    const lower = SERVER_INSTRUCTIONS.toLowerCase();
+    expect(lower).toContain("one at a time");
+    expect(lower).toContain("clickable choice");
+    expect(lower).toContain("marking the recommended option");
+    expect(lower).toContain("round 0");
+    expect(lower).toContain("fallback_menu_markdown");
+    expect(lower).toContain("no clickable choice ui");
   });
 
   it("SERVER_INSTRUCTIONS describe the stateless scope compiler handoff (MAR-249)", () => {

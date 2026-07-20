@@ -110,7 +110,7 @@ describe("plan_workflow — automation_clearance on every plan (MAR-168)", () =>
     // technical-depth detail.
     expect(r.summary_markdown.split("\n\n")[0]).toContain("Approval enforced");
     expect(r.summary_markdown).toContain("This is L3 human-in-the-loop by default.");
-    expect(r.summary_markdown).toContain("**Key safeguard:**");
+    expect(r.summary_markdown).toContain("**Risks & safeguards:**");
   });
 
   it("a public-publish goal is L4 / human always required", () => {

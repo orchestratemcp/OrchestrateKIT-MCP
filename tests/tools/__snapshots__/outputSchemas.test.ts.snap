@@ -735,6 +735,7 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       "observability": "advisory",
       "planning_order": "grounded",
       "playbook": "grounded",
+      "question_flow": "advisory",
       "recommended_route": "grounded",
       "route_score": "computed",
       "route_status": "grounded",
@@ -749,6 +750,92 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
     },
     "grounding_note": "[text]",
     "model": "registry-deterministic",
+  },
+  "question_flow": {
+    "contract": "orchestratekit.question_flow.v1",
+    "fallback_menu_markdown": "[text]",
+    "rounds": [
+      {
+        "fold_answer_into_recall": true,
+        "id": "confirm_card",
+        "options": [
+          {
+            "id": "yes",
+            "label": "Yes — continue",
+          },
+          {
+            "id": "change_something",
+            "label": "Change something (tell me what)",
+          },
+        ],
+        "question": "Is this correct?",
+        "recommended_option_id": "yes",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "build_surface",
+        "options": [
+          {
+            "id": "cowork",
+            "label": "Cowork — a no-code assistant surface",
+          },
+          {
+            "id": "self_host_local",
+            "label": "Self-host on your computer — only while your computer is on",
+          },
+          {
+            "id": "self_host_hosted",
+            "label": "Self-host hosted — always on",
+          },
+          {
+            "id": "other",
+            "label": "Somewhere else",
+          },
+        ],
+        "question": "Where should this agent live?",
+        "recommended_option_id": "self_host_local",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "process",
+        "options": [
+          {
+            "id": "save_plan",
+            "label": "Save the plan — Linear / Notion / Obsidian",
+          },
+          {
+            "id": "build_prompt",
+            "label": "Turn it into a build prompt — Claude Code / Cursor / Codex",
+          },
+        ],
+        "question": "How do you want to take the plan forward?",
+        "recommended_option_id": "build_prompt",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "monitoring",
+        "options": [
+          {
+            "id": "cowork",
+            "label": "In the client session (Cowork) — you watch it run",
+          },
+          {
+            "id": "lab",
+            "label": "LAB — log each run locally",
+          },
+          {
+            "id": "dash",
+            "label": "DASH — import the agent manifest and monitor runs",
+          },
+          {
+            "id": "other",
+            "label": "Somewhere else / none",
+          },
+        ],
+        "question": "How do you want to watch it once it runs?",
+        "recommended_option_id": "lab",
+      },
+    ],
   },
   "recommended_route": [
     {
@@ -1434,6 +1521,7 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       "observability": "advisory",
       "planning_order": "grounded",
       "playbook": "grounded",
+      "question_flow": "advisory",
       "recommended_route": "grounded",
       "route_score": "computed",
       "route_status": "computed",
@@ -1448,6 +1536,92 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
     },
     "grounding_note": "[text]",
     "model": "registry-deterministic",
+  },
+  "question_flow": {
+    "contract": "orchestratekit.question_flow.v1",
+    "fallback_menu_markdown": "[text]",
+    "rounds": [
+      {
+        "fold_answer_into_recall": true,
+        "id": "confirm_card",
+        "options": [
+          {
+            "id": "yes",
+            "label": "Yes — continue",
+          },
+          {
+            "id": "change_something",
+            "label": "Change something (tell me what)",
+          },
+        ],
+        "question": "Is this correct?",
+        "recommended_option_id": "yes",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "build_surface",
+        "options": [
+          {
+            "id": "cowork",
+            "label": "Cowork — a no-code assistant surface",
+          },
+          {
+            "id": "self_host_local",
+            "label": "Self-host on your computer — only while your computer is on",
+          },
+          {
+            "id": "self_host_hosted",
+            "label": "Self-host hosted — always on",
+          },
+          {
+            "id": "other",
+            "label": "Somewhere else",
+          },
+        ],
+        "question": "Where should this agent live?",
+        "recommended_option_id": "self_host_hosted",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "process",
+        "options": [
+          {
+            "id": "save_plan",
+            "label": "Save the plan — Linear / Notion / Obsidian",
+          },
+          {
+            "id": "build_prompt",
+            "label": "Turn it into a build prompt — Claude Code / Cursor / Codex",
+          },
+        ],
+        "question": "How do you want to take the plan forward?",
+        "recommended_option_id": "build_prompt",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "monitoring",
+        "options": [
+          {
+            "id": "cowork",
+            "label": "In the client session (Cowork) — you watch it run",
+          },
+          {
+            "id": "lab",
+            "label": "LAB — log each run locally",
+          },
+          {
+            "id": "dash",
+            "label": "DASH — import the agent manifest and monitor runs",
+          },
+          {
+            "id": "other",
+            "label": "Somewhere else / none",
+          },
+        ],
+        "question": "How do you want to watch it once it runs?",
+        "recommended_option_id": "lab",
+      },
+    ],
   },
   "recommended_route": [
     {
@@ -2289,6 +2463,7 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       "observability": "advisory",
       "planning_order": "grounded",
       "playbook": "grounded",
+      "question_flow": "advisory",
       "recommended_route": "grounded",
       "route_score": "computed",
       "route_status": "grounded",
@@ -2303,6 +2478,92 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
     },
     "grounding_note": "[text]",
     "model": "registry-deterministic",
+  },
+  "question_flow": {
+    "contract": "orchestratekit.question_flow.v1",
+    "fallback_menu_markdown": "[text]",
+    "rounds": [
+      {
+        "fold_answer_into_recall": true,
+        "id": "confirm_card",
+        "options": [
+          {
+            "id": "yes",
+            "label": "Yes — continue",
+          },
+          {
+            "id": "change_something",
+            "label": "Change something (tell me what)",
+          },
+        ],
+        "question": "Is this correct?",
+        "recommended_option_id": "yes",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "build_surface",
+        "options": [
+          {
+            "id": "cowork",
+            "label": "Cowork — a no-code assistant surface",
+          },
+          {
+            "id": "self_host_local",
+            "label": "Self-host on your computer — only while your computer is on",
+          },
+          {
+            "id": "self_host_hosted",
+            "label": "Self-host hosted — always on",
+          },
+          {
+            "id": "other",
+            "label": "Somewhere else",
+          },
+        ],
+        "question": "Where should this agent live?",
+        "recommended_option_id": "self_host_local",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "process",
+        "options": [
+          {
+            "id": "save_plan",
+            "label": "Save the plan — Linear / Notion / Obsidian",
+          },
+          {
+            "id": "build_prompt",
+            "label": "Turn it into a build prompt — Claude Code / Cursor / Codex",
+          },
+        ],
+        "question": "How do you want to take the plan forward?",
+        "recommended_option_id": "build_prompt",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "monitoring",
+        "options": [
+          {
+            "id": "cowork",
+            "label": "In the client session (Cowork) — you watch it run",
+          },
+          {
+            "id": "lab",
+            "label": "LAB — log each run locally",
+          },
+          {
+            "id": "dash",
+            "label": "DASH — import the agent manifest and monitor runs",
+          },
+          {
+            "id": "other",
+            "label": "Somewhere else / none",
+          },
+        ],
+        "question": "How do you want to watch it once it runs?",
+        "recommended_option_id": "lab",
+      },
+    ],
   },
   "recommended_route": [
     {

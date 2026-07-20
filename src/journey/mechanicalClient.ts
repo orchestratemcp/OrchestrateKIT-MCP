@@ -483,7 +483,11 @@ export function assertFixturePlanExpectation(
  * named step, not a mystery snapshot diff.
  */
 export function assertAttendedDryRun(p: PlanWorkflowOutput, fixture: string): DryRunJourneyStep {
-  const md = p.summary_markdown;
+  // MAR-402: the lettered menu no longer renders on the Layer-1 card — the
+  // no-choice-UI fallback in `question_flow` is the surface that carries it
+  // (and the one a client with no chips actually renders), so the invariant is
+  // asserted there.
+  const md = p.question_flow.fallback_menu_markdown;
   // MAR-385's actual predicate for the walking-skeleton disclosure: the runtime
   // must outlive the session AND the goal expresses build intent. (A durable goal
   // phrased as a one-off task — e.g. "run agents in a loop" — earns no nag.)
@@ -686,7 +690,7 @@ export function followAssistantSurface(
         `observed "${p.scope_assessment.size}"`,
     );
   }
-  const menu = parseMenu(p.summary_markdown);
+  const menu = parseMenu(p.question_flow.fallback_menu_markdown);
   const offered = menu.find((o) => o.action_id === "assistant_surface");
   if (!offered) {
     throw new Error(

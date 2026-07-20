@@ -4,7 +4,9 @@
  * A client is supposed to WALK THE MENU rather than improvise (the MAR-363
  * failure). That contract only holds if the menu the planner renders can
  * actually be read back as a set of discrete, identifiable options. This suite
- * asserts exactly that, against the same `summary_markdown` a real client sees.
+ * asserts exactly that. MAR-402: the lettered menu renders by default only in
+ * `question_flow.fallback_menu_markdown` (the no-choice-UI fallback surface a
+ * chip-less client renders), so that is the surface parsed here.
  *
  * Deterministic and offline, like everything else in this repo: no LLM, no
  * network, no key. Grading a *client's* behaviour against these options is the
@@ -29,7 +31,7 @@ describe("MAR-387 — the rendered menu is machine-readable", () => {
   for (const fixture of JOURNEY_FIXTURES) {
     it(`${fixture.name}: every rendered option resolves to a known action`, () => {
       const plan = planForJourney(fixture.goal, registry);
-      const menu = parseMenu(plan.summary_markdown);
+      const menu = parseMenu(plan.question_flow.fallback_menu_markdown);
       expect(menu.length).toBeGreaterThan(0);
       for (const option of menu) {
         // An "unknown" here means the menu wording drifted away from what a
@@ -42,7 +44,7 @@ describe("MAR-387 — the rendered menu is machine-readable", () => {
   it("the attended dry run is always present as a lettered option", () => {
     for (const fixture of JOURNEY_FIXTURES) {
       const plan = planForJourney(fixture.goal, registry);
-      const menu = parseMenu(plan.summary_markdown);
+      const menu = parseMenu(plan.question_flow.fallback_menu_markdown);
       expect(menu.some((o) => o.action_id === "attended_dry_run")).toBe(true);
     }
   });
@@ -65,7 +67,7 @@ describe("MAR-387 — the rendered menu is machine-readable", () => {
 
   it("a small goal renders the assistant surface as a parseable, starred option", () => {
     const plan = planForJourney(fixtureByName("one_shot_inbox_summary").goal, registry);
-    const menu = parseMenu(plan.summary_markdown);
+    const menu = parseMenu(plan.question_flow.fallback_menu_markdown);
     const assistant = menu.find((o) => o.action_id === "assistant_surface");
     expect(assistant, "assistant-surface option is offered").toBeDefined();
     expect(assistant?.marked_recommended).toBe(true);
@@ -81,7 +83,7 @@ describe("MAR-387 — the rendered menu is machine-readable", () => {
 
   it("resolves letters case-insensitively and rejects absent ones", () => {
     const plan = planForJourney(fixtureByName("one_shot_inbox_summary").goal, registry);
-    const menu = parseMenu(plan.summary_markdown);
+    const menu = parseMenu(plan.question_flow.fallback_menu_markdown);
     // MAR-398: the menu is four options now, so which action sits at "C" is
     // layout. What this test is actually about is case-insensitive resolution,
     // so assert that directly instead of pinning an incidental letter->action.
@@ -94,7 +96,7 @@ describe("MAR-387 — the rendered menu is machine-readable", () => {
     for (const fixture of JOURNEY_FIXTURES) {
       const plan = planForJourney(fixture.goal, registry);
       const expected = clickIdToMenuAction(plan.goal_to_product_wizard.recommended_next_click.id);
-      const recommended = parseMenu(plan.summary_markdown).filter((o) => o.marked_recommended);
+      const recommended = parseMenu(plan.question_flow.fallback_menu_markdown).filter((o) => o.marked_recommended);
 
       if (expected === "answer_clarifying_questions") {
         expect(recommended, `fixture ${fixture.name}`).toHaveLength(0);
