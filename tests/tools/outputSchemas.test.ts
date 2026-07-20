@@ -148,7 +148,8 @@ describe("MAR-163 — plan_workflow output schema", () => {
     const sc = result.structuredContent as Record<string, unknown>;
     expect(text).toBe(sc.summary_markdown);
     expect(text).toContain("**Route:**");
-    expect(text).toContain("**How it works**");
+    // MAR-398: Layer 1 is a decision card; the walkthrough moved to `standard`.
+    expect(text).toContain("**Key safeguard:**");
     expect(sc.next_action_menu).toBeDefined();
     expect(text).not.toContain('"recommended_route"');
     expect(text).not.toContain('"next_action_menu"');

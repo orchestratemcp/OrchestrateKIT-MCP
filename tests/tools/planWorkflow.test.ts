@@ -1068,13 +1068,13 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
     const r = plan("read emails and draft a reply for approval");
     expect(r.summary_markdown).toContain("### How do you want to continue?");
     expect(r.summary_markdown).toContain("A) Save this plan to Linear / Obsidian / Notion");
-    expect(r.summary_markdown).toContain("B) Generate a portable agent handoff prompt");
-    // MAR-386: medium scope → the dry run (E) is the ⭐, not the build prompt.
-    expect(r.summary_markdown).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor");
-    expect(r.summary_markdown).not.toMatch(/^C\).*Recommended$/m);
-    expect(r.summary_markdown).toContain("D) Review or change the plan");
-    expect(r.summary_markdown).toMatch(/^E\) Run it attended in this chat now.*— Recommended$/m);
-    expect(r.summary_markdown.match(/^[A-E]\) /gm)?.length).toBe(5);
+    // MAR-398: four options, not six. The handoff-prompt and review options
+    // stay in next_action_menu (asserted below) and at standard depth.
+    expect(r.summary_markdown).toContain("B) Turn it into a build prompt for Claude Code / Codex / Cursor");
+    expect(r.summary_markdown).not.toMatch(/^B\).*Recommended$/m);
+    // MAR-386: medium scope → the dry run is the ⭐, not the build prompt.
+    expect(r.summary_markdown).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
+    expect(r.summary_markdown.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(r.summary_markdown).not.toContain("**Alternatives:**");
     expect(r.summary_markdown).not.toContain("**Next — pick one:**");
     expect(r.summary_markdown).not.toContain("Show technical plan");
@@ -1156,8 +1156,12 @@ describe("planWorkflow — output_depth layering (MAR-224)", () => {
   it("brief shows the recommended route as a one-line chain, not numbered blocks", () => {
     const r = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "brief" }, registry);
     expect(r.summary_markdown).toContain("**Route:**");
-    expect(r.summary_markdown).toContain("**How it works**");
     expect(r.summary_markdown).not.toContain("**Steps:**");
+    // MAR-398: the "How it works" walkthrough is a report block, not a decision
+    // — it renders from `standard` up.
+    expect(r.summary_markdown).not.toContain("**How it works**");
+    const std = planWorkflow({ goal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" }, registry);
+    expect(std.summary_markdown).toContain("**How it works**");
   });
 
   it("brief still returns the full recommended_route array in JSON", () => {

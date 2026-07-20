@@ -150,8 +150,11 @@ describe("MAR-386 — the ⭐ recommendation is scope-aware", () => {
   it("SMALL → the attended dry run is still OFFERED, just not starred", () => {
     // Capability is never gated: the ⭐ moved, the option did not disappear.
     const md = plan(SMALL_ONE_SHOT).summary_markdown;
-    expect(md).toMatch(/^E\) Run it attended in this chat now/m);
-    expect(md).not.toMatch(/^E\).*— Recommended$/m);
+    // MAR-398: letter-agnostic — the menu is four options now, so which letter
+    // the dry run lands on is layout. Its PRESENCE (capability never gated) and
+    // its NOT being starred at SMALL are the invariants.
+    expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
+    expect(md).not.toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
   });
 
   it("MEDIUM → the attended dry run is the ⭐ (dry run first, then build)", () => {
@@ -191,13 +194,18 @@ describe("MAR-386 — scope never gates capability (all options present at every
     return (tail.match(/^[A-E]\) /gm) ?? []).map((s) => s.trim());
   }
 
-  it("every size renders all five A–E continuation options", () => {
+  it("every size renders a bounded menu that still offers the core actions", () => {
     for (const goal of [SMALL_ONE_SHOT, MEDIUM_GMAIL_LEAD, MEDIUM_COMPETITOR, LARGE_MULTI_AGENT]) {
       const md = plan(goal).summary_markdown;
-      expect(menuLetters(md).length, goal.slice(0, 30)).toBe(5);
-      // The attended dry run (E) is present at EVERY size — a large task can still
+      // MAR-398: at most four options, contiguous from A. The point of this test
+      // is unchanged — scope never GATES capability — but Layer 1 no longer
+      // spends six lines proving it; the full set stays in next_action_menu.
+      const letters = menuLetters(md);
+      expect(letters.length, goal.slice(0, 30)).toBeGreaterThan(0);
+      expect(letters.length, goal.slice(0, 30)).toBeLessThanOrEqual(4);
+      // The attended dry run is present at EVERY size — a large task can still
       // be dry-run, a small one can still be saved/built.
-      expect(md).toMatch(/^E\) Run it attended in this chat now/m);
+      expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
       // Plan export is present at every size too; large scope names the exact
       // Linear action while keeping the other destinations visible.
       expect(md).toMatch(
@@ -209,18 +217,20 @@ describe("MAR-386 — scope never gates capability (all options present at every
   it("exactly one menu option is marked Recommended, and it follows scope", () => {
     // MAR-395: small → the assistant surface (F); medium → the dry run (E);
     // large → the Linear/save option.
+    // MAR-398: letter-agnostic. Which letter carries the ⭐ is layout; WHICH
+    // ACTION it marks is the contract, and that is unchanged.
     const smallMd = plan(SMALL_ONE_SHOT).summary_markdown;
-    expect(smallMd).toMatch(/^F\).*— Recommended$/m);
-    expect(smallMd).not.toMatch(/^E\).*— Recommended$/m);
+    expect(smallMd).toMatch(/^[A-Z]\) Build it in a no-code assistant.*— Recommended$/m);
+    expect(smallMd).not.toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
 
     const mediumMd = plan(MEDIUM_GMAIL_LEAD).summary_markdown;
-    expect(mediumMd).toMatch(/^E\).*— Recommended$/m);
-    expect(mediumMd).not.toMatch(/^C\).*Recommended$/m);
+    expect(mediumMd).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
+    expect(mediumMd).not.toMatch(/^[A-Z]\) Turn it into a build prompt.*— Recommended$/m);
 
     const largeMd = plan(LARGE_MULTI_AGENT).summary_markdown;
     // The visible label names the same Linear-issues action as the machine click.
     expect(largeMd).toMatch(/Generate this plan as Linear issues.*— Recommended/);
-    expect(largeMd).not.toMatch(/^E\).*— Recommended$/m);
+    expect(largeMd).not.toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
 
     // Never more than one recommendation in a single menu.
     for (const md of [smallMd, mediumMd, largeMd]) {

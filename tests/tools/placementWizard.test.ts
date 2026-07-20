@@ -79,8 +79,10 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
     // MAR-378's runtime-fit contract above is unchanged; only the next click is.
     expect(result.clarifying_questions.map((q) => q.id)).toContain("calendar_notification");
     expect(wizard.recommended_next_click.id).toBe("answer_clarifying_questions");
-    expect(result.summary_markdown).toContain("Managed background worker / durable workflow");
-    expect(result.summary_markdown).toContain("provider-neutral");
+    // MAR-398: operating-bundle prose now renders from `standard` up.
+    const mdA = plan(PROMPT_A, "standard").summary_markdown;
+    expect(mdA).toContain("Managed background worker / durable workflow");
+    expect(mdA).toContain("provider-neutral");
     expect(result.summary_markdown).toContain("Email sending: excluded per your constraint");
     expect(result.summary_markdown).not.toContain("Email Send (disabled for this goal)");
     expect(result.summary_markdown).not.toContain("Use recommended setup");
@@ -103,7 +105,10 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
     expect(wizard.runtime_alternatives.map((option) => option.runtime_class)).not.toContain(
       "managed_durable_background",
     );
-    expect(result.summary_markdown).toContain("Slack is an interaction surface, not hosting");
+    // MAR-398: operating-bundle prose now renders from `standard` up.
+    expect(plan(PROMPT_B, "standard").summary_markdown).toContain(
+      "Slack is an interaction surface, not hosting",
+    );
     expect(result.summary_markdown).not.toContain("Always-on managed runner");
     expect(result.summary_markdown).not.toContain("Use recommended setup");
   });
@@ -121,7 +126,8 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
     expect(wizard.control_surface.recommended.id).toBe("client_control");
     expect(wizard.interaction_surface.recommended.id).toBe("client_interaction");
     expect(wizard.trigger_explanation.what_wakes_it_up).toContain("Nothing runs until the user asks");
-    expect(result.summary_markdown).toContain("Client/chat runtime");
+    // MAR-398: operating-bundle prose now renders from `standard` up.
+    expect(plan(PROMPT_C, "standard").summary_markdown).toContain("Client/chat runtime");
     expect(result.summary_markdown).not.toContain("Managed scheduled job");
     expect(result.summary_markdown).not.toContain("background worker");
   });
@@ -151,10 +157,19 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
     }
   });
 
-  it("keeps runtime-fit detail in guided through deep output", () => {
-    for (const depth of ["guided", "brief", "standard"] as const) {
-      expect(plan(PROMPT_A, depth).summary_markdown).toContain("Recommended runtime setup");
+  /**
+   * MAR-398 CHANGES THIS CONTRACT DELIBERATELY. MAR-378 put runtime-fit detail
+   * in guided/brief; MAR-398 moves it behind `standard` because Layer 1 is a
+   * decision card ("runtime class, control/interaction surface, triggers …
+   * moves behind output_depth standard/technical. Nothing is deleted — it stops
+   * being Layer 1"). The detail is unchanged and still asserted below; only the
+   * depth it appears at moved, and guided/brief now assert its ABSENCE.
+   */
+  it("keeps runtime-fit detail from standard through deep output", () => {
+    for (const depth of ["guided", "brief"] as const) {
+      expect(plan(PROMPT_A, depth).summary_markdown).not.toContain("Recommended runtime setup");
     }
+    expect(plan(PROMPT_A, "standard").summary_markdown).toContain("Recommended runtime setup");
     for (const depth of ["technical", "deep"] as const) {
       const result = plan(PROMPT_A, depth);
       expect(result.summary_markdown).toContain("### Runtime-fit setup");
