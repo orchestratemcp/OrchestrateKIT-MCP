@@ -198,8 +198,22 @@ export function validateSeededAttendedExecution(
  * MAR-385's copy changes, this is the single edit point for the journey side.
  */
 export const ATTENDED_DRY_RUN_MARKERS = {
-  /** The always-present E) option line (never improvised). */
-  option_line: /^E\) Run it attended in this chat now/m,
+  /**
+   * The always-present attended-dry-run option line (never improvised).
+   *
+   * MAR-398: letter-AGNOSTIC. This used to pin `^E\)`, which made an incidental
+   * layout detail part of a safety invariant — when the menu shortened to four
+   * options the dry run moved to C) and the invariant reported the option as
+   * "missing" while it was present and correctly worded.
+   *
+   * The substance is unchanged and still enforced in full: the option must be
+   * present, and must carry the ephemerality and no-durable-agent disclosures
+   * (asserted immediately below). Only the coupling to a specific letter is
+   * dropped — which is what the rest of the menu contract already does
+   * deliberately: `menu.ts` classifies every option by its TEXT precisely so a
+   * "re-ordered or re-lettered menu keeps resolving correctly".
+   */
+  option_line: /^[A-Z]\) Run it attended in this chat now/m,
   ephemeral: "one-shot, nothing persists",
   no_durable_agent: "no saved agent, no trigger, approval is this chat",
   /** Durable+build goals only: the chat run is a rehearsal, not the deliverable. */

@@ -52,38 +52,36 @@ function expectTargetProductCard(md: string) {
   expect(md).toMatch(/\n## [^\n]+/);
   expect(md).toContain("**You want:**");
   expect(md).toContain("**Route:**");
-  expect(md).toContain("**How it works**");
-  expect(md).toMatch(/^1\. /m);
   expect(md).toContain("**Connect:**");
   expect(md).toContain("**Key safeguard:**");
-  expect(md).toContain("**Build controls:**");
   expect(md).toContain("### How do you want to continue?");
-  // MAR-395: F) — the no-code assistant surface — is always offered too.
-  expect(md.match(/^[A-F]\) /gm)?.length).toBe(6);
-  // MAR-385: the attended in-chat dry run is always a named option, never improvised.
-  expect(md).toMatch(/^E\) Run it attended in this chat now/m);
-  expect(md).toMatch(/^F\) Build it in a no-code assistant/m);
+
+  // MAR-398: Layer 1 is a decision card, not a report. The step walkthrough and
+  // the build-controls advice are the same on nearly every plan, so they moved
+  // behind `standard` — asserted still-present there by decisionCard.test.ts.
+  expect(md).not.toContain("**How it works**");
+  expect(md).not.toContain("**Build controls:**");
+
+  // MAR-398: at most four options, contiguous from A. Six options with one
+  // starred is a list to read, not a decision to make.
+  const letters = md.match(/^[A-Z]\) /gm) ?? [];
+  expect(letters.length).toBeGreaterThan(0);
+  expect(letters.length).toBeLessThanOrEqual(4);
+  expect(letters).toEqual(["A) ", "B) ", "C) ", "D) "].slice(0, letters.length));
+
+  // MAR-385: the attended in-chat dry run is always a named option, never
+  // improvised, and always carries its ephemerality disclosure. MAR-398 makes
+  // the assertion letter-agnostic — the option's PRESENCE and WORDING are the
+  // invariant; which letter it lands on is layout.
+  expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
   expect(md).toContain("one-shot, nothing persists");
-  if (/^A\) Prepare .+ — Next achievable step$/m.test(md)) {
-    expect(md).toMatch(/^A\) Prepare .+ — Next achievable step$/m);
-    expect(md).toContain("B) Review or change Runtime, Control surface, Interaction surface, or Trigger");
-    expect(md).toContain("C) Show the technical plan and deployment alternatives");
-    expect(md).not.toContain("Turn it into a build prompt");
-  } else {
-    expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
-    expect(md).toContain("B) Generate a portable agent handoff prompt");
-    // MAR-386: the build prompt is no longer the blanket ⭐. It stays present but
-    // unmarked; the scope-aware ⭐ is the dry run (small/medium) or Linear (large).
-    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor");
-    expect(md).not.toMatch(/^C\) Turn it into a build prompt.*Recommended$/m);
-    expect(md).toContain("D) Review or change the plan");
-  }
-  // MAR-386/395: every goal routed through this helper is small/medium with no
-  // pending question, so the ⭐ is either the assistant surface (F, small) or the
-  // attended dry run (E, medium) — and exactly one of them is marked.
+
+  // MAR-386/395/398: every goal routed through this helper is small/medium with
+  // no pending question, so the ⭐ is either the no-code assistant surface
+  // (small) or the attended dry run (medium) — and exactly one is marked.
   const menuTail = md.slice(md.indexOf("### How do you want to continue?"));
-  const starredDryRun = /^E\) Run it attended in this chat now.*— Recommended$/m.test(menuTail);
-  const starredAssistant = /^F\) Build it in a no-code assistant.*— Recommended$/m.test(menuTail);
+  const starredDryRun = /^[A-Z]\) Run it attended in this chat now.*— Recommended$/m.test(menuTail);
+  const starredAssistant = /^[A-Z]\) Build it in a no-code assistant.*— Recommended$/m.test(menuTail);
   expect(starredDryRun || starredAssistant).toBe(true);
   expect((menuTail.match(/— Recommended/g) ?? []).length).toBe(1);
   expect(md).not.toContain("**Route spine:**");
@@ -155,13 +153,9 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     const md = plan("guided").summary_markdown;
     expect(md).toContain("### How do you want to continue?");
     expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
-    expect(md).toContain("B) Generate a portable agent handoff prompt");
     // MAR-386: HEAVY_GOAL is medium → the dry run (E) is the ⭐, not the build prompt.
-    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor");
-    expect(md).not.toMatch(/^C\).*Recommended$/m);
-    expect(md).toContain("D) Review or change the plan");
-    expect(md).toMatch(/^E\) Run it attended in this chat now.*— Recommended$/m);
-    expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
+    expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(md).not.toContain("**Alternatives:**");
     expect(md).not.toContain("**Next — pick one:**");
     expect(md).not.toContain("Show technical plan");
@@ -300,9 +294,7 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     expectTargetProductCard(md);
     expect(md).toContain("## ");
     expect(md).toContain("**Route:**");
-    expect(md).toContain("**How it works**");
     expect(md).toContain("**Connect:**");
-    expect(md).toContain("**Build controls:**");
     expect(md).toContain("### How do you want to continue?");
     expect(md).not.toContain("**Goal -> Product wizard**");
     expect(md).not.toContain("3. **Build in**");
@@ -377,9 +369,7 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
 
       expectTargetProductCard(md);
       expect(md).toContain("**Route:**");
-      expect(md).toContain("**How it works**");
       expect(md).toContain("**Connect:**");
-      expect(md).toContain("**Build controls:**");
       expect(md).toContain("### How do you want to continue?");
       expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
       expect(md).not.toContain("### Steps");
@@ -435,20 +425,12 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
     expect(md).toMatch(
       /\*\*Route:\*\* .*Schema Validation.*Email Draft.*Human Approval Gate.*Slack Notification.*CRM Note Write.*Audit Log/,
     );
-    expect(md).toContain("**How it works**");
-    expect(md).toContain("1. Read and extract lead data from the inbox.");
-    expect(md).toContain("5. After approval, update CRM and alert sales in Slack.");
     expect(md).toContain("**Connect:** Gmail inbox · CRM (HubSpot/Salesforce/Pipedrive) · Slack sales channel · optional email sender · Model provider.");
     expect(md).toContain("v1 should probably stay draft-only");
-    expect(md).toContain("**Build controls:** Add state, retries, credential-failure handling, tests, and rollback/compensation in the build brief.");
     expect(md).toContain("### How do you want to continue?");
     expect(md).toContain("A) Save this plan to Linear / Obsidian / Notion");
-    expect(md).toContain("B) Generate a portable agent handoff prompt");
-    expect(md).toContain("C) Turn it into a build prompt for Claude Code / Codex / Cursor");
-    expect(md).not.toMatch(/^C\).*Recommended$/m);
-    expect(md).toContain("D) Review or change the plan");
-    expect(md).toMatch(/^E\) Run it attended in this chat now.*— Recommended$/m);
-    expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
+    expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(md).not.toContain("**Next — pick one:**");
     expect(md).not.toContain("**Next:");
     expect(md).not.toContain("Show technical plan");
@@ -535,7 +517,7 @@ describe("MAR-346 - first-run honesty for weak composed matches", () => {
     expect(md).toContain('"I want something that checks competitor prices every morning"');
     expect(md).toContain('"tells sales if anything changed"');
     expect(md).not.toContain("No external product connection required");
-    expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(r.next_action_menu.length).toBeGreaterThan(3);
   });
 
@@ -566,7 +548,7 @@ describe("MAR-346 - first-run honesty for weak composed matches", () => {
     expect(md).toContain("**Not covered by the registry:**");
     expect(md).toContain('"When a PR opens"');
     expect(md).toContain('"review it for risky changes but don\'t edit anything"');
-    expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
+    expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(r.next_action_menu.length).toBeGreaterThan(3);
   });
 });
@@ -627,15 +609,13 @@ describe("MAR-344 — first-run showcase prompts render as concise product cards
       expect(md).toContain(starter.expectedTitle);
       expect(md).toContain("**You want:**");
       expect(md).toContain("**Route:**");
-      expect(md).toContain("**How it works**");
       expect(md).toContain("**Connect:**");
       for (const expectedConnect of starter.expectedConnect) {
         expect(md).toContain(expectedConnect);
       }
       expect(md).toContain("**Key safeguard:**");
-      expect(md).toContain("**Build controls:**");
       expect(md).toContain("### How do you want to continue?");
-      expect(md.match(/^[A-E]\) /gm)?.length).toBe(5);
+      expect(md.match(/^[A-D]\) /gm)?.length).toBe(4);
       expect(md).not.toContain("**Next — pick one:**");
       expect(md).not.toContain("**Next:");
       expect(md).not.toContain("Show technical plan");
@@ -1091,7 +1071,7 @@ describe("MAR-385 — attended in-chat dry run is a named option, honest about s
   it("the rendered menu always names the attended dry run with its honest disclosure", () => {
     for (const goal of [GOLDEN, COMPETITOR, ONE_SHOT, HEAVY_GOAL]) {
       const md = planGoal(goal).summary_markdown;
-      expect(md, goal.slice(0, 30)).toMatch(/^E\) Run it attended in this chat now/m);
+      expect(md, goal.slice(0, 30)).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
       expect(md).toContain("one-shot, nothing persists");
       expect(md).toContain("no saved agent, no trigger, approval is this chat");
     }
@@ -1128,7 +1108,7 @@ describe("MAR-385 — attended in-chat dry run is a named option, honest about s
     expect(r.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(false);
     const md = r.summary_markdown;
     // the dry-run option is present…
-    expect(md).toMatch(/^E\) Run it attended in this chat now/m);
+    expect(md).toMatch(/^[A-Z]\) Run it attended in this chat now/m);
     // …but with no walking-skeleton framing and no push to export_build_brief.
     expect(md).not.toContain("walking skeleton");
     expect(md).not.toContain("export_build_brief");

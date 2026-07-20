@@ -195,10 +195,39 @@ export type RegistrySnapshot = {
   workers?: Worker[];
 };
 
+/** Max characters for a purpose RENDERED into a card. Structured fields are never cut. */
+export const PURPOSE_DISPLAY_MAX_CHARS = 80;
+
+/**
+ * The component's purpose as one complete sentence.
+ *
+ * MAR-398: this used to truncate at 80 chars before returning, and the result
+ * went straight into `RouteStep.purpose` — a STRUCTURED, paste-ready field that
+ * also backs `goal_to_product_wizard.steps[].label`. So an assistant configured
+ * from a build brief shipped with instructions cut mid-sentence: "Queues
+ * workflow tasks for asynchronous, ordered or fan-out execution with ret…".
+ *
+ * Truncation is a RENDERING concern. The full sentence is preserved here;
+ * `truncatePurposeForDisplay` shortens it at the point of display.
+ */
 export function componentPurpose(component: Component): string {
   // One-line purpose from summary (first sentence)
-  const first = component.summary.split(/[.!?]/)[0]?.trim() ?? component.summary;
-  return first.length > 80 ? first.slice(0, 77) + "…" : first;
+  return component.summary.split(/[.!?]/)[0]?.trim() ?? component.summary;
+}
+
+/**
+ * Shorten a purpose for a bounded card surface. Cuts on a WORD boundary so the
+ * result never ends mid-word, which is what made the old output read as broken
+ * rather than merely abbreviated.
+ */
+export function truncatePurposeForDisplay(
+  purpose: string,
+  max: number = PURPOSE_DISPLAY_MAX_CHARS,
+): string {
+  if (purpose.length <= max) return purpose;
+  const cut = purpose.slice(0, max - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > max / 2 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
 /**

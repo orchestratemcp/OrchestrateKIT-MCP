@@ -26,6 +26,7 @@ import {
   computeModelTierProfile,
   computeCredentialAdvisory,
   toRouteStep,
+  truncatePurposeForDisplay,
   type ComposeInput,
   type CredentialAdvisory,
   type RegistrySnapshot,
@@ -1760,15 +1761,23 @@ export function goalHasBuildIntent(goal: string): boolean {
  * stands alone and never nags toward `export_build_brief`. `briefRef` names how
  * the surrounding menu refers to the build-brief step (e.g. `" (C)"`).
  */
-function dryRunMenuLine(letter: string, buildDeliverable: boolean, briefRef: string): string {
+/**
+ * The dry-run option's TEXT, without a letter prefix. MAR-398 assigns menu
+ * letters after filtering, so the text has to exist independently of them.
+ */
+function dryRunMenuText(buildDeliverable: boolean, briefRef: string): string {
   const base =
-    `${letter}) Run it attended in this chat now — one-shot, nothing persists: ` +
+    `Run it attended in this chat now — one-shot, nothing persists: ` +
     `no saved agent, no trigger, approval is this chat.`;
   if (!buildDeliverable) return base;
   return (
     base +
     ` A walking skeleton, not the build; export_build_brief${briefRef} is the deliverable.`
   );
+}
+
+function dryRunMenuLine(letter: string, buildDeliverable: boolean, briefRef: string): string {
+  return `${letter}) ${dryRunMenuText(buildDeliverable, briefRef)}`;
 }
 
 /**
@@ -2622,6 +2631,41 @@ function renderHostingAndMonitoringFull(hm: HostingAndMonitoring): string[] {
   return lines;
 }
 
+/**
+ * MAR-398 — the two runtime facts that belong on the CARD, and only when they
+ * are a live question.
+ *
+ * MAR-378 put the whole operating bundle in Layer 1; MAR-398 says move it behind
+ * `standard`. Rendering it on the dogfood goals shows both are partly right, and
+ * the split is by runtime rather than by depth:
+ *
+ *   - On a DURABLE goal the bundle is the best content in the plan. "Where does
+ *     this live when my laptop is shut, and what starts it?" is the decision,
+ *     and "a short morning check needs a durable timer, not an always-on worker"
+ *     is a real call the user cannot make themselves.
+ *   - On an ATTENDED goal it is actively WRONG, not merely verbose. The refund
+ *     plan says "stops when the client/session closes; that is correct for
+ *     explicitly attended work" and then recommends a control surface to
+ *     "persist approvals while the user is offline". "summarize my inbox for me
+ *     now" is told to "manage schedule, secrets, status, retries" — there is no
+ *     schedule. The surface lines default to the durable answer regardless of
+ *     runtime; that is the same template-leak class as the calendar copy.
+ *
+ * So the card carries runtime + trigger when the plan must outlive the session,
+ * and nothing otherwise. The control/interaction-surface lines — the two that
+ * leak — stay at `standard` at every runtime, where their reasons are shown in
+ * full and can be judged rather than skimmed.
+ */
+function renderRuntimeEssentialsCard(wizard: GoalToProductWizard): string[] {
+  if (!wizard.runtime_requirements.must_run_while_user_offline) return [];
+  const runtime = wizard.runtime_recommendation;
+  return [
+    `**Runs on:** ${runtime.label} _(${runtime.availability})_ — ${runtime.reason}`,
+    `**Wakes on:** ${wizard.trigger_explanation.label} — ${runtime.offline_behavior}`,
+    ``,
+  ];
+}
+
 function renderOperatingBundleCompact(wizard: GoalToProductWizard): string[] {
   const runtime = wizard.runtime_recommendation;
   const setup = wizard.recommended_setup;
@@ -3217,10 +3261,19 @@ function buildPlacementContract(input: {
       : "Requires a Slack connection and cannot execute the workflow.",
     "requires setup",
   );
+  // MAR-398: this is the FALLBACK recommendation for every route that is neither
+  // interactive nor Slack-shaped, so its copy lands on email, billing and
+  // reporting plans too. It was written for the calendar case only — "Review
+  // suggested times and approve the calendar write" appeared verbatim on the
+  // refund and email-triage plans, describing a step neither route contains.
+  // The generic wording names the approval; the calendar variant is used only
+  // when the route actually writes to a calendar.
   const approvalInteraction = placementOption(
     "approval_inbox_interaction",
     "Approval inbox / generated UI",
-    "Review suggested times and approve the calendar write from a durable, provider-neutral surface.",
+    ids.has("calendar_write")
+      ? "Review suggested times and approve the calendar write from a durable, provider-neutral surface."
+      : "Review what the workflow prepared and approve it from a durable, provider-neutral surface.",
     "Requires a separately built UI and durable backend; no working approval UI exists yet.",
     "requires setup",
   );
@@ -4212,7 +4265,10 @@ function howItWorksSteps(steps: RouteStep[]): string[] {
       "Notify the right channel and write an audit log.",
     ];
   }
-  return steps.slice(0, 7).map((s) => s.purpose.replace(/\s+/g, " ").trim());
+  // MAR-398: rendered prose, so it truncates here rather than in the field.
+  return steps
+    .slice(0, 7)
+    .map((s) => truncatePurposeForDisplay(s.purpose.replace(/\s+/g, " ").trim()));
 }
 
 function buildControlsLine(steps: RouteStep[]): string {
@@ -4285,44 +4341,86 @@ function renderProductCardContinueMenu(
   // them drift the moment the ⭐ depended on anything but size (it now also
   // depends on `build_target`). One source of truth, no drift.
   const starred = wizard.recommended_next_click.id;
-  const starDryRun = starred === "dry_run_in_chat";
-  const starLinear = starred === "generate_linear_project";
-  const starAssistant = starred === "build_in_assistant";
-  const mark = (line: string, on: boolean) => (on ? `${line} — Recommended` : line);
-  const savePlanLine = starLinear
-    ? "Generate this plan as Linear issues; Obsidian / Notion export remains available"
-    : "Save this plan to Linear / Obsidian / Notion";
-  // Always offered (capability is never gated); only the ⭐ moves. The wording
-  // names the class, matching assistantSurfaceClick's honesty rule.
-  const fLine = mark(
-    `F) Build it in a no-code assistant — Claude Cowork or a ChatGPT GPT`,
-    starAssistant,
-  );
+  const savePlanLine =
+    starred === "generate_linear_project"
+      ? "Generate this plan as Linear issues; Obsidian / Notion export remains available"
+      : "Save this plan to Linear / Obsidian / Notion";
 
-  if (showRuntimeLayout) {
-    const eLine = dryRunMenuLine("E", buildDeliverable, "");
-    return [
-      `### How do you want to continue?`,
-      ``,
-      `A) ${wizard.recommended_setup.label} — Next achievable step`,
-      `B) Review or change Runtime, Control surface, Interaction surface, or Trigger`,
-      `C) Show the technical plan and deployment alternatives`,
-      mark(`D) ${savePlanLine}`, starLinear),
-      mark(eLine, starDryRun),
-      fLine,
-      ``,
-    ];
-  }
-  const eLine = dryRunMenuLine("E", buildDeliverable, " (C)");
+  /**
+   * MAR-398: at most FOUR options, exactly one recommendation.
+   *
+   * Six options (A–F) with one starred is a list to read, not a decision to
+   * make — and the calling model then appended a SECOND lettered menu on top of
+   * it (MAR-397). Candidates are declared in priority order, each tagged with
+   * the ⭐ id it satisfies; the starred option is always kept, the rest fill the
+   * remaining slots by priority, and letters are assigned last so they are
+   * always contiguous from A with no gaps left by a filtered option.
+   *
+   * Nothing is lost: every dropped option is still in `next_action_menu` (the
+   * structured field clients actually act on) and in the standard/technical
+   * renders. Capability is still never gated — only what Layer 1 spends space on.
+   */
+  const offlineDurable = wizard.runtime_requirements.must_run_while_user_offline;
+
+  type Candidate = { text: string; starWhen?: string; include: boolean };
+  const candidates: Candidate[] = showRuntimeLayout
+    ? [
+        { text: `${wizard.recommended_setup.label} — Next achievable step`, include: true },
+        {
+          text: dryRunMenuText(buildDeliverable, ""),
+          starWhen: "dry_run_in_chat",
+          include: true,
+        },
+        { text: savePlanLine, starWhen: "generate_linear_project", include: true },
+        {
+          // MAR-398: a no-code assistant cannot host something that must keep
+          // running while the user is offline, so offering it on a durable goal
+          // is an option that cannot be taken. Attended/interactive goals — the
+          // other half of this layout, and MAR-395's whole point — keep it.
+          text: `Build it in a no-code assistant — Claude Cowork or a ChatGPT GPT`,
+          starWhen: "build_in_assistant",
+          include: !offlineDurable,
+        },
+        { text: `Show the technical plan and deployment alternatives`, include: true },
+      ]
+    : [
+        { text: savePlanLine, starWhen: "generate_linear_project", include: true },
+        { text: `Turn it into a build prompt for Claude Code / Codex / Cursor`, include: true },
+        {
+          text: dryRunMenuText(buildDeliverable, ""),
+          starWhen: "dry_run_in_chat",
+          include: true,
+        },
+        {
+          text: `Build it in a no-code assistant — Claude Cowork or a ChatGPT GPT`,
+          starWhen: "build_in_assistant",
+          include: !offlineDurable,
+        },
+        { text: `Generate a portable agent handoff prompt`, include: true },
+        { text: `Review or change the plan`, include: true },
+      ];
+
+  const available = candidates.filter((c) => c.include);
+  // The starred option can never be the one that gets cut.
+  const starredCandidate = available.find((c) => c.starWhen === starred);
+  const chosen = new Set(
+    [
+      ...(starredCandidate ? [starredCandidate] : []),
+      ...available.filter((c) => c !== starredCandidate),
+    ].slice(0, 4),
+  );
+  // Restore priority order for display — "keep the starred one" is a selection
+  // rule, not a reordering rule.
+  const ordered = available.filter((c) => chosen.has(c));
+
+  const LETTERS = ["A", "B", "C", "D"];
   return [
     `### How do you want to continue?`,
     ``,
-    mark(`A) ${savePlanLine}`, starLinear),
-    `B) Generate a portable agent handoff prompt`,
-    `C) Turn it into a build prompt for Claude Code / Codex / Cursor`,
-    `D) Review or change the plan`,
-    mark(eLine, starDryRun),
-    fLine,
+    ...ordered.map((c, i) => {
+      const line = `${LETTERS[i]}) ${c.text}`;
+      return c.starWhen === starred ? `${line} — Recommended` : line;
+    }),
     ``,
   ];
 }
@@ -4375,19 +4473,33 @@ function buildGuidedPlanMarkdown(
     lines.push(`Email sending: excluded per your constraint`, ``);
   }
 
-  lines.push(`**How it works**`);
-  howItWorksSteps(steps).forEach((step, index) => {
-    lines.push(`${index + 1}. ${step}`);
-  });
-  lines.push(``);
+  // MAR-398: `fullSteps` is true exactly at `standard` depth, so it doubles as
+  // the "this is Layer 2, show the report" switch. At guided/brief the card
+  // carries the five decision blocks and nothing else; the step walkthrough and
+  // the operating bundle (runtime / control surface / interaction surface /
+  // trigger) move to standard — demoted, never deleted, and both are still in
+  // the structured output at every depth.
+  if (fullSteps) {
+    lines.push(`**How it works**`);
+    howItWorksSteps(steps).forEach((step, index) => {
+      lines.push(`${index + 1}. ${step}`);
+    });
+    lines.push(``);
 
-  lines.push(...renderOperatingBundleCompact(goalToProductWizard));
+    lines.push(...renderOperatingBundleCompact(goalToProductWizard));
+  } else {
+    // MAR-398: on a durable goal, "where does this run and what starts it" is a
+    // card-level decision — see renderRuntimeEssentialsCard. Empty on attended
+    // goals, where the same block contradicts the runtime it just recommended.
+    lines.push(...renderRuntimeEssentialsCard(goalToProductWizard));
+  }
 
   if (fullSteps) {
     lines.push(`**Steps:**`);
     for (const s of steps) {
       lines.push(
-        `${s.step}. **${s.component_name ?? s.component_id}** — ${s.purpose} · _${riskStepNote(s.risk_level)}_`,
+        // MAR-398: truncate at RENDER time only; s.purpose keeps the full sentence.
+        `${s.step}. **${s.component_name ?? s.component_id}** — ${truncatePurposeForDisplay(s.purpose)} · _${riskStepNote(s.risk_level)}_`,
       );
     }
     lines.push(``);
@@ -4401,9 +4513,31 @@ function buildGuidedPlanMarkdown(
     ``,
   );
 
-  lines.push(...renderCoverageBlock(coverage, steps, goal));
+  const coverageLines = renderCoverageBlock(coverage, steps, goal);
+  lines.push(...coverageLines);
 
-  lines.push(...renderConstraintBlockCompact(constraintCoverage));
+  const constraintLines = renderConstraintBlockCompact(constraintCoverage);
+  lines.push(...constraintLines);
+
+  // MAR-398: "what's missing" is one of the five card blocks, and it has to
+  // answer even when the answer is "nothing". A gap block that is simply ABSENT
+  // when coverage is clean reads identically to a gap block that was never
+  // computed — which is the exact ambiguity that let a missing refund step pass
+  // for a complete plan. Say it out loud.
+  //
+  // The question is about goal STEPS, so it keys off the uncovered-demand
+  // heading alone. Unsupported supply ("in the route but not asked for") is the
+  // opposite complaint — surplus, not shortfall — and constraint gaps get their
+  // own block; neither one answers "did you drop part of what I asked for?".
+  const saysMissing = coverageLines.some((line) =>
+    line.startsWith("**Not covered by the registry:**"),
+  );
+  if (!fullSteps && !saysMissing) {
+    lines.push(
+      `**What's missing:** Nothing — every step in your goal is carried by this route.`,
+      ``,
+    );
+  }
 
   const cardRouteIds = new Set(steps.map((s) => s.component_id));
   let cardSafeguard: string;
@@ -4421,6 +4555,15 @@ function buildGuidedPlanMarkdown(
           : `Keep the human approval gate before any irreversible action`;
       if (explicitlyDraftOnly(goal) && cardRouteIds.has("email_draft")) {
         cardSafeguard += "; keep the reply draft-only and leave sending disabled";
+      } else if (cardRouteIds.has("optional_email_send")) {
+        // MAR-398: this recommendation used to live in the "How it works"
+        // narrative ("Optionally send the approved email; v1 should probably
+        // stay draft-only"), which moved to `standard` depth. The narrative is
+        // a walkthrough and demoting it is fine — but this line is a SAFETY
+        // recommendation about an outbound send the user never explicitly
+        // asked for, and Layer 1 is exactly where that belongs. Carried into
+        // the safeguard rather than dropped with the block it happened to sit in.
+        cardSafeguard += "; sending stays optional and v1 should probably stay draft-only";
       }
       if (cardRouteIds.has("scheduled_trigger") && cardRouteIds.has("slack_notification")) {
         cardSafeguard =
@@ -4456,7 +4599,11 @@ function buildGuidedPlanMarkdown(
       ? "human always required"
       : "human-in-the-loop by default";
   lines.push(`**Key safeguard:** ${cardSafeguard}. This is ${clearance.level} ${cardAutoText}.`, ``);
-  lines.push(`**Build controls:** ${buildControlsLine(steps)}`, ``);
+  // MAR-398: build controls are near-identical advice on every plan — real, but
+  // not a decision. Standard depth onward.
+  if (fullSteps) {
+    lines.push(`**Build controls:** ${buildControlsLine(steps)}`, ``);
+  }
 
   if (clarifyingQuestions.length > 0) {
     // Only the scope-completion questions offer "Not sure yet" — promising it
