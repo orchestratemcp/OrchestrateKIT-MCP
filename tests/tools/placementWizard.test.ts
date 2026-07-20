@@ -167,7 +167,14 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
    */
   it("keeps runtime-fit detail from standard through deep output", () => {
     for (const depth of ["guided", "brief"] as const) {
-      expect(plan(PROMPT_A, depth).summary_markdown).not.toContain("Recommended runtime setup");
+      const md = plan(PROMPT_A, depth).summary_markdown;
+      // The full 7-bullet bundle is a Layer-2 report block…
+      expect(md).not.toContain("Recommended runtime setup");
+      // …but PROMPT_A must outlive the session, so the two facts that ARE a
+      // decision — where it runs, what wakes it — stay on the card. This is the
+      // half of MAR-378's contract that was load-bearing.
+      expect(md).toContain("**Runs on:**");
+      expect(md).toContain("**Wakes on:**");
     }
     expect(plan(PROMPT_A, "standard").summary_markdown).toContain("Recommended runtime setup");
     for (const depth of ["technical", "deep"] as const) {

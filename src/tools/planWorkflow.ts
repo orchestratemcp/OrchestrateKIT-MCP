@@ -2631,6 +2631,41 @@ function renderHostingAndMonitoringFull(hm: HostingAndMonitoring): string[] {
   return lines;
 }
 
+/**
+ * MAR-398 — the two runtime facts that belong on the CARD, and only when they
+ * are a live question.
+ *
+ * MAR-378 put the whole operating bundle in Layer 1; MAR-398 says move it behind
+ * `standard`. Rendering it on the dogfood goals shows both are partly right, and
+ * the split is by runtime rather than by depth:
+ *
+ *   - On a DURABLE goal the bundle is the best content in the plan. "Where does
+ *     this live when my laptop is shut, and what starts it?" is the decision,
+ *     and "a short morning check needs a durable timer, not an always-on worker"
+ *     is a real call the user cannot make themselves.
+ *   - On an ATTENDED goal it is actively WRONG, not merely verbose. The refund
+ *     plan says "stops when the client/session closes; that is correct for
+ *     explicitly attended work" and then recommends a control surface to
+ *     "persist approvals while the user is offline". "summarize my inbox for me
+ *     now" is told to "manage schedule, secrets, status, retries" — there is no
+ *     schedule. The surface lines default to the durable answer regardless of
+ *     runtime; that is the same template-leak class as the calendar copy.
+ *
+ * So the card carries runtime + trigger when the plan must outlive the session,
+ * and nothing otherwise. The control/interaction-surface lines — the two that
+ * leak — stay at `standard` at every runtime, where their reasons are shown in
+ * full and can be judged rather than skimmed.
+ */
+function renderRuntimeEssentialsCard(wizard: GoalToProductWizard): string[] {
+  if (!wizard.runtime_requirements.must_run_while_user_offline) return [];
+  const runtime = wizard.runtime_recommendation;
+  return [
+    `**Runs on:** ${runtime.label} _(${runtime.availability})_ — ${runtime.reason}`,
+    `**Wakes on:** ${wizard.trigger_explanation.label} — ${runtime.offline_behavior}`,
+    ``,
+  ];
+}
+
 function renderOperatingBundleCompact(wizard: GoalToProductWizard): string[] {
   const runtime = wizard.runtime_recommendation;
   const setup = wizard.recommended_setup;
@@ -4452,6 +4487,11 @@ function buildGuidedPlanMarkdown(
     lines.push(``);
 
     lines.push(...renderOperatingBundleCompact(goalToProductWizard));
+  } else {
+    // MAR-398: on a durable goal, "where does this run and what starts it" is a
+    // card-level decision — see renderRuntimeEssentialsCard. Empty on attended
+    // goals, where the same block contradicts the runtime it just recommended.
+    lines.push(...renderRuntimeEssentialsCard(goalToProductWizard));
   }
 
   if (fullSteps) {

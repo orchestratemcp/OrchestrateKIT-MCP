@@ -60,7 +60,10 @@ describe("MAR-398 AC1 — brief renders a card, measurably shorter on all three 
       const md = plan(goal).summary_markdown;
       expect(md).not.toContain("**How it works**");
       expect(md).not.toContain("**Build controls:**");
-      expect(md).not.toContain("**Runtime:**");
+      // The full operating bundle (7 bullets, ~900 chars) stays at standard.
+      expect(md).not.toContain("**Recommended runtime setup**");
+      expect(md).not.toContain("**Control surface:**");
+      expect(md).not.toContain("**Interaction surface:**");
     });
 
     it(`${name} keeps the five card blocks`, () => {
@@ -80,6 +83,54 @@ describe("MAR-398 AC1 — brief renders a card, measurably shorter on all three 
       expect(md).toMatch(/\*\*(What's missing|Not covered by the registry|Gaps):\*\*/);
     });
   }
+});
+
+/**
+ * The runtime split — MAR-378 vs MAR-398, decided on evidence.
+ *
+ * MAR-378 put the whole operating bundle in Layer 1; MAR-398 said move it behind
+ * `standard`. Rendering it on the dogfood goals showed the right cut is by
+ * RUNTIME, not by depth:
+ *
+ *   - Durable goal → the bundle is the best content in the plan. "Where does it
+ *     live when my laptop is shut, and what starts it?" is the decision.
+ *   - Attended goal → it CONTRADICTS itself. The refund plan says "stops when
+ *     the client/session closes; that is correct for explicitly attended work",
+ *     then recommends a control surface to "persist approvals while the user is
+ *     offline". "summarize my inbox for me now" is told to "manage schedule,
+ *     secrets, status, retries" — there is no schedule.
+ *
+ * So the card carries runtime + trigger only when the plan must outlive the
+ * session. This is the half of MAR-378 that was load-bearing, kept.
+ */
+describe("MAR-398 — runtime facts appear on the card only when they are a live question", () => {
+  it("a durable goal is told where it runs and what wakes it", () => {
+    const out = plan(PRICING);
+    expect(out.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(true);
+    expect(out.summary_markdown).toContain("**Runs on:**");
+    expect(out.summary_markdown).toContain("**Wakes on:**");
+  });
+
+  it("an attended goal is not told to build durable infrastructure", () => {
+    // The refund goal explicitly runs only when asked. Offering it an offline
+    // approval inbox is not verbosity, it is a wrong recommendation.
+    const out = plan(REFUND);
+    expect(out.goal_to_product_wizard.runtime_requirements.must_run_while_user_offline).toBe(false);
+    expect(out.summary_markdown).not.toContain("**Runs on:**");
+    expect(out.summary_markdown).not.toContain("persist approvals while the user is offline");
+  });
+
+  it("a one-shot goal is never told to manage a schedule it does not have", () => {
+    const md = plan("summarize my inbox for me now").summary_markdown;
+    expect(md).not.toContain("**Runs on:**");
+    expect(md.toLowerCase()).not.toContain("manage schedule");
+  });
+
+  it("the full bundle is still reachable at standard for every runtime", () => {
+    for (const goal of [PRICING, REFUND]) {
+      expect(plan(goal, "standard").summary_markdown).toContain("**Recommended runtime setup**");
+    }
+  });
 });
 
 describe("MAR-398 AC2 — demoted content is moved, not deleted", () => {
