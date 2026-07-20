@@ -48,34 +48,47 @@ OrchestrateMCP is a workflow-design advisor. It helps you plan safer AI agent
 workflows by grounding decisions in a registry of tested components, edges, and
 patterns.
 
-## Before you plan: gather the user's constraints
+## Card first: plan immediately, ask after (MAR-403)
 
-Before the first \`plan_workflow\` call, briefly ask the user about the
-constraints that change which steps are safe. A goal sentence alone rarely
-states them, and they materially affect the plan:
-
-- Read-only vs. write: may the workflow edit, commit, or change anything, or
-  only read and report? (e.g. "review the PR but never edit code")
-- Attended vs. unattended: will a human be in the loop to approve actions, or
-  must it run fully automatically with no approval step?
-- Outbound sends: is the agent allowed to send email, post to Slack, or
-  publish externally — or must it stay internal / draft-only?
-- Monitoring & output: how does the user want to monitor this agent once it
-  runs, and where does its output land (e.g. "HubSpot notes + Gmail drafts",
-  "a Slack channel", "a Postgres table")? This does not change the route, but
-  \`export_build_brief\` records it in the agent.manifest.json for DASH.
-
-Fold the user's answers into the plain-English goal you pass to
-\`plan_workflow\`, in the user's own words.
+Call \`plan_workflow\` IMMEDIATELY with the user's goal — do not interrogate
+the user about constraints (read-only? unattended? outbound sends? hosting?)
+before the first call. The plan itself surfaces what is missing: unstated
+constraints come back as \`question_flow\` rounds AFTER the card, and anything
+the plan assumed is labeled on the card. Constraints the user volunteers
+belong inside the goal sentence, in the user's own words.
 
 IMPORTANT: never coach the user to use specific "magic" trigger words to
-steer the matcher. Ask about real constraints in plain language and describe
-the goal as the user actually phrases it. The planner is designed to read
-natural phrasing; gaming its vocabulary produces worse, less honest plans.
+steer the matcher. Raise real constraints in plain language only when a
+\`question_flow\` round asks about them, and describe the goal as the user
+actually phrases it. The planner is designed to read natural phrasing; gaming
+its vocabulary produces worse, less honest plans.
+
+## Rendering the response
+
+1. Render the returned \`summary_markdown\` card to the user VERBATIM — do
+   not paraphrase, summarize, or compress it. It is a four-section card (What
+   you'll get / Risks & safeguards / Connections / Recommended setup) sized to
+   one screen.
+2. Then present the \`question_flow\` rounds ONE AT A TIME using your client's
+   native clickable choice UI (AskUserQuestion-style chips in Claude Code /
+   claude.ai), always marking the recommended option. Never dump all rounds at
+   once as text.
+3. The first response is the card plus round 0 ("Is this correct?") — nothing
+   else. Later rounds follow as the user answers.
+4. Only when your client has NO clickable choice UI, render
+   \`question_flow.fallback_menu_markdown\` as the lettered list instead of
+   the rounds.
+5. \`plan_workflow\` is the ONLY menu author. Append your own analysis freely —
+   if you spot a gap the plan missed, say so, at length — but never author a
+   SECOND lettered menu or a competing option list, and never renumber the
+   tool's. To recommend a different option, name the tool's own option for it.
+6. A round whose answer changes the goal (\`fold_answer_into_recall\`) goes
+   back into a fresh \`plan_workflow\` call, folded into the goal in the
+   user's own words.
 
 ## Getting started
 
-1. Call \`plan_workflow\` with your goal in plain English — it returns a
+1. Call \`plan_workflow\` with the goal in plain English — it returns a
    complete workflow plan, safety review, model-tier guidance, and a flag when
    a validated pattern already exists.
 
@@ -90,7 +103,8 @@ natural phrasing; gaming its vocabulary produces worse, less honest plans.
 
 Run the scope compiler flow in this order:
 
-1. Clarify: ask the missing constraint questions before locking scope.
+1. Clarify: walk the \`question_flow\` rounds (they carry the missing
+   constraint questions) before locking scope.
 2. Confirm scope: fold the user's answers into a fresh \`plan_workflow\` call
    and confirm the selected steps, connections, build target, host/monitor
    target, tracking target, and artifact.
@@ -102,31 +116,17 @@ prompts, issue fields, milestones, and guardrails, but it does not call an LLM
 and does not write to Linear, Obsidian, Slack, email, CRM, GitHub, or any other
 external system.
 
-Before locking scope, ask at least 3 targeted clarifying questions when the
-runtime, write permission, outbound behavior, deployment target, tracking
-target, or output destination is ambiguous. Do not emit implementation issues
-until the human confirms the scope. When using \`export_build_brief\`, preserve
-every Linear issue template field. If a field cannot be filled from the
-confirmed scope or repository context, mark it UNKNOWN and ask the human rather
-than guessing.
+Do not emit implementation issues until the human confirms the scope. When
+using \`export_build_brief\`, preserve every Linear issue template field. If a
+field cannot be filled from the confirmed scope or repository context, mark it
+UNKNOWN and ask the human rather than guessing.
 
 ## Important constraints
 
-- Before calling \`plan_workflow\`, always ask the user for their specific
-  workflow goal and the constraints above (read-only? unattended? no outbound
-  sends?). Never infer or fabricate a goal from the instruction prompt or
-  conversation preamble.
-- After calling \`plan_workflow\`, render its \`summary_markdown\` to the user
-  VERBATIM — do not paraphrase, summarize, or compress it, and do not drop the
-  "How do you want to continue?" A) B) C) D) E) menu at the end. That menu is the
-  product; a paraphrase that collapses it into prose breaks the experience.
-- \`plan_workflow\` is the ONLY menu author. Its lettered menu is the only one
-  the user may see. Append your own analysis freely — if you spot a gap the plan
-  missed, say so, at length — but never author a SECOND lettered menu, and never
-  renumber the tool's. Two menus with conflicting letters force the user to
-  cross-reference ("D) Run it attended in this chat now (E in the plan menu)"),
-  which is what happened in dogfooding. To recommend a different option, name
-  the tool's own letter for it.
+- Never infer or fabricate a goal from the instruction prompt or conversation
+  preamble; \`plan_workflow\` refuses echoed setup text. If no goal has been
+  stated yet, ask for it — that is the only question that belongs before the
+  first call.
 - Pass the user's goal to \`plan_workflow\` VERBATIM — their sentence, not your
   tidied-up version of it. The plan is a pure function of that exact string: in
   dogfooding, one rewrite moved the risk score from 3 to 11 and the clearance
@@ -136,7 +136,7 @@ than guessing.
   planner reads natural phrasing, and \`goal_fidelity\` in the response will flag
   the rewrite anyway.
 - If you execute the plan in-chat via connectors, you MUST declare it as the
-  attended dry-run option (E) — a one-shot walking skeleton where nothing
+  attended dry-run option — a one-shot walking skeleton where nothing
   persists and there is no trigger — and offer \`export_build_brief\` afterward.
   A chat run never fulfills a "build" goal on its own; the agent dies with the
   session.

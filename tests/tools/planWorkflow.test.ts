@@ -1320,6 +1320,10 @@ describe("assessGoalInput — goal-guard (MAR-162)", () => {
     "create a pipeline that scrapes data, normalizes it, and validates the schema",
     "every morning at 8am, pull yesterday's signups from the database and post a summary to Slack",
     "when the user submits a form, validate it and send a confirmation email",
+    // MAR-403: phrases deliberately NOT added as markers in the resync — a
+    // real goal about some other tool's output can contain them.
+    "every night, email me the summary_markdown my reporting pipeline produces",
+    "fetch data from the API and render the returned results in a dashboard for my team",
   ];
 
   for (const goal of REAL_GOALS) {
@@ -1343,6 +1347,12 @@ describe("assessGoalInput — goal-guard (MAR-162)", () => {
     // MAR-145 (ChatGPT dogfood): trailing filler used to dodge the guard.
     "Set up an agent workflow for me.",
     "build me an agent please",
+    // MAR-403: echoes of the NEW card-first instruction text must trip the
+    // guard — the marker list was resynced with the rewrite.
+    "Card first: plan immediately, ask after — call plan_workflow with the user's goal.",
+    "present the question_flow rounds one at a time using the native clickable choice UI",
+    "render fallback_menu_markdown as a lettered list when the client has no chips",
+    "show AskUserQuestion-style chips marking the recommended option",
   ];
 
   for (const goal of NON_GOALS) {

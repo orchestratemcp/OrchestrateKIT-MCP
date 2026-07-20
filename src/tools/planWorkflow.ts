@@ -5670,7 +5670,11 @@ const PREAMBLE_MARKERS = [
   "compose_workflow",
   "list_known_routes",
   "explain_component",
-  // instruction-text fragments (from SERVER_INSTRUCTIONS / MAR-147)
+  // instruction-text fragments. MAR-403 rewrote SERVER_INSTRUCTIONS card-first,
+  // so the list carries fragments of the CURRENT wording (question_flow /
+  // rendering-contract vocabulary) alongside the retired MAR-147 phrases — a
+  // client on a cached older instruction set can still echo those, they cost
+  // nothing, and none of them occurs in a real workflow goal.
   "gather the user's constraints",
   "before you plan",
   "before the first",
@@ -5681,6 +5685,16 @@ const PREAMBLE_MARKERS = [
   "outbound sends",
   "plain english goal",
   "plain-english goal",
+  // MAR-403 card-first instruction fragments. Deliberately NOT included:
+  // "summary_markdown" and "render the returned …" — a real goal about some
+  // OTHER tool's output could legitimately contain either ("email me the
+  // summary_markdown my pipeline produces"), and this guard is high-precision
+  // by design.
+  "question_flow",
+  "fallback_menu_markdown",
+  "askuserquestion",
+  "clickable choice ui",
+  "plan immediately, ask after",
   // model self-narration / persona echoes
   "you are an ai",
   "you are a workflow",
@@ -5820,12 +5834,15 @@ export function registerPlanWorkflow(server: McpServer): void {
         "The plan is a pure function of that exact string, so a rewrite changes the route, the " +
         "risk score and the clearance level; `goal_fidelity` in the response flags it when it " +
         "looks like one. " +
-        "Render the returned `summary_markdown` to the user VERBATIM — do not " +
-        "paraphrase or summarize it, and do not drop the A) B) C) D) E) continuation menu at the end. " +
+        "Render the returned `summary_markdown` card to the user VERBATIM — do not paraphrase or " +
+        "summarize it — then present the `question_flow` rounds ONE AT A TIME using your client's " +
+        "native clickable choice UI (AskUserQuestion-style chips), marking the recommended option. " +
+        "The first response is the card plus round 0 ('Is this correct?') and nothing else; never " +
+        "dump all rounds at once as text. Only when the client has no clickable choice UI, render " +
+        "`question_flow.fallback_menu_markdown` as a lettered list instead. " +
         "This tool is the ONLY menu author: append your own analysis freely, but never author a " +
-        "second lettered menu and never renumber this one — to recommend a different option, name " +
-        "its existing letter. " +
-        "If you run the plan in-chat via connectors, declare it as the attended dry-run option (E) — " +
+        "second lettered menu or a competing option list of your own. " +
+        "If you run the plan in-chat via connectors, declare it as the attended dry-run option — " +
         "nothing persists — and offer `export_build_brief` afterward; a chat run never fulfills a build goal.",
       inputSchema: InputShape,
       outputSchema: PlanWorkflowOutputShape,
