@@ -25,6 +25,13 @@ function plan(goal: string) {
 // MAR-224: technical/deep render the full report (tiers, credentials, worker
 // pipeline, loop contract, provenance block). Tests asserting on those sections
 // must request that depth — the default is now the concise Layer-1 markdown.
+function planStd(goal: string) {
+  return planWorkflow(
+    { goal, must_have_capabilities: [], must_avoid: [], output_depth: "standard" },
+    registry,
+  );
+}
+
 function planTech(goal: string) {
   return planWorkflow(
     { goal, must_have_capabilities: [], must_avoid: [], output_depth: "technical" },
@@ -228,8 +235,10 @@ It must never send an email without my approval.`;
       cc.checks.filter((c) => c.constraint_class === "quantity").length,
     ).toBeGreaterThanOrEqual(3);
 
-    // The guided (default-depth) body carries the compact constraint line.
-    expect(r.summary_markdown).toContain("**Constraint check:**");
+    // MAR-402: the counts line renders from `standard`; the card shows only ❌
+    // problem rows, and this golden goal has none.
+    expect(r.summary_markdown).not.toContain("**Constraint check:**");
+    expect(planStd(P0_02_DOGFOOD_GOAL).summary_markdown).toContain("**Constraint check:**");
   });
 
   it("MAR-250: technical depth renders the constraints front-matter line and full section", () => {
@@ -854,14 +863,19 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
     expect(r.clarifying_questions).toEqual([]);
   });
 
-  it("an under-specified goal yields 3 questions and surfaces them in the markdown", () => {
+  it("an under-specified goal yields 3 questions and surfaces them as clickable rounds", () => {
     const r = plan("go through my inbox and handle the sales leads automatically");
     expect(r.clarifying_questions.length).toBe(3);
-    // each question appears in the Layer-1 markdown
+    // MAR-402: each question rides as a question_flow round the client renders
+    // one at a time; the prose block renders from `standard` (moved, not lost).
+    const roundQuestions = r.question_flow.rounds.map((x) => x.question);
     for (const q of r.clarifying_questions) {
-      expect(r.summary_markdown).toContain(q.question);
+      expect(roundQuestions).toContain(q.question);
     }
-    expect(r.summary_markdown).toContain("Quick checks to pin down the plan");
+    expect(r.summary_markdown).not.toContain("Quick checks to pin down the plan");
+    expect(
+      planStd("go through my inbox and handle the sales leads automatically").summary_markdown,
+    ).toContain("Quick checks to pin down the plan");
   });
 
   it("clarifying_questions is stateless structured data (id/question/options)", () => {
@@ -878,17 +892,31 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
   // could not offer alternatives it had never been shown. The LAB relay grader
   // caught that live: three questions asked, every one collapsed into an
   // open-ended prompt, on a run the deterministic layer called a clean match.
-  it("scope-completion questions put their real alternatives in the Layer-1 markdown", () => {
+  it("scope-completion questions put their real alternatives in front of the user", () => {
+    // MAR-392's invariant is "a fork the user never hears about". MAR-401/402
+    // split how it is satisfied: the fixed question_flow spine (build_surface /
+    // process / monitoring rounds) carries the scope-completion forks as
+    // clickable rounds with option labels of its own, while the `standard`
+    // prose block still spells out the original options verbatim for the
+    // fallback path.
     const r = plan("Build an email assistant.");
     const scoped = r.clarifying_questions.filter((q) => (q.option_ids ?? []).length === 0);
     expect(scoped.length).toBeGreaterThan(0);
 
+    // Every scope-completion fork maps onto a spine round the user WILL see.
+    const coveringRound: Record<string, string[]> = {
+      build_surface: ["process"],
+      hosting_monitoring: ["build_surface", "monitoring"],
+      artifact_target: ["process"],
+    };
+    const roundIds = r.question_flow.rounds.map((x) => x.id);
+    const std = planStd("Build an email assistant.").summary_markdown;
     for (const q of scoped) {
+      for (const cover of coveringRound[q.id] ?? [q.id]) {
+        expect(roundIds, `fork ${q.id} must be covered by round ${cover}`).toContain(cover);
+      }
       for (const option of q.options.filter((o) => o !== "Not sure yet")) {
-        expect(
-          r.summary_markdown,
-          `option "${option}" of ${q.id} must be visible to a client reading the markdown`,
-        ).toContain(option);
+        expect(std, `option "${option}" of ${q.id} must be visible at standard`).toContain(option);
       }
     }
   });
@@ -896,7 +924,8 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
   it("does not repeat the 'Not sure yet' escape hatch once per question in Layer-1", () => {
     // The section heading already offers it across every question. Repeating it
     // per question spends the char budget to say the same thing three times.
-    const md = plan("Build an email assistant.").summary_markdown;
+    // MAR-402: the prose block renders at `standard`; the card has no block.
+    const md = planStd("Build an email assistant.").summary_markdown;
     expect(md).toContain("Not sure yet");
     expect(md.split("Not sure yet").length - 1).toBe(1);
   });
@@ -918,7 +947,8 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
     // has option_ids and already rendered a compact recommended line. MAR-392
     // deliberately did not make that path heavier — a regression here would eat
     // the headroom the brevity bound depends on.
-    const md = plan(P0_02_DOGFOOD_GOAL).summary_markdown;
+    // MAR-402: the compact question rendering lives at `standard` now.
+    const md = planStd(P0_02_DOGFOOD_GOAL).summary_markdown;
     expect(md).toContain("Recommended: `private_hold`");
     expect(md).not.toContain("  - Options: ");
   });
@@ -997,15 +1027,24 @@ describe("planWorkflow — calendar notification clarifying question", () => {
     expect(qs.map((q) => q.id)).not.toContain(CAL_Q);
   });
 
-  it("Layer-1 markdown carries the question and its recommendation, not just structuredContent", () => {
-    const md = planWorkflow(
+  it("the question and its recommendation reach the user: a round at Layer 1, prose at standard", () => {
+    // MAR-402: at guided/brief the question rides as a question_flow round with
+    // the SAME recommendation the MAR-225 field carries…
+    const r = planWorkflow(
       { goal: P0_02_DOGFOOD_GOAL, must_have_capabilities: [], must_avoid: [], output_depth: "guided" },
       registry,
-    ).summary_markdown;
+    );
+    const round = r.question_flow.rounds.find((x) => x.id === "calendar_notification");
+    expect(round).toBeDefined();
+    expect(round!.question).toContain("private hold");
+    expect(round!.options.map((o) => o.id)).toEqual(["private_hold", "attendee_invite"]);
+    expect(round!.recommended_option_id).toBe("private_hold");
+    // …and the standard prose still carries the compact recommended line.
+    const md = planStd(P0_02_DOGFOOD_GOAL).summary_markdown;
     expect(md).toContain("private hold");
     expect(md).toContain("`private_hold`");
     expect(md).toContain("sendUpdates=none");
-    // Layer-1 must not promise an escape hatch this question does not offer.
+    // The prose must not promise an escape hatch this question does not offer.
     expect(md).not.toContain('(pick one each, or "Not sure yet")');
   });
 
@@ -1064,17 +1103,19 @@ describe("planWorkflow — MAR-226 next-action menu", () => {
     expect(composed.next_action_menu.find((a) => a.id === "open_playbook")).toBeUndefined();
   });
 
-  it("the Layer-1 markdown renders outcome choices while JSON keeps the full menu", () => {
+  it("the fallback menu renders outcome choices while JSON keeps the full menu", () => {
+    // MAR-402: the lettered menu renders on the no-choice-UI fallback surface.
     const r = plan("read emails and draft a reply for approval");
-    expect(r.summary_markdown).toContain("### How do you want to continue?");
-    expect(r.summary_markdown).toContain("A) Save this plan to Linear / Obsidian / Notion");
+    const menu = r.question_flow.fallback_menu_markdown;
+    expect(menu).toContain("### How do you want to continue?");
+    expect(menu).toContain("A) Save this plan to Linear / Obsidian / Notion");
     // MAR-398: four options, not six. The handoff-prompt and review options
     // stay in next_action_menu (asserted below) and at standard depth.
-    expect(r.summary_markdown).toContain("B) Turn it into a build prompt for Claude Code / Codex / Cursor");
-    expect(r.summary_markdown).not.toMatch(/^B\).*Recommended$/m);
+    expect(menu).toContain("B) Turn it into a build prompt for Claude Code / Codex / Cursor");
+    expect(menu).not.toMatch(/^B\).*Recommended$/m);
     // MAR-386: medium scope → the dry run is the ⭐, not the build prompt.
-    expect(r.summary_markdown).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
-    expect(r.summary_markdown.match(/^[A-D]\) /gm)?.length).toBe(4);
+    expect(menu).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
+    expect(menu.match(/^[A-D]\) /gm)?.length).toBe(4);
     expect(r.summary_markdown).not.toContain("**Alternatives:**");
     expect(r.summary_markdown).not.toContain("**Next — pick one:**");
     expect(r.summary_markdown).not.toContain("Show technical plan");

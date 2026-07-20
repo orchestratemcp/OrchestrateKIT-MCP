@@ -127,13 +127,21 @@ describe("MAR-401 — recommended picks are re-projections, not fresh inference"
 });
 
 describe("MAR-401 — conditional rounds fold in the MAR-225 clarifying questions", () => {
-  it("an under-specified goal appends its clarifying questions as rounds 4+", () => {
+  it("an under-specified goal appends its foldable clarifying questions as rounds 4+", () => {
     const r = plan(VAGUE);
     expect(r.clarifying_questions.length).toBeGreaterThan(0);
+    // The three scope-completion forks the fixed spine already asks are NOT
+    // folded again (rounds 1-3 carry them); everything else rides verbatim.
+    const SPINE_COVERED = new Set(["build_surface", "hosting_monitoring", "artifact_target"]);
+    const foldable = r.clarifying_questions.filter((q) => !SPINE_COVERED.has(q.id));
+    expect(foldable.length).toBeGreaterThan(0);
     const conditional = r.question_flow.rounds.slice(4);
-    expect(conditional.map((x) => x.id)).toEqual(r.clarifying_questions.map((q) => q.id));
+    expect(conditional.map((x) => x.id)).toEqual(foldable.map((q) => q.id));
+    // round ids stay unique — the whole point of not double-folding
+    const ids = r.question_flow.rounds.map((x) => x.id);
+    expect(new Set(ids).size).toBe(ids.length);
     for (const [i, round] of conditional.entries()) {
-      const q = r.clarifying_questions[i];
+      const q = foldable[i];
       expect(round.question).toBe(q.question);
       expect(round.options.map((o) => o.label)).toEqual(q.options);
       // architecture-affecting answers must be folded into a re-call goal

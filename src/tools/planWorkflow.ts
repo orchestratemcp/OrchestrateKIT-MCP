@@ -2695,36 +2695,32 @@ function renderHostingAndMonitoringFull(hm: HostingAndMonitoring): string[] {
 }
 
 /**
- * MAR-398 — the two runtime facts that belong on the CARD, and only when they
- * are a live question.
+ * MAR-402 (GOLD-02) — card section 4: "Recommended setup", one ⭐ line.
  *
- * MAR-378 put the whole operating bundle in Layer 1; MAR-398 says move it behind
- * `standard`. Rendering it on the dogfood goals shows both are partly right, and
- * the split is by runtime rather than by depth:
- *
- *   - On a DURABLE goal the bundle is the best content in the plan. "Where does
- *     this live when my laptop is shut, and what starts it?" is the decision,
- *     and "a short morning check needs a durable timer, not an always-on worker"
- *     is a real call the user cannot make themselves.
- *   - On an ATTENDED goal it is actively WRONG, not merely verbose. The refund
- *     plan says "stops when the client/session closes; that is correct for
- *     explicitly attended work" and then recommends a control surface to
- *     "persist approvals while the user is offline". "summarize my inbox for me
- *     now" is told to "manage schedule, secrets, status, retries" — there is no
- *     schedule. The surface lines default to the durable answer regardless of
- *     runtime; that is the same template-leak class as the calendar copy.
- *
- * So the card carries runtime + trigger when the plan must outlive the session,
- * and nothing otherwise. The control/interaction-surface lines — the two that
- * leak — stay at `standard` at every runtime, where their reasons are shown in
- * full and can be judged rather than skimmed.
+ * Successor to MAR-398's renderRuntimeEssentialsCard, keeping its runtime split
+ * (evidence: the durable answer is actively WRONG on an attended goal, not just
+ * verbose): a durable goal is told where it lives and what wakes it; an
+ * attended goal is told it runs in-session with nothing in the background.
+ * Both variants re-project fields the plan already computed (runtime
+ * recommendation, trigger explanation, MAR-315 hosting/monitoring) — the full
+ * operating bundle stays at `standard`.
  */
-function renderRuntimeEssentialsCard(wizard: GoalToProductWizard): string[] {
-  if (!wizard.runtime_requirements.must_run_while_user_offline) return [];
-  const runtime = wizard.runtime_recommendation;
+function renderRecommendedSetupCard(
+  wizard: GoalToProductWizard,
+  hm: HostingAndMonitoring,
+): string[] {
+  const monitoring = hm.monitoring.recommended.label;
+  if (wizard.runtime_requirements.must_run_while_user_offline) {
+    const runtime = wizard.runtime_recommendation;
+    return [
+      `**Recommended setup:** ⭐ ${runtime.label} _(${runtime.availability})_ — ` +
+        `wakes on: ${wizard.trigger_explanation.label}. Monitoring: ${monitoring}.`,
+      ``,
+    ];
+  }
   return [
-    `**Runs on:** ${runtime.label} _(${runtime.availability})_ — ${runtime.reason}`,
-    `**Wakes on:** ${wizard.trigger_explanation.label} — ${runtime.offline_behavior}`,
+    `**Recommended setup:** ⭐ ${hm.hosting.recommended.label} — attended; ` +
+      `nothing runs in the background. Monitoring: ${monitoring}.`,
     ``,
   ];
 }
@@ -3825,7 +3821,16 @@ function buildQuestionFlow(
   // Questions that carry option_ids keep them; the scope-completion questions
   // (prose options only) get deterministic per-question ids so a client can
   // still switch on the answer.
+  //
+  // The three scope-completion ids whose fork the fixed spine ALREADY asks
+  // (`build_surface`, `hosting_monitoring`, `artifact_target`) are not folded:
+  // rounds 1–3 above carry those exact decisions, so folding them again would
+  // ask the user the same fork twice and collide round ids. They stay untouched
+  // in `clarifying_questions` (and in the `standard` prose block) for clients
+  // on the fallback path.
+  const SPINE_COVERED_QUESTION_IDS = new Set(["build_surface", "hosting_monitoring", "artifact_target"]);
   for (const q of clarifyingQuestions) {
+    if (SPINE_COVERED_QUESTION_IDS.has(q.id)) continue;
     const ids = q.option_ids ?? q.options.map((_, i) => `${q.id}_option_${i + 1}`);
     rounds.push({
       id: q.id,
@@ -4061,6 +4066,25 @@ function renderConstraintBlockCompact(cc: ConstraintCoverage): string[] {
   return lines;
 }
 
+/**
+ * MAR-402 (GOLD-02): the constraint rows that stay ON the card — ❌
+ * missing/violated only. The counts summary ("N enforced · N to verify") moved
+ * to `standard`: the compact status header already carries those counts, and a
+ * gap the route does NOT represent is the one thing that may never be buried
+ * (MAR-250 honesty keystone).
+ */
+function renderConstraintProblemRows(cc: ConstraintCoverage): string[] {
+  const rows = cc.checks.filter((c) => c.status === "missing" || c.status === "violated");
+  if (rows.length === 0) return [];
+  return [
+    ...rows.map(
+      (c) =>
+        `- ❌ ${c.status.toUpperCase()} [${c.constraint_class}] "${c.goal_phrase}" — ${c.representation}`,
+    ),
+    ``,
+  ];
+}
+
 /** Full per-check listing for technical/deep depths. */
 function renderConstraintBlockFull(cc: ConstraintCoverage): string[] {
   if (cc.checks.length === 0) return [];
@@ -4084,17 +4108,16 @@ function renderConstraintBlockFull(cc: ConstraintCoverage): string[] {
  * RESPONSE-UX-04 eval (MAR-227) asserts the rendered summary stays under this
  * so "report creep" fails CI instead of silently re-bloating Layer 1.
  *
- * 3600 → 3700 for the `calendar_notification` question: on a long goal (the
- * P0-02 golden prompt renders 3289 chars before it) the question plus its
- * one-line recommendation did not fit, and the alternative was to drop the
- * recommendation into structuredContent — i.e. to bury the decision, the exact
- * failure the question exists to fix (UX review 2026-07-16 §8.7/§9.2).
- *
- * This is a deliberate, bounded raise for ONE line of high-value content, not
- * permission to re-bloat: the golden prompt is now itself asserted against this
- * bound (responseUxEvals), so the remaining headroom is small and measured.
+ * 3700 → 2000 (MAR-402, GOLD-02): the Layer-1 default is now the four-section
+ * golden card — What you'll get / Risks & safeguards / Connections /
+ * Recommended setup — with the Quick-checks block and the lettered menu moved
+ * into `question_flow` (clickable rounds + no-choice-UI fallback). Measured
+ * across the dogfood + golden goals post-shrink: 909–1,675 chars, so the bound
+ * is ratcheted DOWN to keep the card inside one viewport; the ~1,500 target
+ * plus conditional honesty rows (❌ constraint gaps, uncovered goal steps) is
+ * the only content allowed to spend the remaining headroom.
  */
-export const LAYER1_MAX_CHARS = 3700;
+export const LAYER1_MAX_CHARS = 2000;
 
 /**
  * MAR-250: the coverage gap block, shared by every depth. Empty when coverage
@@ -4103,7 +4126,19 @@ export const LAYER1_MAX_CHARS = 3700;
  */
 const COVERAGE_MAX_SHOWN = 5;
 
-function renderCoverageBlock(coverage: Coverage, steps: RouteStep[] = [], goal = ""): string[] {
+function renderCoverageBlock(
+  coverage: Coverage,
+  steps: RouteStep[] = [],
+  goal = "",
+  /**
+   * MAR-402: the card keeps the SHORTFALL half only (uncovered goal steps —
+   * the MAR-250 honesty keystone). The surplus half ("in the route but not
+   * asked for") is a verification chore, not a decision, and renders from
+   * `standard` depth; the compact status header still downgrades the coverage
+   * label when it is non-empty.
+   */
+  includeUnsupportedSupply = true,
+): string[] {
   const lines: string[] = [];
   const routeIds = new Set(steps.map((step) => step.component_id));
   const priceMonitorMappingGap =
@@ -4134,7 +4169,7 @@ function renderCoverageBlock(coverage: Coverage, steps: RouteStep[] = [], goal =
       ``,
     );
   }
-  if (coverage.unsupported_supply.length > 0) {
+  if (includeUnsupportedSupply && coverage.unsupported_supply.length > 0) {
     lines.push(
       `**In the route but not asked for:** ${coverage.unsupported_supply
         .map((id) => `\`${id}\``)
@@ -4656,8 +4691,9 @@ function buildGuidedPlanMarkdown(
 ): string {
   const lines: string[] = [];
 
+  // MAR-402 (GOLD-02) — card section 1: What you'll get (title, goal, route).
   lines.push(`## ${productCardTitle(goal, planSource, playbook, steps)}`, ``);
-  lines.push(`**You want:** ${truncateGoalForCard(goal)}`, ``);
+  lines.push(`**What you'll get:** ${truncateGoalForCard(goal)}`, ``);
 
   lines.push(`**Route:** ${routeSpine(goal, steps)}`, ``);
 
@@ -4679,12 +4715,9 @@ function buildGuidedPlanMarkdown(
     lines.push(``);
 
     lines.push(...renderOperatingBundleCompact(goalToProductWizard));
-  } else {
-    // MAR-398: on a durable goal, "where does this run and what starts it" is a
-    // card-level decision — see renderRuntimeEssentialsCard. Empty on attended
-    // goals, where the same block contradicts the runtime it just recommended.
-    lines.push(...renderRuntimeEssentialsCard(goalToProductWizard));
   }
+  // MAR-402: the card's runtime answer now lives in section 4
+  // (renderRecommendedSetupCard), rendered after Connections below.
 
   if (fullSteps) {
     lines.push(`**Steps:**`);
@@ -4697,40 +4730,7 @@ function buildGuidedPlanMarkdown(
     lines.push(``);
   }
 
-  // MAR-383: names the connections, then states the ONE fact a reader at the
-  // decision layer can get wrong — that an existing claude.ai/Cursor grant will
-  // carry over. It will not. Scopes and package names stay at technical depth.
-  lines.push(
-    `**Connect:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}. ${AUTHORIZATION_NOTE_SHORT}.`,
-    ``,
-  );
-
-  const coverageLines = renderCoverageBlock(coverage, steps, goal);
-  lines.push(...coverageLines);
-
-  const constraintLines = renderConstraintBlockCompact(constraintCoverage);
-  lines.push(...constraintLines);
-
-  // MAR-398: "what's missing" is one of the five card blocks, and it has to
-  // answer even when the answer is "nothing". A gap block that is simply ABSENT
-  // when coverage is clean reads identically to a gap block that was never
-  // computed — which is the exact ambiguity that let a missing refund step pass
-  // for a complete plan. Say it out loud.
-  //
-  // The question is about goal STEPS, so it keys off the uncovered-demand
-  // heading alone. Unsupported supply ("in the route but not asked for") is the
-  // opposite complaint — surplus, not shortfall — and constraint gaps get their
-  // own block; neither one answers "did you drop part of what I asked for?".
-  const saysMissing = coverageLines.some((line) =>
-    line.startsWith("**Not covered by the registry:**"),
-  );
-  if (!fullSteps && !saysMissing) {
-    lines.push(
-      `**What's missing:** Nothing — every step in your goal is carried by this route.`,
-      ``,
-    );
-  }
-
+  // ── MAR-402 card section 2: Risks & safeguards ──
   const cardRouteIds = new Set(steps.map((s) => s.component_id));
   let cardSafeguard: string;
   if (enforcedGates.length > 0) {
@@ -4790,14 +4790,64 @@ function buildGuidedPlanMarkdown(
       : clearance.level === "L4"
       ? "human always required"
       : "human-in-the-loop by default";
-  lines.push(`**Key safeguard:** ${cardSafeguard}. This is ${clearance.level} ${cardAutoText}.`, ``);
+  lines.push(`**Risks & safeguards:** ${cardSafeguard}. This is ${clearance.level} ${cardAutoText}.`, ``);
+
+  // ❌ missing/violated constraint rows stay on the card (MAR-250 honesty
+  // keystone); the counts summary + delegated detail render from `standard`.
+  lines.push(
+    ...(fullSteps
+      ? renderConstraintBlockCompact(constraintCoverage)
+      : renderConstraintProblemRows(constraintCoverage)),
+  );
+
+  // Uncovered goal steps stay on the card; unsupported-supply verification
+  // notes move to `standard` (MAR-402) — the status header still carries the
+  // downgraded coverage label either way.
+  const coverageLines = renderCoverageBlock(coverage, steps, goal, fullSteps);
+  lines.push(...coverageLines);
+
+  // MAR-398: "what's missing" has to answer even when the answer is "nothing".
+  // A gap block that is simply ABSENT when coverage is clean reads identically
+  // to a gap block that was never computed — the exact ambiguity that let a
+  // missing refund step pass for a complete plan. Say it out loud. Keys off the
+  // uncovered-demand heading alone: unsupported supply is surplus, not
+  // shortfall, and constraint gaps have their own rows above.
+  const saysMissing = coverageLines.some((line) =>
+    line.startsWith("**Not covered by the registry:**"),
+  );
+  if (!fullSteps && !saysMissing) {
+    lines.push(
+      `**What's missing:** Nothing — every step in your goal is carried by this route.`,
+      ``,
+    );
+  }
+
+  // ── MAR-402 card section 3: Connections ──
+  // MAR-383: names the connections, then states the ONE fact a reader at the
+  // decision layer can get wrong — that an existing claude.ai/Cursor grant will
+  // carry over. It will not. Scopes and package names stay at technical depth.
+  lines.push(
+    `**Connections:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}. ${AUTHORIZATION_NOTE_SHORT}.`,
+    ``,
+  );
+
+  // ── MAR-402 card section 4: Recommended setup (⭐, card only — standard
+  // renders the full operating bundle instead) ──
+  if (!fullSteps) {
+    lines.push(...renderRecommendedSetupCard(goalToProductWizard, hostingAndMonitoring));
+  }
+
   // MAR-398: build controls are near-identical advice on every plan — real, but
   // not a decision. Standard depth onward.
   if (fullSteps) {
     lines.push(`**Build controls:** ${buildControlsLine(steps)}`, ``);
   }
 
-  if (clarifyingQuestions.length > 0) {
+  // MAR-402 (GOLD-02): the "Quick checks" block and the lettered menu stop
+  // rendering on the card — `question_flow` carries the same forks as clickable
+  // rounds, and the lettered menu lives on as the no-choice-UI fallback in
+  // `question_flow.fallback_menu_markdown`. Both still render at `standard`.
+  if (fullSteps && clarifyingQuestions.length > 0) {
     // Only the scope-completion questions offer "Not sure yet" — promising it
     // when the list is a side-effect question alone would be a lie.
     const anyNotSure = clarifyingQuestions.some((q) => q.options.includes("Not sure yet"));
@@ -4809,7 +4859,9 @@ function buildGuidedPlanMarkdown(
     lines.push(...renderClarifyingQuestions(clarifyingQuestions, "compact"));
   }
 
-  lines.push(...renderProductCardContinueMenu(goalToProductWizard, goal));
+  if (fullSteps) {
+    lines.push(...renderProductCardContinueMenu(goalToProductWizard, goal));
+  }
 
   lines.push(
     `> 🟢 Registry-grounded, no LLM calls. 🔵 Additions are suggestions. ` +

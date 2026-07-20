@@ -211,7 +211,7 @@ describe("MAR-383 — surfaces", () => {
         registry,
       );
       const md = r.summary_markdown;
-      const connect = md.match(/\*\*Connect:\*\* (.+)/)?.[1] ?? "";
+      const connect = md.match(/\*\*Connections:\*\* (.+)/)?.[1] ?? "";
 
       expect(connect).toContain("Gmail");
       expect(connect).toContain("Google Calendar");

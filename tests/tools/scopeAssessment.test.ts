@@ -149,7 +149,8 @@ describe("MAR-386 — the ⭐ recommendation is scope-aware", () => {
 
   it("SMALL → the attended dry run is still OFFERED, just not starred", () => {
     // Capability is never gated: the ⭐ moved, the option did not disappear.
-    const md = plan(SMALL_ONE_SHOT).summary_markdown;
+    // MAR-402: the lettered menu renders on the no-choice-UI fallback surface.
+    const md = plan(SMALL_ONE_SHOT).question_flow.fallback_menu_markdown;
     // MAR-398: letter-agnostic — the menu is four options now, so which letter
     // the dry run lands on is layout. Its PRESENCE (capability never gated) and
     // its NOT being starred at SMALL are the invariants.
@@ -196,7 +197,8 @@ describe("MAR-386 — scope never gates capability (all options present at every
 
   it("every size renders a bounded menu that still offers the core actions", () => {
     for (const goal of [SMALL_ONE_SHOT, MEDIUM_GMAIL_LEAD, MEDIUM_COMPETITOR, LARGE_MULTI_AGENT]) {
-      const md = plan(goal).summary_markdown;
+      // MAR-402: the menu lives on the no-choice-UI fallback surface.
+      const md = plan(goal).question_flow.fallback_menu_markdown;
       // MAR-398: at most four options, contiguous from A. The point of this test
       // is unchanged — scope never GATES capability — but Layer 1 no longer
       // spends six lines proving it; the full set stays in next_action_menu.
@@ -219,15 +221,15 @@ describe("MAR-386 — scope never gates capability (all options present at every
     // large → the Linear/save option.
     // MAR-398: letter-agnostic. Which letter carries the ⭐ is layout; WHICH
     // ACTION it marks is the contract, and that is unchanged.
-    const smallMd = plan(SMALL_ONE_SHOT).summary_markdown;
+    const smallMd = plan(SMALL_ONE_SHOT).question_flow.fallback_menu_markdown;
     expect(smallMd).toMatch(/^[A-Z]\) Build it in a no-code assistant.*— Recommended$/m);
     expect(smallMd).not.toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
 
-    const mediumMd = plan(MEDIUM_GMAIL_LEAD).summary_markdown;
+    const mediumMd = plan(MEDIUM_GMAIL_LEAD).question_flow.fallback_menu_markdown;
     expect(mediumMd).toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);
     expect(mediumMd).not.toMatch(/^[A-Z]\) Turn it into a build prompt.*— Recommended$/m);
 
-    const largeMd = plan(LARGE_MULTI_AGENT).summary_markdown;
+    const largeMd = plan(LARGE_MULTI_AGENT).question_flow.fallback_menu_markdown;
     // The visible label names the same Linear-issues action as the machine click.
     expect(largeMd).toMatch(/Generate this plan as Linear issues.*— Recommended/);
     expect(largeMd).not.toMatch(/^[A-Z]\) Run it attended in this chat now.*— Recommended$/m);

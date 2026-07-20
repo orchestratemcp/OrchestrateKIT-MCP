@@ -163,7 +163,13 @@ describe("MAR-315 — provenance, presence, and layering", () => {
       expect(md).not.toContain("**Hosting:**");
       expect(md).not.toContain("**Monitoring:**");
       expect(md).not.toContain("### Hosting & monitoring");
-      expect(md).toContain("### How do you want to continue?");
+      // MAR-402: the card ends in the ⭐ Recommended-setup line; the lettered
+      // menu lives on the no-choice-UI fallback surface only.
+      expect(md).toContain("**Recommended setup:** ⭐");
+      expect(md).not.toContain("### How do you want to continue?");
+      expect(r.question_flow.fallback_menu_markdown).toContain(
+        "### How do you want to continue?",
+      );
     }
   });
 
