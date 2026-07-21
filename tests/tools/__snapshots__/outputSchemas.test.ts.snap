@@ -760,10 +760,12 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "id": "confirm_card",
         "options": [
           {
+            "description": "Keep this plan and move on to the setup questions.",
             "id": "yes",
             "label": "Yes — continue",
           },
           {
+            "description": "Say what is wrong and the whole plan is recomputed from the corrected goal.",
             "id": "change_something",
             "label": "Change something (tell me what)",
           },
@@ -776,18 +778,22 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "id": "build_surface",
         "options": [
           {
+            "description": "You configure it in the assistant; it runs when the session is open.",
             "id": "cowork",
             "label": "Cowork — a no-code assistant surface",
           },
           {
+            "description": "Your code, your machine. It cannot run while the computer is asleep or off.",
             "id": "self_host_local",
-            "label": "Self-host on your computer — only while your computer is on",
+            "label": "A local app on your own computer — runs while your computer is on",
           },
           {
+            "description": "Runs on a schedule without you present. Needs a deploy, secrets and a bill.",
             "id": "self_host_hosted",
             "label": "Self-host hosted — always on",
           },
           {
+            "description": "Somewhere this plan did not consider — say where and it is re-planned.",
             "id": "other",
             "label": "Somewhere else",
           },
@@ -800,10 +806,12 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "id": "process",
         "options": [
           {
+            "description": "Exports the plan as tracked work items or notes. Nothing is built yet.",
             "id": "save_plan",
             "label": "Save the plan — Linear / Notion / Obsidian",
           },
           {
+            "description": "Exports one brief you paste into a coding agent to implement the route.",
             "id": "build_prompt",
             "label": "Turn it into a build prompt — Claude Code / Cursor / Codex",
           },
@@ -816,24 +824,88 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "id": "monitoring",
         "options": [
           {
+            "description": "Nothing persists after you close the client — there is no run history.",
+            "hidden_when": {
+              "answer_in": [
+                "self_host_local",
+                "self_host_hosted",
+              ],
+              "round": "build_surface",
+            },
             "id": "cowork",
             "label": "In the client session (Cowork) — you watch it run",
           },
           {
-            "id": "lab",
-            "label": "LAB — log each run locally",
+            "description": "You read the log yourself; nothing alerts you when a run fails.",
+            "hidden_when": {
+              "answer_in": [
+                "cowork",
+              ],
+              "round": "build_surface",
+            },
+            "id": "local_logs",
+            "label": "Local logs — write each run to a file or table you already have",
           },
           {
+            "description": "Needs an exported agent manifest, which only a self-hosted build produces.",
+            "hidden_when": {
+              "answer_in": [
+                "cowork",
+              ],
+              "round": "build_surface",
+            },
             "id": "dash",
             "label": "DASH — import the agent manifest and monitor runs",
           },
           {
+            "description": "Your own monitoring, or none — a failed run then goes unnoticed.",
             "id": "other",
             "label": "Somewhere else / none",
           },
         ],
         "question": "How do you want to watch it once it runs?",
-        "recommended_option_id": "lab",
+        "recommended_option_id": "local_logs",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "terminal",
+        "options": [
+          {
+            "description": "Compiles the brief for the route above. A local artifact; nothing is sent.",
+            "hidden_when": {
+              "answer_in": [
+                "save_plan",
+              ],
+              "round": "process",
+            },
+            "id": "build_prompt",
+            "label": "Generate the build prompt — Claude Code / Cursor / Codex",
+          },
+          {
+            "description": "Exports the plan as issues or notes for you to file. Nothing is written for you.",
+            "hidden_when": {
+              "answer_in": [
+                "build_prompt",
+              ],
+              "round": "process",
+            },
+            "id": "save_plan",
+            "label": "Save the plan — Linear / Notion / Obsidian",
+          },
+          {
+            "description": "Stop here. The plan stays in this conversation and nothing is exported.",
+            "id": "not_yet",
+            "label": "Not yet — I just wanted the plan",
+          },
+          {
+            "description": "Say what you want instead and the plan is recomputed around it.",
+            "id": "other",
+            "label": "Something else",
+          },
+        ],
+        "question": "Ready to go ahead?",
+        "recommended_option_id": "build_prompt",
+        "why": "Nothing is created until you pick one — the plan itself writes nowhere.",
       },
     ],
   },
@@ -1546,10 +1618,12 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "id": "confirm_card",
         "options": [
           {
+            "description": "Keep this plan and move on to the setup questions.",
             "id": "yes",
             "label": "Yes — continue",
           },
           {
+            "description": "Say what is wrong and the whole plan is recomputed from the corrected goal.",
             "id": "change_something",
             "label": "Change something (tell me what)",
           },
@@ -1562,18 +1636,22 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "id": "build_surface",
         "options": [
           {
+            "description": "You configure it in the assistant; it runs when the session is open.",
             "id": "cowork",
             "label": "Cowork — a no-code assistant surface",
           },
           {
+            "description": "Your code, your machine. It cannot run while the computer is asleep or off.",
             "id": "self_host_local",
-            "label": "Self-host on your computer — only while your computer is on",
+            "label": "A local app on your own computer — runs while your computer is on",
           },
           {
+            "description": "Runs on a schedule without you present. Needs a deploy, secrets and a bill.",
             "id": "self_host_hosted",
             "label": "Self-host hosted — always on",
           },
           {
+            "description": "Somewhere this plan did not consider — say where and it is re-planned.",
             "id": "other",
             "label": "Somewhere else",
           },
@@ -1586,10 +1664,12 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "id": "process",
         "options": [
           {
+            "description": "Exports the plan as tracked work items or notes. Nothing is built yet.",
             "id": "save_plan",
             "label": "Save the plan — Linear / Notion / Obsidian",
           },
           {
+            "description": "Exports one brief you paste into a coding agent to implement the route.",
             "id": "build_prompt",
             "label": "Turn it into a build prompt — Claude Code / Cursor / Codex",
           },
@@ -1602,24 +1682,88 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "id": "monitoring",
         "options": [
           {
+            "description": "Nothing persists after you close the client — there is no run history.",
+            "hidden_when": {
+              "answer_in": [
+                "self_host_local",
+                "self_host_hosted",
+              ],
+              "round": "build_surface",
+            },
             "id": "cowork",
             "label": "In the client session (Cowork) — you watch it run",
           },
           {
-            "id": "lab",
-            "label": "LAB — log each run locally",
+            "description": "You read the log yourself; nothing alerts you when a run fails.",
+            "hidden_when": {
+              "answer_in": [
+                "cowork",
+              ],
+              "round": "build_surface",
+            },
+            "id": "local_logs",
+            "label": "Local logs — write each run to a file or table you already have",
           },
           {
+            "description": "Needs an exported agent manifest, which only a self-hosted build produces.",
+            "hidden_when": {
+              "answer_in": [
+                "cowork",
+              ],
+              "round": "build_surface",
+            },
             "id": "dash",
             "label": "DASH — import the agent manifest and monitor runs",
           },
           {
+            "description": "Your own monitoring, or none — a failed run then goes unnoticed.",
             "id": "other",
             "label": "Somewhere else / none",
           },
         ],
         "question": "How do you want to watch it once it runs?",
-        "recommended_option_id": "lab",
+        "recommended_option_id": "local_logs",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "terminal",
+        "options": [
+          {
+            "description": "Compiles the brief for the route above. A local artifact; nothing is sent.",
+            "hidden_when": {
+              "answer_in": [
+                "save_plan",
+              ],
+              "round": "process",
+            },
+            "id": "build_prompt",
+            "label": "Generate the build prompt — Claude Code / Cursor / Codex",
+          },
+          {
+            "description": "Exports the plan as issues or notes for you to file. Nothing is written for you.",
+            "hidden_when": {
+              "answer_in": [
+                "build_prompt",
+              ],
+              "round": "process",
+            },
+            "id": "save_plan",
+            "label": "Save the plan — Linear / Notion / Obsidian",
+          },
+          {
+            "description": "Stop here. The plan stays in this conversation and nothing is exported.",
+            "id": "not_yet",
+            "label": "Not yet — I just wanted the plan",
+          },
+          {
+            "description": "Say what you want instead and the plan is recomputed around it.",
+            "id": "other",
+            "label": "Something else",
+          },
+        ],
+        "question": "Ready to go ahead?",
+        "recommended_option_id": "build_prompt",
+        "why": "Nothing is created until you pick one — the plan itself writes nowhere.",
       },
     ],
   },
@@ -2488,10 +2632,12 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "id": "confirm_card",
         "options": [
           {
+            "description": "Keep this plan and move on to the setup questions.",
             "id": "yes",
             "label": "Yes — continue",
           },
           {
+            "description": "Say what is wrong and the whole plan is recomputed from the corrected goal.",
             "id": "change_something",
             "label": "Change something (tell me what)",
           },
@@ -2504,18 +2650,22 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "id": "build_surface",
         "options": [
           {
+            "description": "You configure it in the assistant; it runs when the session is open.",
             "id": "cowork",
             "label": "Cowork — a no-code assistant surface",
           },
           {
+            "description": "Your code, your machine. It cannot run while the computer is asleep or off.",
             "id": "self_host_local",
-            "label": "Self-host on your computer — only while your computer is on",
+            "label": "A local app on your own computer — runs while your computer is on",
           },
           {
+            "description": "Runs on a schedule without you present. Needs a deploy, secrets and a bill.",
             "id": "self_host_hosted",
             "label": "Self-host hosted — always on",
           },
           {
+            "description": "Somewhere this plan did not consider — say where and it is re-planned.",
             "id": "other",
             "label": "Somewhere else",
           },
@@ -2528,10 +2678,12 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "id": "process",
         "options": [
           {
+            "description": "Exports the plan as tracked work items or notes. Nothing is built yet.",
             "id": "save_plan",
             "label": "Save the plan — Linear / Notion / Obsidian",
           },
           {
+            "description": "Exports one brief you paste into a coding agent to implement the route.",
             "id": "build_prompt",
             "label": "Turn it into a build prompt — Claude Code / Cursor / Codex",
           },
@@ -2544,24 +2696,88 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "id": "monitoring",
         "options": [
           {
+            "description": "Nothing persists after you close the client — there is no run history.",
+            "hidden_when": {
+              "answer_in": [
+                "self_host_local",
+                "self_host_hosted",
+              ],
+              "round": "build_surface",
+            },
             "id": "cowork",
             "label": "In the client session (Cowork) — you watch it run",
           },
           {
-            "id": "lab",
-            "label": "LAB — log each run locally",
+            "description": "You read the log yourself; nothing alerts you when a run fails.",
+            "hidden_when": {
+              "answer_in": [
+                "cowork",
+              ],
+              "round": "build_surface",
+            },
+            "id": "local_logs",
+            "label": "Local logs — write each run to a file or table you already have",
           },
           {
+            "description": "Needs an exported agent manifest, which only a self-hosted build produces.",
+            "hidden_when": {
+              "answer_in": [
+                "cowork",
+              ],
+              "round": "build_surface",
+            },
             "id": "dash",
             "label": "DASH — import the agent manifest and monitor runs",
           },
           {
+            "description": "Your own monitoring, or none — a failed run then goes unnoticed.",
             "id": "other",
             "label": "Somewhere else / none",
           },
         ],
         "question": "How do you want to watch it once it runs?",
-        "recommended_option_id": "lab",
+        "recommended_option_id": "local_logs",
+      },
+      {
+        "fold_answer_into_recall": false,
+        "id": "terminal",
+        "options": [
+          {
+            "description": "Compiles the brief for the route above. A local artifact; nothing is sent.",
+            "hidden_when": {
+              "answer_in": [
+                "save_plan",
+              ],
+              "round": "process",
+            },
+            "id": "build_prompt",
+            "label": "Generate the build prompt — Claude Code / Cursor / Codex",
+          },
+          {
+            "description": "Exports the plan as issues or notes for you to file. Nothing is written for you.",
+            "hidden_when": {
+              "answer_in": [
+                "build_prompt",
+              ],
+              "round": "process",
+            },
+            "id": "save_plan",
+            "label": "Save the plan — Linear / Notion / Obsidian",
+          },
+          {
+            "description": "Stop here. The plan stays in this conversation and nothing is exported.",
+            "id": "not_yet",
+            "label": "Not yet — I just wanted the plan",
+          },
+          {
+            "description": "Say what you want instead and the plan is recomputed around it.",
+            "id": "other",
+            "label": "Something else",
+          },
+        ],
+        "question": "Ready to go ahead?",
+        "recommended_option_id": "build_prompt",
+        "why": "Nothing is created until you pick one — the plan itself writes nowhere.",
       },
     ],
   },

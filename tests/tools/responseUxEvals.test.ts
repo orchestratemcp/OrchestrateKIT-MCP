@@ -333,7 +333,10 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     // questions ride as question_flow rounds 4+ (MAR-401)…
     expect(r.summary_markdown).not.toContain("Quick checks to pin down the plan");
     const SPINE_COVERED = new Set(["build_surface", "hosting_monitoring", "artifact_target"]);
-    expect(r.question_flow.rounds.slice(4).map((x) => x.id)).toEqual(
+    // MAR-412: the conditional rounds sit BETWEEN the four fixed spine rounds
+    // and the always-last `terminal` round, hence slice(4, -1).
+    expect(r.question_flow.rounds.at(-1)!.id).toBe("terminal");
+    expect(r.question_flow.rounds.slice(4, -1).map((x) => x.id)).toEqual(
       r.clarifying_questions.filter((q) => !SPINE_COVERED.has(q.id)).map((q) => q.id),
     );
     // …and standard still renders the block (moved, not deleted).
@@ -908,7 +911,12 @@ describe("OUTPUT-06 (MAR-256) — worker_pipeline gated on depth, integrations d
   // runtime/control/interaction placement contract to the default payload.
   // MAR-401: question_flow (four fixed rounds + the lettered fallback menu)
   // adds ~800 bytes — G1 measured 25,764 post-change; deliberate bounded raise.
-  const G1_DEFAULT_JSON_MAX_BYTES = 26_500;
+  // MAR-412/413: the terminal round plus a grounded `description` on every fixed
+  // spine option add ~1,050 bytes — G1 measured 27,550 post-change. Paid
+  // deliberately: those descriptions are what stops the CLIENT from writing its
+  // own (and inventing claims about the user), so the bytes buy honesty, not
+  // boilerplate. Conditional rounds still carry no descriptions.
+  const G1_DEFAULT_JSON_MAX_BYTES = 28_500;
 
   it(`default-depth G1 response JSON stays under ${G1_DEFAULT_JSON_MAX_BYTES} bytes`, () => {
     const bytes = Buffer.byteLength(JSON.stringify(planDepth(G1_EMAIL)), "utf8");
