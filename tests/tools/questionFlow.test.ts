@@ -175,6 +175,63 @@ describe("MAR-401 — conditional rounds fold in the MAR-225 clarifying question
   });
 });
 
+describe("MAR-405 — the confirm_card 'Change something' correction re-call reflects the correction", () => {
+  // The confirm round offers `change_something` with fold_answer_into_recall:
+  // true — a correction refines the goal and is applied by RE-CALLING
+  // plan_workflow with the corrected goal. Nothing pinned that the SECOND card
+  // actually reflects the correction rather than being a stale re-render, so a
+  // regression that ignored the correction would pass silently. This is that pin.
+  const BASE = "Build an email assistant.";
+  const READONLY_CORRECTION =
+    " It must be strictly read-only: never send, draft, or modify any email; only read and summarize.";
+
+  const WRITE_COMPONENTS = ["email_draft", "email_send", "optional_email_send"];
+  const routeOf = (goal: string) =>
+    plan(goal).recommended_route.map((step) => step.component_id);
+  const cardLine = (goal: string, label: string) =>
+    plan(goal).summary_markdown.split("\n").find((l) => l.startsWith(label)) ?? "";
+
+  it("the confirm round is the correction entry point (change_something folds into a re-call)", () => {
+    const round = plan(BASE).question_flow.rounds[0];
+    expect(round.id).toBe("confirm_card");
+    expect(round.options.map((o) => o.id)).toContain("change_something");
+    expect(round.fold_answer_into_recall).toBe(true);
+  });
+
+  it("the corrected card is not a stale re-render of the first card", () => {
+    const before = plan(BASE).summary_markdown;
+    const after = plan(BASE + READONLY_CORRECTION).summary_markdown;
+    expect(after).not.toBe(before);
+  });
+
+  it("the correction is echoed in the card's 'What you'll get' line", () => {
+    const line = cardLine(BASE + READONLY_CORRECTION, "**What you'll get:**").toLowerCase();
+    expect(line).toContain("read-only");
+  });
+
+  it("a read-only correction drops the write path the first plan carried", () => {
+    const before = routeOf(BASE);
+    const after = routeOf(BASE + READONLY_CORRECTION);
+    // The first plan MUST carry at least one write component, or the correction
+    // has nothing to remove and this eval would pass vacuously.
+    expect(before.some((c) => WRITE_COMPONENTS.includes(c))).toBe(true);
+    // The corrected plan must carry NONE of them.
+    expect(after.filter((c) => WRITE_COMPONENTS.includes(c))).toEqual([]);
+  });
+
+  it("the correction moves the automation clearance (a real re-plan, not a re-render)", () => {
+    const before = plan(BASE).automation_clearance.level;
+    const after = plan(BASE + READONLY_CORRECTION).automation_clearance.level;
+    expect(after).not.toBe(before);
+  });
+
+  it("re-calling with the SAME goal is a stable no-op (isolates the correction as the cause)", () => {
+    // The differ-assertions above only mean something if an unchanged goal
+    // re-renders identically — otherwise any two cards would differ.
+    expect(plan(BASE).summary_markdown).toBe(plan(BASE).summary_markdown);
+  });
+});
+
 describe("MAR-401 — the no-choice-UI fallback menu", () => {
   it("fallback_menu_markdown is the lettered menu and parses under the MAR-387 contract", () => {
     for (const goal of [HEAVY_GOAL, ONE_SHOT, PRICING]) {
