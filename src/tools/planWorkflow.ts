@@ -931,9 +931,9 @@ export type PlanWorkflowOutput = {
   scope_assessment: ScopeAssessment;
   /**
    * MAR-401 (GOLD-01): the sequential clickable question flow a client walks
-   * one round at a time after rendering the card — confirm the card, pick the
-   * build surface, pick monitoring, then any conditional clarifying rounds and
-   * the terminal deliverable. Pure re-projection of the wizard / scope / hosting /
+   * one round at a time after rendering the card — confirm the card, resolve
+   * any re-planning questions, pick the build surface and monitoring, then the
+   * terminal deliverable. Pure re-projection of the wizard / scope / hosting /
    * clarifying machinery; stable option ids; deterministic recommended picks.
    */
   question_flow: QuestionFlow;
@@ -3792,9 +3792,9 @@ function recommendedMonitoringSurface(hm: HostingAndMonitoring, buildSurface: st
 /**
  * MAR-401 (GOLD-01): build the sequential question flow.
  *
- * Round order is fixed: confirm_card → build_surface → monitoring →
- * conditional clarifying rounds (MAR-225, folded in with their existing
- * option_ids — no parallel vocabulary) → terminal. Every recommended pick is
+ * Round order is fixed: confirm_card → conditional clarifying rounds (MAR-225,
+ * folded in with their existing option_ids — no parallel vocabulary) →
+ * build_surface → monitoring → terminal. Every recommended pick is
  * derived from a field the plan already computed; a clarifying round with no
  * `recommended_option_id` stays null because that fork must never be defaulted.
  *
@@ -3838,6 +3838,12 @@ function buildQuestionFlow(
       recommended_option_id: "yes",
       fold_answer_into_recall: true,
     },
+  ];
+
+  // Delivery choices come only after every answer that re-calls the planner.
+  // A re-plan can change the route, risk score and recommendations, so asking
+  // these first would make already-collected setup answers stale.
+  const setupRounds: QuestionFlowRound[] = [
     {
       id: "build_surface",
       question: "Where should this agent live?",
@@ -3938,6 +3944,8 @@ function buildQuestionFlow(
       fold_answer_into_recall: true,
     });
   }
+
+  rounds.push(...setupRounds);
 
   // MAR-412 — the terminal round, ALWAYS last.
   //

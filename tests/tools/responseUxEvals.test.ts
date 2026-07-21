@@ -330,13 +330,13 @@ describe("RESPONSE-UX-04 (MAR-227) — Layer-1 default does not regress into a r
     );
     expect(r.clarifying_questions.length).toBe(3);
     // MAR-402: the card no longer renders the Quick-checks block — the same
-    // questions ride as question_flow rounds 3+ (MAR-401)…
+    // questions ride immediately after question_flow round 0 (MAR-401)…
     expect(r.summary_markdown).not.toContain("Quick checks to pin down the plan");
     const SPINE_COVERED = new Set(["build_surface", "hosting_monitoring", "artifact_target"]);
-    // GOLD-07 removes the duplicate process fork, so the conditional rounds sit
-    // after the three pre-terminal fixed rounds, hence slice(3, -1).
+    // GOLD-07 puts every re-planning question before delivery/setup choices.
     expect(r.question_flow.rounds.at(-1)!.id).toBe("terminal");
-    expect(r.question_flow.rounds.slice(3, -1).map((x) => x.id)).toEqual(
+    const buildSurfaceIndex = r.question_flow.rounds.findIndex((round) => round.id === "build_surface");
+    expect(r.question_flow.rounds.slice(1, buildSurfaceIndex).map((x) => x.id)).toEqual(
       r.clarifying_questions.filter((q) => !SPINE_COVERED.has(q.id)).map((q) => q.id),
     );
     // …and standard still renders the block (moved, not deleted).
@@ -916,8 +916,8 @@ describe("OUTPUT-06 (MAR-256) — worker_pipeline gated on depth, integrations d
   // deliberately: those descriptions are what stops the CLIENT from writing its
   // own (and inventing claims about the user), so the bytes buy honesty, not
   // boilerplate. Conditional rounds still carry no descriptions.
-  // GOLD-07 removes the duplicate process round, so this payload should shrink;
-  // the ceiling remains a ceiling rather than being weakened to fit a change.
+  // GOLD-07 removes the duplicate process round: G1 now measures 26,993 bytes,
+  // down from 27,550. The ceiling remains a ceiling rather than being weakened.
   const G1_DEFAULT_JSON_MAX_BYTES = 28_500;
 
   it(`default-depth G1 response JSON stays under ${G1_DEFAULT_JSON_MAX_BYTES} bytes`, () => {

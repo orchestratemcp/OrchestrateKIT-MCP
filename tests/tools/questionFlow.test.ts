@@ -3,7 +3,7 @@
  *
  * plan_workflow's first screen is a card followed by sequential CLICKABLE
  * question rounds. This suite pins the round spine (confirm_card →
- * build_surface → monitoring → conditional clarifying rounds → terminal), the
+ * conditional clarifying rounds → build_surface → monitoring → terminal), the
  * stable option ids the LAB harness and DASH switch on, and the rule that every
  * recommended pick is a re-projection of machinery the plan already computed —
  * never fresh inference, never drift from the ⭐.
@@ -395,7 +395,7 @@ describe("MAR-413 — option descriptions ship grounded, so the client invents n
 });
 
 describe("MAR-401 — conditional rounds fold in the MAR-225 clarifying questions", () => {
-  it("an under-specified goal appends its foldable clarifying questions as rounds 3+", () => {
+  it("an under-specified goal puts its foldable clarifying questions immediately after round 0", () => {
     const r = plan(VAGUE);
     expect(r.clarifying_questions.length).toBeGreaterThan(0);
     // The three scope-completion forks the fixed spine already asks are NOT
@@ -403,9 +403,10 @@ describe("MAR-401 — conditional rounds fold in the MAR-225 clarifying question
     const SPINE_COVERED = new Set(["build_surface", "hosting_monitoring", "artifact_target"]);
     const foldable = r.clarifying_questions.filter((q) => !SPINE_COVERED.has(q.id));
     expect(foldable.length).toBeGreaterThan(0);
-    // `terminal` is always last, so the conditional band is slice(3, -1).
+    // Every re-planning question comes before the delivery/setup choices.
     expect(r.question_flow.rounds.at(-1)!.id).toBe("terminal");
-    const conditional = r.question_flow.rounds.slice(3, -1);
+    const buildSurfaceIndex = r.question_flow.rounds.findIndex((round) => round.id === "build_surface");
+    const conditional = r.question_flow.rounds.slice(1, buildSurfaceIndex);
     expect(conditional.map((x) => x.id)).toEqual(foldable.map((q) => q.id));
     // round ids stay unique — the whole point of not double-folding
     const ids = r.question_flow.rounds.map((x) => x.id);
@@ -419,6 +420,21 @@ describe("MAR-401 — conditional rounds fold in the MAR-225 clarifying question
       if (q.option_ids) {
         // no parallel vocabulary — the MAR-225 ids ARE the option ids
         expect(round.options.map((o) => o.id)).toEqual(q.option_ids);
+      }
+    }
+  });
+
+  it("no fold-to-recall round may follow a non-replanning round", () => {
+    for (const goal of [HEAVY_GOAL, ONE_SHOT, PRICING, VAGUE]) {
+      for (const depth of ["brief", "standard", "technical"] as const) {
+        let sawNonReplanningRound = false;
+        for (const round of plan(goal, depth).question_flow.rounds) {
+          if (!round.fold_answer_into_recall) {
+            sawNonReplanningRound = true;
+          } else {
+            expect(sawNonReplanningRound, `${goal} @ ${depth}: ${round.id}`).toBe(false);
+          }
+        }
       }
     }
   });
