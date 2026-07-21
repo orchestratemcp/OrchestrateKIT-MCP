@@ -340,6 +340,12 @@ export const PlanWorkflowOutputShape = z
             .object({
               id: z.string(),
               question: z.string(),
+              // GOLD-07: whole-round incoherence uses the same declarative
+              // dependency as option filtering; the stateless client skips it.
+              hidden_when: z
+                .object({ round: z.string(), answer_in: z.array(z.string()) })
+                .passthrough()
+                .optional(),
               // MAR-413: `description` is the sub-line the client renders under
               // the chip — shipped so the client has nothing left to invent.
               // MAR-411: `hidden_when` declares an INCOHERENCE dependency on an

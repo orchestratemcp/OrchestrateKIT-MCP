@@ -751,6 +751,13 @@ export type QuestionFlowRound = {
    */
   id: string;
   question: string;
+  /**
+   * GOLD-07: skip this whole round once an earlier answer makes the question
+   * incoherent. This is the round-level form of the option contract above: it
+   * never gates capability by scope, and the client applies it because the MCP
+   * remains stateless.
+   */
+  hidden_when?: { round: string; answer_in: string[] };
   options: QuestionFlowOption[];
   /**
    * The option the plan recommends. `null` only when the fork must never be
@@ -3864,6 +3871,9 @@ function buildQuestionFlow(
     {
       id: "monitoring",
       question: "How do you want to watch it once it runs?",
+      // Cowork cannot persist a run after the client closes, so there is no
+      // durable run to monitor. This is incoherence, never task-size gating.
+      hidden_when: { round: "build_surface", answer_in: ["cowork"] },
       options: [
         {
           id: "cowork",
@@ -5967,8 +5977,9 @@ export function registerPlanWorkflow(server: McpServer): void {
         "dump all rounds at once as text. Render each option as its `label` plus its `description` " +
         "VERBATIM — never write your own sub-text, and never assert anything about the user's " +
         "existing setup or other agents, which this stateless plan cannot know. Before presenting a " +
-        "round, drop every option whose `hidden_when` matches an answer already given in this " +
-        "session; the last round is always `terminal`, so do not author your own closing or " +
+        "round, skip the whole round when its own `hidden_when` matches an answer already given; " +
+        "otherwise drop every option whose `hidden_when` matches. The last round is always " +
+        "`terminal`, so do not author your own closing or " +
         "approval prompt. Only when the client has no clickable choice UI, render " +
         "`question_flow.fallback_menu_markdown` as a lettered list instead. " +
         "This tool is the ONLY menu author: append your own analysis freely, but never author a " +

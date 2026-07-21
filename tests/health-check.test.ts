@@ -313,6 +313,8 @@ describe("health_check tool", () => {
     expect(lower).toContain("round 0");
     expect(lower).toContain("fallback_menu_markdown");
     expect(lower).toContain("no clickable choice ui");
+    expect(lower).toContain("skip the whole round");
+    expect(lower).toContain("round's own");
   });
 
   it("SERVER_INSTRUCTIONS describe the stateless scope compiler handoff (MAR-249)", () => {

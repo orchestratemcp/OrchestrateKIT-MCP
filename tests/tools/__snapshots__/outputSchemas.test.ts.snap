@@ -803,6 +803,12 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       },
       {
         "fold_answer_into_recall": false,
+        "hidden_when": {
+          "answer_in": [
+            "cowork",
+          ],
+          "round": "build_surface",
+        },
         "id": "monitoring",
         "options": [
           {
@@ -1631,6 +1637,12 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       },
       {
         "fold_answer_into_recall": false,
+        "hidden_when": {
+          "answer_in": [
+            "cowork",
+          ],
+          "round": "build_surface",
+        },
         "id": "monitoring",
         "options": [
           {
@@ -2615,6 +2627,12 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       },
       {
         "fold_answer_into_recall": false,
+        "hidden_when": {
+          "answer_in": [
+            "cowork",
+          ],
+          "round": "build_surface",
+        },
         "id": "monitoring",
         "options": [
           {

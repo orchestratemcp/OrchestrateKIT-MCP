@@ -255,6 +255,58 @@ describe("MAR-411 — option-level hidden_when keeps later rounds coherent", () 
   });
 });
 
+describe("GOLD-07 — round-level hidden_when skips incoherent questions", () => {
+  const GOALS = [HEAVY_GOAL, ONE_SHOT, PRICING, VAGUE];
+
+  it("a Cowork build skips monitoring because no run persists after the client closes", () => {
+    const monitoring = plan(ONE_SHOT).question_flow.rounds.find((x) => x.id === "monitoring")!;
+    expect(monitoring.hidden_when).toEqual({
+      round: "build_surface",
+      answer_in: ["cowork"],
+    });
+  });
+
+  it("every round-level hidden_when names a real earlier answer", () => {
+    for (const goal of GOALS) {
+      const rounds = plan(goal).question_flow.rounds;
+      for (const [i, round] of rounds.entries()) {
+        if (!round.hidden_when) continue;
+        const sourceIndex = rounds.findIndex((candidate) => candidate.id === round.hidden_when!.round);
+        expect(sourceIndex, round.id).toBeGreaterThanOrEqual(0);
+        expect(sourceIndex, round.id).toBeLessThan(i);
+        const sourceIds = rounds[sourceIndex].options.map((option) => option.id);
+        for (const answer of round.hidden_when.answer_in) {
+          expect(sourceIds, round.id).toContain(answer);
+        }
+      }
+    }
+  });
+
+  it("the recommended path skips monitoring only when the recommended surface is Cowork", () => {
+    for (const goal of GOALS) {
+      const rounds = plan(goal).question_flow.rounds;
+      const answers = new Map(rounds.map((round) => [round.id, round.recommended_option_id]));
+      const visibleIds = rounds
+        .filter((round) => {
+          if (!round.hidden_when) return true;
+          const answer = answers.get(round.hidden_when.round);
+          return !round.hidden_when.answer_in.includes(answer ?? "");
+        })
+        .map((round) => round.id);
+      const recommendedSurface = answers.get("build_surface");
+      expect(visibleIds.includes("monitoring"), goal).toBe(recommendedSurface !== "cowork");
+    }
+  });
+
+  it("round hiding never depends on task scope", () => {
+    for (const goal of GOALS) {
+      for (const round of plan(goal).question_flow.rounds) {
+        expect(round.hidden_when?.round ?? "", round.id).not.toMatch(/scope|size/);
+      }
+    }
+  });
+});
+
 describe("GOLD-07 — the terminal round owns the save-vs-build decision once", () => {
   const GOALS = [HEAVY_GOAL, ONE_SHOT, PRICING, VAGUE];
 
