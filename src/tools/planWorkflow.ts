@@ -709,6 +709,31 @@ export type ScopeAssessment = {
 export type QuestionFlowOption = {
   id: string;
   label: string;
+  /**
+   * MAR-413: the sub-line the client renders UNDER the chip. Ships from here so
+   * the client has nothing left to invent — the dogfood screenshot carried a
+   * client-written subtitle asserting the user already ran "other OrchestrateKit
+   * agents", which was simply false. Every string here is a fixed property of
+   * the OPTION (what it gives you, what it costs you); none of them makes a
+   * claim about the user's setup, because the stateless MCP cannot know it.
+   *
+   * Render contract: label + description verbatim, add nothing.
+   */
+  description?: string;
+  /**
+   * MAR-406: hide this option once an EARLIER round has been answered a certain
+   * way. The MCP is stateless and emits every round in one call, so it never
+   * sees the user's answers — it can only declare the dependency and let the
+   * client apply it. Without this, a self-hosted agent is still offered
+   * "watch it in the client session (nothing persists)", which contradicts the
+   * surface the user just chose.
+   *
+   * Deliberately narrow: this expresses INCOHERENCE (this option cannot be true
+   * given that answer), never scope-gating. `scope_assessment` must still never
+   * gate capability, and every round keeps an always-present escape hatch
+   * (`other`) so a filter can never leave the user with nothing to click.
+   */
+  hidden_when?: { round: string; answer_in: string[] };
 };
 
 /**
@@ -2482,7 +2507,10 @@ const HOSTING_ALTERNATIVES: Record<HostingOptionId, HostingOptionId[]> = {
 };
 
 const MONITORING_OPTION_LABELS: Record<MonitoringOptionId, string> = {
-  dash_import: "Import the manifest into DASH (LAB Agents module)",
+  // MAR-406: no private-tool names in user-facing copy. "LAB" is an internal
+  // program the user does not have and cannot get; naming it here pointed every
+  // user at software that isn't theirs.
+  dash_import: "Import the manifest into DASH",
   log_to_file: "Log runs to a file or table you already have",
   manual_none: "None — run it manually and check the results yourself",
 };
@@ -3733,12 +3761,24 @@ function recommendedBuildSurface(
   return "self_host_local"; // local_cron, manual_local
 }
 
-/** The recommended monitoring surface, mapped from the MAR-315 recommendation. */
-function recommendedMonitoringSurface(hm: HostingAndMonitoring): string {
+/**
+ * The recommended monitoring surface, mapped from the MAR-315 recommendation.
+ *
+ * MAR-411: it takes the recommended BUILD surface, because the two ⭐s must
+ * agree. `recommendedBuildSurface` can land on `cowork` through
+ * `recommended_next_click === "build_in_assistant"` while hosting is not
+ * `in_client` — and the monitoring ⭐ would then be `local_logs`, an option this
+ * round declares `hidden_when` build_surface is cowork. The plan would be
+ * recommending an option it also calls incoherent, and a client applying the
+ * filter would drop the very chip the ⭐ pointed at. Reading the same source of
+ * truth is a re-projection, not fresh inference.
+ */
+function recommendedMonitoringSurface(hm: HostingAndMonitoring, buildSurface: string): string {
+  if (buildSurface === "cowork") return "cowork";
   if (hm.hosting.recommended.id === "in_client") return "cowork";
   const monitoring = hm.monitoring.recommended.id;
   if (monitoring === "dash_import") return "dash";
-  if (monitoring === "log_to_file") return "lab";
+  if (monitoring === "log_to_file") return "local_logs"; // MAR-406: was "lab"
   return "other"; // manual_none
 }
 
@@ -3747,9 +3787,15 @@ function recommendedMonitoringSurface(hm: HostingAndMonitoring): string {
  *
  * Round order is fixed: confirm_card → build_surface → process → monitoring →
  * conditional clarifying rounds (MAR-225, folded in with their existing
- * option_ids — no parallel vocabulary). Every recommended pick is derived from
- * a field the plan already computed; a clarifying round with no
+ * option_ids — no parallel vocabulary) → terminal. Every recommended pick is
+ * derived from a field the plan already computed; a clarifying round with no
  * `recommended_option_id` stays null because that fork must never be defaulted.
+ *
+ * MAR-412: `terminal` is ALWAYS last, and it is the MCP's round — before it
+ * existed the client authored its own closing "Approve this plan?" prompt, and
+ * that invented round dropped the build prompt the user had picked three rounds
+ * earlier. The terminal options carry `hidden_when` against `process`, so the
+ * answer the user already gave decides which closing action they are offered.
  *
  * `fallback_menu_markdown` is the rendered lettered menu
  * (renderProductCardContinueMenu) — the no-choice-UI fallback surface, and the
@@ -3761,13 +3807,30 @@ function buildQuestionFlow(
   clarifyingQuestions: ClarifyingQuestion[],
   goal: string,
 ): QuestionFlow {
+  // One re-projection of the ⭐, reused by BOTH the process round and the
+  // terminal round so the closing action can never contradict the recommendation
+  // the user was given (MAR-412).
+  const recommendedProcess =
+    wizard.recommended_next_click.id === "generate_linear_project" ? "save_plan" : "build_prompt";
+  // Computed once and shared with the monitoring round, so the two ⭐s cannot
+  // recommend a pair the `hidden_when` rules call incoherent (MAR-411).
+  const recommendedSurface = recommendedBuildSurface(wizard, hm);
+
   const rounds: QuestionFlowRound[] = [
     {
       id: "confirm_card",
       question: "Is this correct?",
       options: [
-        { id: "yes", label: "Yes — continue" },
-        { id: "change_something", label: "Change something (tell me what)" },
+        {
+          id: "yes",
+          label: "Yes — continue",
+          description: "Keep this plan and move on to the setup questions.",
+        },
+        {
+          id: "change_something",
+          label: "Change something (tell me what)",
+          description: "Say what is wrong and the whole plan is recomputed from the corrected goal.",
+        },
       ],
       recommended_option_id: "yes",
       fold_answer_into_recall: true,
@@ -3776,43 +3839,89 @@ function buildQuestionFlow(
       id: "build_surface",
       question: "Where should this agent live?",
       options: [
-        { id: "cowork", label: "Cowork — a no-code assistant surface" },
         {
-          id: "self_host_local",
-          label: "Self-host on your computer — only while your computer is on",
+          id: "cowork",
+          label: "Cowork — a no-code assistant surface",
+          description: "You configure it in the assistant; it runs when the session is open.",
         },
-        { id: "self_host_hosted", label: "Self-host hosted — always on" },
-        { id: "other", label: "Somewhere else" },
+        {
+          // MAR-410: this read like a script on a cron and nobody recognised it
+          // as "build me a local app". Say what you get, then the tradeoff.
+          id: "self_host_local",
+          label: "A local app on your own computer — runs while your computer is on",
+          description: "Your code, your machine. It cannot run while the computer is asleep or off.",
+        },
+        {
+          id: "self_host_hosted",
+          label: "Self-host hosted — always on",
+          description: "Runs on a schedule without you present. Needs a deploy, secrets and a bill.",
+        },
+        {
+          id: "other",
+          label: "Somewhere else",
+          description: "Somewhere this plan did not consider — say where and it is re-planned.",
+        },
       ],
-      recommended_option_id: recommendedBuildSurface(wizard, hm),
+      recommended_option_id: recommendedSurface,
       fold_answer_into_recall: false,
     },
     {
       id: "process",
       question: "How do you want to take the plan forward?",
       options: [
-        { id: "save_plan", label: "Save the plan — Linear / Notion / Obsidian" },
+        {
+          id: "save_plan",
+          label: "Save the plan — Linear / Notion / Obsidian",
+          description: "Exports the plan as tracked work items or notes. Nothing is built yet.",
+        },
         {
           id: "build_prompt",
           label: "Turn it into a build prompt — Claude Code / Cursor / Codex",
+          description: "Exports one brief you paste into a coding agent to implement the route.",
         },
       ],
-      recommended_option_id:
-        wizard.recommended_next_click.id === "generate_linear_project"
-          ? "save_plan"
-          : "build_prompt",
+      recommended_option_id: recommendedProcess,
       fold_answer_into_recall: false,
     },
     {
       id: "monitoring",
       question: "How do you want to watch it once it runs?",
       options: [
-        { id: "cowork", label: "In the client session (Cowork) — you watch it run" },
-        { id: "lab", label: "LAB — log each run locally" },
-        { id: "dash", label: "DASH — import the agent manifest and monitor runs" },
-        { id: "other", label: "Somewhere else / none" },
+        {
+          id: "cowork",
+          label: "In the client session (Cowork) — you watch it run",
+          description: "Nothing persists after you close the client — there is no run history.",
+          // Incoherent once the agent lives outside the chat: a self-hosted
+          // agent keeps running after the session closes, so "you watch it in
+          // the session" is not a monitoring answer for it.
+          hidden_when: { round: "build_surface", answer_in: ["self_host_local", "self_host_hosted"] },
+        },
+        {
+          // MAR-410: was "LAB — log each run locally". LAB is a private internal
+          // program; this is the generic capability MAR-315 actually recommends
+          // ("Log runs to a file or table you already have"), so name the
+          // capability, not the product.
+          id: "local_logs",
+          label: "Local logs — write each run to a file or table you already have",
+          description: "You read the log yourself; nothing alerts you when a run fails.",
+          hidden_when: { round: "build_surface", answer_in: ["cowork"] },
+        },
+        {
+          id: "dash",
+          label: "DASH — import the agent manifest and monitor runs",
+          description: "Needs an exported agent manifest, which only a self-hosted build produces.",
+          // DASH monitors an EXPORTED agent manifest; a Cowork build never
+          // produces one, so offering it there promises a link that can't exist.
+          hidden_when: { round: "build_surface", answer_in: ["cowork"] },
+        },
+        // Always present: the escape hatch a filter must never remove.
+        {
+          id: "other",
+          label: "Somewhere else / none",
+          description: "Your own monitoring, or none — a failed run then goes unnoticed.",
+        },
       ],
-      recommended_option_id: recommendedMonitoringSurface(hm),
+      recommended_option_id: recommendedMonitoringSurface(hm, recommendedSurface),
       fold_answer_into_recall: false,
     },
   ];
@@ -3841,6 +3950,55 @@ function buildQuestionFlow(
       fold_answer_into_recall: true,
     });
   }
+
+  // MAR-412 — the terminal round, ALWAYS last.
+  //
+  // Dogfood 2026-07-21: the user answered `process = build_prompt`, and the last
+  // thing they were shown was a client-authored "Approve this plan? → create the
+  // Linear issues and trigger Claude Code". The chosen path was not on the list.
+  // Two causes: the closing round was not in the contract at all, and `process`
+  // is `fold_answer_into_recall: false` so the MCP never learns the answer.
+  //
+  // The fix keeps the MCP stateless: OWN the closing round, and let it carry the
+  // dependency on `process` declaratively (MAR-411's `hidden_when`) so the client
+  // filters it against the answer it already holds. Whichever way `process` was
+  // answered, exactly one of the two build/save actions survives — plus the two
+  // always-present escape hatches, so a filter can never empty the round.
+  rounds.push({
+    id: "terminal",
+    question: "Ready to go ahead?",
+    why: "Nothing is created until you pick one — the plan itself writes nowhere.",
+    options: [
+      {
+        id: "build_prompt",
+        label: "Generate the build prompt — Claude Code / Cursor / Codex",
+        description: "Compiles the brief for the route above. A local artifact; nothing is sent.",
+        hidden_when: { round: "process", answer_in: ["save_plan"] },
+      },
+      {
+        id: "save_plan",
+        label: "Save the plan — Linear / Notion / Obsidian",
+        description: "Exports the plan as issues or notes for you to file. Nothing is written for you.",
+        hidden_when: { round: "process", answer_in: ["build_prompt"] },
+      },
+      // Always present: a user who only wanted the plan must be able to stop, and
+      // a user the plan did not serve must be able to say so.
+      {
+        id: "not_yet",
+        label: "Not yet — I just wanted the plan",
+        description: "Stop here. The plan stays in this conversation and nothing is exported.",
+      },
+      {
+        id: "other",
+        label: "Something else",
+        description: "Say what you want instead and the plan is recomputed around it.",
+      },
+    ],
+    // Pure re-projection: the closing action mirrors the ⭐ the `process` round
+    // already carried, so the terminal can never contradict the recommendation.
+    recommended_option_id: recommendedProcess,
+    fold_answer_into_recall: false,
+  });
 
   return {
     contract: "orchestratekit.question_flow.v1",
@@ -5838,7 +5996,12 @@ export function registerPlanWorkflow(server: McpServer): void {
         "summarize it — then present the `question_flow` rounds ONE AT A TIME using your client's " +
         "native clickable choice UI (AskUserQuestion-style chips), marking the recommended option. " +
         "The first response is the card plus round 0 ('Is this correct?') and nothing else; never " +
-        "dump all rounds at once as text. Only when the client has no clickable choice UI, render " +
+        "dump all rounds at once as text. Render each option as its `label` plus its `description` " +
+        "VERBATIM — never write your own sub-text, and never assert anything about the user's " +
+        "existing setup or other agents, which this stateless plan cannot know. Before presenting a " +
+        "round, drop every option whose `hidden_when` matches an answer already given in this " +
+        "session; the last round is always `terminal`, so do not author your own closing or " +
+        "approval prompt. Only when the client has no clickable choice UI, render " +
         "`question_flow.fallback_menu_markdown` as a lettered list instead. " +
         "This tool is the ONLY menu author: append your own analysis freely, but never author a " +
         "second lettered menu or a competing option list of your own. " +

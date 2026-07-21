@@ -340,8 +340,23 @@ export const PlanWorkflowOutputShape = z
             .object({
               id: z.string(),
               question: z.string(),
+              // MAR-413: `description` is the sub-line the client renders under
+              // the chip — shipped so the client has nothing left to invent.
+              // MAR-411: `hidden_when` declares an INCOHERENCE dependency on an
+              // earlier round; the stateless MCP never sees the answers, so the
+              // client applies the filter against what it already collected.
               options: z.array(
-                z.object({ id: z.string(), label: z.string() }).passthrough(),
+                z
+                  .object({
+                    id: z.string(),
+                    label: z.string(),
+                    description: z.string().optional(),
+                    hidden_when: z
+                      .object({ round: z.string(), answer_in: z.array(z.string()) })
+                      .passthrough()
+                      .optional(),
+                  })
+                  .passthrough(),
               ),
               recommended_option_id: z.string().nullable(),
               fold_answer_into_recall: z.boolean(),

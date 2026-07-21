@@ -109,10 +109,13 @@ describe("MAR-401 — recommended picks are re-projections, not fresh inference"
     );
   });
 
-  it("the monitoring round maps the MAR-315 recommendation onto Cowork/LAB/DASH/other", () => {
+  it("the monitoring round maps the MAR-315 recommendation onto Cowork/local logs/DASH/other", () => {
     const r = plan(PRICING);
     const round = r.question_flow.rounds.find((x) => x.id === "monitoring")!;
-    expect(round.options.map((o) => o.id)).toEqual(["cowork", "lab", "dash", "other"]);
+    // MAR-410: `lab` was renamed `local_logs` — LAB is a private program the
+    // user does not have, and `log_to_file` is the DEFAULT recommendation, so
+    // the old id ⭐-pointed every user at software that isn't theirs.
+    expect(round.options.map((o) => o.id)).toEqual(["cowork", "local_logs", "dash", "other"]);
     const monitoring = r.hosting_and_monitoring.monitoring.recommended.id;
     const expected =
       r.hosting_and_monitoring.hosting.recommended.id === "in_client"
@@ -120,9 +123,233 @@ describe("MAR-401 — recommended picks are re-projections, not fresh inference"
         : monitoring === "dash_import"
         ? "dash"
         : monitoring === "log_to_file"
-        ? "lab"
+        ? "local_logs"
         : "other";
     expect(round.recommended_option_id).toBe(expected);
+  });
+});
+
+describe("MAR-410 — no private product names in user-facing option copy", () => {
+  // "LAB" is an internal program; naming it on a chip offers the user software
+  // they cannot get. The generic capability (MAR-315's `log_to_file` label) is
+  // what the plan actually recommends, so name the capability, not the product.
+  const GOALS = [HEAVY_GOAL, ONE_SHOT, PRICING, VAGUE];
+
+  it("no option label anywhere in the flow says LAB", () => {
+    for (const goal of GOALS) {
+      for (const round of plan(goal).question_flow.rounds) {
+        for (const option of round.options) {
+          expect(option.label, `${round.id}/${option.id}`).not.toMatch(/\bLAB\b/);
+          expect(option.description ?? "", `${round.id}/${option.id}`).not.toMatch(/\bLAB\b/);
+        }
+      }
+    }
+  });
+
+  it("the DASH monitoring label no longer carries the LAB Agents module", () => {
+    for (const goal of GOALS) {
+      const hm = plan(goal).hosting_and_monitoring;
+      for (const o of [hm.monitoring.recommended, ...hm.monitoring.alternatives]) {
+        expect(o.label).not.toMatch(/\bLAB\b/);
+      }
+    }
+  });
+
+  it("the local-logs option names the capability, not a product", () => {
+    const round = plan(PRICING).question_flow.rounds.find((x) => x.id === "monitoring")!;
+    const local = round.options.find((o) => o.id === "local_logs")!;
+    expect(local.label.toLowerCase()).toContain("file or table you already have");
+  });
+
+  it("the local build surface reads as an app you get, not a script on a timer", () => {
+    const round = plan(PRICING).question_flow.rounds.find((x) => x.id === "build_surface")!;
+    const local = round.options.find((o) => o.id === "self_host_local")!;
+    expect(local.label.toLowerCase()).toContain("local app");
+  });
+});
+
+describe("MAR-411 — option-level hidden_when keeps later rounds coherent", () => {
+  // plan_workflow is stateless and emits every round in one call, so it cannot
+  // filter downstream options server-side. It declares the dependency instead;
+  // the client applies it against answers it already holds.
+  const GOALS = [HEAVY_GOAL, ONE_SHOT, PRICING, VAGUE];
+
+  it("a self-hosted build hides the 'watch it in the client session' monitoring option", () => {
+    const round = plan(PRICING).question_flow.rounds.find((x) => x.id === "monitoring")!;
+    const cowork = round.options.find((o) => o.id === "cowork")!;
+    expect(cowork.hidden_when).toEqual({
+      round: "build_surface",
+      answer_in: ["self_host_local", "self_host_hosted"],
+    });
+  });
+
+  it("a Cowork build hides the options that need an exported manifest or a durable log", () => {
+    const round = plan(PRICING).question_flow.rounds.find((x) => x.id === "monitoring")!;
+    for (const id of ["local_logs", "dash"]) {
+      const opt = round.options.find((o) => o.id === id)!;
+      expect(opt.hidden_when!.round).toBe("build_surface");
+      expect(opt.hidden_when!.answer_in).toContain("cowork");
+    }
+  });
+
+  it("every hidden_when names a REAL earlier round and real option ids of it", () => {
+    for (const goal of GOALS) {
+      const rounds = plan(goal).question_flow.rounds;
+      for (const [i, round] of rounds.entries()) {
+        for (const option of round.options) {
+          if (!option.hidden_when) continue;
+          const sourceIndex = rounds.findIndex((r) => r.id === option.hidden_when!.round);
+          expect(sourceIndex, `${round.id}/${option.id}`).toBeGreaterThanOrEqual(0);
+          // A dependency on a LATER round is unsatisfiable: the client cannot
+          // filter on an answer it has not collected yet.
+          expect(sourceIndex, `${round.id}/${option.id}`).toBeLessThan(i);
+          const sourceIds = rounds[sourceIndex].options.map((o) => o.id);
+          for (const answer of option.hidden_when.answer_in) {
+            expect(sourceIds, `${round.id}/${option.id}`).toContain(answer);
+          }
+        }
+      }
+    }
+  });
+
+  it("filtering can never empty a round — every round keeps an unconditional option", () => {
+    for (const goal of GOALS) {
+      for (const round of plan(goal).question_flow.rounds) {
+        const unconditional = round.options.filter((o) => !o.hidden_when);
+        expect(unconditional.length, round.id).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("hidden_when never hides the recommended option under its OWN recommendation", () => {
+    // The ⭐ must survive the filter for the answers the plan itself recommends,
+    // or the client would drop the very option the plan pointed at.
+    for (const goal of GOALS) {
+      const rounds = plan(goal).question_flow.rounds;
+      const answers = new Map(rounds.map((r) => [r.id, r.recommended_option_id]));
+      for (const round of rounds) {
+        const rec = round.options.find((o) => o.id === round.recommended_option_id);
+        if (!rec?.hidden_when) continue;
+        const given = answers.get(rec.hidden_when.round);
+        expect(rec.hidden_when.answer_in, `${round.id}/${rec.id}`).not.toContain(given);
+      }
+    }
+  });
+
+  it("scope never gates capability: every fixed-spine option survives at every size", () => {
+    // MAR-386's hard rule. hidden_when expresses INCOHERENCE with an answer,
+    // never task size — so no option's condition may reference scope.
+    const SMALL = "summarize my inbox for me now";
+    const LARGE = HEAVY_GOAL;
+    const idsFor = (goal: string) =>
+      plan(goal)
+        .question_flow.rounds.filter((r) =>
+          ["build_surface", "process", "monitoring", "terminal"].includes(r.id),
+        )
+        .flatMap((r) => r.options.map((o) => `${r.id}/${o.id}`));
+    expect(idsFor(SMALL)).toEqual(idsFor(LARGE));
+  });
+});
+
+describe("MAR-412 — the terminal round is the MCP's, and it honours the process answer", () => {
+  const GOALS = [HEAVY_GOAL, ONE_SHOT, PRICING, VAGUE];
+
+  it("every plan ends with a `terminal` round, at every depth", () => {
+    for (const depth of ["brief", "standard", "technical"] as const) {
+      for (const goal of GOALS) {
+        const rounds = plan(goal, depth).question_flow.rounds;
+        expect(rounds.at(-1)!.id, `${goal} @ ${depth}`).toBe("terminal");
+        // exactly one — the closing round is not duplicated into the spine
+        expect(rounds.filter((r) => r.id === "terminal")).toHaveLength(1);
+      }
+    }
+  });
+
+  it("the terminal recommendation mirrors the process round — never a different deliverable", () => {
+    for (const goal of GOALS) {
+      const rounds = plan(goal).question_flow.rounds;
+      const process = rounds.find((r) => r.id === "process")!;
+      const terminal = rounds.at(-1)!;
+      expect(terminal.recommended_option_id).toBe(process.recommended_option_id);
+    }
+  });
+
+  it("answering process=build_prompt leaves a build-prompt terminal action standing", () => {
+    // The dogfood defect: the user picked "Turn it into a build prompt" and the
+    // closing round offered Linear issues instead. Applying hidden_when against
+    // that answer must leave the build-prompt action, and drop save_plan.
+    const terminal = plan(PRICING).question_flow.rounds.at(-1)!;
+    const survives = (answer: string) =>
+      terminal.options
+        .filter((o) => !(o.hidden_when?.round === "process" && o.hidden_when.answer_in.includes(answer)))
+        .map((o) => o.id);
+
+    expect(survives("build_prompt")).toContain("build_prompt");
+    expect(survives("build_prompt")).not.toContain("save_plan");
+    expect(survives("save_plan")).toContain("save_plan");
+    expect(survives("save_plan")).not.toContain("build_prompt");
+  });
+
+  it("the terminal round keeps its escape hatches under either process answer", () => {
+    const terminal = plan(PRICING).question_flow.rounds.at(-1)!;
+    for (const answer of ["build_prompt", "save_plan"]) {
+      const ids = terminal.options
+        .filter((o) => !(o.hidden_when?.round === "process" && o.hidden_when.answer_in.includes(answer)))
+        .map((o) => o.id);
+      expect(ids).toContain("not_yet");
+      expect(ids).toContain("other");
+      // never empty, and never a single forced button
+      expect(ids.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("the terminal round is honest that nothing has been written yet", () => {
+    const terminal = plan(HEAVY_GOAL).question_flow.rounds.at(-1)!;
+    expect(terminal.why ?? "").toMatch(/nothing is created/i);
+    expect(terminal.fold_answer_into_recall).toBe(false);
+  });
+});
+
+describe("MAR-413 — option descriptions ship grounded, so the client invents none", () => {
+  const GOALS = [HEAVY_GOAL, ONE_SHOT, PRICING, VAGUE];
+  const FIXED_SPINE = ["confirm_card", "build_surface", "process", "monitoring", "terminal"];
+
+  it("every fixed-spine option carries a description", () => {
+    for (const goal of GOALS) {
+      for (const round of plan(goal).question_flow.rounds) {
+        if (!FIXED_SPINE.includes(round.id)) continue;
+        for (const option of round.options) {
+          expect(option.description ?? "", `${round.id}/${option.id}`).not.toBe("");
+        }
+      }
+    }
+  });
+
+  it("no description asserts anything about the user's existing setup", () => {
+    // The dogfood subtitle claimed the choice matched "how your other
+    // OrchestrateKit agents are monitored". The MCP is stateless — it knows of
+    // no other agents — so any such claim is invention, wherever it originates.
+    const FABRICATION = /your (other|existing|current) \w+|already (run|have set|use)\b|as you (do|did)\b/i;
+    for (const goal of GOALS) {
+      for (const round of plan(goal).question_flow.rounds) {
+        for (const option of round.options) {
+          expect(option.description ?? "", `${round.id}/${option.id}`).not.toMatch(FABRICATION);
+        }
+      }
+    }
+  });
+
+  it("descriptions are deterministic — the same goal renders the same prose", () => {
+    const a = plan(PRICING).question_flow.rounds;
+    const b = plan(PRICING).question_flow.rounds;
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  it("the recommended monitoring description states its own limitation", () => {
+    // A ⭐ that only sells itself is how "log to a file" reads as monitoring.
+    const round = plan(PRICING).question_flow.rounds.find((x) => x.id === "monitoring")!;
+    const local = round.options.find((o) => o.id === "local_logs")!;
+    expect(local.description!.toLowerCase()).toContain("nothing alerts you");
   });
 });
 
@@ -135,7 +362,9 @@ describe("MAR-401 — conditional rounds fold in the MAR-225 clarifying question
     const SPINE_COVERED = new Set(["build_surface", "hosting_monitoring", "artifact_target"]);
     const foldable = r.clarifying_questions.filter((q) => !SPINE_COVERED.has(q.id));
     expect(foldable.length).toBeGreaterThan(0);
-    const conditional = r.question_flow.rounds.slice(4);
+    // MAR-412: `terminal` is always last, so the conditional band is slice(4, -1).
+    expect(r.question_flow.rounds.at(-1)!.id).toBe("terminal");
+    const conditional = r.question_flow.rounds.slice(4, -1);
     expect(conditional.map((x) => x.id)).toEqual(foldable.map((q) => q.id));
     // round ids stay unique — the whole point of not double-folding
     const ids = r.question_flow.rounds.map((x) => x.id);
@@ -153,10 +382,17 @@ describe("MAR-401 — conditional rounds fold in the MAR-225 clarifying question
     }
   });
 
-  it("a fully-specified goal has exactly the four fixed rounds (no nagging)", () => {
+  it("a fully-specified goal has exactly the fixed spine + terminal (no nagging)", () => {
     const r = plan(HEAVY_GOAL);
     expect(r.clarifying_questions).toEqual([]);
-    expect(r.question_flow.rounds).toHaveLength(4);
+    // four fixed rounds, no conditionals, plus the MAR-412 terminal round
+    expect(r.question_flow.rounds.map((x) => x.id)).toEqual([
+      "confirm_card",
+      "build_surface",
+      "process",
+      "monitoring",
+      "terminal",
+    ]);
   });
 
   it("a side-effect question keeps its never-default rule (null recommended only when MAR-225 says so)", () => {
