@@ -395,6 +395,9 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
       expectTargetProductCard(r);
       expect(md).toContain("**Route:**");
       expect(md).toContain("**Connections:**");
+      expect(md).toMatch(/Automation clearance L[0-4]:/);
+      expect(md).not.toMatch(/This is L[0-4]/);
+      expect(md).not.toContain("**Connections:** .");
       expect(md.length).toBeLessThanOrEqual(LAYER1_MAX_CHARS);
       expect(md).not.toContain("### Steps");
       expect(md).not.toContain("### Safety review");
@@ -414,6 +417,57 @@ describe("MAR-345 — dogfood prompts feel like a product card, not a report", (
       expect(wizard.clarifying_questions).toEqual(r.clarifying_questions);
     });
   }
+
+  it("grounds scheduled Slack safeguards in the actual plan instead of a price-monitor template", () => {
+    const generic = planWorkflow(
+      {
+        goal:
+          "Every morning, pull yesterday's revenue from Stripe and post a summary to our Slack finance channel.",
+        must_have_capabilities: [],
+        must_avoid: [],
+        output_depth: "brief",
+      },
+      registry,
+    );
+    const priceMonitor = planWorkflow(
+      {
+        goal:
+          "Build an agent that checks 5 competitor pages every morning, detects price changes, and sends me a Slack summary. I want to approve before anything external is changed.",
+        must_have_capabilities: [],
+        must_avoid: [],
+        output_depth: "brief",
+      },
+      registry,
+    );
+
+    expect(generic.summary_markdown).toContain(
+      "Keep the approval gate before Slack alerts",
+    );
+    expect(generic.summary_markdown).not.toMatch(/price-change|price monitor/i);
+    expect(
+      priceMonitor.goal_to_product_wizard.recommended_setup.next_achievable_step,
+    ).toContain("low-risk price-change alerts");
+  });
+
+  it("renders an honest Connections answer even when the route needs no app authorization", () => {
+    const result = planWorkflow(
+      {
+        goal: "Build a refund agent: refund under fifty dollars automatically.",
+        must_have_capabilities: [],
+        must_avoid: [],
+        output_depth: "brief",
+      },
+      registry,
+    );
+    const connectionLine = result.summary_markdown
+      .split("\n")
+      .find((line) => line.startsWith("**Connections:**"));
+
+    expect(connectionLine).toBe(
+      "**Connections:** No external product connection required.",
+    );
+    expect(connectionLine).not.toContain("authorizes its own connection");
+  });
 
   it("MAR-344: exact Gmail dogfood is a clean validated product card", () => {
     const goal =
