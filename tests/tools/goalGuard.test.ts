@@ -48,6 +48,14 @@ describe("plan_workflow tool description — verbatim rendering (MAR-344)", () =
     expect(description).toContain("verbatim");
     expect(description).toContain("summary_markdown");
   });
+
+  it("instructs the calling client to skip a round whose hidden_when matches", async () => {
+    const { tools } = await client.listTools();
+    const tool = tools.find((t) => t.name === "plan_workflow");
+    const description = (tool?.description ?? "").toLowerCase();
+    expect(description).toContain("skip the whole round");
+    expect(description).toContain("its own `hidden_when`");
+  });
 });
 
 describe("plan_workflow needs_goal — handler (MAR-145)", () => {

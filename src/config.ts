@@ -81,11 +81,13 @@ its vocabulary produces worse, less honest plans.
    NOT write your own sub-text under an option. In particular, never assert
    anything about the user's existing setup, tools, or other agents — the
    plan is stateless and knows none of that, so any such sentence is invented.
-3b. Before presenting a round, DROP every option whose \`hidden_when\` matches
-   an answer already given in this session (\`hidden_when.round\` was answered
-   with a value in \`hidden_when.answer_in\`). That option contradicts the
-   choice the user already made. Filtering never empties a round: every round
-   keeps an option with no \`hidden_when\`.
+3b. Before presenting a round, SKIP the whole round when the round's own
+   \`hidden_when\` matches an answer already given in this session
+   (\`hidden_when.round\` was answered with a value in
+   \`hidden_when.answer_in\`). Otherwise, DROP every option whose
+   \`hidden_when\` matches. A match means the question or option contradicts
+   the choice the user already made. Option filtering never empties a presented
+   round: every round keeps an option with no \`hidden_when\`.
 4. Only when your client has NO clickable choice UI, render
    \`question_flow.fallback_menu_markdown\` as the lettered list instead of
    the rounds.
