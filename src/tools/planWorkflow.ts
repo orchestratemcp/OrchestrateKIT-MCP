@@ -746,7 +746,7 @@ export type QuestionFlowOption = {
  */
 export type QuestionFlowRound = {
   /**
-   * `confirm_card` / `build_surface` / `process` / `monitoring` for the fixed
+   * `confirm_card` / `build_surface` / `monitoring` / `terminal` for the fixed
    * spine; conditional rounds reuse the MAR-225 ClarifyingQuestion ids.
    */
   id: string;
@@ -925,8 +925,8 @@ export type PlanWorkflowOutput = {
   /**
    * MAR-401 (GOLD-01): the sequential clickable question flow a client walks
    * one round at a time after rendering the card — confirm the card, pick the
-   * build surface, pick the process, pick monitoring, then any conditional
-   * clarifying rounds. Pure re-projection of the wizard / scope / hosting /
+   * build surface, pick monitoring, then any conditional clarifying rounds and
+   * the terminal deliverable. Pure re-projection of the wizard / scope / hosting /
    * clarifying machinery; stable option ids; deterministic recommended picks.
    */
   question_flow: QuestionFlow;
@@ -3785,17 +3785,15 @@ function recommendedMonitoringSurface(hm: HostingAndMonitoring, buildSurface: st
 /**
  * MAR-401 (GOLD-01): build the sequential question flow.
  *
- * Round order is fixed: confirm_card → build_surface → process → monitoring →
+ * Round order is fixed: confirm_card → build_surface → monitoring →
  * conditional clarifying rounds (MAR-225, folded in with their existing
  * option_ids — no parallel vocabulary) → terminal. Every recommended pick is
  * derived from a field the plan already computed; a clarifying round with no
  * `recommended_option_id` stays null because that fork must never be defaulted.
  *
- * MAR-412: `terminal` is ALWAYS last, and it is the MCP's round — before it
- * existed the client authored its own closing "Approve this plan?" prompt, and
- * that invented round dropped the build prompt the user had picked three rounds
- * earlier. The terminal options carry `hidden_when` against `process`, so the
- * answer the user already gave decides which closing action they are offered.
+ * GOLD-07: `process` was removed because it asked the same save-vs-build fork
+ * as `terminal`. The terminal now owns that decision once, directly, with both
+ * deliverables always available.
  *
  * `fallback_menu_markdown` is the rendered lettered menu
  * (renderProductCardContinueMenu) — the no-choice-UI fallback surface, and the
@@ -3807,10 +3805,8 @@ function buildQuestionFlow(
   clarifyingQuestions: ClarifyingQuestion[],
   goal: string,
 ): QuestionFlow {
-  // One re-projection of the ⭐, reused by BOTH the process round and the
-  // terminal round so the closing action can never contradict the recommendation
-  // the user was given (MAR-412).
-  const recommendedProcess =
+  // One re-projection of the ⭐ for the terminal's save-vs-build decision.
+  const recommendedTerminal =
     wizard.recommended_next_click.id === "generate_linear_project" ? "save_plan" : "build_prompt";
   // Computed once and shared with the monitoring round, so the two ⭐s cannot
   // recommend a pair the `hidden_when` rules call incoherent (MAR-411).
@@ -3866,24 +3862,6 @@ function buildQuestionFlow(
       fold_answer_into_recall: false,
     },
     {
-      id: "process",
-      question: "How do you want to take the plan forward?",
-      options: [
-        {
-          id: "save_plan",
-          label: "Save the plan — Linear / Notion / Obsidian",
-          description: "Exports the plan as tracked work items or notes. Nothing is built yet.",
-        },
-        {
-          id: "build_prompt",
-          label: "Turn it into a build prompt — Claude Code / Cursor / Codex",
-          description: "Exports one brief you paste into a coding agent to implement the route.",
-        },
-      ],
-      recommended_option_id: recommendedProcess,
-      fold_answer_into_recall: false,
-    },
-    {
       id: "monitoring",
       question: "How do you want to watch it once it runs?",
       options: [
@@ -3933,7 +3911,7 @@ function buildQuestionFlow(
   //
   // The three scope-completion ids whose fork the fixed spine ALREADY asks
   // (`build_surface`, `hosting_monitoring`, `artifact_target`) are not folded:
-  // rounds 1–3 above carry those exact decisions, so folding them again would
+  // the fixed spine carries those decisions, so folding them again would
   // ask the user the same fork twice and collide round ids. They stay untouched
   // in `clarifying_questions` (and in the `standard` prose block) for clients
   // on the fallback path.
@@ -3953,17 +3931,10 @@ function buildQuestionFlow(
 
   // MAR-412 — the terminal round, ALWAYS last.
   //
-  // Dogfood 2026-07-21: the user answered `process = build_prompt`, and the last
-  // thing they were shown was a client-authored "Approve this plan? → create the
-  // Linear issues and trigger Claude Code". The chosen path was not on the list.
-  // Two causes: the closing round was not in the contract at all, and `process`
-  // is `fold_answer_into_recall: false` so the MCP never learns the answer.
-  //
-  // The fix keeps the MCP stateless: OWN the closing round, and let it carry the
-  // dependency on `process` declaratively (MAR-411's `hidden_when`) so the client
-  // filters it against the answer it already holds. Whichever way `process` was
-  // answered, exactly one of the two build/save actions survives — plus the two
-  // always-present escape hatches, so a filter can never empty the round.
+  // MAR-412 established that the MCP owns this closing round. GOLD-07 removes
+  // the earlier duplicate `process` fork, so this is now the one place the user
+  // chooses between a build prompt and a saved plan. Both deliverables remain
+  // visible, plus the two escape hatches.
   rounds.push({
     id: "terminal",
     question: "Ready to go ahead?",
@@ -3973,13 +3944,11 @@ function buildQuestionFlow(
         id: "build_prompt",
         label: "Generate the build prompt — Claude Code / Cursor / Codex",
         description: "Compiles the brief for the route above. A local artifact; nothing is sent.",
-        hidden_when: { round: "process", answer_in: ["save_plan"] },
       },
       {
         id: "save_plan",
         label: "Save the plan — Linear / Notion / Obsidian",
         description: "Exports the plan as issues or notes for you to file. Nothing is written for you.",
-        hidden_when: { round: "process", answer_in: ["build_prompt"] },
       },
       // Always present: a user who only wanted the plan must be able to stop, and
       // a user the plan did not serve must be able to say so.
@@ -3994,9 +3963,8 @@ function buildQuestionFlow(
         description: "Say what you want instead and the plan is recomputed around it.",
       },
     ],
-    // Pure re-projection: the closing action mirrors the ⭐ the `process` round
-    // already carried, so the terminal can never contradict the recommendation.
-    recommended_option_id: recommendedProcess,
+    // Pure re-projection of the plan's existing recommended-next-click machinery.
+    recommended_option_id: recommendedTerminal,
     fold_answer_into_recall: false,
   });
 

@@ -803,24 +803,6 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
       },
       {
         "fold_answer_into_recall": false,
-        "id": "process",
-        "options": [
-          {
-            "description": "Exports the plan as tracked work items or notes. Nothing is built yet.",
-            "id": "save_plan",
-            "label": "Save the plan — Linear / Notion / Obsidian",
-          },
-          {
-            "description": "Exports one brief you paste into a coding agent to implement the route.",
-            "id": "build_prompt",
-            "label": "Turn it into a build prompt — Claude Code / Cursor / Codex",
-          },
-        ],
-        "question": "How do you want to take the plan forward?",
-        "recommended_option_id": "build_prompt",
-      },
-      {
-        "fold_answer_into_recall": false,
         "id": "monitoring",
         "options": [
           {
@@ -872,23 +854,11 @@ exports[`MAR-163 — plan_workflow output schema > brief mode conforms + golden 
         "options": [
           {
             "description": "Compiles the brief for the route above. A local artifact; nothing is sent.",
-            "hidden_when": {
-              "answer_in": [
-                "save_plan",
-              ],
-              "round": "process",
-            },
             "id": "build_prompt",
             "label": "Generate the build prompt — Claude Code / Cursor / Codex",
           },
           {
             "description": "Exports the plan as issues or notes for you to file. Nothing is written for you.",
-            "hidden_when": {
-              "answer_in": [
-                "build_prompt",
-              ],
-              "round": "process",
-            },
             "id": "save_plan",
             "label": "Save the plan — Linear / Notion / Obsidian",
           },
@@ -1661,24 +1631,6 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
       },
       {
         "fold_answer_into_recall": false,
-        "id": "process",
-        "options": [
-          {
-            "description": "Exports the plan as tracked work items or notes. Nothing is built yet.",
-            "id": "save_plan",
-            "label": "Save the plan — Linear / Notion / Obsidian",
-          },
-          {
-            "description": "Exports one brief you paste into a coding agent to implement the route.",
-            "id": "build_prompt",
-            "label": "Turn it into a build prompt — Claude Code / Cursor / Codex",
-          },
-        ],
-        "question": "How do you want to take the plan forward?",
-        "recommended_option_id": "build_prompt",
-      },
-      {
-        "fold_answer_into_recall": false,
         "id": "monitoring",
         "options": [
           {
@@ -1730,23 +1682,11 @@ exports[`MAR-163 — plan_workflow output schema > composed plan conforms + gold
         "options": [
           {
             "description": "Compiles the brief for the route above. A local artifact; nothing is sent.",
-            "hidden_when": {
-              "answer_in": [
-                "save_plan",
-              ],
-              "round": "process",
-            },
             "id": "build_prompt",
             "label": "Generate the build prompt — Claude Code / Cursor / Codex",
           },
           {
             "description": "Exports the plan as issues or notes for you to file. Nothing is written for you.",
-            "hidden_when": {
-              "answer_in": [
-                "build_prompt",
-              ],
-              "round": "process",
-            },
             "id": "save_plan",
             "label": "Save the plan — Linear / Notion / Obsidian",
           },
@@ -2675,24 +2615,6 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
       },
       {
         "fold_answer_into_recall": false,
-        "id": "process",
-        "options": [
-          {
-            "description": "Exports the plan as tracked work items or notes. Nothing is built yet.",
-            "id": "save_plan",
-            "label": "Save the plan — Linear / Notion / Obsidian",
-          },
-          {
-            "description": "Exports one brief you paste into a coding agent to implement the route.",
-            "id": "build_prompt",
-            "label": "Turn it into a build prompt — Claude Code / Cursor / Codex",
-          },
-        ],
-        "question": "How do you want to take the plan forward?",
-        "recommended_option_id": "build_prompt",
-      },
-      {
-        "fold_answer_into_recall": false,
         "id": "monitoring",
         "options": [
           {
@@ -2744,23 +2666,11 @@ exports[`MAR-163 — plan_workflow output schema > playbook plan conforms + gold
         "options": [
           {
             "description": "Compiles the brief for the route above. A local artifact; nothing is sent.",
-            "hidden_when": {
-              "answer_in": [
-                "save_plan",
-              ],
-              "round": "process",
-            },
             "id": "build_prompt",
             "label": "Generate the build prompt — Claude Code / Cursor / Codex",
           },
           {
             "description": "Exports the plan as issues or notes for you to file. Nothing is written for you.",
-            "hidden_when": {
-              "answer_in": [
-                "build_prompt",
-              ],
-              "round": "process",
-            },
             "id": "save_plan",
             "label": "Save the plan — Linear / Notion / Obsidian",
           },

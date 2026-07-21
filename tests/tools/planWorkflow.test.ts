@@ -895,7 +895,7 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
   it("scope-completion questions put their real alternatives in front of the user", () => {
     // MAR-392's invariant is "a fork the user never hears about". MAR-401/402
     // split how it is satisfied: the fixed question_flow spine (build_surface /
-    // process / monitoring rounds) carries the scope-completion forks as
+    // monitoring / terminal rounds) carries the scope-completion forks as
     // clickable rounds with option labels of its own, while the `standard`
     // prose block still spells out the original options verbatim for the
     // fallback path.
@@ -905,9 +905,9 @@ describe("planWorkflow — MAR-225 clarifying questions", () => {
 
     // Every scope-completion fork maps onto a spine round the user WILL see.
     const coveringRound: Record<string, string[]> = {
-      build_surface: ["process"],
+      build_surface: ["terminal"],
       hosting_monitoring: ["build_surface", "monitoring"],
-      artifact_target: ["process"],
+      artifact_target: ["terminal"],
     };
     const roundIds = r.question_flow.rounds.map((x) => x.id);
     const std = planStd("Build an email assistant.").summary_markdown;

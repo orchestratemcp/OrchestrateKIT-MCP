@@ -3,7 +3,7 @@
  *
  * plan_workflow's first screen is a card followed by sequential CLICKABLE
  * question rounds. This suite pins the round spine (confirm_card →
- * build_surface → process → monitoring → conditional clarifying rounds), the
+ * build_surface → monitoring → conditional clarifying rounds → terminal), the
  * stable option ids the LAB harness and DASH switch on, and the rule that every
  * recommended pick is a re-projection of machinery the plan already computed —
  * never fresh inference, never drift from the ⭐.
@@ -36,14 +36,13 @@ const PRICING =
 const VAGUE = "go through my inbox and handle the sales leads automatically";
 
 describe("MAR-401 — question_flow round spine", () => {
-  it("every plan carries the four fixed rounds, in order, at every depth", () => {
+  it("every plan carries the fixed pre-terminal rounds, in order, at every depth", () => {
     for (const depth of ["brief", "standard", "technical"] as const) {
       const qf = plan(HEAVY_GOAL, depth).question_flow;
       expect(qf.contract).toBe("orchestratekit.question_flow.v1");
-      expect(qf.rounds.map((r) => r.id).slice(0, 4)).toEqual([
+      expect(qf.rounds.map((r) => r.id).slice(0, 3)).toEqual([
         "confirm_card",
         "build_surface",
-        "process",
         "monitoring",
       ]);
     }
@@ -98,10 +97,15 @@ describe("MAR-401 — recommended picks are re-projections, not fresh inference"
     expect(round.recommended_option_id).toBe(expected);
   });
 
-  it("the process round mirrors recommended_next_click (Linear ⭐ → save_plan)", () => {
+  it("the terminal round mirrors recommended_next_click (Linear ⭐ → save_plan)", () => {
     const r = plan(HEAVY_GOAL);
-    const round = r.question_flow.rounds.find((x) => x.id === "process")!;
-    expect(round.options.map((o) => o.id)).toEqual(["save_plan", "build_prompt"]);
+    const round = r.question_flow.rounds.find((x) => x.id === "terminal")!;
+    expect(round.options.map((o) => o.id)).toEqual([
+      "build_prompt",
+      "save_plan",
+      "not_yet",
+      "other",
+    ]);
     expect(round.recommended_option_id).toBe(
       r.goal_to_product_wizard.recommended_next_click.id === "generate_linear_project"
         ? "save_plan"
@@ -244,14 +248,14 @@ describe("MAR-411 — option-level hidden_when keeps later rounds coherent", () 
     const idsFor = (goal: string) =>
       plan(goal)
         .question_flow.rounds.filter((r) =>
-          ["build_surface", "process", "monitoring", "terminal"].includes(r.id),
+          ["build_surface", "monitoring", "terminal"].includes(r.id),
         )
         .flatMap((r) => r.options.map((o) => `${r.id}/${o.id}`));
     expect(idsFor(SMALL)).toEqual(idsFor(LARGE));
   });
 });
 
-describe("MAR-412 — the terminal round is the MCP's, and it honours the process answer", () => {
+describe("GOLD-07 — the terminal round owns the save-vs-build decision once", () => {
   const GOALS = [HEAVY_GOAL, ONE_SHOT, PRICING, VAGUE];
 
   it("every plan ends with a `terminal` round, at every depth", () => {
@@ -265,42 +269,27 @@ describe("MAR-412 — the terminal round is the MCP's, and it honours the proces
     }
   });
 
-  it("the terminal recommendation mirrors the process round — never a different deliverable", () => {
+  it("the terminal recommendation mirrors recommended_next_click", () => {
     for (const goal of GOALS) {
-      const rounds = plan(goal).question_flow.rounds;
-      const process = rounds.find((r) => r.id === "process")!;
-      const terminal = rounds.at(-1)!;
-      expect(terminal.recommended_option_id).toBe(process.recommended_option_id);
+      const r = plan(goal);
+      const terminal = r.question_flow.rounds.at(-1)!;
+      expect(terminal.recommended_option_id).toBe(
+        r.goal_to_product_wizard.recommended_next_click.id === "generate_linear_project"
+          ? "save_plan"
+          : "build_prompt",
+      );
     }
   });
 
-  it("answering process=build_prompt leaves a build-prompt terminal action standing", () => {
-    // The dogfood defect: the user picked "Turn it into a build prompt" and the
-    // closing round offered Linear issues instead. Applying hidden_when against
-    // that answer must leave the build-prompt action, and drop save_plan.
+  it("offers both deliverables directly, with no dependency on a removed round", () => {
     const terminal = plan(PRICING).question_flow.rounds.at(-1)!;
-    const survives = (answer: string) =>
-      terminal.options
-        .filter((o) => !(o.hidden_when?.round === "process" && o.hidden_when.answer_in.includes(answer)))
-        .map((o) => o.id);
-
-    expect(survives("build_prompt")).toContain("build_prompt");
-    expect(survives("build_prompt")).not.toContain("save_plan");
-    expect(survives("save_plan")).toContain("save_plan");
-    expect(survives("save_plan")).not.toContain("build_prompt");
-  });
-
-  it("the terminal round keeps its escape hatches under either process answer", () => {
-    const terminal = plan(PRICING).question_flow.rounds.at(-1)!;
-    for (const answer of ["build_prompt", "save_plan"]) {
-      const ids = terminal.options
-        .filter((o) => !(o.hidden_when?.round === "process" && o.hidden_when.answer_in.includes(answer)))
-        .map((o) => o.id);
-      expect(ids).toContain("not_yet");
-      expect(ids).toContain("other");
-      // never empty, and never a single forced button
-      expect(ids.length).toBeGreaterThanOrEqual(3);
-    }
+    expect(terminal.options.map((o) => o.id)).toEqual([
+      "build_prompt",
+      "save_plan",
+      "not_yet",
+      "other",
+    ]);
+    expect(terminal.options.every((o) => !o.hidden_when)).toBe(true);
   });
 
   it("the terminal round is honest that nothing has been written yet", () => {
@@ -312,7 +301,7 @@ describe("MAR-412 — the terminal round is the MCP's, and it honours the proces
 
 describe("MAR-413 — option descriptions ship grounded, so the client invents none", () => {
   const GOALS = [HEAVY_GOAL, ONE_SHOT, PRICING, VAGUE];
-  const FIXED_SPINE = ["confirm_card", "build_surface", "process", "monitoring", "terminal"];
+  const FIXED_SPINE = ["confirm_card", "build_surface", "monitoring", "terminal"];
 
   it("every fixed-spine option carries a description", () => {
     for (const goal of GOALS) {
@@ -354,17 +343,17 @@ describe("MAR-413 — option descriptions ship grounded, so the client invents n
 });
 
 describe("MAR-401 — conditional rounds fold in the MAR-225 clarifying questions", () => {
-  it("an under-specified goal appends its foldable clarifying questions as rounds 4+", () => {
+  it("an under-specified goal appends its foldable clarifying questions as rounds 3+", () => {
     const r = plan(VAGUE);
     expect(r.clarifying_questions.length).toBeGreaterThan(0);
     // The three scope-completion forks the fixed spine already asks are NOT
-    // folded again (rounds 1-3 carry them); everything else rides verbatim.
+    // folded again (the fixed rounds carry them); everything else rides verbatim.
     const SPINE_COVERED = new Set(["build_surface", "hosting_monitoring", "artifact_target"]);
     const foldable = r.clarifying_questions.filter((q) => !SPINE_COVERED.has(q.id));
     expect(foldable.length).toBeGreaterThan(0);
-    // MAR-412: `terminal` is always last, so the conditional band is slice(4, -1).
+    // `terminal` is always last, so the conditional band is slice(3, -1).
     expect(r.question_flow.rounds.at(-1)!.id).toBe("terminal");
-    const conditional = r.question_flow.rounds.slice(4, -1);
+    const conditional = r.question_flow.rounds.slice(3, -1);
     expect(conditional.map((x) => x.id)).toEqual(foldable.map((q) => q.id));
     // round ids stay unique — the whole point of not double-folding
     const ids = r.question_flow.rounds.map((x) => x.id);
@@ -385,11 +374,10 @@ describe("MAR-401 — conditional rounds fold in the MAR-225 clarifying question
   it("a fully-specified goal has exactly the fixed spine + terminal (no nagging)", () => {
     const r = plan(HEAVY_GOAL);
     expect(r.clarifying_questions).toEqual([]);
-    // four fixed rounds, no conditionals, plus the MAR-412 terminal round
+    // two setup rounds, no conditionals, plus confirm and terminal
     expect(r.question_flow.rounds.map((x) => x.id)).toEqual([
       "confirm_card",
       "build_surface",
-      "process",
       "monitoring",
       "terminal",
     ]);
