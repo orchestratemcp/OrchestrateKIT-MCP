@@ -102,6 +102,9 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
     expect(wizard.interaction_surface.recommended.limitation).toContain(
       "approve every post or automate low-risk alerts",
     );
+    expect(wizard.recommended_setup.next_achievable_step).toContain(
+      "low-risk price-change alerts",
+    );
     expect(wizard.runtime_alternatives.map((option) => option.runtime_class)).not.toContain(
       "managed_durable_background",
     );
@@ -111,6 +114,17 @@ describe("MAR-378 — corrected runtime-fit wizard", () => {
     );
     expect(result.summary_markdown).not.toContain("Always-on managed runner");
     expect(result.summary_markdown).not.toContain("Use recommended setup");
+  });
+
+  it("keeps price-monitor instructions out of unrelated scheduled Slack plans", () => {
+    const result = plan(
+      "Every morning, pull yesterday's revenue from Stripe and post a summary to our Slack finance channel.",
+    );
+    const nextStep = result.goal_to_product_wizard.recommended_setup.next_achievable_step;
+
+    expect(nextStep).toContain("choose whether Slack posts require approval");
+    expect(nextStep).toContain("durable run history");
+    expect(nextStep).not.toMatch(/price|change-detection/i);
   });
 
   it("Prompt C selects the current client/chat runtime with no background trigger", () => {

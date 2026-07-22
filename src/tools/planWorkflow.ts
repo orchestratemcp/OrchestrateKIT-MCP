@@ -3428,8 +3428,10 @@ function buildPlacementContract(input: {
     : "This product has no runtime installer or Orchestrate Runner; the MCP worker is stateless and must not run customer agents.";
   const nextStep = emailCalendar
     ? `Connect ${connectionNames}, choose a supported durable runtime, and prepare a provider-neutral approval inbox. Keep sending disabled.`
-    : scheduled && slack
+    : scheduled && slack && priceMonitor
     ? `Choose Slack delivery mode (approve every post or automate low-risk price-change alerts), connect ${connectionNames}, then prepare a managed scheduled job with persistent change-detection state.`
+    : scheduled && slack
+    ? `Connect ${connectionNames}, choose whether Slack posts require approval, then prepare a managed scheduled job with durable run history.`
     : interactive
     ? `Connect the selected document source and model provider, then test an attended read-only run in the current client.`
     : `Connect ${connectionNames}, then select and prepare the recommended runtime class.`;
@@ -4901,7 +4903,12 @@ function buildGuidedPlanMarkdown(
         // the safeguard rather than dropped with the block it happened to sit in.
         cardSafeguard += "; sending stays optional and v1 should probably stay draft-only";
       }
-      if (cardRouteIds.has("scheduled_trigger") && cardRouteIds.has("slack_notification")) {
+      const priceMonitor =
+        cardRouteIds.has("scheduled_trigger") &&
+        cardRouteIds.has("page_monitor") &&
+        cardRouteIds.has("slack_notification") &&
+        hasGoalSignal(goal, ["price", "prices", "pricing"]);
+      if (priceMonitor) {
         cardSafeguard =
           "The current plan pauses for approval before each Slack post; choose that, or explicitly allow automatic low-risk price-change alerts";
       }
@@ -4934,7 +4941,10 @@ function buildGuidedPlanMarkdown(
       : clearance.level === "L4"
       ? "human always required"
       : "human-in-the-loop by default";
-  lines.push(`**Risks & safeguards:** ${cardSafeguard}. This is ${clearance.level} ${cardAutoText}.`, ``);
+  lines.push(
+    `**Risks & safeguards:** ${cardSafeguard}. Automation clearance ${clearance.level}: ${cardAutoText}.`,
+    ``,
+  );
 
   // ❌ missing/violated constraint rows stay on the card (MAR-250 honesty
   // keystone); the counts summary + delegated detail render from `standard`.
@@ -4970,8 +4980,13 @@ function buildGuidedPlanMarkdown(
   // MAR-383: names the connections, then states the ONE fact a reader at the
   // decision layer can get wrong — that an existing claude.ai/Cursor grant will
   // carry over. It will not. Scopes and package names stay at technical depth.
+  const cardConnections =
+    connectLine(goal, steps, whatYouNeed, enforcedGates) ||
+    "No external product connection required";
   lines.push(
-    `**Connections:** ${connectLine(goal, steps, whatYouNeed, enforcedGates)}. ${AUTHORIZATION_NOTE_SHORT}.`,
+    cardConnections === "No external product connection required"
+      ? `**Connections:** ${cardConnections}.`
+      : `**Connections:** ${cardConnections}. ${AUTHORIZATION_NOTE_SHORT}.`,
     ``,
   );
 
