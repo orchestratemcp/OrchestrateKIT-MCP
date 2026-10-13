@@ -47,7 +47,7 @@
     "dash:vocab:check:local": "tsx scripts/check-dash-vocabulary-drift.ts --allow-missing"
   },
   "dependencies": {
-    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/client": "^2.2.0",
     "@modelcontextprotocol/node": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "js-yaml": "^4.3.0",
